@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include productivity_next *.css
+recursive-include productivity_next *.csv
+recursive-include productivity_next *.html
+recursive-include productivity_next *.ico
+recursive-include productivity_next *.js
+recursive-include productivity_next *.json
+recursive-include productivity_next *.md
+recursive-include productivity_next *.png
+recursive-include productivity_next *.py
+recursive-include productivity_next *.svg
+recursive-include productivity_next *.txt
+recursive-exclude productivity_next *.pyc
