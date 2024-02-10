@@ -1,0 +1,13 @@
+# Copyright (c) 2023, Finbyz Tech Pvt Ltd and contributors
+# For license information, please see license.txt
+
+import re
+import frappe
+from frappe.model.document import Document
+
+class ScreenScreenshotLog(Document):
+	def validate(self):
+		if not self.ip_address:
+			x_forwarded_for = frappe.get_request_header("X-Forwarded-For", str(frappe.request.headers))
+			self.ip_address = re.search(r"^(.+)", x_forwarded_for).group(1)
+

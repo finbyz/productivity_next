@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestScreenshotLog(FrappeTestCase):
+class TestScreenScreenshotLog(FrappeTestCase):
 	pass

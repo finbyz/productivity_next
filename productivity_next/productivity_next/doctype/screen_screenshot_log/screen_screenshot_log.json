@@ -2,8 +2,8 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2023-11-09 12:18:58.156890",
- "default_view": "List",
+ "creation": "2023-11-09 12:24:10.405245",
+ "default_view": "Image",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -11,22 +11,22 @@
   "naming_series",
   "employee",
   "employee_name",
-  "from_time",
-  "to_time",
-  "column_break_a0cjy",
-  "date",
+  "screenshot",
+  "column_break_btv1x",
+  "active_app",
+  "datetime",
   "computer_name",
   "ip_address"
  ],
  "fields": [
   {
-   "default": "AL-.YY.MM.DD.-",
+   "default": "SL-.YY.MM.DD.-",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": "AL-.YY.MM.DD.-",
-   "reqd": 1
+   "options": "SL-.YY.MM.DD.-",
+   "read_only": 1
   },
   {
    "fieldname": "employee",
@@ -34,6 +34,7 @@
    "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -45,44 +46,49 @@
    "read_only": 1
   },
   {
-   "fieldname": "from_time",
-   "fieldtype": "Datetime",
-   "label": "From Time",
-   "reqd": 1
+   "fieldname": "screenshot",
+   "fieldtype": "Attach Image",
+   "label": "Screenshot",
+   "read_only": 1
   },
   {
-   "fieldname": "to_time",
-   "fieldtype": "Datetime",
-   "label": "To Time",
-   "reqd": 1
-  },
-  {
-   "fieldname": "column_break_a0cjy",
+   "fieldname": "column_break_btv1x",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "date",
-   "fieldtype": "Date",
-   "label": "Date",
+   "fieldname": "active_app",
+   "fieldtype": "Data",
+   "label": "Active App",
+   "read_only": 1
+  },
+  {
+   "default": "now",
+   "fieldname": "datetime",
+   "fieldtype": "Datetime",
+   "label": "DateTime",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "computer_name",
    "fieldtype": "Data",
-   "label": "Computer Name"
+   "label": "Computer Name",
+   "read_only": 1
   },
   {
    "fieldname": "ip_address",
    "fieldtype": "Data",
-   "label": "IP Address"
+   "label": "IP Address",
+   "read_only": 1
   }
  ],
+ "image_field": "screenshot",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-11-09 15:37:05.762559",
+ "modified": "2024-02-07 12:00:53.558039",
  "modified_by": "Administrator",
  "module": "Productivity Next",
- "name": "Application Log",
+ "name": "Screen Screenshot Log",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
@@ -106,7 +112,18 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "Prodcutivity User",
+   "role": "Prodcutivity Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
    "share": 1,
    "write": 1
   }
