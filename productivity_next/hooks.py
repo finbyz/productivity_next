@@ -132,9 +132,11 @@ on_session_creation = "productivity_next.on_session_creation"
 # ---------------
 
 scheduler_events = {
-    "all": [
-        "productivity_next.schedule.checkout_inactive_users",
-    ]
+    "cron": {
+		"*/4 * * * *": [
+			"productivity_next.schedule.checkout_inactive_users",
+		],
+    }
 }
 #	"all": [
 #		"productivity_next.tasks.all"

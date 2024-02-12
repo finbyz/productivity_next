@@ -96,8 +96,8 @@ def get_chart_data(data, filters):
         
 
     chart = {
-        "labels": hour,
         "data": {
+            "labels": hour,
             "datasets": count,
         },
         "type": "bar",
