@@ -24,7 +24,6 @@ def get_last_activity_time_of_user(employee, time):
     
     if application_usage_log_time and application_usage_log_time[0]['time']:
         times.append(application_usage_log_time[0]['time'])
-
     return max(times)
 
 def get_time_difference(current_time):
@@ -47,5 +46,3 @@ def checkout_inactive_users():
             if user := frappe.db.get_value("Employee", row.employee, "user_id"):
                 for obt in frappe.db.get_all("OAuth Bearer Token", {"user": user, "purpose": "productivity_desktop"}):
                     frappe.delete_doc("OAuth Bearer Token", obt.name, ignore_permissions=True)
-            
-

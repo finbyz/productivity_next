@@ -7,7 +7,7 @@ app_description = "Productivity Next"
 app_email = "info@finbyz.com"
 app_license = "GPL 3.0"
 
-on_session_creation = "productivity_next.on_session_creation"
+on_session_creation = "productivity_next.session.on_session_creation"
 
 # Includes in <head>
 # ------------------

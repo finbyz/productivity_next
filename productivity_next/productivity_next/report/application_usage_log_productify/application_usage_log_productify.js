@@ -8,6 +8,11 @@ frappe.query_reports["Application Usage Log Productify"] = {
 			label: __('Employee'),
 			fieldtype: 'Link',
 			options: 'Employee',
+		},
+		{
+			fieldname: 'date',
+			label: __('Date'),
+			fieldtype: 'Date',
 		}
 	]
 };
