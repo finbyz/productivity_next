@@ -6,10 +6,12 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "system_generated",
   "naming_series",
   "employee",
   "time",
-  "status"
+  "status",
+  "employee_name"
  ],
  "fields": [
   {
@@ -40,11 +42,24 @@
    "label": "Naming Series",
    "options": "ACC-.YY.MM.DD.-",
    "read_only": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name"
+  },
+  {
+   "default": "0",
+   "fieldname": "system_generated",
+   "fieldtype": "Check",
+   "label": "System Generated",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-07 11:57:16.431841",
+ "modified": "2024-02-12 10:53:12.359115",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Checkin Checkout",

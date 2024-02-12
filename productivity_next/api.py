@@ -16,26 +16,27 @@ def login(username, password, purpose):
 
 
 @frappe.whitelist()
-def set_application_checkin_checkout(employee, status, time):
+def set_application_checkin_checkout(employee, status, time, system_genereted = False):
     last_status = None
     all_logs = frappe.db.get_list("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation desc", limit=1)
 
     if all_logs:
         last_status = all_logs[0]['status']
-    
-    
+
     if status == "In":
         if last_status == "In":
             doc = frappe.new_doc("Application Checkin Checkout")
             doc.employee = employee
             doc.status = "Out"
             doc.time = time
+            doc.system_genereted = True
             doc.save()
 
         doc = frappe.new_doc("Application Checkin Checkout")
         doc.employee = employee
         doc.status = status
         doc.time = time
+        doc.system_genereted = True
         doc.save()
 
     elif status == "Out":
@@ -44,6 +45,7 @@ def set_application_checkin_checkout(employee, status, time):
             doc.employee = employee
             doc.status = status
             doc.time = time
+            doc.system_genereted = True
             doc.save()
 
     return {"status": last_status}
