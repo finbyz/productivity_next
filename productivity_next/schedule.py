@@ -41,8 +41,7 @@ def checkout_inactive_users():
 
     for row in data:
         if row.time_difference > timedelta(minutes=10):
-            print(row)
-            set_application_checkin_checkout(row.employee, "Out", current_time, True)
             if user := frappe.db.get_value("Employee", row.employee, "user_id"):
+                set_application_checkin_checkout(row.employee, "Out", current_time, 1, user)
                 for obt in frappe.db.get_all("OAuth Bearer Token", {"user": user, "purpose": "productivity_desktop"}):
                     frappe.delete_doc("OAuth Bearer Token", obt.name, ignore_permissions=True)

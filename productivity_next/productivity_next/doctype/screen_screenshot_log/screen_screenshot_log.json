@@ -85,7 +85,7 @@
  "image_field": "screenshot",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-07 12:00:53.558039",
+ "modified": "2024-02-12 15:18:27.588727",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",
@@ -124,8 +124,7 @@
    "read": 1,
    "report": 1,
    "role": "Employee",
-   "share": 1,
-   "write": 1
+   "share": 1
   }
  ],
  "sort_field": "modified",

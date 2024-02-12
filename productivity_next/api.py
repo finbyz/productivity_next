@@ -16,7 +16,7 @@ def login(username, password, purpose):
 
 
 @frappe.whitelist()
-def set_application_checkin_checkout(employee, status, time, system_genereted = False):
+def set_application_checkin_checkout(employee, status, time, system_genereted = 0, user = None):
     last_status = None
     all_logs = frappe.db.get_list("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation desc", limit=1)
 
@@ -29,15 +29,19 @@ def set_application_checkin_checkout(employee, status, time, system_genereted = 
             doc.employee = employee
             doc.status = "Out"
             doc.time = time
-            doc.system_genereted = True
+            doc.system_generated = system_genereted
             doc.save()
+            if system_genereted:
+                doc.db_set("owner", user)
 
         doc = frappe.new_doc("Application Checkin Checkout")
         doc.employee = employee
         doc.status = status
         doc.time = time
-        doc.system_genereted = True
+        doc.system_generated = system_genereted
         doc.save()
+        if system_genereted:
+            doc.db_set("owner", user)
 
     elif status == "Out":
         if last_status == "In":
@@ -45,15 +49,17 @@ def set_application_checkin_checkout(employee, status, time, system_genereted = 
             doc.employee = employee
             doc.status = status
             doc.time = time
-            doc.system_genereted = True
+            doc.system_generated = system_genereted
             doc.save()
+            if system_genereted:
+                doc.db_set("owner", user)
 
     return {"status": last_status}
 
 
 @frappe.whitelist()
 def get_usage_time(employee):
-    all_logs = frappe.db.get_list("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
+    all_logs = frappe.db.get_all("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
 
     usage_time = 0
     last_status = None

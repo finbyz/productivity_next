@@ -9,7 +9,9 @@ def execute(filters=None):
 
     data =get_data_list(filters)
 
-    return columns, data
+    chart=get_chart_data(data)
+
+    return columns, data,None,chart
 
 def get_columns_list():
         return [
@@ -97,3 +99,34 @@ def get_usage_time(employee,date):
     time_consumed=hours+"hrs"+minutes+"min"
     
     return time_consumed
+
+
+def get_chart_data(data):
+    employees = list(set([d.employee_name for d in data]))
+    
+    chart = {
+        "data": {
+            "labels": [],
+            "datasets": [] 
+        },
+        "type": "bar",
+        "fieldtype": "Float",
+        'colors':['#92CAD1']
+    }
+    
+    dates = list(set([d.date for d in data]))
+    dates.sort()
+    
+    chart["data"]["labels"] = dates
+    
+    for emp in employees:
+        values = []
+        for d in data:
+            if d.employee_name == emp:
+                values.append(d.time_consumed.split("hrs")[0])
+                
+        chart["data"]["datasets"].append({
+            "name": emp,
+            "values": values
+        })
+    return chart
