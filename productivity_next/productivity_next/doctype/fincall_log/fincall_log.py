@@ -5,6 +5,7 @@ import frappe
 from frappe.model.document import Document
 import datetime
 from datetime import datetime
+from frappe.utils import get_datetime
 
 
 class FincallLog(Document):
@@ -40,7 +41,7 @@ class FincallLog(Document):
 				self.create_employee_log("Contact", contact)
 	
 	def validate(self):
-		set_date(self)
+		self.set_date()
 		if not self.get("__islocal"):
 			self.save_fincall_log()
 
@@ -92,10 +93,9 @@ class FincallLog(Document):
 			ec_doc.save()
 			self.db_set("employee_fincall_generated", 1)
 
-def set_date(self):
-	datetime_str=frappe.db.get_value("Fincall Log",self.name,"call_datetime")
-	datetime_obj = datetime.strptime(datetime_str, "%d%b%Y%H%M%S")
-	date = datetime_obj.date()
+	def set_date(self):
+		self.date=get_datetime(self.call_datetime).date()
+	
 
 @frappe.whitelist()
 def bg_employee_log_generation():
