@@ -8,7 +8,7 @@ def execute(filters=None):
     columns = get_columns_list()
     data, employee_name_map = get_data_list(filters)
     chart = get_chart_data(data, employee_name_map)
-    data = [row for row in data if row["time_consumed"] != "0hrs0min"]
+    data = [row for row in data if row["time_consumed_hrs"]]
     return columns, data, None, chart
 
 
@@ -86,12 +86,14 @@ def get_data(all_logs):
                     all_logs,
                 )
             )
+            time_consumed, time_consumed_hrs = get_usage_time(filter_logs)
             data.append(
                 frappe._dict(
                     {
                         "date": date,
                         "employee": employee,
-                        "time_consumed": get_usage_time(filter_logs),
+                        "time_consumed": time_consumed,
+                        "time_consumed_hrs": time_consumed_hrs,
                         "employee_name": employee_name_map.get(employee) or "",
                     }
                 )
@@ -118,7 +120,9 @@ def get_usage_time(filter_logs):
 
     time_consumed = hours + "hrs" + minutes + "min"
 
-    return time_consumed
+    time_consumed_hours = round(usage_time / 3600, 4)
+
+    return time_consumed, time_consumed_hours
 
 
 def get_chart_data(data, employee_name_map):
@@ -141,7 +145,7 @@ def get_chart_data(data, employee_name_map):
             {
                 "name": employee_name_map.get(employee),
                 "values": [
-                    row.time_consumed.split("hrs")[0]
+                    row.time_consumed_hrs
                     for row in sorted(
                         filter(
                             lambda row: row["employee"] == employee,
