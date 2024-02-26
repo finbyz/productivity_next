@@ -20,7 +20,8 @@
   "duration",
   "note",
   "raw_log",
-  "call_datetime"
+  "call_datetime",
+  "date"
  ],
  "fields": [
   {
@@ -114,11 +115,16 @@
    "fieldtype": "Select",
    "label": "Naming Series",
    "options": "AL-.YY.MM.DD.-"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-29 17:50:30.146929",
+ "modified": "2024-02-26 16:15:02.200762",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Fincall Log",
