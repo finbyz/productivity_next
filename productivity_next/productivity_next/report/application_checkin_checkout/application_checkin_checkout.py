@@ -27,7 +27,12 @@ def get_columns_list():
             "fieldtype": "Data",
             "width": 150,
         },
-        {"label": _("Date"), "fieldname": "date", "fieldtype": "Date", "width": 150},
+        {
+            "label": _("Date"),
+            "fieldname": "date",
+            "fieldtype": "Date",
+            "width": 150,
+        },
         {
             "label": _("Time Consumed"),
             "fieldname": "time_consumed",

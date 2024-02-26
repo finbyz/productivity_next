@@ -120,13 +120,12 @@ on_session_creation = "productivity_next.session.on_session_creation"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-#	"*": {
-#		"on_update": "method",
-#		"on_cancel": "method",
-#		"on_trash": "method"
-#	}
-# }
+doc_events = {
+	"Bulk Fincall Log": {
+		"validate": "productivity_next.productivity_next.doc_events.bulk_fincall_log.validate",
+		
+	}
+}
 
 # Scheduled Tasks
 # ---------------
