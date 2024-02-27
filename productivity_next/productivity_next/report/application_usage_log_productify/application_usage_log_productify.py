@@ -5,6 +5,8 @@ from datetime import datetime,time
 def execute(filters=None):
     if filters.get("employee") and filters.get("date"):
         columns = ["Hour", "Count", "Fincall Count","Activity Count"]
+    elif not filters.get("employee") and filters.get("date"):
+        columns = ["Hour","User ID","Count", "Fincall Count","Activity Count"]
     else:
         columns = ["Date", "Count", "Fincall Count","Activity Count"]
     data = get_data(filters)
@@ -69,6 +71,72 @@ def get_data(filters):
 
         data = combine_hourly_data(data)
 
+        return data
+    
+    elif not filters.get("employee") and filters.get("date"):
+        input_date = filters.get('date')
+        date_obj = datetime.strptime(input_date, '%Y-%m-%d')
+        date = date_obj.strftime('%Y-%m-%d')
+        data = frappe.db.sql(
+        f"""
+        SELECT HOUR(aul.from_time) AS hour, COUNT(*) AS count, emp.user_id AS user_id
+        FROM `tabApplication Usage log` aul
+        INNER JOIN `tabEmployee` emp ON aul.employee = emp.name
+        WHERE DATE(aul.from_time) = '{date}'
+        GROUP BY HOUR(aul.from_time), aul.employee
+        """,
+        as_dict=1,
+    )
+
+        data += frappe.db.sql(
+            f"""
+                SELECT HOUR(fl.call_datetime) AS hour, COUNT(*) AS fincall_count, emp.user_id AS user_id
+                FROM `tabFincall Log` fl
+                INNER JOIN `tabEmployee` emp ON fl.employee = emp.name
+                WHERE DATE(fl.call_datetime) = '{date}'
+                GROUP BY HOUR(fl.call_datetime), fl.employee
+
+            """,
+                as_dict=1,
+            )
+
+        data += frappe.db.sql(
+                f"""
+                    SELECT HOUR(creation) as hour, count(*) as activity_count, owner as person
+                    FROM
+                        `tabVersion` WHERE DATE(creation) = '{date}'
+                    GROUP BY
+                        HOUR(creation),owner
+                """,
+                as_dict=1,
+            )
+
+        def combine_hourly_data(data):
+            combined_data = {}
+            for item in data:
+                hour = item["hour"]
+                user_id = item.get("user_id", "unknown") 
+                if hour not in combined_data:
+                    combined_data[hour] = {}
+
+                if user_id not in combined_data[hour]:
+                    combined_data[hour][user_id] = {"count": 0, "fincall_count": 0, "activity_count": 0}
+
+                combined_data[hour][user_id]["count"] += item.get("count", 0)
+                combined_data[hour][user_id]["fincall_count"] += item.get("fincall_count", 0)
+                combined_data[hour][user_id]["activity_count"] += item.get("activity_count", 0)
+
+            combined_list = []
+            for hour, users in combined_data.items():
+                for user_id, counts in users.items():
+                    combined_list.append({
+                        "hour": hour,
+                        "user_id": user_id,
+                        **counts  
+                    })
+            return combined_list
+
+        data = combine_hourly_data(data)
         return data
 
     else:
@@ -244,6 +312,81 @@ def get_chart_data(data, filters):
                     "stacked": 1,
                 },
             }
+        
+    elif not filters.get("employee") and filters.get("date"):
+        input_date = filters.get('date')
+        date_obj = datetime.strptime(input_date, '%Y-%m-%d')
+        date = date_obj.strftime('%Y-%m-%d')
+        data = frappe.db.sql(
+        f"""
+        SELECT HOUR(aul.from_time) AS hour, COUNT(*) AS count, emp.user_id AS user_id
+        FROM `tabApplication Usage log` aul
+        INNER JOIN `tabEmployee` emp ON aul.employee = emp.name
+        WHERE DATE(aul.from_time) = '{date}'
+        GROUP BY HOUR(aul.from_time), aul.employee
+        """,
+        as_dict=1,
+        )
+
+        data += frappe.db.sql(
+            f"""
+                SELECT HOUR(fl.call_datetime) AS hour, COUNT(*) AS fincall_count, emp.user_id AS user_id
+                FROM `tabFincall Log` fl
+                INNER JOIN `tabEmployee` emp ON fl.employee = emp.name
+                WHERE DATE(fl.call_datetime) = '{date}'
+                GROUP BY HOUR(fl.call_datetime), fl.employee
+
+            """,
+                as_dict=1,
+            )
+
+        data += frappe.db.sql(
+                f"""
+                    SELECT HOUR(creation) as hour, count(*) as activity_count, owner as person
+                    FROM
+                        `tabVersion` WHERE DATE(creation) = '{date}'
+                    GROUP BY
+                        HOUR(creation),owner
+                """,
+                as_dict=1,
+            )
+        
+        def combine_hourly_data_for_chart(data):
+            combined_data = {}
+            
+            for item in data:
+                hour = item["hour"]
+                user_id = item.get("user_id", "unknown")
+                if hour not in combined_data:
+                    combined_data[hour] = {}
+                if user_id not in combined_data[hour]:
+                    combined_data[hour][user_id] = 0 
+                combined_data[hour][user_id] += sum(item.get(k, 0) for k in ["count", "fincall_count", "activity_count"])
+            chart_dataset = {"labels": [], "datasets": []}
+            user_ids = set()
+            for hour, users in combined_data.items():
+                chart_dataset["labels"].append(hour)
+                for user_id in users:
+                    user_ids.add(user_id)
+
+            for user_id in user_ids:
+                chart_dataset["datasets"].append({"name": user_id, "values": [0] * len(chart_dataset["labels"])})
+
+            for i, hour in enumerate(chart_dataset["labels"]):
+                for dataset in chart_dataset["datasets"]:
+                    user_id = dataset["name"]
+                    dataset["values"][i] = combined_data[hour].get(user_id, 0)
+
+            return {
+                "title": "Chart On The Basis of User Usage",
+                "data": chart_dataset,
+                "type": "bar",
+                "height": 200,
+                "barOptions": {"stacked": True},
+            }
+        chart_data = combine_hourly_data_for_chart(data) 
+        return chart_data  
+
     else:
         condition1 = ""
         condition2 = ""
@@ -344,122 +487,3 @@ def get_chart_data(data, filters):
             "title":"This shows no of activities user performed throughout the day.",
             "height": 500,
         }
-
-
-# data = frappe.db.sql(
-# f"""
-# SELECT (date) as date, count(*) as count
-# FROM `tabApplication Usage log`
-# GROUP BY date
-# """,
-# as_dict=1,
-# )
-
-# data += frappe.db.sql(
-# f"""
-#     SELECT DATE(call_datetime) as date, count(*) as fincall_count
-#     FROM `tabFincall Log`
-#     GROUP BY DATE(call_datetime)
-# """,
-# as_dict=1,
-# )
-
-# data += frappe.db.sql(
-#     f"""
-#         SELECT DATE(creation) as date, count(*) as activity_count
-#         FROM
-#             `tabVersion`
-#         GROUP BY
-#             DATE(creation)
-#     """,
-#     as_dict=1,
-# )
-
-# def combine_hourly_data(data):
-#     combined_data = {}
-#     for item in data:
-#         date = item["date"]
-#         if date not in combined_data:
-#             combined_data[date] = {
-#                 "date": date,
-#                 "count": 0,
-#                 "fincall_count": 0,
-#                 "activity_count":0
-#             }
-#         combined_data[date]["count"] += item.get("count", 0)
-#         combined_data[date]["fincall_count"] += item.get("fincall_count", 0)
-#         combined_data[date]["activity_count"] += item.get("activity_count", 0)
-#     combined_list = list(combined_data.values())
-#     return combined_list
-
-# data = combine_hourly_data(data)
-
-# date = []
-# chart_dataset = []
-# count = []
-# fincall_count = []
-# activity_count = []
-# for x in data:
-#     date.append(x["date"])
-#     count.append(x["count"])
-#     fincall_count.append(x["fincall_count"])
-#     activity_count.append(x["activity_count"])
-#     dataset = {
-#         "date": x["date"],
-#         "count": x["count"],
-#         "fincall_count": x["fincall_count"],
-#         "activity_count":x["activity_count"]
-#     }
-#     chart_dataset.append(dataset)
-    
-
-# data = frappe.db.sql(
-#             f"""
-#             SELECT (date) as date, count(*) as count
-#             FROM `tabApplication Usage log`
-#             WHERE date >= CURDATE() - INTERVAL 1 YEAR
-#             GROUP BY date
-#         """,
-#             as_dict=1,
-#         )
-
-# data += frappe.db.sql(
-#     f"""
-#         SELECT DATE(call_datetime) as date, count(*) as fincall_count
-#         FROM `tabFincall Log`
-#         WHERE DATE(call_datetime) >= CURDATE() - INTERVAL 1 YEAR
-#         GROUP BY DATE(call_datetime)
-#     """,
-#     as_dict=1,
-# )
-
-# data += frappe.db.sql(
-#         f"""
-#             SELECT DATE(creation) as date, count(*) as activity_count
-#             FROM
-#                 `tabVersion`
-#             WHERE DATE(creation) >= CURDATE() - INTERVAL 1 YEAR
-#             GROUP BY
-#                 DATE(creation)
-#         """,
-#         as_dict=1,
-#     )
-
-# def combine_hourly_data(data):
-#     combined_data = {}
-#     for item in data:
-#         date = item["date"]
-#         if date not in combined_data:
-#             combined_data[date] = {
-#                 "date": date,
-#                 "count": 0,
-#                 "fincall_count": 0,
-#                 "activity_count":0
-#             }
-#         combined_data[date]["count"] += item.get("count", 0)
-#         combined_data[date]["fincall_count"] += item.get("fincall_count", 0)
-#         combined_data[date]["activity_count"] += item.get("activity_count", 0)
-#     combined_list = list(combined_data.values())
-#     return combined_list
-
-# data = combine_hourly_data(data)
