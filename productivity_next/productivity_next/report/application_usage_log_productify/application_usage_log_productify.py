@@ -1,5 +1,6 @@
 import frappe
 from frappe import _
+from datetime import datetime
 
 def execute(filters=None):
     if filters.get("employee") and filters.get("date"):
@@ -19,8 +20,11 @@ def get_data(filters):
             condition = f"WHERE employee = '{filters.get('employee')}' and date = '{filters.get('date')}'"
 
         if filters and filters.get("employee"):
+            input_date = filters.get('date')
+            date_obj = datetime.strptime(input_date, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%Y-%m-%d')
             email = frappe.db.get_value("Employee",filters.get('employee'),"company_email")
-            condition2 = f"WHERE owner = '{email}'"
+            condition2 = f"WHERE owner = '{email}' and Date(creation) = '{formatted_date}'"
 
         data = frappe.db.sql(
             f"""
@@ -93,8 +97,11 @@ def get_chart_data(data, filters):
             condition = f"WHERE employee = '{filters.get('employee')}' and date = '{filters.get('date')}'"
 
         if filters and filters.get("employee"):
+            input_date = filters.get('date')
+            date_obj = datetime.strptime(input_date, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%Y-%m-%d')
             email = frappe.db.get_value("Employee",filters.get('employee'),"company_email")
-            condition2 = f"WHERE owner = '{email}'"
+            condition2 = f"WHERE owner = '{email}' and Date(creation) = '{formatted_date}'"
 
             data = frappe.db.sql(
                 f"""
@@ -213,6 +220,3 @@ def get_chart_data(data, filters):
             "title":"This shows no of activities user performed throughout the day.",
             "height": 500,
         }
-    
-
-
