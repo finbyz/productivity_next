@@ -135,7 +135,10 @@ scheduler_events = {
 		"*/4 * * * *": [
 			"productivity_next.schedule.checkout_inactive_users",
 		],
-    }
+    },
+    "Daily": {
+        "productivity_next.schedule.delete_older_screenshots",
+	}
 }
 #	"all": [
 #		"productivity_next.tasks.all"

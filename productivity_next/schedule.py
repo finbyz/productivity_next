@@ -45,3 +45,13 @@ def checkout_inactive_users():
                 set_application_checkin_checkout(row.employee, "Out", current_time, 1, user)
                 for obt in frappe.db.get_all("OAuth Bearer Token", {"user": user, "purpose": "productivity_desktop"}):
                     frappe.delete_doc("OAuth Bearer Token", obt.name, ignore_permissions=True)
+
+def delete_older_screenshots():
+    delete_files_before = frappe.db.get_single_value("Application Log Settings", "delete_files_before_days") or 15
+    current_date = get_datetime().replace(microsecond=0, hour=0, minute=0, second=0)
+    to_datetime = current_date - timedelta(days=delete_files_before)
+
+    screenshot_logs = frappe.db.get_all("Screen Screenshot Log", filters={"creation": ["<", to_datetime]}, pluck='name')
+
+    for row in screenshot_logs:
+        frappe.delete_doc("Screen Screenshot Log", row)

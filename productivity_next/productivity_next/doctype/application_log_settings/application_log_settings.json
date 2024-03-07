@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-03-07 11:44:17.244018",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "delete_files_before_days"
+ ],
+ "fields": [
+  {
+   "default": "15",
+   "fieldname": "delete_files_before_days",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Delete Files Before Days",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-03-07 11:44:45.864986",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Application Log Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
