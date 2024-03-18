@@ -12,7 +12,7 @@ frappe.ui.form.on('Phone Reconciliation', {
 			);
 			frm.change_custom_button_type('Get Unreconciled Numbers', null, 'primary');
 		}
-		if (frm.doc.call_details[0]){
+		if (frm.doc.phone_reconciliation_call[0]){
 			frm.add_custom_button(__('Allocate'), () =>
 				frm.trigger("allocate_phones")
 			);
@@ -38,7 +38,7 @@ frappe.ui.form.on('Phone Reconciliation', {
 				r.message.forEach(function(i){
 					cur_frm.get_field("phone_reconciliation_call").grid.grid_rows[parseInt(i)].remove()
 				})
-				frappe.msgprint("Contact has been allocated.")
+				// frappe.msgprint("Contact has been allocated.")
 				cur_frm.refresh_fields("phone_reconciliation_call");
 				cur_frm.refresh_fields("phone_reconciliation_allocation");
 				frm.refresh();
@@ -52,14 +52,17 @@ frappe.ui.form.on('Phone Reconciliation', {
 		frm.refresh();
 	}
 });
-
-cur_frm.fields_dict.call_details.grid.get_field("party_type").get_query = function(doc) {
-	return {
-		filters: {
-			"name": ["in", ["Customer", "Supplier", "Lead"]]
-		}
-	}
-};
+if (cur_frm && cur_frm.fields_dict['phone_reconciliation_call'] && cur_frm.fields_dict['phone_reconciliation_call'].grid) {
+    cur_frm.fields_dict['phone_reconciliation_call'].grid.get_field("party_type").get_query = function(doc) {
+        return {
+            filters: {
+                "name": ["in", ["Customer", "Supplier", "Lead"]]
+            }
+        };
+    };
+} else {
+    console.log("The field 'phone_reconciliation_call' is not initialized yet.");
+}
 
 frappe.ui.form.on('Phone Reconciliation Call', {
 	contact: function(frm) {
@@ -69,60 +72,98 @@ frappe.ui.form.on('Phone Reconciliation Call', {
 		let d = locals[cdt][cdn]
 
 		let fields = [
-			{
-				label: __("Client Detail"),
-				fieldtype:'Data',
-				fieldname: 'client',
-				default: d.client_details,
-				read_only: 1,
-			},
-			{fieldtype:'Section Break'},
-			{
-				label: __("Party Type"),
-				fieldtype:'Link',
-				options: "DocType",
-				fieldname: 'party_type',
-				default: d.party_type,
-				get_query: function(){
-					return {
-						filters: {
-							"name": ["in", ["Customer", "Supplier", "Lead"]]
-						}
-					}
-				},
-				reqd: 1
-			},
-			{
-				label: __("First Name"),
-				fieldtype:'Data',
-				fieldname: 'first_name',
-				default: d.first_name,
-				reqd: 1
-			},
-			{
-				label: __("Salutation"),
-				fieldtype:'Link',
-				fieldname: 'salutation',
-				options: "Salutation",
-				default: d.salutation,
-			},
-			{fieldtype:'Column Break'},
-			{
-				label: __("Party"),
-				fieldtype:'Dynamic Link',
-				options: "party_type",
-				fieldname: 'party',
-				default: d.party,
-				reqd: 1
-			},
-			{
-				label: __("Last Name"),
-				fieldtype:'Data',
-				fieldname: 'last_name',
-				default: d.last_name,
-			}
-			
-		];
+            {
+                label: __("Client No"),
+                fieldtype: 'Data',
+                fieldname: 'client_no',
+				default: d.client_no,
+            },
+            {
+                label: __("Is Primary Mobile"),
+                fieldtype: 'Check',
+                fieldname: 'is_primary_mobile_no',
+                default: 1,
+            },
+            {
+                label: __("Is Primary Phone"),
+                fieldtype: 'Check',
+                fieldname: 'is_primary_phone',
+            },
+            {
+                label: __("Client Email"),
+                fieldtype: 'Data',
+                fieldname: 'client_email',
+            },
+            {
+                label: __("Is primary Email"),
+                fieldtype: 'Check',
+                fieldname: 'is_primary_email',
+                default: 1,
+            },
+            {fieldtype: 'Section Break'},
+            {
+                label: __("Update Existing Contact"),
+                fieldtype: 'Check',
+                fieldname: 'update_existing_client',
+            },
+            {
+                label: __("Update Contact"),
+                fieldtype: 'Link',
+                options: "Contact",
+                depends_on: 'eval:doc.update_existing_client',
+                fieldname: 'update_client',
+				default: d.contact, 
+            },
+            {fieldtype: 'Section Break'},
+            {
+                label: __("Party Type"),
+                fieldtype: 'Link',
+                options: "DocType",
+                fieldname: 'party_type',
+                depends_on: 'eval:!doc.update_existing_client',
+                default: d.party_type,
+                get_query: function() {
+                    return {
+                        filters: {
+                            "name": ["in", ["Customer", "Supplier", "Lead"]]
+                        }
+                    };
+                },
+                reqd: 1,
+                mandatory_depends_on: 'eval:!doc.update_existing_client'
+            },
+            {
+                label: __("First Name"),
+                fieldtype: 'Data',
+                fieldname: 'first_name',
+                reqd: 1,
+                depends_on: 'eval:!doc.update_existing_client',
+                mandatory_depends_on: 'eval:!doc.update_existing_client'
+            },
+            {
+                label: __("Salutation"),
+                fieldtype: 'Link',
+                fieldname: 'salutation',
+                options: "Salutation",
+                depends_on: 'eval:!doc.update_existing_client',
+            },
+            {fieldtype: 'Column Break'},
+            {
+                label: __("Party"),
+                fieldtype: 'Dynamic Link',
+                options: "party_type",
+                fieldname: 'party',
+                depends_on: 'eval:!doc.update_existing_client',
+                reqd: 1,
+                mandatory_depends_on: 'eval:!doc.update_existing_client'
+            },
+            {
+                label: __("Last Name"),
+                fieldtype: 'Data',
+                fieldname: 'last_name',
+                depends_on: 'eval:!doc.update_existing_client',
+            }
+        ];
 
 		if (!d.contact_created && !d.ignore_contact){
 			d.dialog = new frappe.ui.Dialog({
@@ -131,22 +172,58 @@ frappe.ui.form.on('Phone Reconciliation Call', {
 			});
 			d.dialog.set_primary_action(__("Create"), function(){
 				d.values = d.dialog.get_values();
+				if (d.values.update_existing_client){
+                    frappe.call({
+                        method: 'productivity_next.productivity_next.doctype.phone_reconciliation.phone_reconciliation.update_contact',
+                        args: {
+                            client_email: d.values.client_email || 0,
+                            client_no: d.values.client_no || 0,
+                            update_client: d.values.update_client,
+                            is_primary_phone: d.values.is_primary_phone,
+                            is_primary_email: d.values.is_primary_email,
+                            is_primary_mobile_no: d.values.is_primary_mobile_no,
+                        },
+                        callback: (r) => {
+							var allocation_table = cur_frm.add_child("phone_reconciliation_allocation");
+							allocation_table.employee=d.employee
+							allocation_table.employee_name = d.employee_name
+							allocation_table.client_details = d.values.client
+							allocation_table.client_no = d.client_no
+							allocation_table.contact = d.values.update_client
+							allocation_table.employee=d.employee
+
+							cur_frm.get_field("phone_reconciliation_call").grid.grid_rows[parseInt(d.idx - 1)].remove()
+							cur_frm.refresh_fields("phone_reconciliation_call");
+							cur_frm.refresh_fields("phone_reconciliation_allocation");
+							d.dialog.hide();
+							frappe.msgprint("Contact has been updated.")
+							frm.refresh();
+						}
+                    });
+				}
+				else{
 				frappe.call({ 
-					method: 'productivity_next.productivity_next.productivity_next.doctype.phone_reconciliation.phone_reconciliation.create_contact',
+					method: 'productivity_next.productivity_next.doctype.phone_reconciliation.phone_reconciliation.create_contact',
 					args: {
-						client_no: d.mobile_no,
+						client_email: d.values.client_email || 0,
+						is_primary_email: d.values.is_primary_email,
+						client_no: d.client_no || 0,
 						first_name : d.values.first_name,
 						party_type: d.values.party_type,
 						party: d.values.party,
 						last_name: d.values.last_name,
+						is_primary_mobile_no: d.values.is_primary_mobile_no,
+						is_primary_phone: d.values.is_primary_phone,
 						salutation: d.values.salutation
 					},
 					callback: (r) => {
+						console.log(r.message)
 						var allocation_table = cur_frm.add_child("phone_reconciliation_allocation");
-						allocation_table.employee=d.employee
+						console.log(allocation_table)
+						// allocation_table.employee=d.employee
 						allocation_table.employee_name = d.employee_name
 						allocation_table.client_details = d.values.client
-						allocation_table.mobile_no = d.mobile_no
+						allocation_table.client_no = d.client_no
 						allocation_table.contact = r.message
 						allocation_table.employee=d.employee
 						allocation_table.party_type = d.values.party_type
@@ -162,6 +239,7 @@ frappe.ui.form.on('Phone Reconciliation Call', {
 						frm.refresh();
 					}
 				})
+			}
 			});
 			d.dialog.show();
 		}
@@ -174,15 +252,15 @@ frappe.ui.form.on('Phone Reconciliation Call', {
 				function() {
 					frappe.call({
 						method:
-						"productivity_next.productivity_next.productivity_next.doctype.phone_reconciliation.phone_reconciliation.ignore_contact",
-						args: {client_no: d.mobile_no},
+						"productivity_next.productivity_next.doctype.phone_reconciliation.phone_reconciliation.ignore_contact",
+						args: {client_no: d.client_no},
 						callback: function(data){
 							if(!data.exc){
 								var allocation_table = cur_frm.add_child("phone_reconciliation_allocation");
 								allocation_table.employee=d.employee
 								allocation_table.employee_name = d.employee_name
 								allocation_table.client_details = d.client_details
-								allocation_table.mobile_no = d.mobile_no
+								allocation_table.client_no = d.client_no
 								allocation_table.employee=d.employee
 								allocation_table.ignore_contact = d.ignore_contact
 								
