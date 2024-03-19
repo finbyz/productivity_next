@@ -12,6 +12,8 @@ def execute(filters=None):
     data = get_data(filters)
 
     chart = get_chart_data(data, filters)
+    # data= sorted(data, key=lambda x: datetime.strptime(x['date'], '%Y-%m-%d'), reverse=True)
+    # frappe.msgprint(data)
     return columns, data, None, chart
 
 def get_data(filters):
@@ -33,6 +35,7 @@ def get_data(filters):
             SELECT HOUR(from_time) as hour, count(*) as count
             FROM `tabApplication Usage log` {condition}
             GROUP BY HOUR(from_time)
+            order by date desc
         """,
             as_dict=1,
         )
@@ -42,6 +45,7 @@ def get_data(filters):
                 SELECT HOUR(call_datetime) as hour, count(*) as fincall_count
                 FROM `tabFincall Log` {condition}
                 GROUP BY HOUR(call_datetime)
+                order by date desc
             """,
             as_dict=1,
         )
@@ -84,6 +88,7 @@ def get_data(filters):
         INNER JOIN `tabEmployee` emp ON aul.employee = emp.name
         WHERE DATE(aul.from_time) = '{date}'
         GROUP BY HOUR(aul.from_time), aul.employee
+        order by date aul.date desc
         """,
         as_dict=1,
     )
@@ -95,7 +100,7 @@ def get_data(filters):
                 INNER JOIN `tabEmployee` emp ON fl.employee = emp.name
                 WHERE DATE(fl.call_datetime) = '{date}'
                 GROUP BY HOUR(fl.call_datetime), fl.employee
-
+                order by fl.date desc
             """,
                 as_dict=1,
             )
@@ -115,16 +120,17 @@ def get_data(filters):
             combined_data = {}
             for item in data:
                 hour = item["hour"]
-                user_id = item.get("user_id", "unknown") 
-                if hour not in combined_data:
-                    combined_data[hour] = {}
+                user_id = item.get("user_id", "") 
+                if user_id:
+                    if hour not in combined_data:
+                        combined_data[hour] = {}
 
-                if user_id not in combined_data[hour]:
-                    combined_data[hour][user_id] = {"count": 0, "fincall_count": 0, "activity_count": 0}
+                    if user_id not in combined_data[hour]:
+                        combined_data[hour][user_id] = {"count": 0, "fincall_count": 0, "activity_count": 0}
 
-                combined_data[hour][user_id]["count"] += item.get("count", 0)
-                combined_data[hour][user_id]["fincall_count"] += item.get("fincall_count", 0)
-                combined_data[hour][user_id]["activity_count"] += item.get("activity_count", 0)
+                    combined_data[hour][user_id]["count"] += item.get("count", 0)
+                    combined_data[hour][user_id]["fincall_count"] += item.get("fincall_count", 0)
+                    combined_data[hour][user_id]["activity_count"] += item.get("activity_count", 0)
 
             combined_list = []
             for hour, users in combined_data.items():
@@ -158,6 +164,7 @@ def get_data(filters):
             SELECT (date) as date, count(*) as count
             FROM `tabApplication Usage log` {condition1}
             GROUP BY date
+            order by date
         """,
             as_dict=1,
         )
@@ -168,6 +175,7 @@ def get_data(filters):
                 FROM `tabFincall Log`
                 {condition2}
                 GROUP BY DATE(call_datetime)
+                order by date
             """,
             as_dict=1,
         )
@@ -202,6 +210,7 @@ def get_data(filters):
             return combined_list
 
         data = combine_hourly_data(data)
+        data= sorted(data, key=lambda x: x['date'], reverse=True)
         return data
 
 
@@ -335,7 +344,6 @@ def get_chart_data(data, filters):
                 INNER JOIN `tabEmployee` emp ON fl.employee = emp.name
                 WHERE DATE(fl.call_datetime) = '{date}'
                 GROUP BY HOUR(fl.call_datetime), fl.employee
-
             """,
                 as_dict=1,
             )
@@ -356,12 +364,13 @@ def get_chart_data(data, filters):
             
             for item in data:
                 hour = item["hour"]
-                user_id = item.get("user_id", "unknown")
-                if hour not in combined_data:
-                    combined_data[hour] = {}
-                if user_id not in combined_data[hour]:
-                    combined_data[hour][user_id] = 0 
-                combined_data[hour][user_id] += sum(item.get(k, 0) for k in ["count", "fincall_count", "activity_count"])
+                user_id = item.get("user_id", "")
+                if user_id:
+                    if hour not in combined_data:
+                        combined_data[hour] = {}
+                    if user_id not in combined_data[hour]:
+                        combined_data[hour][user_id] = 0 
+                    combined_data[hour][user_id] += sum(item.get(k, 0) for k in ["count", "fincall_count", "activity_count"])
             chart_dataset = {"labels": [], "datasets": []}
             user_ids = set()
             for hour, users in combined_data.items():
