@@ -137,7 +137,7 @@ class PhoneReconciliation(Document):
         return sorted(remove_rows)
 
 @frappe.whitelist()
-def update_contact(client_email, client_no, update_client, is_primary_phone, is_primary_email, is_primary_mobile_no):
+def update_contact(client_email, client_no, update_client, is_primary_phone, is_primary_email, is_primary_mobile_no,party_type, party):
     contact_doc = frappe.get_doc("Contact", update_client)
     
     is_primary_phone = True if is_primary_phone == "1" else False
@@ -155,6 +155,11 @@ def update_contact(client_email, client_no, update_client, is_primary_phone, is_
             "is_primary_phone": 1 if is_primary_phone else 0, 
             "is_primary_mobile_no": 1 if is_primary_mobile_no else 0
         })
+
+    if party_type and party and not party in [row.link_name for row in contact_doc.links]:
+        contact_doc.append("links", {"link_doctype": party_type, "link_name": party})
+
+
 
     if client_email != "0" and not client_email in [row.email_id for row in contact_doc.email_ids]:
         if is_primary_email:

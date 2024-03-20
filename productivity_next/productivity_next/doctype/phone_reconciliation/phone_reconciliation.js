@@ -73,7 +73,7 @@ frappe.ui.form.on('Phone Reconciliation Call', {
 
 		let fields = [
             {
-                label: __("Client No"),
+                label: __("Contact No"),
                 fieldtype: 'Data',
                 fieldname: 'client_no',
 				default: d.client_no,
@@ -105,6 +105,20 @@ frappe.ui.form.on('Phone Reconciliation Call', {
                 label: __("Update Existing Contact"),
                 fieldtype: 'Check',
                 fieldname: 'update_existing_client',
+				change: function(){
+					let merge = this.get_value();
+					let contact = this.layout.get_value('update_client');
+                    if(contact){
+                        console.log(contact)
+                        frappe.db.get_doc("Contact", contact).then(doc => {
+                            console.log(doc);
+                            this.layout.get_field('party_type').set_input(doc.links[0].link_doctype);
+                            this.layout.get_field('party').set_input(doc.links[0].link_name);
+                        }).catch(err => {
+                            console.error("Error fetching document:", err);
+                        });
+                    }
+				}
             },
             {
                 label: __("Update Contact"),
@@ -112,7 +126,7 @@ frappe.ui.form.on('Phone Reconciliation Call', {
                 options: "Contact",
                 depends_on: 'eval:doc.update_existing_client',
                 fieldname: 'update_client',
-				default: d.contact, 
+				default: d.contact,
             },
             {fieldtype: 'Section Break'},
             {
@@ -120,7 +134,6 @@ frappe.ui.form.on('Phone Reconciliation Call', {
                 fieldtype: 'Link',
                 options: "DocType",
                 fieldname: 'party_type',
-                depends_on: 'eval:!doc.update_existing_client',
                 default: d.party_type,
                 get_query: function() {
                     return {
@@ -130,7 +143,6 @@ frappe.ui.form.on('Phone Reconciliation Call', {
                     };
                 },
                 reqd: 1,
-                mandatory_depends_on: 'eval:!doc.update_existing_client'
             },
             {
                 label: __("First Name"),
@@ -153,9 +165,7 @@ frappe.ui.form.on('Phone Reconciliation Call', {
                 fieldtype: 'Dynamic Link',
                 options: "party_type",
                 fieldname: 'party',
-                depends_on: 'eval:!doc.update_existing_client',
                 reqd: 1,
-                mandatory_depends_on: 'eval:!doc.update_existing_client'
             },
             {
                 label: __("Last Name"),
@@ -182,6 +192,8 @@ frappe.ui.form.on('Phone Reconciliation Call', {
                             is_primary_phone: d.values.is_primary_phone,
                             is_primary_email: d.values.is_primary_email,
                             is_primary_mobile_no: d.values.is_primary_mobile_no,
+							party_type: d.values.party_type,
+                            party: d.values.party,
                         },
                         callback: (r) => {
 							var allocation_table = cur_frm.add_child("phone_reconciliation_allocation");
@@ -191,6 +203,8 @@ frappe.ui.form.on('Phone Reconciliation Call', {
 							allocation_table.client_no = d.client_no
 							allocation_table.contact = d.values.update_client
 							allocation_table.employee=d.employee
+							allocation_table.party_type = d.values.party_type
+							allocation_table.party = d.values.party
 
 							cur_frm.get_field("phone_reconciliation_call").grid.grid_rows[parseInt(d.idx - 1)].remove()
 							cur_frm.refresh_fields("phone_reconciliation_call");
