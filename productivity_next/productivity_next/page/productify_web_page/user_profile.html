@@ -3,8 +3,7 @@
 		<div class="performance-graphs">
 			<div class="frappe-card chart-column-container heatmap-container hidden-xs hidden-sm">
 				<div class="title-area">
-					<h4 class="card-title">{%=__("Productify Usage Logs") %}</h4>
-					<div class="card-options heatmap-options"></div>
+					<h4 class="card-title">{%=__("Productify Log") %}</h4>
 				</div>
 				<div class="chart-wrapper performance-heatmap">
 					<div class="null-state">
@@ -12,6 +11,21 @@
 					</div>
 				</div>
 			</div>
+			<div class="frappe-card chart-column-container line-chart-container">
+				<div class="title-area">
+					<h4 class="card-title">{%=__("Application Usage") %}</h4>
+				</div>
+				<div class="chart-wrapper performance-line-chart">
+					<div class="null-state">
+						<span>{%=__("No Data to Show") %}</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="recent-activity">
+			<div class="recent-activity-title">{%=__("Recent Activity") %}</div>
+			<div class="recent-activity-list"></div>
+			<div class="recent-activity-footer"></div>
 		</div>
 	</div>
 </div>

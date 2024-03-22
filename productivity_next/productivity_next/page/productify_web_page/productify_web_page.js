@@ -86,7 +86,7 @@ UserProfile = class UserProfile{
 	render_heatmap() {
 		this.heatmap = new frappe.Chart(".performance-heatmap", {
 			type: "heatmap",
-			countLabel: "Energy Points",
+			countLabel: "Productify Count",
 			data: {},
 			discreteDomains: 1,
 			radius: 3,
@@ -107,6 +107,144 @@ UserProfile = class UserProfile{
 			});
 	}
 
+	render_line_chart() {
+		console.log("update_line_chart_data");
+		this.piechart = new frappe.Chart(".performance-line-chart", {
+			type: "pie",
+			height: 250,
+			data: {labels: [],
+            datasets: [
+                {
+                    values: [] 
+                }
+            ]},
+		});
+		
+		this.update_line_chart_data();
+		this.create_line_chart_filters();
+	}
+
+	update_line_chart_data() {
+		console.log("update_chart_data");
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_linechart_data", {
+				user: this.user_id,
+				date: frappe.datetime.year_start(),
+			})
+			.then((r) => {
+				console.log(r)
+				this.piechart.update(r);
+			});
+	}
+	
+
+	render_percentage_chart(field, title) {
+		frappe
+			.xcall(
+				"frappe.desk.page.user_profile.user_profile.get_energy_points_percentage_chart_data",
+				{
+					user: this.user_id,
+					field: field,
+				}
+			)
+			.then((chart) => {
+				if (chart.labels.length) {
+					this.percentage_chart = new frappe.Chart(".performance-percentage-chart", {
+						type: "percentage",
+						data: {
+							labels: chart.labels,
+							datasets: chart.datasets,
+						},
+						truncateLegends: 1,
+						barOptions: {
+							height: 11,
+							depth: 1,
+						},
+						height: 200,
+						maxSlices: 8,
+						colors: [
+							"purple",
+							"blue",
+							"cyan",
+							"teal",
+							"pink",
+							"red",
+							"orange",
+							"yellow",
+						],
+					});
+				} else {
+					this.wrapper.find(".percentage-chart-container").hide();
+				}
+			});
+	}
+
+	create_line_chart_filters() {
+		let filters = [
+			{
+				label: "All",
+				options: ["All", "Auto", "Criticism", "Appreciation", "Revert"],
+				action: (selected_item) => {
+					if (selected_item === "All") {
+						this.line_chart_filters = [
+							["Energy Point Log", "user", "=", this.user_id, false],
+							["Energy Point Log", "type", "!=", "Review", false],
+						];
+					} else {
+						this.line_chart_filters[1] = [
+							"Energy Point Log",
+							"type",
+							"=",
+							selected_item,
+							false,
+						];
+					}
+					this.update_line_chart_data();
+				},
+			},
+			{
+				label: "Last Month",
+				options: ["Last Week", "Last Month", "Last Quarter", "Last Year"],
+				action: (selected_item) => {
+					this.line_chart_config.timespan = selected_item;
+					this.update_line_chart_data();
+				},
+			},
+			{
+				label: "Daily",
+				options: ["Daily", "Weekly", "Monthly"],
+				action: (selected_item) => {
+					this.line_chart_config.time_interval = selected_item;
+					this.update_line_chart_data();
+				},
+			},
+		];
+		frappe.dashboard_utils.render_chart_filters(
+			filters,
+			"chart-filter",
+			".line-chart-options",
+			1
+		);
+	}
+
+	create_percentage_chart_filters() {
+		let filters = [
+			{
+				label: "Type",
+				options: ["Type", "Reference Doctype", "Rule"],
+				fieldnames: ["type", "reference_doctype", "rule"],
+				action: (selected_item, fieldname) => {
+					let title = selected_item + " Distribution";
+					this.render_percentage_chart(fieldname, title);
+				},
+			},
+		];
+		frappe.dashboard_utils.render_chart_filters(
+			filters,
+			"chart-filter",
+			".percentage-chart-options"
+		);
+	}
 
 	create_heatmap_chart_filters() {
 		let filters = [
@@ -281,6 +419,68 @@ UserProfile = class UserProfile{
 		this.user_activity_timeline.refresh();
 	}
 
+}
+class UserProfileTimeline extends BaseTimeline {
+	make() {
+		super.make();
+		this.activity_start = 0;
+		this.activity_limit = 20;
+		this.setup_show_more_activity();
+	}
+	prepare_timeline_contents() {
+		return this.get_user_activity_data().then((activities) => {
+			if (!activities.length) {
+				this.show_more_button.hide();
+				this.timeline_wrapper.html(`<div>${__("No activities to show")}</div>`);
+				return;
+			}
+			this.show_more_button.toggle(activities.length === this.activity_limit);
+			this.timeline_items = activities.map((activity) =>
+				this.get_activity_timeline_item(activity)
+			);
+		});
+	}
+
+	get_user_activity_data() {
+		return frappe.xcall("frappe.desk.page.user_profile.user_profile.get_energy_points_list", {
+			start: this.activity_start,
+			limit: this.activity_limit,
+			user: this.user,
+		});
+	}
+
+	get_activity_timeline_item(data) {
+		let icon =
+			data.type == "Appreciation" ? "clap" : data.type == "Criticism" ? "criticize" : null;
+		return {
+			icon: icon,
+			creation: data.creation,
+			is_card: true,
+			content: frappe.energy_points.format_history_log(data),
+		};
+	}
+
+	setup_show_more_activity() {
+		this.show_more_button = $(
+			`<a class="show-more-activity-btn">${__("Show More Activity")}</a>`
+		);
+		this.show_more_button.hide();
+		this.footer.append(this.show_more_button);
+		this.show_more_button.on("click", () => this.show_more_activity());
+	}
+
+	show_more_activity() {
+		this.activity_start += this.activity_limit;
+		this.get_user_activity_data().then((activities) => {
+			if (!activities.length || activities.length < this.activity_limit) {
+				this.show_more_button.hide();
+			}
+			let timeline_items = activities.map((activity) =>
+				this.get_activity_timeline_item(activity)
+			);
+			timeline_items.map((item) => this.add_timeline_item(item, true));
+		});
+	}
 }
 
 frappe.provide("frappe.ui");

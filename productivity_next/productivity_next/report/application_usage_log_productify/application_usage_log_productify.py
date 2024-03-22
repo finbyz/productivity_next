@@ -27,7 +27,7 @@ def get_data(filters):
             input_date = filters.get('date')
             date_obj = datetime.strptime(input_date, '%Y-%m-%d')
             formatted_date = date_obj.strftime('%Y-%m-%d')
-            email = frappe.db.get_value("Employee",filters.get('employee'),"company_email")
+            email = frappe.db.get_value("Employee", filters.get('employee'), "company_email")
             condition2 = f"WHERE owner = '{email}' and Date(creation) = '{formatted_date}'"
 
         data = frappe.db.sql(
@@ -35,7 +35,7 @@ def get_data(filters):
             SELECT HOUR(from_time) as hour, count(*) as count
             FROM `tabApplication Usage log` {condition}
             GROUP BY HOUR(from_time)
-            order by date desc
+            ORDER BY date DESC
         """,
             as_dict=1,
         )
@@ -45,28 +45,26 @@ def get_data(filters):
                 SELECT HOUR(call_datetime) as hour, count(*) as fincall_count
                 FROM `tabFincall Log` {condition}
                 GROUP BY HOUR(call_datetime)
-                order by date desc
+                ORDER BY date DESC
             """,
             as_dict=1,
         )
 
         data += frappe.db.sql(
-                f"""
-                    SELECT HOUR(creation) as hour, count(*) as activity_count
-                    FROM
-                        `tabVersion`{condition2}
-                    GROUP BY
-                        HOUR(creation)
-                """,
-                as_dict=1,
-            )
+            f"""
+                SELECT HOUR(creation) as hour, count(*) as activity_count
+                FROM `tabVersion` {condition2}
+                GROUP BY HOUR(creation)
+            """,
+            as_dict=1,
+        )
 
         def combine_hourly_data(data):
             combined_data = {}
             for item in data:
                 hour = item["hour"]
                 if hour not in combined_data:
-                    combined_data[hour] = {"hour": hour, "count": 0, "fincall_count": 0, "activity_count":0}
+                    combined_data[hour] = {"hour": hour, "count": 0, "fincall_count": 0, "activity_count": 0}
                 combined_data[hour]["count"] += item.get("count", 0)
                 combined_data[hour]["fincall_count"] += item.get("fincall_count", 0)
                 combined_data[hour]["activity_count"] += item.get("activity_count", 0)
@@ -76,22 +74,22 @@ def get_data(filters):
         data = combine_hourly_data(data)
 
         return data
-    
+
     elif not filters.get("employee") and filters.get("date"):
         input_date = filters.get('date')
         date_obj = datetime.strptime(input_date, '%Y-%m-%d')
         date = date_obj.strftime('%Y-%m-%d')
         data = frappe.db.sql(
-        f"""
-        SELECT HOUR(aul.from_time) AS hour, COUNT(*) AS count, emp.user_id AS user_id
-        FROM `tabApplication Usage log` aul
-        INNER JOIN `tabEmployee` emp ON aul.employee = emp.name
-        WHERE DATE(aul.from_time) = '{date}'
-        GROUP BY HOUR(aul.from_time), aul.employee
-        order by date aul.date desc
-        """,
-        as_dict=1,
-    )
+            f"""
+            SELECT HOUR(aul.from_time) AS hour, COUNT(*) AS count, emp.user_id AS user_id
+            FROM `tabApplication Usage log` aul
+            INNER JOIN `tabEmployee` emp ON aul.employee = emp.name
+            WHERE DATE(aul.from_time) = '{date}'
+            GROUP BY HOUR(aul.from_time), aul.employee
+            ORDER BY aul.date DESC
+            """,
+            as_dict=1,
+        )
 
         data += frappe.db.sql(
             f"""
@@ -100,27 +98,25 @@ def get_data(filters):
                 INNER JOIN `tabEmployee` emp ON fl.employee = emp.name
                 WHERE DATE(fl.call_datetime) = '{date}'
                 GROUP BY HOUR(fl.call_datetime), fl.employee
-                order by fl.date desc
+                ORDER BY fl.date DESC
             """,
-                as_dict=1,
-            )
+            as_dict=1,
+        )
 
         data += frappe.db.sql(
-                f"""
-                    SELECT HOUR(creation) as hour, count(*) as activity_count, owner as person
-                    FROM
-                        `tabVersion` WHERE DATE(creation) = '{date}'
-                    GROUP BY
-                        HOUR(creation),owner
-                """,
-                as_dict=1,
-            )
+            f"""
+                SELECT HOUR(creation) as hour, count(*) as activity_count, owner as person
+                FROM `tabVersion` WHERE DATE(creation) = '{date}'
+                GROUP BY HOUR(creation), owner
+            """,
+            as_dict=1,
+        )
 
         def combine_hourly_data(data):
             combined_data = {}
             for item in data:
                 hour = item["hour"]
-                user_id = item.get("user_id", "") 
+                user_id = item.get("user_id", "")
                 if user_id:
                     if hour not in combined_data:
                         combined_data[hour] = {}
@@ -138,7 +134,7 @@ def get_data(filters):
                     combined_list.append({
                         "hour": hour,
                         "user_id": user_id,
-                        **counts  
+                        **counts
                     })
             return combined_list
 
@@ -152,7 +148,7 @@ def get_data(filters):
         if filters and filters.get("employee"):
             condition1 = "WHERE employee = '{}' AND date >= CURDATE() - INTERVAL 1 YEAR".format(filters.get("employee"))
             condition2 = "WHERE employee = '{}' AND DATE(call_datetime) >= CURDATE() - INTERVAL 1 YEAR".format(filters.get("employee"))
-            email = frappe.db.get_value("Employee",filters.get('employee'),"company_email")
+            email = frappe.db.get_value("Employee", filters.get('employee'), "company_email")
             condition3 = f"WHERE owner = '{email}' and DATE(creation) >= CURDATE() - INTERVAL 1 YEAR"
         else:
             condition1 = "WHERE date >= CURDATE() - INTERVAL 1 YEAR"
@@ -164,7 +160,7 @@ def get_data(filters):
             SELECT (date) as date, count(*) as count
             FROM `tabApplication Usage log` {condition1}
             GROUP BY date
-            order by date
+            ORDER BY date
         """,
             as_dict=1,
         )
@@ -175,23 +171,21 @@ def get_data(filters):
                 FROM `tabFincall Log`
                 {condition2}
                 GROUP BY DATE(call_datetime)
-                order by date
+                ORDER BY date
             """,
             as_dict=1,
         )
 
         data += frappe.db.sql(
-                f"""
-                    SELECT DATE(creation) as date, count(*) as activity_count
-                    FROM
-                        `tabVersion`
-                    {condition3}
-                    GROUP BY
-                        DATE(creation)
-                """,
-                as_dict=1,
-            )
-        
+            f"""
+                SELECT DATE(creation) as date, count(*) as activity_count
+                FROM `tabVersion`
+                {condition3}
+                GROUP BY DATE(creation)
+            """,
+            as_dict=1,
+        )
+
         def combine_hourly_data(data):
             combined_data = {}
             for item in data:
@@ -201,7 +195,7 @@ def get_data(filters):
                         "date": date,
                         "count": 0,
                         "fincall_count": 0,
-                        "activity_count":0
+                        "activity_count": 0
                     }
                 combined_data[date]["count"] += item.get("count", 0)
                 combined_data[date]["fincall_count"] += item.get("fincall_count", 0)
@@ -210,7 +204,7 @@ def get_data(filters):
             return combined_list
 
         data = combine_hourly_data(data)
-        data= sorted(data, key=lambda x: x['date'], reverse=True)
+        data = sorted(data, key=lambda x: x['date'], reverse=True)
         return data
 
 

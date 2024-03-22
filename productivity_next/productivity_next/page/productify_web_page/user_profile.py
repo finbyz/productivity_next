@@ -81,4 +81,27 @@ def get_heatmap_data(user, date):
         dict[timestamp]=x["count"]+x["fincall_count"]+x["activity_count"]
         date.append(x["date"])
 
-    return dict
+    return  dict
+
+
+@frappe.whitelist()
+def get_linechart_data(user,date):
+    data = frappe.db.sql(
+            f"""
+                SELECT application_name, sum(duration) as duration
+                FROM
+                    `tabApplication Usage log`
+                GROUP BY
+                    application_name
+            """,
+            as_dict=1,
+        )
+    labels = []
+    datasets = []
+    for i in data:
+        labels.append(i["application_name"])
+        datasets.append(i["duration"])
+    return{
+        "labels": labels,   
+        "datasets": [{"values":datasets}]
+    }
