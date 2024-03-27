@@ -34,7 +34,6 @@
    "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -85,7 +84,7 @@
  "image_field": "screenshot",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-12 15:18:27.588727",
+ "modified": "2024-03-26 17:45:20.904108",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",

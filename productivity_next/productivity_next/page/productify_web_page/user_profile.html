@@ -1,31 +1,41 @@
 <div class="row user-profile">
-	<div class="col-md-12">
-		<div class="performance-graphs">
-			<div class="frappe-card chart-column-container heatmap-container hidden-xs hidden-sm">
-				<div class="title-area">
-					<h4 class="card-title">{%=__("Productify Log") %}</h4>
-				</div>
-				<div class="chart-wrapper performance-heatmap">
-					<div class="null-state">
-						<span>{%=__("No Data to Show") %}</span>
-					</div>
-				</div>
-			</div>
-			<div class="frappe-card chart-column-container line-chart-container">
-				<div class="title-area">
-					<h4 class="card-title">{%=__("Application Usage") %}</h4>
-				</div>
-				<div class="chart-wrapper performance-line-chart">
-					<div class="null-state">
-						<span>{%=__("No Data to Show") %}</span>
-					</div>
-				</div>
-			</div>
-		</div>
-		<div class="recent-activity">
-			<div class="recent-activity-title">{%=__("Recent Activity") %}</div>
-			<div class="recent-activity-list"></div>
-			<div class="recent-activity-footer"></div>
-		</div>
-	</div>
+    <div class="col-md-12 dynamic-spacing">
+        <div class="performance-graphs dynamic-spacing">
+
+            <div class="frappe-card chart-column-container heatmap-container hidden-xs hidden-sm dynamic-spacing">
+                <div class="title-area dynamic-spacing">
+                    <h4 class="card-title">{%=__("Productify Log") %}</h4>
+                </div>
+                <div class="chart-wrapper performance-heatmap dynamic-spacing">
+                    <div class="null-state">
+                        <span>{%=__("No Data to Show") %}</span>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="frappe-card chart-column-container hidden-xs hidden-sm dynamic-spacing" id="user-data-cards">
+                <div class="chart-wrapper dynamic-spacing">
+                </div>
+            </div>
+
+            <div class="frappe-card chart-column-container pie-chart-container dynamic-spacing">
+                <div class="title-area dynamic-spacing">
+                    <h4 class="card-title">{%=__("Application Usage") %}</h4>
+                </div>
+                <div class="chart-wrapper performance-pie-chart dynamic-spacing">
+                    <div class="null-state">
+                        <span>{%=__("No Data to Show") %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="frappe-card chart-column-container user-activity-images dynamic-spacing">
+            <div class="title-area dynamic-spacing">
+                <h4 class="card-title">{%=__("User Activity Images") %}</h4>
+            </div>
+            <div class="image-wrapper dynamic-spacing recent-activity-list">
+            </div>
+        </div>
+    </div>
 </div>
