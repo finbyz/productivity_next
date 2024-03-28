@@ -59,15 +59,54 @@ UserProfile = class UserProfile {
 	
 	finish_user_profile_setup() {
 		this.setup_user_search();
+		this.setup_timespan();
 		this.main_section.empty().append(frappe.render_template("user_profile"));
 		this.render_heatmap();
 		this.render_pie_chart();
 		this.render_images();
 		this.fetch_and_render_user_data();
 	}
-	
-	
+	setup_timespan() {
+        this.$user_search_button = this.page.set_primary_action(
+            __("Select Timespan"),
+            () => this.setup_timespan_dialog(),
+        );
+    }
 
+    setup_timespan_dialog() {
+		let dialog = new frappe.ui.Dialog({
+			title: __("Select Timespan"),
+			fields: [
+				{
+					fieldtype: "DateRange",
+					fieldname: "timespan_range",
+					label: __("Timespan Range"),
+					description: __("Select a start and end date"),
+				},
+			],
+			primary_action_label: __("Go"),
+			primary_action: (data) => {
+				let startDate, endDate;
+				if (data.timespan_range) {
+					[startDate, endDate] = data.timespan_range;
+				} else {
+					const today = new Date();
+					endDate = today.toISOString().split('T')[0];
+	
+					const oneYearAgo = new Date(new Date().setFullYear(today.getFullYear() - 1));
+					startDate = oneYearAgo.toISOString().split('T')[0];
+				}
+	
+				this.selected_start_date = startDate;
+				this.selected_end_date = endDate;
+				this.make_user_profile();
+				
+				dialog.hide();
+			},
+		});
+		dialog.show();
+	}
+	
     setup_user_search() {
         this.$user_search_button = this.page.set_secondary_action(
             __("Change Employee"),
@@ -91,9 +130,7 @@ UserProfile = class UserProfile {
             primary_action: ({ employee }) => {
 				this.selected_employee = employee;
                 dialog.hide();
-                console.log(this.selected_employee);
 				this.make_user_profile()
-				console.log("method called")
             },
         });
         dialog.show();
@@ -140,11 +177,12 @@ UserProfile = class UserProfile {
 		frappe.call({
 			method: "productivity_next.productivity_next.page.productify_web_page.user_profile.get_user_data",
 			args: {
-				user: data
+				user: data,
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
 			},
 			callback: (r) => {
 				if (r.message) {
-					console.log("User data fetched:", r.message);
 					this.render_user_data(r.message);
 				}
 			}
@@ -262,11 +300,7 @@ UserProfile = class UserProfile {
 		container.append(wholedata);
 	}
 	
-	
-
-
 	render_pie_chart() {
-		console.log("update_pie_chart_data");
 		this.piechart = new frappe.Chart(".performance-pie-chart", {
 			type: "pie",
 			height: 250,
@@ -277,8 +311,8 @@ UserProfile = class UserProfile {
                 }
             ]},
 		});
-		
 		this.update_pie_chart_data();
+		
 	}
 
 	update_pie_chart_data() {
@@ -289,15 +323,17 @@ UserProfile = class UserProfile {
 		else{
 			data = this.user_id;
 		}
-		console.log("update_chart_data");
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_linechart_data", {
 				user: data,
-				date: frappe.datetime.year_start(),
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
 			})
 			.then((r) => {
-				console.log(r)
-				this.piechart.update(r);
+				if (r.labels.length === 0) {	
+				} else {
+					this.piechart.update(r);
+				}
 			});
 	}
 
@@ -311,12 +347,13 @@ UserProfile = class UserProfile {
 	
 		frappe.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_images", {
 			user: data,
+			start_date: this.selected_start_date,
+			end_date: this.selected_end_date,
 		})
 		.then((images) => {
 			const imageContainer = this.main_section.find(".recent-activity-list");
 			imageContainer.empty();
 			images.forEach((screenshot) => {
-				console.log(screenshot);
 				const imgElement = `<img src="${screenshot}" alt="User Activity Image" style="width: 100%; max-width: 400px; height: auto; margin-bottom: 10px;">`;
 				imageContainer.append(imgElement);
 			});

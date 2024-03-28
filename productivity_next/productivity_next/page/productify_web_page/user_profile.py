@@ -1,5 +1,5 @@
 
-from datetime import datetime,time
+from datetime import datetime,time,timedelta
 import frappe
 
 def get_conditions(user):
@@ -65,43 +65,56 @@ def get_heatmap_data(user, date):
 
     return final_dict
 
-import frappe
-
-def get_conditions_user_data(user):
-    """Generates SQL conditions based on the user role."""
+@frappe.whitelist() 
+def version_conditions(user,start_date=None, end_date=None):
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d 23:59:59')
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
     if user != "Administrator":
         email = frappe.db.get_value("Employee", user, "company_email")
-        employee_cond = f"employee = '{user}' AND "
-        email_cond = f"owner = '{email}' AND "
+        condition = f"WHERE owner = '{email}' AND DATE(creation) >= '{start_date}' AND DATE(creation) <= '{end_date}'"
     else:
-        employee_cond = email_cond = ""
-    common_cond = "DATE(creation) >= CURDATE() - INTERVAL 1 YEAR"
-    
-    return {
-        "employee_cond": f"WHERE {employee_cond}{common_cond}",
-        "email_cond": f"WHERE {email_cond}{common_cond}",
-        "simple_employee_cond": f"WHERE {employee_cond[:-4]}"
-    }
+        condition = f"WHERE DATE(creation) >= '{start_date}' AND DATE(creation) <= '{end_date}'"
+
+    return condition
+
 
 @frappe.whitelist()
-def get_user_data(user):
-    conditions = get_conditions_user_data(user)
+def get_user_data(user,start_date=None, end_date=None):
+    version_conditions_str = version_conditions(user,start_date,end_date)
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d') 
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d') 
+
+    if user != "Administrator":
+        conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+    else:
+        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
 
     total_counts = frappe.db.sql(f"""
         SELECT
-            (SELECT COUNT(*) FROM `tabApplication Usage log` {conditions['employee_cond']}) AS application_usage,
-            (SELECT COUNT(*) FROM `tabFincall Log` {conditions['employee_cond']}) AS fincall_count,
-            (SELECT COUNT(*) FROM `tabVersion` {conditions['email_cond']}) AS version_count
+            (SELECT COUNT(*) FROM `tabApplication Usage log` {conditions}) AS application_usage,
+            (SELECT COUNT(*) FROM `tabFincall Log` {conditions}) AS fincall_count,
+            (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str}) AS version_count
         """, as_dict=1)[0]
-
-
-    where_clause_application = "WHERE 1=1" if conditions['simple_employee_cond'] == "WHERE " else conditions['simple_employee_cond']
-    where_clause_version = "WHERE 1=1" if conditions['email_cond'] == "WHERE " else conditions['email_cond']
-
     application_name = frappe.db.sql(f"""
         SELECT application_name, SUM(duration) AS total_duration
         FROM `tabApplication Usage log`
-        {where_clause_application}
+        {conditions}
         GROUP BY application_name
         ORDER BY total_duration DESC
         LIMIT 10
@@ -111,7 +124,7 @@ def get_user_data(user):
     caller_name = frappe.db.sql(f"""
         SELECT client, SUM(duration) AS total_duration, count(*) as call_count
         FROM `tabFincall Log`
-        {where_clause_application}  # Assuming calls also follow the same employee condition
+        {conditions}
         GROUP BY client
         ORDER BY total_duration DESC
         LIMIT 10
@@ -120,7 +133,7 @@ def get_user_data(user):
     doc_name = frappe.db.sql(f"""
         SELECT ref_doctype, COUNT(*) AS activity_count
         FROM `tabVersion`
-        {where_clause_version}
+        {version_conditions_str}
         GROUP BY ref_doctype
         ORDER BY activity_count DESC
         LIMIT 10
@@ -135,9 +148,25 @@ def get_user_data(user):
         'doc_name': doc_name
     }
 
+
 @frappe.whitelist()
-def get_linechart_data(user, date):
-    conditions = get_conditions(user)['employee_cond']
+def get_linechart_data(user, start_date=None, end_date=None):
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d') 
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d') 
+
+    if user != "Administrator":
+        conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+    else:
+        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+    
     data = frappe.db.sql(f"""
             SELECT application_name, SUM(duration) as duration
             FROM `tabApplication Usage log`
@@ -146,18 +175,35 @@ def get_linechart_data(user, date):
             ORDER BY duration DESC
             LIMIT 7
         """, as_dict=1)
+        
     return {
-        "labels": [i["application_name"] for i in data],   
+        "labels": [i["application_name"] for i in data],
         "datasets": [{"values": [i["duration"]/60/60 for i in data]}]
     }
 
+
 @frappe.whitelist()
-def get_images(user):
-    condition = "WHERE employee = '{}'" .format(user) if user != "Administrator" else ""
+def get_images(user, start_date=None, end_date=None):
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d 23:59:59')
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
+    if user != "Administrator":
+        condition = f"WHERE employee = '{user}' AND datetime >= '{start_date}' AND datetime <= '{end_date}'"
+    else:
+        condition = f"WHERE datetime >= '{start_date}' AND datetime <= '{end_date}'"
     data = frappe.db.sql(f"""
         SELECT screenshot
         FROM `tabScreen Screenshot Log`
         {condition}
         GROUP BY datetime
+        ORDER BY datetime ASC
         """, as_dict=1)
+    
     return [i["screenshot"] for i in data]
