@@ -198,6 +198,49 @@ UserProfile = class UserProfile {
 			<div class="title-area dynamic-spacing">
 				<h4 class="card-title">Productify Data</h4>
 			</div>
+			
+			<div class="row mt-3">
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Hours</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(data.total_hours /60 / 60).toFixed(2)} Working Hours</b></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Active Hours</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((data.total_hours /60 / 60)-(data.total_idle_time /60 / 60)).toFixed(2)} Active Hours</b></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Idle Hours</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(data.total_idle_time /60 / 60).toFixed(2)} Idle Hours</b></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="row mt-3">
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat((data.total_hours /60 / 60)/data.total_days).toFixed(2)} Working Hours Per Day</b></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(((data.total_hours /60 / 60)/data.total_days)-((data.total_idle_time /60 / 60)/data.total_days)).toFixed(2)} Active Hours Per Day</b></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat((data.total_idle_time /60 / 60)/data.total_days).toFixed(2)} Idle Hours Per Day</b></div>
+					</div>
+				</div>
+			</div>
+
 			<div class="row mt-3">
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
@@ -354,7 +397,7 @@ UserProfile = class UserProfile {
 			const imageContainer = this.main_section.find(".recent-activity-list");
 			imageContainer.empty();
 			images.forEach((screenshot) => {
-				const imgElement = `<img src="${screenshot}" alt="User Activity Image" style="width: 100%; max-width: 400px; height: auto; margin-bottom: 10px;">`;
+				const imgElement = `<div class="col-md-3"><img src="${screenshot}" alt="User Activity Image" style="margin-bottom: 10px;"></div>`;
 				imageContainer.append(imgElement);
 			});
 		});

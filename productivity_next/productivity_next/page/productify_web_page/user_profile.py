@@ -17,6 +17,7 @@ def get_conditions(user):
         "email_cond": f"WHERE {email_cond}{common_cond}",
     }
 
+# HEATMAP
 @frappe.whitelist()
 def get_heatmap_data(user, date):
     conditions = get_conditions(user)
@@ -105,12 +106,39 @@ def get_user_data(user,start_date=None, end_date=None):
     else:
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
 
+    # TOTAL HOURS CARD
+    if user != "Administrator":
+        all_logs = frappe.db.get_list("Application Checkin Checkout", filters={"employee": user,"time": ["Between", [start_date,end_date ]]}, fields=["status", "time"], order_by="creation asc")
+    else:
+        all_logs = frappe.db.get_list("Application Checkin Checkout", filters={"time": ["Between", [start_date,end_date ]]}, fields=["status", "time"], order_by="creation asc")
+    usage_time = 0
+    last_status = None
+    for row in all_logs:
+        if row.status == "In" and last_status != "In":
+            start_time = row.time
+        elif row.status == "Out" and last_status == "In":
+            end_time = row.time
+            usage_time += (end_time - start_time).total_seconds()
+        last_status = row.status
+    total_hours = usage_time
+
+    # IDLE TIME CARD
+    total_idle_time = frappe.db.sql(f"""
+        SELECT SUM(TIME_TO_SEC(TIMEDIFF(to_time, from_time))) AS total_duration_seconds
+        FROM `tabApplication Usage log`{conditions} and
+        TIME_TO_SEC(TIMEDIFF(to_time, from_time)) > 120 ;""",as_dict=1)
+    
+    # AVERAGE HOURS PER DAY CARD
+    total_days = frappe.db.sql(f"""SELECT COUNT(DISTINCT date)  AS application_usage FROM `tabApplication Usage log` {conditions}""",as_dict=True)
+    # Application Usage Log Count, Fincall Log Count, Top 10 Doc's Used Cards
     total_counts = frappe.db.sql(f"""
         SELECT
-            (SELECT COUNT(*) FROM `tabApplication Usage log` {conditions}) AS application_usage,
+            (SELECT COUNT(DISTINCT application_name) FROM `tabApplication Usage log`{conditions})  AS application_usage,
             (SELECT COUNT(*) FROM `tabFincall Log` {conditions}) AS fincall_count,
             (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str}) AS version_count
         """, as_dict=1)[0]
+    
+    # TABLES BELOW CARDS
     application_name = frappe.db.sql(f"""
         SELECT application_name, SUM(duration) AS total_duration
         FROM `tabApplication Usage log`
@@ -145,10 +173,13 @@ def get_user_data(user,start_date=None, end_date=None):
         'version_count': total_counts['version_count'],
         'application_name': application_name,
         'caller_name': caller_name,
-        'doc_name': doc_name
+        'doc_name': doc_name,
+        'total_hours': total_hours,
+        'total_idle_time': total_idle_time[0]['total_duration_seconds'],
+        'total_days': total_days[0]['application_usage']
     }
 
-
+# PIE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
     now = datetime.now()
@@ -173,7 +204,7 @@ def get_linechart_data(user, start_date=None, end_date=None):
             {conditions}
             GROUP BY application_name
             ORDER BY duration DESC
-            LIMIT 7
+            LIMIT 10
         """, as_dict=1)
         
     return {
@@ -181,7 +212,7 @@ def get_linechart_data(user, start_date=None, end_date=None):
         "datasets": [{"values": [i["duration"]/60/60 for i in data]}]
     }
 
-
+# SCREEN SHOTS
 @frappe.whitelist()
 def get_images(user, start_date=None, end_date=None):
     now = datetime.now()
