@@ -393,11 +393,12 @@ UserProfile = class UserProfile {
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		})
-		.then((images) => {
+		.then((imagedata) => {
+			console.log(imagedata);
 			const imageContainer = this.main_section.find(".recent-activity-list");
 			imageContainer.empty();
-			images.forEach((screenshot) => {
-				const imgElement = `<div class="col-md-3"><img src="${screenshot}" alt="User Activity Image" style="margin-bottom: 10px;"></div>`;
+			imagedata.forEach((image) => {
+				const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;"></div>`;
 				imageContainer.append(imgElement);
 			});
 		});

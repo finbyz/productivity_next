@@ -230,11 +230,11 @@ def get_images(user, start_date=None, end_date=None):
     else:
         condition = f"WHERE datetime >= '{start_date}' AND datetime <= '{end_date}'"
     data = frappe.db.sql(f"""
-        SELECT screenshot
+        SELECT screenshot,date(datetime) as datetime
         FROM `tabScreen Screenshot Log`
         {condition}
         GROUP BY datetime
         ORDER BY datetime ASC
         """, as_dict=1)
     
-    return [i["screenshot"] for i in data]
+    return data
