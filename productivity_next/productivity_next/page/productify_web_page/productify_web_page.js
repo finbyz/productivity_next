@@ -230,7 +230,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Idle Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${parseFloat(data.total_idle_time /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Idle Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(data.total_idle_time /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Idle Hours</span></div>
 					</div>
 				</div>
 			</div>
@@ -251,7 +251,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${parseFloat((data.total_idle_time /60 / 60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Idle Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat((data.total_idle_time /60 / 60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Idle Hours Per Day</span></div>
 					</div>
 				</div>
 			</div>
@@ -272,7 +272,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${data.total_unique_doc}</b><span style="font-size:12px">  Documents Created or Modified</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.total_unique_doc}</b><span style="font-size:12px">  Documents Created or Modified</span></div>
 					</div>
 				</div>
 			</div>
@@ -293,7 +293,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Version Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${data.version_count}</b><span style="font-size:12px">  Interactions</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.version_count}</b><span style="font-size:12px">  Interactions</span></div>
 					</div>
 				</div>
 			</div>
@@ -365,8 +365,8 @@ UserProfile = class UserProfile {
 		data.doc_name.forEach(app => {
 			wholedata += `
 				<tr>
-					<td style="color:#FE2EC8"><b>${app.ref_doctype}</b></td>
-					<td style="color:#FE2EC8">${app.activity_count}</td>
+					<td style="color:#FF4001"><b>${app.ref_doctype}</b></td>
+					<td style="color:#FF4001">${app.activity_count}</td>
 				</tr>`;
 		});
 	
