@@ -27,3 +27,13 @@
         margin-right: 0;
     }
 }
+
+.clickable-image {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.clickable-image:hover {
+    transform: scale(1.05);
+}
+

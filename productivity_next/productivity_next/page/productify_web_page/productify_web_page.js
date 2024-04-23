@@ -527,11 +527,18 @@ UserProfile = class UserProfile {
 			const imageContainer = this.main_section.find(".recent-activity-list");
 			imageContainer.empty();
 			imagedata.forEach((image) => {
-				const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;"></div>`;
+				const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;" class="clickable-image"></div>`;
 				imageContainer.append(imgElement);
+			});
+			// Add click event listener for images
+			$('.clickable-image').on('click', function() {
+				const imgSrc = $(this).attr('src');
+				$('#zoomedImg').attr('src', imgSrc);
+				$('#imageModal').modal('show');
 			});
 		});
 	}
+	
 	
 }
 
