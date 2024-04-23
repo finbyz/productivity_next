@@ -103,9 +103,10 @@ def get_user_data(user,start_date=None, end_date=None):
 
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+        conditions_2 = f"AND mcr.employee = '{user}' AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
     else:
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
-
+        conditions_2 = f"AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
     # TOTAL HOURS CARD
     if user != "Administrator":
         all_logs = frappe.db.get_list("Application Checkin Checkout", filters={"employee": user,"time": ["Between", [start_date,end_date ]]}, fields=["status", "time"], order_by="creation asc")
@@ -130,14 +131,63 @@ def get_user_data(user,start_date=None, end_date=None):
     
     # AVERAGE HOURS PER DAY CARD
     total_days = frappe.db.sql(f"""SELECT COUNT(DISTINCT date)  AS application_usage FROM `tabApplication Usage log` {conditions}""",as_dict=True)
-    # Application Usage Log Count, Fincall Log Count, Top 10 Doc's Used Cards
+
+    # Meetings
+    if user != "Administrator":
+        meetings = frappe.db.sql(f"""
+        SELECT 
+        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+        FROM `tabMeeting Company Representative` as mcr
+        JOIN `tabMeeting` as m ON m.name = mcr.parent
+        WHERE m.docstatus = 1 {conditions_2}
+        GROUP BY mcr.employee
+        """,as_dict=True)
+    else:
+        meetings = frappe.db.sql(f"""
+        SELECT 
+        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+        FROM `tabMeeting` as m
+        WHERE m.docstatus = 1 
+        """,as_dict=True)
+
+
+    # Time On Calls
+    total_time_on_calls = frappe.db.sql(f"""
+    SELECT SUM(duration) as total_duration,calltype
+    FROM `tabFincall Log`
+    {conditions}
+    group by calltype
+    """, as_dict=True)
+    total_incoming_fincall_count = next((item['total_duration'] for item in total_time_on_calls if item['calltype'] == 'Incoming'), None)
+    total_outgoing_fincall_count = next((item['total_duration'] for item in total_time_on_calls if item['calltype'] == 'Outgoing'), None)
+    total_missed_fincall_count = next((item['total_duration'] for item in total_time_on_calls if item['calltype'] == 'Missed'), None)
+
+    # Documents Accessed
+    total_unique_doc = frappe.db.sql(f"""
+    SELECT COUNT(DISTINCT docname) AS activity_count
+    FROM `tabVersion`
+    {version_conditions_str}
+    """, as_dict=True)
+
+    # Application Usage Log Count, Top 10 Doc's Used Cards
     total_counts = frappe.db.sql(f"""
         SELECT
             (SELECT COUNT(DISTINCT application_name) FROM `tabApplication Usage log`{conditions})  AS application_usage,
-            (SELECT COUNT(*) FROM `tabFincall Log` {conditions}) AS fincall_count,
             (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str}) AS version_count
         """, as_dict=1)[0]
     
+    # Fincall Log Count
+    fincall_count = frappe.db.sql(f"""
+        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabFincall Log` {conditions} group by calltype
+    """, as_dict=True)
+    incoming_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Incoming'), 0)
+    outgoing_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Outgoing'), 0)
+    missed_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Missed'), 0)
+    rejected_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Rejected'), 0)
+
+
     # TABLES BELOW CARDS
     application_name = frappe.db.sql(f"""
         SELECT application_name, SUM(duration) AS total_duration
@@ -168,15 +218,25 @@ def get_user_data(user,start_date=None, end_date=None):
     """, as_dict=True)
 
     return {
-        'application_usage': total_counts['application_usage'],
-        'fincall_count': total_counts['fincall_count'],
-        'version_count': total_counts['version_count'],
-        'application_name': application_name,
-        'caller_name': caller_name,
-        'doc_name': doc_name,
-        'total_hours': total_hours,
-        'total_idle_time': total_idle_time[0]['total_duration_seconds'],
-        'total_days': total_days[0]['application_usage']
+        "application_usage": total_counts['application_usage'],
+        "version_count": total_counts['version_count'],
+        "incoming_fincall_count": incoming_fincall_count,
+        "outgoing_fincall_count": outgoing_fincall_count,
+        "missed_fincall_count": missed_fincall_count,
+        "rejected_fincall_count": rejected_fincall_count,
+        "application_name": application_name,
+        "caller_name": caller_name,
+        "doc_name": doc_name,
+        "total_hours": total_hours,
+        "total_incoming_fincall_count": total_incoming_fincall_count,
+        "total_outgoing_fincall_count": total_outgoing_fincall_count,
+        "total_missed_fincall_count": total_missed_fincall_count,
+        "total_idle_time": total_idle_time[0]['total_duration_seconds'] if total_idle_time else 0,
+        "total_days": total_days[0]['application_usage'],
+        "total_unique_doc": total_unique_doc[0]['activity_count'] if total_unique_doc else 0,
+        "total_time_on_calls": total_time_on_calls[0]['total_duration'] if total_time_on_calls else 0,
+        "total_meeting_duration": meetings[0].total_meeting_duration if meetings else 0,
+        "total_meeting_count": meetings[0].meeting_count if meetings else 0
     }
 
 # PIE CHART
@@ -230,11 +290,11 @@ def get_images(user, start_date=None, end_date=None):
     else:
         condition = f"WHERE datetime >= '{start_date}' AND datetime <= '{end_date}'"
     data = frappe.db.sql(f"""
-        SELECT screenshot,date(datetime) as datetime
+        SELECT screenshot,datetime as datetime
         FROM `tabScreen Screenshot Log`
         {condition}
         GROUP BY datetime
-        ORDER BY datetime ASC
+        ORDER BY datetime DESC
         """, as_dict=1)
     
     return data

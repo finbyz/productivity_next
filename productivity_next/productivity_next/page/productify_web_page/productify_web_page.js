@@ -191,6 +191,7 @@ UserProfile = class UserProfile {
 	
     
 	render_user_data(data) {
+		console.log(data.meetings)
 		const container = this.main_section.find("#user-data-cards");
 		container.empty();
 
@@ -244,14 +245,35 @@ UserProfile = class UserProfile {
 			<div class="row mt-3">
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count} Meetings For ${data.total_meeting_duration /60 /60} Hours</b></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(data.total_incoming_fincall_count/60/60).toFixed(2)}</b><span style="font-size:12px"> Incoming </span> |<b> ${parseFloat(data.total_outgoing_fincall_count/60/60).toFixed(2)}</b> <span style="font-size:12px"> Outgoing </span></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.total_unique_doc} Documents Created or Modified</b></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="row mt-3">
+				<div class="col-md-4">
+					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
 						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.application_usage} Applications Used</b></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.fincall_count} Calls Attended</b></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.incoming_fincall_count}</b><span style="font-size:12px"> Incoming </span>|<b> ${data.outgoing_fincall_count}</b><span style="font-size:12px"> Outgoing</span> |<b> ${data.missed_fincall_count}</b><span style="font-size:12px"> Missed</span> |<b> ${data.rejected_fincall_count}</b> <span style="font-size:12px">Rejected</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
