@@ -14,6 +14,6 @@ class ApplicationUsagelog(Document):
 			self.ip_address = re.search(r"^(.+)", x_forwarded_for).group(1)
 		
 		if not self.application_name and self.application_title:
-			self.application_name = self.application_title.split("-")[-1]
+			self.application_name = self.application_title.split("-")[-1].strip()
 		
 		self.duration = time_diff_in_seconds(self.to_time, self.from_time)
