@@ -36,26 +36,6 @@ UserProfile = class UserProfile {
             }
         });
     }
-
-    make_user_profile() {
-		this.user = frappe.user_info(this.user_id);
-		if (!this.selected_employee) { 
-			this.page.set_title(this.user.fullname);
-		} else {
-			frappe.db.get_doc("Employee", this.selected_employee)
-				.then(employee => {
-					this.page.set_title(employee.employee_name); 
-					this.finish_user_profile_setup();
-				})
-				.catch(error => {
-					console.error("Failed to get employee details:", error);
-					frappe.msgprint(__("Failed to load employee details"));
-				});
-		}
-		if (!this.selected_employee) { 
-			this.finish_user_profile_setup();
-		}
-	}
 	
 	finish_user_profile_setup() {
 		this.setup_user_search();
@@ -63,6 +43,8 @@ UserProfile = class UserProfile {
 		this.main_section.empty().append(frappe.render_template("user_profile"));
 		this.render_heatmap();
 		this.render_pie_chart();
+		this.render_line_chart();
+		this.render_bar_chart();
 		this.render_images();
 		this.fetch_and_render_user_data();
 	}
@@ -106,7 +88,39 @@ UserProfile = class UserProfile {
 		});
 		dialog.show();
 	}
-	
+	make_user_profile() {
+		this.user = frappe.user_info(this.user_id);
+		if (!this.selected_employee) { 
+			if (this.selected_start_date == null && this.selected_end_date == null) {
+				var startDate = new Date();
+				startDate.setFullYear(startDate.getFullYear() - 1);
+				var day = startDate.getDate().toString().padStart(2, '0');
+				var month = (startDate.getMonth() + 1).toString().padStart(2, '0');
+				var year = startDate.getFullYear();
+				this.FROM_DATE = year + '-' + month + '-' + day;
+				this.TO_DATE = new Date().toJSON().slice(0, 10)
+			}
+			else {
+				this.FROM_DATE = this.selected_start_date;
+				this.TO_DATE = this.selected_end_date;
+			}
+			
+			this.page.set_title(this.user.fullname + " ( FROM " + this.FROM_DATE + " TO " + this.TO_DATE + " )");
+		} else {
+			frappe.db.get_doc("Employee", this.selected_employee)
+				.then(employee => {
+					this.page.set_title(employee.employee_name + " ( FROM " + this.FROM_DATE + " TO " + this.TO_DATE + " )"); 
+					this.finish_user_profile_setup();
+				})
+				.catch(error => {
+					console.error("Failed to get employee details:", error);
+					frappe.msgprint(__("Failed to load employee details"));
+				});
+		}
+		if (!this.selected_employee) { 
+			this.finish_user_profile_setup();
+		}
+	}
     setup_user_search() {
         this.$user_search_button = this.page.set_secondary_action(
             __("Change Employee"),
@@ -204,19 +218,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(data.total_hours /60 / 60).toFixed(2)} Working Hours</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(data.total_hours /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Working Hours</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Active Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((data.total_hours /60 / 60)-(data.total_idle_time /60 / 60)).toFixed(2)} Active Hours</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((data.total_hours /60 / 60)-(data.total_idle_time /60 / 60)).toFixed(2)}</b><span style="font-size:12px">  Active Hours</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Idle Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(data.total_idle_time /60 / 60).toFixed(2)} Idle Hours</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${parseFloat(data.total_idle_time /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Idle Hours</span></div>
 					</div>
 				</div>
 			</div>
@@ -225,19 +239,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat((data.total_hours /60 / 60)/data.total_days).toFixed(2)} Working Hours Per Day</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat((data.total_hours /60 / 60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Working Hours Per Day</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(((data.total_hours /60 / 60)/data.total_days)-((data.total_idle_time /60 / 60)/data.total_days)).toFixed(2)} Active Hours Per Day</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(((data.total_hours /60 / 60)/data.total_days)-((data.total_idle_time /60 / 60)/data.total_days)).toFixed(2)}</b><span style="font-size:12px">  Active Hours Per Day</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat((data.total_idle_time /60 / 60)/data.total_days).toFixed(2)} Idle Hours Per Day</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${parseFloat((data.total_idle_time /60 / 60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Idle Hours Per Day</span></div>
 					</div>
 				</div>
 			</div>
@@ -246,7 +260,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count} Meetings For ${data.total_meeting_duration /60 /60} Hours</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count}</b><span style="font-size:12px">  Meetings For </span><b> ${data.total_meeting_duration /60 /60}</b><span style="font-size:12px">  Hours</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -258,7 +272,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.total_unique_doc} Documents Created or Modified</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${data.total_unique_doc}</b><span style="font-size:12px">  Documents Created or Modified</span></div>
 					</div>
 				</div>
 			</div>
@@ -267,7 +281,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.application_usage} Applications Used</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.application_usage}</b><span style="font-size:12px">  Applications Used</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -279,7 +293,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Version Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.version_count} Interactions</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FE2EC8 !important;"><b>${data.version_count}</b><span style="font-size:12px">  Interactions</span></div>
 					</div>
 				</div>
 			</div>
@@ -351,8 +365,8 @@ UserProfile = class UserProfile {
 		data.doc_name.forEach(app => {
 			wholedata += `
 				<tr>
-					<td style="color:#FF4001"><b>${app.ref_doctype}</b></td>
-					<td style="color:#FF8100">${app.activity_count}</td>
+					<td style="color:#FE2EC8"><b>${app.ref_doctype}</b></td>
+					<td style="color:#FE2EC8">${app.activity_count}</td>
 				</tr>`;
 		});
 	
@@ -367,8 +381,58 @@ UserProfile = class UserProfile {
 	
 	render_pie_chart() {
 		this.piechart = new frappe.Chart(".performance-pie-chart", {
-			type: "pie",
+			type: "bar",
 			height: 250,
+			width: 400,
+			colors: ["#00A6E0"],
+			tooltipOptions: {
+				formatTooltipX: d => (d + '').toUpperCase(),
+				formatTooltipY: d => d + ' Hours',
+			},
+			data: {labels: [],
+            datasets: [
+                {
+                    values: [] 
+                }
+            ]},
+			isNavigable: true,
+		});
+		this.update_pie_chart_data();
+		
+	}
+
+	update_pie_chart_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		}
+		else{
+			data = this.user_id;
+		}
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_piechart_data", {
+				user: data,
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			})
+			.then((r) => {
+				if (r.labels.length === 0) {	
+				} else {
+					this.piechart.update(r);
+				}
+			});
+	}
+
+	render_line_chart() {
+		this.linechart = new frappe.Chart(".performance-line-chart", {
+			type: "line",
+			height: 250,
+			width: 400,
+			colors: ["#62BA46"],
+			tooltipOptions: {
+				formatTooltipX: d => (d + '').toUpperCase(),
+				formatTooltipY: d => d + ' Minutes',
+			},
 			data: {labels: [],
             datasets: [
                 {
@@ -376,11 +440,11 @@ UserProfile = class UserProfile {
                 }
             ]},
 		});
-		this.update_pie_chart_data();
+		this.update_line_chart_data();
 		
 	}
 
-	update_pie_chart_data() {
+	update_line_chart_data() {
 		let data;
 		if (this.selected_employee != null) {
 			data = this.selected_employee;
@@ -397,7 +461,50 @@ UserProfile = class UserProfile {
 			.then((r) => {
 				if (r.labels.length === 0) {	
 				} else {
-					this.piechart.update(r);
+					this.linechart.update(r);
+				}
+			});
+	}
+
+	render_bar_chart() {
+		this.barchart = new frappe.Chart(".performance-bar-chart", {
+			type: "bar",
+			height: 250,
+			width: 400,
+			colors: ["#FE2EF7"],
+			tooltipOptions: {
+				formatTooltipX: d => (d + '').toUpperCase(),
+				formatTooltipY: d => d + ' Modifications',
+			},
+			data: {labels: [],
+            datasets: [
+                {
+                    values: [] 
+                }
+            ]},
+		});
+		this.update_bar_chart_data();
+		
+	}
+
+	update_bar_chart_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		}
+		else{
+			data = this.user_id;
+		}
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_barchart_data", {
+				user: data,
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			})
+			.then((r) => {
+				if (r.labels.length === 0) {	
+				} else {
+					this.barchart.update(r);
 				}
 			});
 	}

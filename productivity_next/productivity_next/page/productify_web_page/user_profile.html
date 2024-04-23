@@ -19,15 +19,38 @@
                 </div>
             </div>
 
-            <div class="frappe-card chart-column-container pie-chart-container dynamic-spacing">
-                <div class="title-area dynamic-spacing">
-                    <h4 class="card-title">{%=__("Application Usage") %}</h4>
-                </div>
-                <div class="chart-wrapper performance-pie-chart dynamic-spacing">
-                    <div class="null-state">
-                        <span>{%=__("No Data to Show") %}</span>
+            <div class="row">
+                <div class="frappe-card chart-column-container pie-chart-container dynamic-spacing col-md-12">
+                    <div class="title-area dynamic-spacing">
+                        <h4 class="card-title">{%=__("Top 5 Application Analysis") %}<span style="font-size: 12px;"> (In Hours)</span></h4>
+                    </div>
+                    <div class="chart-wrapper performance-pie-chart dynamic-spacing">
+                        <div class=" null-state">
+                            <span>{%=__("No Data to Show") %}</span>
+                        </div>
                     </div>
                 </div>
+                <div class="frappe-card chart-column-container line-chart-container dynamic-spacing col-md-12">
+                    <div class="title-area dynamic-spacing">
+                        <h4 class="card-title">{%=__("Top 10 Calls Analysis ") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
+                    </div>
+                    <div class="chart-wrapper performance-line-chart dynamic-spacing">
+                        <div class="null-state">
+                            <span>{%=__("No Data to Show") %}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="frappe-card chart-column-container bar-chart-container dynamic-spacing col-md-12">
+                    <div class="title-area dynamic-spacing">
+                        <h4 class="card-title">{%=__("Top 7 Document Analysis") %}<span style="font-size: 12px;"> (Changes Per Doctype)</span></h4>
+                    </div>
+                    <div class="chart-wrapper performance-bar-chart dynamic-spacing">
+                        <div class="null-state">
+                            <span>{%=__("No Data to Show") %}</span>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
         </div>
         <div class="frappe-card chart-column-container user-activity-images dynamic-spacing">

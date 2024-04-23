@@ -241,7 +241,7 @@ def get_user_data(user,start_date=None, end_date=None):
 
 # PIE CHART
 @frappe.whitelist()
-def get_linechart_data(user, start_date=None, end_date=None):
+def get_piechart_data(user, start_date=None, end_date=None):
     now = datetime.now()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
@@ -264,12 +264,72 @@ def get_linechart_data(user, start_date=None, end_date=None):
             {conditions}
             GROUP BY application_name
             ORDER BY duration DESC
-            LIMIT 10
+            LIMIT 5
         """, as_dict=1)
         
     return {
         "labels": [i["application_name"] for i in data],
-        "datasets": [{"values": [i["duration"]/60/60 for i in data]}]
+        "datasets": [{"values": [round(i["duration"]/60/60,2) for i in data]}]
+    }
+# LINE CHART
+@frappe.whitelist()
+def get_linechart_data(user, start_date=None, end_date=None):
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d') 
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d') 
+
+    if user != "Administrator":
+        conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+    else:
+        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+    
+    data = frappe.db.sql(f"""
+        SELECT client, SUM(duration) AS total_duration
+        FROM `tabFincall Log`
+        {conditions}
+        GROUP BY client
+        ORDER BY total_duration DESC
+        LIMIT 10
+        """, as_dict=1)
+        
+    return {
+        "labels": [i["client"] for i in data],
+        "datasets": [{"values": [round(i["total_duration"]/60,2) for i in data]}]
+    }
+
+# BAR CHART
+@frappe.whitelist()
+def get_barchart_data(user, start_date=None, end_date=None):
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d') 
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d') 
+    version_conditions_str = version_conditions(user,start_date,end_date)
+    data = frappe.db.sql(f"""
+        SELECT COUNT(DISTINCT docname) AS activity_count, ref_doctype
+        FROM `tabVersion`
+        {version_conditions_str}
+        group by ref_doctype
+        order by activity_count DESC 
+        LIMIT 7
+        """, as_dict=1)
+        
+    return {
+        "labels": [i["ref_doctype"] for i in data],
+        "datasets": [{"values": [i["activity_count"] for i in data]}]
     }
 
 # SCREEN SHOTS
