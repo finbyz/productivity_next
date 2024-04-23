@@ -1,4 +1,4 @@
-frappe.pages['productify-web-page'].on_page_load = function(wrapper) {
+frappe.pages['productify_web_page'].on_page_load = function(wrapper) {
 	new UserProfile(wrapper);
 }
 
