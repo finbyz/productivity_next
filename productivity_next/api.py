@@ -83,3 +83,37 @@ def update_user_auth_token(employee, purpose, date):
         return {"status": True, "access_token": token['access_token'], "expiration_time": token["expiration_time"]}
 
     return {"status": False, "access_token": None, "expiration_time": None}
+
+@frappe.whitelist()
+def set_user_idel_time(*args, **kwargs):
+    employee=kwargs.get("employee")
+    idle_time=kwargs.get("idle_time")
+    status=kwargs.get("status")
+
+    doc = frappe.new_doc("Idle Time Log")
+    doc.employee = employee
+    doc.time =idle_time
+    doc.status = status
+    doc.save(ignore_permissions=True)
+
+    return {"status": True}
+
+@frappe.whitelist()
+def get_user_idel_time(employee=None):
+    if not employee:
+        return 0
+    all_logs = frappe.db.get_all("Idle Time Log", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
+
+    idle_time = 0
+    last_status = None
+    
+    for row in all_logs:
+        if row.status == "start" and last_status != "start":
+            start_time = row.time
+        elif row.status == "end" and last_status == "start":
+            end_time = row.time
+            idle_time += (end_time - start_time).total_seconds()
+
+        last_status = row.status
+
+    return idle_time
