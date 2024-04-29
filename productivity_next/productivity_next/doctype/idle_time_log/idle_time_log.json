@@ -38,16 +38,20 @@
    "fetch_from": "employee.employee_name",
    "fieldname": "employee_name",
    "fieldtype": "Data",
-   "label": "Employee Name"
+   "label": "Employee Name",
+   "read_only": 1
   },
   {
    "fieldname": "time",
    "fieldtype": "Datetime",
-   "label": "Time"
+   "in_list_view": 1,
+   "label": "Time",
+   "read_only": 1
   },
   {
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Status",
    "options": "\nstart\nend",
    "read_only": 1
@@ -55,7 +59,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-24 14:57:31.471060",
+ "modified": "2024-04-28 22:39:32.095174",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Idle Time Log",

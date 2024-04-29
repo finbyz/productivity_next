@@ -14,6 +14,7 @@
   "employee_name",
   "computer_name",
   "ip_address",
+  "current_url",
   "column_break_a0cjy",
   "application_name",
   "date",
@@ -108,11 +109,17 @@
    "in_standard_filter": 1,
    "label": "Duration",
    "read_only": 1
+  },
+  {
+   "fieldname": "current_url",
+   "fieldtype": "Data",
+   "label": "Current Url",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-23 15:55:04.473059",
+ "modified": "2024-04-27 14:36:45.221891",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",
