@@ -25,8 +25,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": "SL-.YY.MM.DD.-",
-   "read_only": 1
+   "options": "SL-.YY.MM.DD.-"
   },
   {
    "fieldname": "employee",

@@ -10,4 +10,10 @@ class ScreenScreenshotLog(Document):
 		if not self.ip_address:
 			x_forwarded_for = frappe.get_request_header("X-Forwarded-For", str(frappe.request.headers))
 			self.ip_address = re.search(r"^(.+)", x_forwarded_for).group(1)
+		
+		if self.screenshot and self.name:
+			if frappe.db.exists("File", {"file_url": self.screenshot}):
+				frappe.db.set_value("File", self.screenshot, "attached_to_doctype", "Screen Screenshot Log", update_modified=False)
+				frappe.db.set_value("File", self.screenshot, "attached_to_field", "screenshot", update_modified=False)
+				frappe.db.set_value("File", self.screenshot, "attached_to_name", self.name, update_modified=False)
 
