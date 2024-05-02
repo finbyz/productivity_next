@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import nowdate, get_datetime
 from datetime import timedelta
-from .api import set_application_checkin_checkout
+from .api import set_application_checkin_checkout,set_application_idletime_checkin_checkout
 
 
 def get_all_employee_status():
@@ -41,8 +41,9 @@ def checkout_inactive_users():
 
     for row in data:
         if row.time_difference > timedelta(minutes=10):
-            if user := frappe.db.get_value("Employee", row.employee, "user_id"):
+            if user := frappe.db.get_value("Employee", row.employee, "user_id"):                
                 set_application_checkin_checkout(row.employee, "Out", current_time, 1, user)
+                set_application_idletime_checkin_checkout(row.employee, "end", current_time, 1, user)
                 for obt in frappe.db.get_all("OAuth Bearer Token", {"user": user, "purpose": "productivity_desktop"}):
                     frappe.delete_doc("OAuth Bearer Token", obt.name, ignore_permissions=True)
 
@@ -55,3 +56,6 @@ def delete_older_screenshots():
 
     for row in screenshot_logs:
         frappe.delete_doc("Screen Screenshot Log", row)
+
+
+        

@@ -11,6 +11,7 @@
   "employee_name",
   "time",
   "status",
+  "system_generated",
   "tab_2_tab"
  ],
  "fields": [
@@ -30,6 +31,7 @@
    "fieldname": "employee",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
    "read_only": 1
@@ -38,6 +40,7 @@
    "fetch_from": "employee.employee_name",
    "fieldname": "employee_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Employee Name",
    "read_only": 1
   },
@@ -51,15 +54,25 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_global_search": 1,
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "\nstart\nend",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "system_generated",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "System Generated"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-28 22:39:32.095174",
+ "modified": "2024-04-30 23:40:22.314715",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Idle Time Log",

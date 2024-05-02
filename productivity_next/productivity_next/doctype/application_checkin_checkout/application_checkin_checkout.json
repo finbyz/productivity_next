@@ -18,6 +18,7 @@
    "fieldname": "employee",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
    "read_only": 1
@@ -25,6 +26,8 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "\nIn\nOut",
    "read_only": 1
@@ -53,13 +56,15 @@
    "default": "0",
    "fieldname": "system_generated",
    "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "System Generated",
    "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-12 15:23:30.641976",
+ "modified": "2024-05-01 21:47:27.812425",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Checkin Checkout",
