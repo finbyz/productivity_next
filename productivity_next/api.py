@@ -32,9 +32,6 @@ def set_application_checkin_checkout(employee, status, time, system_genereted = 
             doc.system_generated = system_genereted
             doc.save()
             if system_genereted:
-                user_last_time = frappe.db.get_list("Application Usage log", {"employee": employee}, fields=["date","to_time"], order_by="creation desc", limit=1)
-                if user_last_time:
-                    doc.db_set("time", user_last_time[0].to_time)
                 doc.db_set("owner", user)
 
         doc = frappe.new_doc("Application Checkin Checkout")
@@ -44,9 +41,6 @@ def set_application_checkin_checkout(employee, status, time, system_genereted = 
         doc.system_generated = system_genereted
         doc.save()
         if system_genereted:
-            user_last_time = frappe.db.get_list("Application Usage log", {"employee": employee}, fields=["date","to_time"], order_by="creation desc", limit=1)
-            if user_last_time:
-                doc.db_set("time", user_last_time[0].to_time)
             doc.db_set("owner", user)
 
     elif status == "Out":
@@ -58,9 +52,6 @@ def set_application_checkin_checkout(employee, status, time, system_genereted = 
             doc.system_generated = system_genereted
             doc.save()
             if system_genereted:
-                user_last_time = frappe.db.get_list("Application Usage log", {"employee": employee}, fields=["date","to_time"], order_by="creation desc", limit=1)
-                if user_last_time:
-                    doc.db_set("time", user_last_time[0].to_time)
                 doc.db_set("owner", user)
 
     return {"status": last_status}
