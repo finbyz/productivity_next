@@ -4,7 +4,7 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-05-02 12:14:36.236182",
+ "modified": "2024-05-02 12:56:31.968227",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "employee-productivity-dashboard",
@@ -14,5 +14,6 @@
  "script": null,
  "standard": "Yes",
  "style": null,
- "system_page": 0
+ "system_page": 0,
+ "title": "EMPLOYEE PRODUCTIFY DASHBOARD"
 }
