@@ -11,9 +11,9 @@ class ScreenScreenshotLog(Document):
 			x_forwarded_for = frappe.get_request_header("X-Forwarded-For", str(frappe.request.headers))
 			self.ip_address = re.search(r"^(.+)", x_forwarded_for).group(1)
 	
-	def after_insert(self):
+	def on_update(self):
 		if self.screenshot and self.name:
-			if name:= frappe.db.get_value("File", {"folder": "Home/screenshot", "file_url": self.screenshot}, "name"):
+			if name:= frappe.db.get_value("File", filters={"folder": "Home/screenshots", "file_url": self.screenshot}, fieldname="name"):
 				frappe.db.set_value("File", name, "attached_to_doctype", "Screen Screenshot Log", update_modified=False)
 				frappe.db.set_value("File", name, "attached_to_field", "screenshot", update_modified=False)
 				frappe.db.set_value("File", name, "attached_to_name", self.name, update_modified=False)
