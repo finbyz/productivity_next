@@ -13,8 +13,8 @@ class ScreenScreenshotLog(Document):
 	
 	def after_insert(self):
 		if self.screenshot and self.name:
-			if frappe.db.exists("File", {"file_url": self.screenshot}):
-				frappe.db.set_value("File", self.screenshot, "attached_to_doctype", "Screen Screenshot Log", update_modified=False)
-				frappe.db.set_value("File", self.screenshot, "attached_to_field", "screenshot", update_modified=False)
-				frappe.db.set_value("File", self.screenshot, "attached_to_name", self.name, update_modified=False)
+			if name:= frappe.db.get_value("File", {"folder": "Home/screenshot", "file_url": self.screenshot}, "name"):
+				frappe.db.set_value("File", name, "attached_to_doctype", "Screen Screenshot Log", update_modified=False)
+				frappe.db.set_value("File", name, "attached_to_field", "screenshot", update_modified=False)
+				frappe.db.set_value("File", name, "attached_to_name", self.name, update_modified=False)
 
