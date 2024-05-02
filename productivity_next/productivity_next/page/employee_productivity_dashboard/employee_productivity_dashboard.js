@@ -1,6 +1,7 @@
-frappe.pages['productify_web_page'].on_page_load = function(wrapper) {
+frappe.pages['employee-productivity-dashboard'].on_page_load = function(wrapper) {
 	new UserProfile(wrapper);
 }
+
 
 UserProfile = class UserProfile {
     constructor(wrapper) {
@@ -11,7 +12,27 @@ UserProfile = class UserProfile {
         this.sidebar = this.wrapper.find(".layout-side-section");
         this.toggle_button = this.wrapper.find(".sidebar-toggle-placeholder");
         this.main_section = this.wrapper.find(".layout-main-section");
-        this.selected_employee = null;
+        this.buttonsInitialized = false;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('start_date') == null && urlParams.get('end_date') == null) {
+            var startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            var day = startDate.getDate().toString().padStart(2, '0');
+            var month = (startDate.getMonth() + 1).toString().padStart(2, '0');
+            var year = startDate.getFullYear();
+            this.selected_start_date = year + '-' + month + '-' + day;
+            this.selected_end_date = new Date().toJSON().slice(0, 10)
+        }
+        else{
+            this.selected_start_date = urlParams.get('start_date');
+            this.selected_end_date = urlParams.get('end_date');
+        }
+        if (urlParams.get('employee') != null && urlParams.get('employee') != 'undefined'){
+        this.selected_employee = urlParams.get('employee');
+        }
+        else{
+            this.selected_employee = null;
+        }
         this.hide_sidebar_and_toggle();
         this.wrapper.bind("show", () => {
             this.show();
@@ -40,13 +61,13 @@ UserProfile = class UserProfile {
 	finish_user_profile_setup() {
 		this.setup_user_search();
 		this.setup_timespan();
-		this.main_section.empty().append(frappe.render_template("user_profile"));
+		this.main_section.empty().append(frappe.render_template("employee_productivity_dashboard"));
 		this.render_heatmap();
+		this.fetch_and_render_user_data();
 		this.render_pie_chart();
 		this.render_line_chart();
 		this.render_bar_chart();
 		this.render_images();
-		this.fetch_and_render_user_data();
 	}
 	setup_timespan() {
         this.$user_search_button = this.page.set_primary_action(
@@ -79,11 +100,15 @@ UserProfile = class UserProfile {
 					startDate = oneYearAgo.toISOString().split('T')[0];
 				}
 	
-				this.selected_start_date = startDate;
-				this.selected_end_date = endDate;
-				this.make_user_profile();
-				
 				dialog.hide();
+				const newUrl = new URL(window.location.href);
+				newUrl.searchParams.set('start_date', startDate);
+				newUrl.searchParams.set('end_date', endDate);
+				window.history.pushState({ path: newUrl.toString() }, '', newUrl.toString());
+				const urlParams = new URLSearchParams(window.location.search);
+				this.selected_start_date = urlParams.get('start_date');
+				this.selected_end_date = urlParams.get('end_date');			
+				this.make_user_profile();
 			},
 		});
 		dialog.show();
@@ -91,25 +116,11 @@ UserProfile = class UserProfile {
 	make_user_profile() {
 		this.user = frappe.user_info(this.user_id);
 		if (!this.selected_employee) { 
-			if (this.selected_start_date == null && this.selected_end_date == null) {
-				var startDate = new Date();
-				startDate.setFullYear(startDate.getFullYear() - 1);
-				var day = startDate.getDate().toString().padStart(2, '0');
-				var month = (startDate.getMonth() + 1).toString().padStart(2, '0');
-				var year = startDate.getFullYear();
-				this.FROM_DATE = year + '-' + month + '-' + day;
-				this.TO_DATE = new Date().toJSON().slice(0, 10)
-			}
-			else {
-				this.FROM_DATE = this.selected_start_date;
-				this.TO_DATE = this.selected_end_date;
-			}
-			
-			this.page.set_title(this.user.fullname + " ( FROM " + this.FROM_DATE + " TO " + this.TO_DATE + " )");
+			this.page.set_title(this.user.fullname + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
 		} else {
 			frappe.db.get_doc("Employee", this.selected_employee)
 				.then(employee => {
-					this.page.set_title(employee.employee_name + " ( FROM " + this.FROM_DATE + " TO " + this.TO_DATE + " )"); 
+					this.page.set_title(employee.employee_name + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )"); 
 					this.finish_user_profile_setup();
 				})
 				.catch(error => {
@@ -122,11 +133,21 @@ UserProfile = class UserProfile {
 		}
 	}
     setup_user_search() {
-        this.$user_search_button = this.page.set_secondary_action(
-            __("Change Employee"),
-            () => this.show_user_search_dialog(),
-            { icon: "change", size: "sm" }
-        );
+        if (!this.buttonsInitialized) {  // Check if buttons have already been initialized
+            // Add a refresh button with an icon
+            this.page.add_action_icon("refresh", () => {
+                window.location.reload();
+            });
+
+            // Set up the 'Change Employee' button
+            this.$user_search_button = this.page.set_secondary_action(
+                __("Change Employee"),
+                () => this.show_user_search_dialog(),
+                { icon: "change", size: "sm" }
+            );
+
+            this.buttonsInitialized = true;  // Set the flag to true after adding buttons
+        }
     }
 
     show_user_search_dialog() {
@@ -142,9 +163,12 @@ UserProfile = class UserProfile {
             ],
             primary_action_label: __("Go"),
             primary_action: ({ employee }) => {
-				this.selected_employee = employee;
                 dialog.hide();
+                this.selected_employee = employee;
 				this.make_user_profile()
+				const newUrl = new URL(window.location.href);
+				newUrl.searchParams.set('employee', employee);
+				window.history.pushState({ path: newUrl.toString() }, '', newUrl.toString());
             },
         });
         dialog.show();
@@ -171,7 +195,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 	
-		frappe.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_heatmap_data", {
+		frappe.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_heatmap_data", {
 			user: data,
 			date: date_from || frappe.datetime.year_start(),
 		})
@@ -189,7 +213,7 @@ UserProfile = class UserProfile {
 		}
 		
 		frappe.call({
-			method: "productivity_next.productivity_next.page.productify_web_page.user_profile.get_user_data",
+			method: "productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_user_data",
 			args: {
 				user: data,
 				start_date: this.selected_start_date,
@@ -198,14 +222,24 @@ UserProfile = class UserProfile {
 			callback: (r) => {
 				if (r.message) {
 					this.render_user_data(r.message);
+					$(document).ready(function() {
+						$('#logCountModalTrigger').click(function() {
+							$('#logCountModal').modal('show');
+						});
+					});					
 				}
 			}
 		});
 	}
-	
-    
+   
 	render_user_data(data) {
-		console.log(data.meetings)
+		let employee_data;
+		if (this.selected_employee != null) {
+			employee_data = this.selected_employee;
+		} else {
+			employee_data = this.user_id;
+		}
+		// console.log(data.meetings)
 		const container = this.main_section.find("#user-data-cards");
 		container.empty();
 
@@ -279,10 +313,13 @@ UserProfile = class UserProfile {
 
 			<div class="row mt-3">
 				<div class="col-md-4">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.application_usage}</b><span style="font-size:12px">  Applications Used</span></div>
-					</div>
+				<div class="frappe-card dynamic-spacing custom-card">
+				<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
+				<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
+					<b>${data.application_usage}</b><span style="font-size:12px">  Applications Used</span>
+				</div>
+			</div>
+			
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card dynamic-spacing custom-card">
@@ -313,8 +350,8 @@ UserProfile = class UserProfile {
 		data.application_name.forEach(app => {
 			wholedata += `
 				<tr>
-					<td style="color:#00A6E0"><b>${app.application_name}</b></td>
-					<td style="color:#2D9596">${parseFloat(app.total_duration/60/60).toFixed(2)} Hours</td>
+					<td style="color:#00A6E0" width="70%"><b>${app.application_name}</b></td>
+					<td style="color:#2D9596" width="30%">${parseFloat(app.total_duration/60/60).toFixed(2)} Hours</td>
 				</tr>`;
 		});
 	
@@ -376,8 +413,99 @@ UserProfile = class UserProfile {
 					</div>
 				</div>
 			</div>`;
+		wholedata += `
+			<div class="row mt-3">
+				<div class="col-md-12">
+					<div class="frappe-card dynamic-spacing custom-card">
+						<h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Top 10 Site's Used</h4>
+						<table class="table">
+							<thead>
+								<tr style="align:center !important;">
+									<th>Site Name</th>
+									<th>Application Name</th>
+									<th>Duration</th>
+								</tr>
+							</thead>
+							<tbody>`;
+
+		data.url_full_data.forEach(app => {
+			wholedata += `
+				<tr>
+					<td style="color:#00A6E0 !important;"><b><a href="#" style="text-decoration:none !important;color:#00A6E0 !important;" class="url-link" data-url="${app.domain}">${app.domain}</a></b></td>
+					<td style="color:#62BA46"><b>${app.application_name}</b></td>
+					<td style="color:#FF4001">${parseFloat(app.duration/60/60).toFixed(2)} Hours</td>
+				</tr>`;
+		});
+
+		wholedata += `
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>`;
 		container.append(wholedata);
-	}
+        $(document).ready(function() {
+            $(document).on('click', '.url-link', function(e) {
+                e.preventDefault();
+                
+                // AJAX call to Python function
+                frappe.call({
+                    method: "productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_url_brief_data",
+                    args: {
+                        url_data: $(this).data('url'),
+                        user: employee_data,
+                        start_date: self.selected_start_date,
+                        end_date: self.selected_end_date,
+                    },
+                    callback: function(r) {
+                        if (r.message) {
+                            let data = r.message.data;
+                            render_url_brief_data(data);
+                        } else {
+                            $('#urlModal').find('.modal-body').html('No data available for this URL.');
+                        }
+                        $('#urlModal').modal('show');  // Show the modal after data is loaded
+                    }
+                });
+            });
+        
+            function render_url_brief_data(data) {
+                // Assuming `data` is an object or string you want to display
+                let displayContent = `
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="frappe-card dynamic-spacing custom-card">
+                            <h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Top 10 URL's Used</h4>
+                            <table class="table">
+                                <thead>
+                                    <tr style="align:center !important;">
+                                        <th>Site Name</th>
+                                        <th>Application Name</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+    
+            data.forEach(app => {
+                displayContent += `
+                    <tr>
+                        <td style="color:#00A6E0 !important;"><b>${app.current_url}</b></td>
+                        <td style="color:#62BA46"><b>${app.application_name}</b></td>
+                        <td style="color:#FF4001">${parseFloat(app.duration/60/60).toFixed(2)} Hours</td>
+                    </tr>`;
+            });
+    
+            displayContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`; // Convert data object to string if necessary
+                $('#urlModal').find('.modal-body').html(displayContent);
+            }
+        });
+               
+	};	
 	
 	render_pie_chart() {
 		this.piechart = new frappe.Chart(".performance-pie-chart", {
@@ -410,7 +538,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_piechart_data", {
+			.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_piechart_data", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -453,7 +581,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_linechart_data", {
+			.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_linechart_data", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -471,7 +599,7 @@ UserProfile = class UserProfile {
 			type: "bar",
 			height: 250,
 			width: 400,
-			colors: ["#FE2EF7"],
+			colors: ["#01DFA5"],
 			tooltipOptions: {
 				formatTooltipX: d => (d + '').toUpperCase(),
 				formatTooltipY: d => d + ' Modifications',
@@ -496,7 +624,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_barchart_data", {
+			.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_barchart_data", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -517,13 +645,13 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 	
-		frappe.xcall("productivity_next.productivity_next.page.productify_web_page.user_profile.get_images", {
+		frappe.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_images", {
 			user: data,
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		})
 		.then((imagedata) => {
-			console.log(imagedata);
+			// console.log(imagedata);
 			const imageContainer = this.main_section.find(".recent-activity-list");
 			imageContainer.empty();
 			imagedata.forEach((image) => {
@@ -537,10 +665,7 @@ UserProfile = class UserProfile {
 				$('#imageModal').modal('show');
 			});
 		});
-	}
-	
-	
+	}	
 }
-
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;

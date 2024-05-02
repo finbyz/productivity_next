@@ -86,19 +86,6 @@ def version_conditions(user,start_date=None, end_date=None):
 
     return condition
 
-
-@frappe.whitelist() 
-def issue_time_conditions(user,start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
-    if user != "Administrator":
-        email = frappe.db.get_value("Employee", user, "company_email")
-        condition = f"WHERE ti.user_name = '{email}' AND ti.date >= '{start_date}' AND ti.date <= '{end_date}'"
-    else:
-        condition = f"WHERE ti.date >= '{start_date}' AND ti.date <= '{end_date}'"
-
-    return condition
-
-
 @frappe.whitelist()
 def get_user_data(user,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
@@ -112,6 +99,167 @@ def get_user_data(user,start_date=None, end_date=None):
         conditions_2 = f"AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
 
     
+    # Function to convert idle time logs
+    def calculate_idle_time(user,start_date,end_date):
+        # frappe.throw(f"User: {user}, Start Date: {start_date}, End Date: {end_date}")
+        # start_date = "2024-04-29"
+        # end_date = "2024-04-29"
+        # user = "HR-EMP-00011"
+        if user != "Administrator":
+            conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+            conditions_2 = f"AND mcr.employee = '{user}' AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
+            conditions_3 = f"WHERE employee = '{user}' AND DATE(time) >= '{start_date}' and DATE(time) <= '{end_date}'"
+        else:
+            conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+            conditions_2 = f"AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
+            conditions_3 = f"WHERE DATE(time) >= '{start_date}' and DATE(time) <= '{end_date}'"
+            # frappe.throw(conditions)
+        def convert_times(data):
+            results = []
+            start_times = {}
+            for record in data:
+                employee = record['employee']
+                status = record['status']
+                time = record['start_time']
+                if status == 'start':
+                    start_times[employee] = time
+                elif status == 'end' and employee in start_times:
+                    new_entry = {'type': 'Idle', 'start_time': start_times[employee], 'stop_time': time}
+                    results.append(new_entry)
+                    del start_times[employee]
+            return results
+
+        # Function to convert fincall logs
+        def convert_time_data(time_entries):
+            formatted_entries = []
+            for entry in time_entries:
+                formatted_entry = {'type': 'Call', 'start_time': entry['start_time'], 'stop_time': entry['end_time'][:8]}
+                formatted_entries.append(formatted_entry)
+            return formatted_entries
+
+        # Function to convert meeting logs
+        def convert_meeting_data(meeting_entries):
+            formatted_entries = []
+            for entry in meeting_entries:
+                formatted_entry = {'type': 'Meeting', 'start_time': entry['start_time'], 'stop_time': entry['end_time']}
+                formatted_entries.append(formatted_entry)
+            return formatted_entries
+
+        # Fetch and process idle time data
+        idle_time_data = frappe.db.sql(f"""
+        select  DATE_FORMAT(time, '%H:%i:%s') as start_time, status, employee
+        from `tabIdle Time Log`
+        {conditions_3}
+        """, as_dict=True)
+        idle_time_data = convert_times(idle_time_data)
+
+        # Fetch and process fincall data
+        fincall_time_data = frappe.db.sql(f"""
+        SELECT DATE_FORMAT(call_datetime, '%H:%i:%s') AS start_time,
+            ADDTIME(DATE_FORMAT(call_datetime, '%H:%i:%s'), SEC_TO_TIME(duration)) AS end_time, employee
+        FROM `tabFincall Log`
+        {conditions}
+        """, as_dict=True)
+        fincall_time_data = convert_time_data(fincall_time_data)
+
+        # Fetch and process meeting data
+        meeting_time_data = frappe.db.sql(f"""
+        select DATE_FORMAT(m.meeting_from, '%H:%i:%s') AS start_time, DATE_FORMAT(m.meeting_to, '%H:%i:%s') AS end_time, mcr.employee
+        from `tabMeeting` as m
+        join `tabMeeting Company Representative` as mcr on m.name = mcr.parent
+        WHERE m.docstatus = 1
+        {conditions_2}
+        """, as_dict=True)
+        meeting_time_data = convert_meeting_data(meeting_time_data)
+
+        # Combine all time data into a single list
+        combined_time_data = idle_time_data + fincall_time_data + meeting_time_data
+        # frappe.throw(str(combined_time_data))
+        # Print or use the combined data
+        # print(combined_time_data)
+
+        def parse_times(data):
+            idle_periods = []
+            active_periods = []
+            for entry in data:
+                from datetime import datetime
+                start_time = datetime.strptime(entry["start_time"], "%H:%M:%S")
+                stop_time = datetime.strptime(entry["stop_time"], "%H:%M:%S")
+                if entry["type"] == "Idle":
+                    idle_periods.append((start_time, stop_time))
+                else:
+                    active_periods.append((start_time, stop_time))
+            return idle_periods, merge_overlapping_times(active_periods)
+
+        def merge_overlapping_times(times):
+            # Sort times by start time
+            times_sorted = sorted(times, key=lambda x: x[0])
+            merged_times = []
+
+            # Merge overlapping times
+            for current_start, current_end in times_sorted:
+                if merged_times and merged_times[-1][1] >= current_start:
+                    merged_times[-1][1] = max(merged_times[-1][1], current_end)
+                else:
+                    merged_times.append([current_start, current_end])
+            
+            return merged_times
+
+
+        def calculate_duration(periods):
+            from datetime import timedelta
+            total_duration = timedelta()
+            for start, stop in periods:
+                total_duration += (stop - start)
+            return total_duration
+
+        def calculate_overlap(period1, period2):
+            start1, end1 = period1
+            start2, end2 = period2
+            overlap_start = max(start1, start2)
+            overlap_end = min(end1, end2)
+            if overlap_start < overlap_end:
+                return overlap_end - overlap_start
+            return timedelta()
+
+        idle_periods, active_periods = parse_times(combined_time_data)
+
+        total_idle_time = calculate_duration(idle_periods)
+
+        for idle_period in idle_periods:
+            for active_period in active_periods:
+                total_idle_time -= calculate_overlap(idle_period, active_period)
+
+
+
+
+        # print("Net Idle Time:", total_idle_time)
+
+        # frappe.throw(f"Total Idle Time: {str(total_idle_time)}")
+        # Time string
+        time_str = str(total_idle_time)
+
+        # Parse the string into a datetime object
+        time_object = datetime.strptime(time_str, "%H:%M:%S")
+
+        # Calculate the total seconds
+        total_seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
+        # frappe.throw(str(total_seconds))
+        return total_seconds
+
+    # No need to parse and reformat if we're just setting the time part explicitly
+    start_date_time = start_date
+    end_date_time = end_date
+
+    # If you need date objects for some operations, you can directly convert
+    start_datetime_obj = datetime.strptime(start_date_time, "%Y-%m-%d %H:%M:%S")
+    end_datetime_obj = datetime.strptime(end_date_time, "%Y-%m-%d %H:%M:%S")
+
+    # The formatted date strings can be obtained without additional parsing if not needed elsewhere
+    formatted_start_date = start_datetime_obj.strftime("%Y-%m-%d")
+    formatted_end_date = end_datetime_obj.strftime("%Y-%m-%d")
+
+    total_idle_time_in_seconds = calculate_idle_time(user,formatted_start_date,formatted_end_date)
     # Combined Query for Count and Total Duration of Calls by Call Type
     fincall_data = frappe.db.sql(f"""
         SELECT 
@@ -159,7 +307,7 @@ def get_user_data(user,start_date=None, end_date=None):
 
     # Convert total usage time from seconds to hours
     total_hours = usage_time # Convert seconds to hours
-
+    # frappe.throw(str(total_hours / 60 / 60))  
     # IDLE TIME CARD
     total_idle_time_days = frappe.db.sql(f"""
         SELECT 
@@ -255,6 +403,17 @@ def get_user_data(user,start_date=None, end_date=None):
         LIMIT 10
     """, as_dict=True)
 
+    query = f"""
+        SELECT domain, SUM(duration) AS duration, application_name
+        FROM `tabApplication Usage log` 
+        {conditions} and domain != '' and domain is not null
+        GROUP BY domain
+        ORDER BY SUM(duration) DESC
+        """
+    data = frappe.db.sql(query, as_dict=True)
+    result_list = data
+
+
     return {
         "application_usage": total_counts['application_usage'],
         "version_count": total_counts['version_count'],
@@ -269,14 +428,33 @@ def get_user_data(user,start_date=None, end_date=None):
         "total_incoming_fincall_count": total_incoming_fincall_count,
         "total_outgoing_fincall_count": total_outgoing_fincall_count,
         "total_missed_fincall_count": total_missed_fincall_count,
-        "total_idle_time": total_idle_time,
+        "total_idle_time": total_idle_time_in_seconds,
         "total_days": total_days,
         "total_unique_doc": total_unique_doc[0]['activity_count'] if total_unique_doc else 0,
         "total_time_on_calls": fincall_data[0]['total_duration'] if fincall_data else 0,
         "total_meeting_duration": meetings[0].total_meeting_duration if meetings else 0,
-        "total_meeting_count": meetings[0].meeting_count if meetings else 0
+        "total_meeting_count": meetings[0].meeting_count if meetings else 0,
+        "url_full_data": result_list[:10]
     }
 
+@frappe.whitelist()
+def get_url_brief_data(url_data,user,start_date=None, end_date=None):
+    start_date, end_date = set_dates(start_date, end_date)
+    if user != "Administrator":
+        conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+    else:
+        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+    query = f"""
+        SELECT current_url, SUM(duration) AS duration, application_name
+        FROM `tabApplication Usage log` 
+        {conditions}and domain = '{url_data}'
+        GROUP BY current_url
+        ORDER BY SUM(duration) DESC
+        """
+    data_query = frappe.db.sql(query, as_dict=True)
+    return {
+        "data":data_query
+    }
 
 # PIE CHART
 @frappe.whitelist()
@@ -400,4 +578,3 @@ def set_dates(start_date=None, end_date=None):
 # start_date, end_date = set_dates('2022-01-01', '2022-12-31')
 # print(start_date, end_date)
 # This prints: '2022-01-01 00:00:00' '2022-12-31 23:59:59'
-
