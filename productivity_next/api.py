@@ -73,6 +73,9 @@ def set_application_idletime_checkin_checkout(employee, status, time, system_gen
             doc.system_generated = system_genereted
             doc.save()
             if system_genereted:
+                # user_last_time = frappe.db.get_list("Application Usage log", {"employee": employee,"date":["Between", [nowdate(), nowdate()]]}, fields=["date","to_time"], order_by="creation desc", limit=1)
+                # if user_last_time:
+                #     doc.db_set("time", user_last_time[0].to_time)
                 doc.db_set("owner", user)
 
         doc = frappe.new_doc("Idle Time Log")
@@ -100,6 +103,19 @@ def set_application_idletime_checkin_checkout(employee, status, time, system_gen
 
 @frappe.whitelist()
 def get_usage_time(employee):
+
+    #set value for safty purpose in incaase user checkout not done
+    emp_data=frappe.db.get_all("Application Checkin Checkout", filters={"time": ["Between", [nowdate(), nowdate()]],"employee":employee}, fields=["employee", "status", "time","system_generated"], order_by = "creation desc",limit=1)
+    if emp_data and emp_data[0].status=="In":
+        user_id=frappe.get_all("Employee", filters={"name": employee}, fields=["user_id"], limit=1, pluck="user_id")[0]
+        doc = frappe.new_doc("Application Checkin Checkout")
+        doc.employee = employee
+        doc.status = "Out"
+        doc.time = get_datetime().replace(microsecond=0)
+        doc.system_generated = 1
+        doc.save(ignore_permissions=True)
+        doc.db_set("owner",user_id)
+
     all_logs = frappe.db.get_all("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
 
     usage_time = 0
