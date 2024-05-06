@@ -190,26 +190,46 @@ UserProfile = class UserProfile {
 			}
 		});
 	};
-	render_admin_data(data) {
+	async render_admin_data(data) {
+		function getBaseURL() {
+			return window.location.origin + '/app/';
+		}
+	
 		let employee_data;
 		if (this.selected_employee != null) {
 			employee_data = this.selected_employee;
 		} else {
 			employee_data = this.user_id;
 		}
-		// console.log(data.meetings)
+	
 		const container = this.main_section.find("#user-activity-data");
 		container.empty();
 		let wholedata = ``;
-		data.combined_employee_data.forEach(app => {
+		const baseUrl = getBaseURL();
+	
+		// Prepare to fetch all employee names asynchronously
+		const fetchPromises = data.combined_employee_data.map(app => 
+			frappe.db.get_value("Employee", app.employee, "employee_name")
+				.then(response => ({
+					...app,
+					employeeName: response.message.employee_name
+				}))
+		);
+	
+		// Await all the promises to get the results
+		const results = await Promise.all(fetchPromises);
+	
+		// Build the HTML with the results
+		results.forEach(app => {
+			const employeeUrl = `${baseUrl}employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
 			wholedata += `
 				<tr>
 					<td align="center">
-					<a href="https://website.finbyz.com/app/employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}" target="_blank">${app.employee}</a>
+						<a href="${employeeUrl}" target="_blank">${app.employeeName}</a>
 					</td>
 					<td align="center">${parseFloat(app.total_hours).toFixed(2)}</td>
-					<td align="center"></td>
-					<td align="center"></td>
+					<td align="center">${parseFloat(app.total_hours-(app.total_idle_time/3600)).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
 					<td align="center">${app.fincall_details.Incoming.count}</td>
 					<td align="center">${app.fincall_details.Outgoing.count}</td>
 					<td align="center">${app.fincall_details.Missed.count}</td>
@@ -220,8 +240,10 @@ UserProfile = class UserProfile {
 					<td align="center">${parseFloat(app.meeting_details.total_meeting_duration/3600).toFixed(2)}</td>
 				</tr>`;
 		});
+	
 		container.append(wholedata);
-	};
+	}
+	
 }
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;

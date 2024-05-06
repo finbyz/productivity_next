@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import nowdate, add_days, getdate
+from frappe.utils import nowdate, add_days, getdate,get_datetime, time_diff_in_seconds
 from datetime import datetime,timedelta
 from collections import defaultdict
 
@@ -36,11 +36,30 @@ def calculate_idle_times_per_employee(data):
             employee_idle_times[employee] = timedelta(0)
 
     return employee_idle_times
-def set_dates(start_date, end_date):
-    if not start_date:
-        start_date = nowdate()
-    if not end_date or getdate(end_date) < getdate(start_date):
-        end_date = add_days(start_date, 1)  # Default to one day range if end_date is before start_date
+
+
+def set_dates(start_date=None, end_date=None):
+    """
+    Determine start and end dates for a range, formatted with specific time stamps.
+    Args:
+    - start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to 365 days ago.
+    - end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to today.
+
+    Returns:
+    - tuple: A tuple containing formatted start and end dates as strings.
+    """
+    now = datetime.now()
+    
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
+    
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d 23:59:59')
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
+
     return start_date, end_date
 
 def fetch_and_calculate_times(start_date, end_date):
@@ -55,7 +74,7 @@ def fetch_and_calculate_times(start_date, end_date):
     
     # Fetch total hours from application check-in checkout logs
     total_hours_data = fetch_total_hours(start_date, end_date)
-    
+    # frappe.throw(str(total_hours_data))
     return idle_time_data, total_hours_data, fincall_time_data, meeting_time_data
 
 def fetch_idle_time_data(conditions):
@@ -100,7 +119,7 @@ def fetch_meeting_time_data(conditions):
 
 def calculate_idle_time_user(data):
     time_format = "%H:%M:%S"
-    employee_active_time = {}
+    employee_active_time = defaultdict(int)  # Using int to accumulate total seconds
 
     for record in data:
         employee = record['employee']
@@ -108,82 +127,108 @@ def calculate_idle_time_user(data):
         current_time = datetime.strptime(record['start_time'], time_format)
 
         if status == 'start':
-            # Initialize employee record if not already present
             if employee not in employee_active_time:
-                employee_active_time[employee] = {'total_active_seconds': 0, 'last_start_time': None}
-            # Store the start time for the current activity period
+                employee_active_time[employee] = {'total_idle_seconds': 0, 'last_start_time': None}
             employee_active_time[employee]['last_start_time'] = current_time
-        elif status == 'end':
-            if employee in employee_active_time and employee_active_time[employee]['last_start_time'] is not None:
-                # Calculate the active time for this period
-                start_time = employee_active_time[employee]['last_start_time']
-                active_seconds = (current_time - start_time).total_seconds()
-                employee_active_time[employee]['total_active_seconds'] += active_seconds
-                # Reset the last start time
-                employee_active_time[employee]['last_start_time'] = None
+        elif status == 'end' and employee in employee_active_time and employee_active_time[employee]['last_start_time'] is not None:
+            start_time = employee_active_time[employee]['last_start_time']
+            active_seconds = (current_time - start_time).total_seconds()
+            employee_active_time[employee]['total_idle_seconds'] += active_seconds
+            employee_active_time[employee]['last_start_time'] = None  # Reset the last start time
 
-    # Prepare final results
+    # Prepare final results, converting seconds to a preferred time format
     results = []
     for employee, details in employee_active_time.items():
-        if details['total_active_seconds'] > 0:  # Only include employees with active time
-            results.append({
-                'employee': employee,
-                'total_active_time': details['total_active_seconds']  # Total active time in seconds
-            })
-    
-    # frappe.throw(str(results))  
+        results.append({
+            'employee': employee,
+            'total_idle_time': details['total_idle_seconds'] / 3600  # Convert seconds to hours
+        })
+
     return results
 
-def fetch_total_hours(start_date, end_date):
-    sql_query = f"""
-    SELECT employee, SUM(CASE WHEN status = 'Out' THEN TIMESTAMPDIFF(SECOND, prev_time, time) ELSE 0 END) / 3600.0 AS total_hours
-    FROM (SELECT employee, status, time, LAG(time) OVER (PARTITION BY employee ORDER BY time) AS prev_time, LAG(status) OVER (PARTITION BY employee ORDER BY time) AS prev_status FROM `tabApplication Checkin Checkout` WHERE time BETWEEN '{start_date}' AND '{end_date}') AS log_details WHERE status = 'Out' AND prev_status = 'In' GROUP BY employee;
-    """
-    return frappe.db.sql(sql_query, as_dict=True)
 
-def combine_employee_data(total_idle_time_list, total_hours_data_list, fincall_data, meeting_data):
-    idle_time_dict = {item['employee']: item for item in total_idle_time_list}
-    hours_data_dict = {item['employee']: item for item in total_hours_data_list}
-    fincall_details = {}
-    meeting_details = {}
+def fetch_total_hours(start_date, end_date, user=None):
+    all_logs = frappe.db.sql(f"""
+    SELECT employee, status, time
+    FROM `tabApplication Checkin Checkout`
+    WHERE time >= '{start_date}' AND time <= '{end_date}'
+    ORDER BY employee, time
+    """, as_dict=True)
+    total_hours_by_employee = {}
+    last_status = {}
+    last_time = {}
 
-    # Process fincall data
+    # Loop through logs to calculate total duration of logged "In" sessions for each employee
+    for log in all_logs:
+        employee = log['employee']
+        if employee not in total_hours_by_employee:
+            total_hours_by_employee[employee] = 0
+            last_status[employee] = None
+            last_time[employee] = None
+
+        if log['status'] == "In" and last_status[employee] != "In":
+            last_time[employee] = get_datetime(log['time'])
+        elif log['status'] == "Out" and last_status[employee] == "In":
+            if last_time[employee]:
+                end_time = get_datetime(log['time'])
+                total_hours_by_employee[employee] += time_diff_in_seconds(end_time, last_time[employee])
+                last_time[employee] = None  # Reset last time after calculating the period
+
+        last_status[employee] = log['status']
+
+    # Convert total duration from seconds to hours and return it
+    for employee in total_hours_by_employee:
+        total_hours_by_employee[employee] /= 3600.0
+    data = []
+    for i in total_hours_by_employee:
+        data.append({
+            'employee': i,
+            'total_hours': total_hours_by_employee[i]
+        })
+    return data
+
+from collections import defaultdict
+
+def combine_employee_data(idle_time_data, total_hours_data_list, fincall_data, meeting_data):
+    # Process into dictionaries
+    idle_time_dict = {item['employee']: item['total_idle_time'] for item in idle_time_data}
+    hours_data_dict = {item['employee']: item['total_hours'] for item in total_hours_data_list}
+    
+    # Setup default fincall structure
+    default_fincall_structure = {
+        'Incoming': {'count': 0, 'total_duration': 0},
+        'Outgoing': {'count': 0, 'total_duration': 0},
+        'Missed': {'count': 0, 'total_duration': 0},
+        'Rejected': {'count': 0, 'total_duration': 0}
+    }
+    
+    # Handling fincall data with defaultdict
+    fincall_dict = defaultdict(lambda: defaultdict(lambda: {'count': 0, 'total_duration': 0}))
     for item in fincall_data:
-        emp = item['employee']
-        if emp not in fincall_details:
-            fincall_details[emp] = {
-                'Incoming': {'count': 0, 'total_duration': 0},
-                'Outgoing': {'count': 0, 'total_duration': 0},
-                'Missed': {'count': 0, 'total_duration': 0},
-                'Rejected': {'count': 0, 'total_duration': 0}
-            }
-        fincall_details[emp][item['calltype']]['count'] += item['fincall_count']
-        fincall_details[emp][item['calltype']]['total_duration'] += item['total_duration']
+        fincall_dict[item['employee']][item['calltype']]['count'] += item['fincall_count']
+        fincall_dict[item['employee']][item['calltype']]['total_duration'] += item['total_duration']
+    
+    # Convert defaultdict to dict and merge with default structure
+    fincall_results = {}
+    for employee, calls in fincall_dict.items():
+        employee_data = default_fincall_structure.copy()
+        for calltype, details in calls.items():
+            employee_data[calltype] = dict(details)  # Override the default structure with actual data
+        fincall_results[employee] = employee_data
+    
+    meeting_dict = {item['employee']: {'total_meeting_duration': item['total_meeting_duration'], 'meeting_count': item['meeting_count']} for item in meeting_data}
 
-    # Process meeting data
-    for item in meeting_data:
-        emp = item['employee']
-        if emp not in meeting_details:
-            meeting_details[emp] = {'total_meeting_duration': 0, 'meeting_count': 0}
-        meeting_details[emp]['total_meeting_duration'] += item['total_meeting_duration']
-        meeting_details[emp]['meeting_count'] += item['meeting_count']
-
-    # Merge all data into a combined structure
+    # Combine all data
+    all_employees = set(idle_time_dict.keys()) | set(hours_data_dict.keys()) | set(fincall_results.keys()) | set(meeting_dict.keys())
     combined_data = []
-    all_employees = set(idle_time_dict.keys()) | set(hours_data_dict.keys()) | set(fincall_details.keys()) | set(meeting_details.keys())
     for employee in all_employees:
-        combined_dict = {
+        combined_data.append({
             "employee": employee,
-            "total_idle_time": idle_time_dict.get(employee, {}).get('total_idle_time', 0),
-            "total_hours": hours_data_dict.get(employee, {}).get('total_hours', 0),
-            "fincall_details": fincall_details.get(employee, {
-                'Incoming': {'count': 0, 'total_duration': 0},
-                'Outgoing': {'count': 0, 'total_duration': 0},
-                'Missed': {'count': 0, 'total_duration': 0},
-                'Rejected': {'count': 0, 'total_duration': 0}
-            }),
-            "meeting_details": meeting_details.get(employee, {'total_meeting_duration': 0, 'meeting_count': 0})
-        }
-        combined_data.append(combined_dict)
+            "total_idle_time": idle_time_dict.get(employee, 0),
+            "total_hours": hours_data_dict.get(employee, 0),
+            "fincall_details": fincall_results.get(employee, default_fincall_structure),
+            "meeting_details": meeting_dict.get(employee, {'total_meeting_duration': 0, 'meeting_count': 0})
+        })
 
     return combined_data
+
