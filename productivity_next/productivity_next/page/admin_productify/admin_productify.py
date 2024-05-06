@@ -1,555 +1,189 @@
-
-from datetime import datetime,time,timedelta
 import frappe
-
-@frappe.whitelist() 
-def version_conditions(user,start_date=None, end_date=None):
-    now = datetime.now()
-    if start_date is None:
-        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
-    else:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
-    
-    if end_date is None:
-        end_date = now.strftime('%Y-%m-%d 23:59:59')
-    else:
-        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
-    if user != "Administrator":
-        email = frappe.db.get_value("Employee", user, "company_email")
-        condition = f"WHERE owner = '{email}' AND DATE(creation) >= '{start_date}' AND DATE(creation) <= '{end_date}'"
-    else:
-        condition = f"WHERE DATE(creation) >= '{start_date}' AND DATE(creation) <= '{end_date}'"
-
-    return condition
+from frappe.utils import nowdate, add_days, getdate
+from datetime import datetime,timedelta
+from collections import defaultdict
 
 @frappe.whitelist()
-def get_user_data(user,start_date=None, end_date=None):
-    version_conditions_str = version_conditions(user,start_date,end_date)
+def get_admin_data(user, start_date=None, end_date=None):
+    # Ensure dates are properly set
     start_date, end_date = set_dates(start_date, end_date)
 
-    conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
-    conditions_2 = f"AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
-    def calculate_idle_time(start_date,end_date):
-        # frappe.throw(f"User: {user}, Start Date: {start_date}, End Date: {end_date}")
-        # user = "HR-EMP-00011"
-        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
-        conditions_2 = f"AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
-        conditions_3 = f"WHERE DATE(time) >= '{start_date}' and DATE(time) <= '{end_date}'"
-            # frappe.throw(conditions)
-        def convert_times(data):
-            results = []
-            start_times = {}
-            for record in data:
-                employee = record['employee']
-                status = record['status']
-                time = record['start_time']
-                if status == 'start':
-                    start_times[employee] = time
-                elif status == 'end' and employee in start_times:
-                    new_entry = {'type': 'Idle', 'start_time': start_times[employee], 'stop_time': time,"employee":employee}
-                    results.append(new_entry)
-                    del start_times[employee]
-            return results
+    # Calculate and fetch required data
+    total_idle_time_list, total_hours_data_list, fincall_data, meeting_data = fetch_and_calculate_times(start_date, end_date)
+    # frappe.throw(str(total_idle_time_list))
+    # Combine the results into a single list of dictionaries
+    combined_data = combine_employee_data(total_idle_time_list, total_hours_data_list, fincall_data, meeting_data)
+    # frappe.throw(str(combined_data))    
+    # Return result as a dictionary
+    return {"combined_employee_data": combined_data}
 
-        # Function to convert fincall logs
-        def convert_time_data(time_entries):
-            formatted_entries = []
-            for entry in time_entries:
-                formatted_entry = {'type': 'Call', 'start_time': entry['start_time'], 'stop_time': entry['end_time'][:8],"employee":entry['employee']}
-                formatted_entries.append(formatted_entry)
-            return formatted_entries
+def calculate_idle_times_per_employee(data):
+    from datetime import datetime, timedelta
 
-        # Function to convert meeting logs
-        def convert_meeting_data(meeting_entries):
-            formatted_entries = []
-            for entry in meeting_entries:
-                formatted_entry = {'type': 'Meeting', 'start_time': entry['start_time'], 'stop_time': entry['end_time'],"employee":entry['employee']}
-                formatted_entries.append(formatted_entry)
-            return formatted_entries
-
-        # Fetch and process idle time data
-        idle_time_data = frappe.db.sql(f"""
-        select  DATE_FORMAT(time, '%H:%i:%s') as start_time, status, employee
-        from `tabIdle Time Log`
-        {conditions_3}
-        """, as_dict=True)
-        idle_time_data = convert_times(idle_time_data)
-
-        # Fetch and process fincall data
-        fincall_time_data = frappe.db.sql(f"""
-        SELECT DATE_FORMAT(call_datetime, '%H:%i:%s') AS start_time,
-            ADDTIME(DATE_FORMAT(call_datetime, '%H:%i:%s'), SEC_TO_TIME(duration)) AS end_time, employee
-        FROM `tabFincall Log`
-        {conditions}
-        """, as_dict=True)
-        fincall_time_data = convert_time_data(fincall_time_data)
-        # frappe.throw(str(fincall_time_data))
-        # Fetch and process meeting data
-        meeting_time_data = frappe.db.sql(f"""
-        select DATE_FORMAT(m.meeting_from, '%H:%i:%s') AS start_time, DATE_FORMAT(m.meeting_to, '%H:%i:%s') AS end_time, mcr.employee
-        from `tabMeeting` as m
-        join `tabMeeting Company Representative` as mcr on m.name = mcr.parent
-        WHERE m.docstatus = 1
-        {conditions_2}
-        """, as_dict=True)
-        meeting_time_data = convert_meeting_data(meeting_time_data)
-        # frappe.throw(str(meeting_time_data))
-
-        combined_time_data = idle_time_data + fincall_time_data + meeting_time_data
-        def calculate_idle_time_user(data):
-            employee_idle_time = {}
-            
-            # Time format in the data
-            time_format = "%H:%M:%S"
-            
-            for record in data:
-                start_time = datetime.strptime(record['start_time'], time_format)
-                stop_time = datetime.strptime(record['stop_time'], time_format)
-                
-                # Calculate difference in seconds
-                idle_duration = (stop_time - start_time).total_seconds()
-                
-                # Sum up idle time per employee
-                if record['employee'] in employee_idle_time:
-                    employee_idle_time[record['employee']] += idle_duration
-                else:
-                    employee_idle_time[record['employee']] = idle_duration
-            
-            # Convert to list of dictionaries
-            result_list = [{'employee': emp, 'total_idle_time': int(time)} for emp, time in employee_idle_time.items()]
-            return result_list
-
-        # Calculate idle time for each employee
-        idle_times_list = calculate_idle_time_user(combined_time_data)
+    employee_idle_times = defaultdict(timedelta)
+    
+    for entry in data:
+        employee = entry['employee']
+        start_time = datetime.strptime(entry['start_time'], "%H:%M:%S")
+        end_time = datetime.strptime(entry['end_time'], "%H:%M:%S")
         
-        # Calculate idle time for each employee
+        duration = end_time - start_time
+        employee_idle_times[employee] += duration
 
-        def parse_times(data):
-            idle_periods = []
-            active_periods = []
-            for entry in data:
-                from datetime import datetime
-                start_time = datetime.strptime(entry["start_time"], "%H:%M:%S")
-                stop_time = datetime.strptime(entry["stop_time"], "%H:%M:%S")
-                if entry["type"] == "Idle":
-                    idle_periods.append((start_time, stop_time))
-                else:
-                    active_periods.append((start_time, stop_time))
-            return idle_periods, merge_overlapping_times(active_periods)
+    # Ensure no negative idle times
+    for employee in employee_idle_times:
+        if employee_idle_times[employee] < timedelta(0):
+            employee_idle_times[employee] = timedelta(0)
 
-        def merge_overlapping_times(times):
-            # Sort times by start time
-            times_sorted = sorted(times, key=lambda x: x[0])
-            merged_times = []
-
-            # Merge overlapping times
-            for current_start, current_end in times_sorted:
-                if merged_times and merged_times[-1][1] >= current_start:
-                    merged_times[-1][1] = max(merged_times[-1][1], current_end)
-                else:
-                    merged_times.append([current_start, current_end])
-            
-            return merged_times
-
-
-        def calculate_duration(periods):
-            from datetime import timedelta
-            total_duration = timedelta()
-            for start, stop in periods:
-                total_duration += (stop - start)
-            return total_duration
-
-        def calculate_overlap(period1, period2):
-            start1, end1 = period1
-            start2, end2 = period2
-            overlap_start = max(start1, start2)
-            overlap_end = min(end1, end2)
-            if overlap_start < overlap_end:
-                return overlap_end - overlap_start
-            return timedelta()
-
-        idle_periods, active_periods = parse_times(combined_time_data)
-
-        total_idle_time = calculate_duration(idle_periods)
-
-        for idle_period in idle_periods:
-            for active_period in active_periods:
-                total_idle_time -= calculate_overlap(idle_period, active_period)
-
-        # print("Net Idle Time:", total_idle_time)
-
-        # frappe.throw(f"Total Idle Time: {str(total_idle_time)}")
-        # Time string
-        time_str = str(total_idle_time)
-
-        # Parse the string into a datetime object
-        time_object = datetime.strptime(time_str, "%H:%M:%S")
-
-        # Calculate the total seconds
-        total_seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
-        # frappe.throw(str(total_seconds))
-        return {"total_seconds":total_seconds,"idle_times_list":idle_times_list}
-
-
-    # No need to parse and reformat if we're just setting the time part explicitly
-    start_date_time = start_date
-    end_date_time = end_date
-
-    # If you need date objects for some operations, you can directly convert
-    start_datetime_obj = datetime.strptime(start_date_time, "%Y-%m-%d %H:%M:%S")
-    end_datetime_obj = datetime.strptime(end_date_time, "%Y-%m-%d %H:%M:%S")
-
-    # The formatted date strings can be obtained without additional parsing if not needed elsewhere
-    formatted_start_date = start_datetime_obj.strftime("%Y-%m-%d")
-    formatted_end_date = end_datetime_obj.strftime("%Y-%m-%d")
-
-    total_idle_time_in_seconds = calculate_idle_time(formatted_start_date,formatted_end_date).get("total_seconds",0)
-    total_idle_time_user = calculate_idle_time(formatted_start_date,formatted_end_date).get("idle_times_list",0)
-    # frappe.throw(str(total_idle_time_user))
-    # Combined Query for Count and Total Duration of Calls by Call Type
-    fincall_data = frappe.db.sql(f"""
-        SELECT 
-            calltype,
-            COUNT(*) AS fincall_count,
-            COALESCE(SUM(duration), 0) AS total_duration
-        FROM `tabFincall Log`
-        {conditions}
-        GROUP BY calltype
-    """, as_dict=True)
-
-    # Extracting data for each call type
-    incoming_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Incoming'), 0)
-    outgoing_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Outgoing'), 0)
-    missed_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Missed'), 0)
-    rejected_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Rejected'), 0)
-
-    total_incoming_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Incoming'), 0)
-    total_outgoing_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Outgoing'), 0)
-    total_missed_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Missed'), 0)
-
-    # TOTAL HOURS CARD
-    filters = {"time": ["between", [start_date, end_date]]}
-
-    # Fetch logs from the database
-    all_logs = frappe.db.get_list("Application Checkin Checkout",
-                                filters=filters,
-                                fields=["status", "time"],
-                                order_by="creation asc")
-
-    usage_time = 0
-    last_status = None
-
-    # Loop through logs to calculate the total duration of logged "In" sessions
-    for row in all_logs:
-        if row['status'] == "In" and last_status != "In":
-            start_time = row['time']  # Set start time when status changes to "In" from non-"In"
-        elif row['status'] == "Out" and last_status == "In":
-            end_time = row['time']  # Calculate duration when status changes from "In" to "Out"
-            usage_time += (end_time - start_time).total_seconds()
-        last_status = row['status']  # Update the last_status for the next iteration
-
-    # Convert total usage time from seconds to hours
-    total_hours = usage_time # Convert seconds to hours
-    # frappe.throw(str(total_hours))
-    # frappe.throw(str(total_hours / 60 / 60))  
-    # IDLE TIME CARD
-    total_idle_time_days = frappe.db.sql(f"""
-        SELECT 
-        SUM(CASE WHEN TIME_TO_SEC(TIMEDIFF(to_time, from_time)) > 120 THEN TIME_TO_SEC(TIMEDIFF(to_time, from_time)) ELSE 0 END) AS total_idle_duration_seconds,
-        COUNT(DISTINCT date) AS application_usage_days
-    FROM 
-        `tabApplication Usage log`
-        {conditions};""",as_dict=1)
-
-    total_days = total_idle_time_days[0]['application_usage_days'] if total_idle_time_days else 0
-
-
-    # Constructing a SQL query that adapts based on whether the user is an Administrator or not
-    sql_query = f"""
-    SELECT 
-        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) AS total_meeting_duration
-    FROM `tabMeeting` as m
-    where m.docstatus = 1
-    {conditions_2}
-    GROUP BY m.docstatus
-    """
-
-    # Executing the query
-    if user != "Administrator":
-        meetings = frappe.db.sql(sql_query, (user,), as_dict=True)
-    else:
-        meetings = frappe.db.sql(sql_query, as_dict=True)
-
-    # Application Usage Log Count, Top 10 Doc's Used Cards
-    total_counts = frappe.db.sql(f"""
-        SELECT
-            (SELECT COUNT(DISTINCT application_name) FROM `tabApplication Usage log`{conditions})  AS application_usage,
-            (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str}) AS version_count
-        """, as_dict=1)[0]
-    
-
-
-    return {
-        "application_usage": total_counts['application_usage'],
-        "version_count": total_counts['version_count'],
-        "incoming_fincall_count": incoming_fincall_count,
-        "outgoing_fincall_count": outgoing_fincall_count,
-        "missed_fincall_count": missed_fincall_count,
-        "rejected_fincall_count": rejected_fincall_count,
-        "total_hours": total_hours,
-        "total_incoming_fincall_count": total_incoming_fincall_count,
-        "total_outgoing_fincall_count": total_outgoing_fincall_count,
-        "total_missed_fincall_count": total_missed_fincall_count,
-        "total_idle_time": total_idle_time_in_seconds,
-        "total_days": total_days,
-        "total_time_on_calls": fincall_data[0]['total_duration'] if fincall_data else 0,
-        "total_meeting_duration": meetings[0].total_meeting_duration if meetings else 0,
-        "total_meeting_count": meetings[0].meeting_count if meetings else 0,
-        "total_idle_time_user":total_idle_time_user
-    }
-
-
-from datetime import datetime, timedelta
-
-def set_dates(start_date=None, end_date=None):
-    """
-    Determine start and end dates for a range, formatted with specific time stamps.
-    Args:
-    - start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to 365 days ago.
-    - end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to today.
-
-    Returns:
-    - tuple: A tuple containing formatted start and end dates as strings.
-    """
-    now = datetime.now()
-    
-    if start_date is None:
-        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
-    else:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
-    
-    if end_date is None:
-        end_date = now.strftime('%Y-%m-%d 23:59:59')
-    else:
-        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
-
+    return employee_idle_times
+def set_dates(start_date, end_date):
+    if not start_date:
+        start_date = nowdate()
+    if not end_date or getdate(end_date) < getdate(start_date):
+        end_date = add_days(start_date, 1)  # Default to one day range if end_date is before start_date
     return start_date, end_date
 
-# Example of using the function:
-# start_date, end_date = set_dates('2022-01-01', '2022-12-31')
-# print(start_date, end_date)
-# This prints: '2022-01-01 00:00:00' '2022-12-31 23:59:59'
-
-
-@frappe.whitelist()
-def get_admin_data(user,start_date=None, end_date=None):
-    version_conditions_str = version_conditions(user,start_date,end_date)
-    start_date, end_date = set_dates(start_date, end_date)
-
-    conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+def fetch_and_calculate_times(start_date, end_date):
+    conditions = f"WHERE call_datetime >= '{start_date}' AND call_datetime <= '{end_date}'"
     conditions_2 = f"AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
-    def calculate_idle_time(start_date,end_date):
-        # frappe.throw(f"User: {user}, Start Date: {start_date}, End Date: {end_date}")
-        # user = "HR-EMP-00011"
-        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
-        conditions_2 = f"AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
-        conditions_3 = f"WHERE DATE(time) >= '{start_date}' and DATE(time) <= '{end_date}'"
-            # frappe.throw(conditions)
-        def convert_times(data):
-            results = []
-            start_times = {}
-            for record in data:
-                employee = record['employee']
-                status = record['status']
-                time = record['start_time']
-                if status == 'start':
-                    start_times[employee] = time
-                elif status == 'end' and employee in start_times:
-                    new_entry = {'type': 'Idle', 'start_time': start_times[employee], 'stop_time': time,"employee":employee}
-                    results.append(new_entry)
-                    del start_times[employee]
-            return results
+    conditions_3 = f"WHERE time >= '{start_date}' AND time <= '{end_date}'"
 
-        # Function to convert fincall logs
-        def convert_time_data(time_entries):
-            formatted_entries = []
-            for entry in time_entries:
-                formatted_entry = {'type': 'Call', 'start_time': entry['start_time'], 'stop_time': entry['end_time'][:8],"employee":entry['employee']}
-                formatted_entries.append(formatted_entry)
-            return formatted_entries
+    # Fetch data from different sources
+    idle_time_data = fetch_idle_time_data(conditions_3)
+    fincall_time_data = fetch_fincall_data(conditions)
+    meeting_time_data = fetch_meeting_time_data(conditions_2)
+    
+    # Fetch total hours from application check-in checkout logs
+    total_hours_data = fetch_total_hours(start_date, end_date)
+    
+    return idle_time_data, total_hours_data, fincall_time_data, meeting_time_data
 
-        # Function to convert meeting logs
-        def convert_meeting_data(meeting_entries):
-            formatted_entries = []
-            for entry in meeting_entries:
-                formatted_entry = {'type': 'Meeting', 'start_time': entry['start_time'], 'stop_time': entry['end_time'],"employee":entry['employee']}
-                formatted_entries.append(formatted_entry)
-            return formatted_entries
+def fetch_idle_time_data(conditions):
+    # SQL Query to fetch idle time logs
+    sql_query = f"""
+    SELECT DATE_FORMAT(time, '%H:%i:%s') as start_time, status, employee
+    FROM `tabIdle Time Log`
+    {conditions}
+    """
+    data = frappe.db.sql(sql_query, as_dict=True)
+    # frappe.throw(str(data))
+    return calculate_idle_time_user(data)
 
-        # Fetch and process idle time data
-        idle_time_data = frappe.db.sql(f"""
-        select  DATE_FORMAT(time, '%H:%i:%s') as start_time, status, employee
-        from `tabIdle Time Log`
-        {conditions_3}
-        """, as_dict=True)
-        idle_time_data = convert_times(idle_time_data)
-
-        # Fetch and process fincall data
-        fincall_time_data = frappe.db.sql(f"""
-        SELECT DATE_FORMAT(call_datetime, '%H:%i:%s') AS start_time,
-            ADDTIME(DATE_FORMAT(call_datetime, '%H:%i:%s'), SEC_TO_TIME(duration)) AS end_time, employee
-        FROM `tabFincall Log`
-        {conditions}
-        """, as_dict=True)
-        fincall_time_data = convert_time_data(fincall_time_data)
-        # frappe.throw(str(fincall_time_data))
-        # Fetch and process meeting data
-        meeting_time_data = frappe.db.sql(f"""
-        select DATE_FORMAT(m.meeting_from, '%H:%i:%s') AS start_time, DATE_FORMAT(m.meeting_to, '%H:%i:%s') AS end_time, mcr.employee
-        from `tabMeeting` as m
-        join `tabMeeting Company Representative` as mcr on m.name = mcr.parent
-        WHERE m.docstatus = 1
-        {conditions_2}
-        """, as_dict=True)
-        meeting_time_data = convert_meeting_data(meeting_time_data)
-        # frappe.throw(str(meeting_time_data))
-
-        combined_time_data = idle_time_data + fincall_time_data + meeting_time_data
-        def calculate_idle_time_user(data):
-            employee_idle_time = {}
-            
-            # Time format in the data
-            time_format = "%H:%M:%S"
-            
-            for record in data:
-                start_time = datetime.strptime(record['start_time'], time_format)
-                stop_time = datetime.strptime(record['stop_time'], time_format)
-                
-                # Calculate difference in seconds
-                idle_duration = (stop_time - start_time).total_seconds()
-                
-                # Sum up idle time per employee
-                if record['employee'] in employee_idle_time:
-                    employee_idle_time[record['employee']] += idle_duration
-                else:
-                    employee_idle_time[record['employee']] = idle_duration
-            
-            # Convert to list of dictionaries
-            result_list = [{'employee': emp, 'total_idle_time': int(time)} for emp, time in employee_idle_time.items()]
-            return result_list
-
-        # Calculate idle time for each employee
-        idle_times_list = calculate_idle_time_user(combined_time_data)
-        
-        # Calculate idle time for each employee
-
-        def parse_times(data):
-            idle_periods = []
-            active_periods = []
-            for entry in data:
-                from datetime import datetime
-                start_time = datetime.strptime(entry["start_time"], "%H:%M:%S")
-                stop_time = datetime.strptime(entry["stop_time"], "%H:%M:%S")
-                if entry["type"] == "Idle":
-                    idle_periods.append((start_time, stop_time))
-                else:
-                    active_periods.append((start_time, stop_time))
-            return idle_periods, merge_overlapping_times(active_periods)
-
-        def merge_overlapping_times(times):
-            # Sort times by start time
-            times_sorted = sorted(times, key=lambda x: x[0])
-            merged_times = []
-
-            # Merge overlapping times
-            for current_start, current_end in times_sorted:
-                if merged_times and merged_times[-1][1] >= current_start:
-                    merged_times[-1][1] = max(merged_times[-1][1], current_end)
-                else:
-                    merged_times.append([current_start, current_end])
-            
-            return merged_times
-
-
-        def calculate_duration(periods):
-            from datetime import timedelta
-            total_duration = timedelta()
-            for start, stop in periods:
-                total_duration += (stop - start)
-            return total_duration
-
-        def calculate_overlap(period1, period2):
-            start1, end1 = period1
-            start2, end2 = period2
-            overlap_start = max(start1, start2)
-            overlap_end = min(end1, end2)
-            if overlap_start < overlap_end:
-                return overlap_end - overlap_start
-            return timedelta()
-
-        idle_periods, active_periods = parse_times(combined_time_data)
-
-        total_idle_time = calculate_duration(idle_periods)
-
-        for idle_period in idle_periods:
-            for active_period in active_periods:
-                total_idle_time -= calculate_overlap(idle_period, active_period)
-
-        # print("Net Idle Time:", total_idle_time)
-
-        # frappe.throw(f"Total Idle Time: {str(total_idle_time)}")
-        # Time string
-        time_str = str(total_idle_time)
-
-        # Parse the string into a datetime object
-        time_object = datetime.strptime(time_str, "%H:%M:%S")
-
-        # Calculate the total seconds
-        total_seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
-        # frappe.throw(str(total_seconds))
-        return {"total_seconds":total_seconds,"idle_times_list":idle_times_list}
-
-
-    # No need to parse and reformat if we're just setting the time part explicitly
-    start_date_time = start_date
-    end_date_time = end_date
-
-    # If you need date objects for some operations, you can directly convert
-    start_datetime_obj = datetime.strptime(start_date_time, "%Y-%m-%d %H:%M:%S")
-    end_datetime_obj = datetime.strptime(end_date_time, "%Y-%m-%d %H:%M:%S")
-
-    # The formatted date strings can be obtained without additional parsing if not needed elsewhere
-    formatted_start_date = start_datetime_obj.strftime("%Y-%m-%d")
-    formatted_end_date = end_datetime_obj.strftime("%Y-%m-%d")
-
-    total_idle_time_in_seconds = calculate_idle_time(formatted_start_date,formatted_end_date).get("total_seconds",0)
-    total_idle_time_user = calculate_idle_time(formatted_start_date,formatted_end_date).get("idle_times_list",0)
-
-    total_hours_data = frappe.db.sql("""
+def fetch_fincall_data(conditions):
+    # Correctly apply conditions and ensure `employee` and `calltype` are both grouped
+    sql_query = f"""
     SELECT 
         employee,
-        SUM(
-            CASE 
-                WHEN status = 'Out' THEN TIMESTAMPDIFF(SECOND, prev_time, time) 
-                ELSE 0 
-            END
-        ) / 3600.0 AS total_hours
-    FROM (
-        SELECT
-            employee,
-            status,
-            time,
-            LAG(time) OVER (PARTITION BY employee ORDER BY time) AS prev_time,
-            LAG(status) OVER (PARTITION BY employee ORDER BY time) AS prev_status
-        FROM 
-            `tabApplication Checkin Checkout`
-        WHERE 
-            time BETWEEN '2023-05-06' AND '2024-05-06'
-    ) AS log_details
-    WHERE 
-        status = 'Out' AND prev_status = 'In'
-    GROUP BY 
-        employee;
-    """,as_dict=True)
+        calltype,
+        COUNT(*) AS fincall_count,
+        COALESCE(SUM(duration), 0) AS total_duration
+    FROM `tabFincall Log`
+    {conditions}
+    GROUP BY employee, calltype
+    """
+    return frappe.db.sql(sql_query, as_dict=True)
 
-    return { "total_hours_data":total_hours_data}
+def fetch_meeting_time_data(conditions):
+    # SQL Query to fetch meeting data with total duration and count by employee
+    sql_query = f"""
+    SELECT 
+        mcr.employee,
+        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+    WHERE m.docstatus = 1 {conditions}
+    GROUP BY mcr.employee
+    """
+    return frappe.db.sql(sql_query, as_dict=True)
+
+
+def calculate_idle_time_user(data):
+    time_format = "%H:%M:%S"
+    employee_active_time = {}
+
+    for record in data:
+        employee = record['employee']
+        status = record['status']
+        current_time = datetime.strptime(record['start_time'], time_format)
+
+        if status == 'start':
+            # Initialize employee record if not already present
+            if employee not in employee_active_time:
+                employee_active_time[employee] = {'total_active_seconds': 0, 'last_start_time': None}
+            # Store the start time for the current activity period
+            employee_active_time[employee]['last_start_time'] = current_time
+        elif status == 'end':
+            if employee in employee_active_time and employee_active_time[employee]['last_start_time'] is not None:
+                # Calculate the active time for this period
+                start_time = employee_active_time[employee]['last_start_time']
+                active_seconds = (current_time - start_time).total_seconds()
+                employee_active_time[employee]['total_active_seconds'] += active_seconds
+                # Reset the last start time
+                employee_active_time[employee]['last_start_time'] = None
+
+    # Prepare final results
+    results = []
+    for employee, details in employee_active_time.items():
+        if details['total_active_seconds'] > 0:  # Only include employees with active time
+            results.append({
+                'employee': employee,
+                'total_active_time': details['total_active_seconds']  # Total active time in seconds
+            })
+    
+    # frappe.throw(str(results))  
+    return results
+
+def fetch_total_hours(start_date, end_date):
+    sql_query = f"""
+    SELECT employee, SUM(CASE WHEN status = 'Out' THEN TIMESTAMPDIFF(SECOND, prev_time, time) ELSE 0 END) / 3600.0 AS total_hours
+    FROM (SELECT employee, status, time, LAG(time) OVER (PARTITION BY employee ORDER BY time) AS prev_time, LAG(status) OVER (PARTITION BY employee ORDER BY time) AS prev_status FROM `tabApplication Checkin Checkout` WHERE time BETWEEN '{start_date}' AND '{end_date}') AS log_details WHERE status = 'Out' AND prev_status = 'In' GROUP BY employee;
+    """
+    return frappe.db.sql(sql_query, as_dict=True)
+
+def combine_employee_data(total_idle_time_list, total_hours_data_list, fincall_data, meeting_data):
+    idle_time_dict = {item['employee']: item for item in total_idle_time_list}
+    hours_data_dict = {item['employee']: item for item in total_hours_data_list}
+    fincall_details = {}
+    meeting_details = {}
+
+    # Process fincall data
+    for item in fincall_data:
+        emp = item['employee']
+        if emp not in fincall_details:
+            fincall_details[emp] = {
+                'Incoming': {'count': 0, 'total_duration': 0},
+                'Outgoing': {'count': 0, 'total_duration': 0},
+                'Missed': {'count': 0, 'total_duration': 0},
+                'Rejected': {'count': 0, 'total_duration': 0}
+            }
+        fincall_details[emp][item['calltype']]['count'] += item['fincall_count']
+        fincall_details[emp][item['calltype']]['total_duration'] += item['total_duration']
+
+    # Process meeting data
+    for item in meeting_data:
+        emp = item['employee']
+        if emp not in meeting_details:
+            meeting_details[emp] = {'total_meeting_duration': 0, 'meeting_count': 0}
+        meeting_details[emp]['total_meeting_duration'] += item['total_meeting_duration']
+        meeting_details[emp]['meeting_count'] += item['meeting_count']
+
+    # Merge all data into a combined structure
+    combined_data = []
+    all_employees = set(idle_time_dict.keys()) | set(hours_data_dict.keys()) | set(fincall_details.keys()) | set(meeting_details.keys())
+    for employee in all_employees:
+        combined_dict = {
+            "employee": employee,
+            "total_idle_time": idle_time_dict.get(employee, {}).get('total_idle_time', 0),
+            "total_hours": hours_data_dict.get(employee, {}).get('total_hours', 0),
+            "fincall_details": fincall_details.get(employee, {
+                'Incoming': {'count': 0, 'total_duration': 0},
+                'Outgoing': {'count': 0, 'total_duration': 0},
+                'Missed': {'count': 0, 'total_duration': 0},
+                'Rejected': {'count': 0, 'total_duration': 0}
+            }),
+            "meeting_details": meeting_details.get(employee, {'total_meeting_duration': 0, 'meeting_count': 0})
+        }
+        combined_data.append(combined_dict)
+
+    return combined_data

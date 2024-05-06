@@ -62,7 +62,6 @@ UserProfile = class UserProfile {
 		this.setup_user_search();
 		this.setup_timespan();
 		this.main_section.empty().append(frappe.render_template("admin_productify"));
-		this.fetch_and_render_user_data();
 		this.fetch_and_render_admin_data();	
 	}
 	setup_timespan() {
@@ -164,199 +163,6 @@ UserProfile = class UserProfile {
 
     }
 
-	fetch_and_render_user_data() {
-		let data;
-		if (this.selected_employee != null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-		
-		frappe.call({
-			method: "productivity_next.productivity_next.page.admin_productify.admin_productify.get_user_data",
-			args: {
-				user: data,
-				start_date: this.selected_start_date,
-				end_date: this.selected_end_date,
-			},
-			callback: (r) => {
-				if (r.message) {
-					this.render_user_data(r.message);
-					$(document).ready(function() {
-						$('#logCountModalTrigger').click(function() {
-							$('#logCountModal').modal('show');
-						});
-					});					
-				}
-			}
-		});
-	}
-   
-	render_user_data(data) {
-		let employee_data;
-		if (this.selected_employee != null) {
-			employee_data = this.selected_employee;
-		} else {
-			employee_data = this.user_id;
-		}
-		// console.log(data.meetings)
-		const container = this.main_section.find("#user-data-cards");
-		container.empty();
-		const sortedIdleTimes = data.total_idle_time_user.sort((a, b) => a.total_idle_time - b.total_idle_time);
-
-		let wholedata = `
-			<div class="title-area dynamic-spacing">
-				<h4 class="card-title">Overall Data</h4>
-			</div>
-			
-			<div class="row mt-1">
-				<div class="col-md-3">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #08088A !important;"><b>${parseFloat(data.total_hours /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Working Hours</span></div>
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat((data.total_hours /60 / 60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Working Hours Per Day</span></div>
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(((data.total_hours /60 /60)/data.total_days)-((data.total_idle_time /60 /60)/data.total_days)).toFixed(2)}</b><span style="font-size:12px">  Active Hours Per Day</span></div>
-					</div>
-				</div>
-				<div class="col-md-3">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat((data.total_idle_time /60 /60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Idle Hours Per Day</span></div>
-					</div>
-				</div>
-				
-				
-			</div>
-
-			<div class="row mt-1">
-				
-				<div class="col-md-3">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #08088A !important;"><b>${parseFloat(((data.total_incoming_fincall_count+data.total_outgoing_fincall_count)/60/60)/data.total_days).toFixed(2)}</b><span style="font-size:12px"> Hours on Call Per Day </span></div>
-					</div>
-				</div>
-				<div class="col-md-6">`;
-				wholedata += `<div class="frappe-card dynamic-spacing custom-card row">
-				<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Top Performers</h4>`;
-				// Assuming sortedIdleTimes is an array and is available here
-			for (let i = 0; i < Math.min(3, sortedIdleTimes.length); i++) {
-				const app = sortedIdleTimes[i];
-				wholedata += `<div class="col-md-12">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<div class="number custom-number" style="font-size: 18px !important; color: #2E2E2E !important;">
-							<b>${app.employee}</b>
-							<span style="font-size:12px; align:right;"><b align="right">${parseFloat(app.total_idle_time / 3600).toFixed(2)}</b></span>
-						</div>
-					</div>
-				</div>`;
-			}
-
-			wholedata += `</div>`;
-			wholedata +=`
-				</div>
-				
-				<div class="col-md-3">
-					<div class="frappe-card dynamic-spacing custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b> ${parseFloat((data.total_meeting_duration /60 /60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Hours In Meeting Per Day</span></div>
-					</div>
-				</div>
-			</div>
-			<div class="row mt-3">
-				<div class="col-md-12">
-				<div class="frappe-card dynamic-spacing custom-card">
-				<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">All Employees</h4>`;
-				wholedata += `<div class="row">`;
-				// Assuming sortedIdleTimes is an array and is available here
-sortedIdleTimes.forEach(app => {
-    wholedata += `<div class="col-md-3">
-        <div class="frappe-card dynamic-spacing custom-card">
-            <div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
-                <b>${app.employee}</b>
-                <span style="font-size:12px; align:right;"><b align="right">${parseFloat(app.total_idle_time / 3600).toFixed(2)}</b></span>
-            </div>
-        </div>
-    </div>`;
-});
-
-			wholedata += `</div>`;
-		wholedata +=	`</div>
-					</div>
-				</div>`;
-		container.append(wholedata);
-        $(document).ready(function() {
-            $(document).on('click', '.url-link', function(e) {
-                e.preventDefault();
-                
-                // AJAX call to Python function
-                frappe.call({
-                    method: "productivity_next.productivity_next.page.admin_productify.admin_productify.get_url_brief_data",
-                    args: {
-                        url_data: $(this).data('url'),
-                        user: employee_data,
-                        start_date: self.selected_start_date,
-                        end_date: self.selected_end_date,
-                    },
-                    callback: function(r) {
-                        if (r.message) {
-                            let data = r.message.data;
-                            render_url_brief_data(data);
-                        } else {
-                            $('#urlModal').find('.modal-body').html('No data available for this URL.');
-                        }
-                        $('#urlModal').modal('show');  // Show the modal after data is loaded
-                    }
-                });
-            });
-        
-            function render_url_brief_data(data) {
-                // Assuming `data` is an object or string you want to display
-                let displayContent = `
-                <div class="row mt-3">
-                    <div class="col-md-12">
-                        <div class="frappe-card dynamic-spacing custom-card">
-                            <h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Top 10 URL's Used</h4>
-                            <table class="table">
-                                <thead>
-                                    <tr style="align:center !important;">
-                                        <th>Site Name</th>
-                                        <th>Application Name</th>
-                                        <th>Duration</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-    
-            data.forEach(app => {
-                displayContent += `
-                    <tr>
-                        <td style="color:#00A6E0 !important;"><b>${app.current_url}</b></td>
-                        <td style="color:#62BA46"><b>${app.application_name}</b></td>
-                        <td style="color:#FF4001">${parseFloat(app.duration/60/60).toFixed(2)} Hours</td>
-                    </tr>`;
-            });
-    
-            displayContent += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>`; // Convert data object to string if necessary
-                $('#urlModal').find('.modal-body').html(displayContent);
-            }
-        });
-               
-	};
 	fetch_and_render_admin_data() {
 		let data;
 		if (this.selected_employee != null) {
@@ -395,11 +201,23 @@ sortedIdleTimes.forEach(app => {
 		const container = this.main_section.find("#user-activity-data");
 		container.empty();
 		let wholedata = ``;
-		data.total_hours_data.forEach(app => {
+		data.combined_employee_data.forEach(app => {
 			wholedata += `
 				<tr>
-					<td>${app.employee}</td>
-					<td>${parseFloat(app.total_hours).toFixed(2)}</td>
+					<td align="center">
+					<a href="https://website.finbyz.com/app/employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}" target="_blank">${app.employee}</a>
+					</td>
+					<td align="center">${parseFloat(app.total_hours).toFixed(2)}</td>
+					<td align="center"></td>
+					<td align="center"></td>
+					<td align="center">${app.fincall_details.Incoming.count}</td>
+					<td align="center">${app.fincall_details.Outgoing.count}</td>
+					<td align="center">${app.fincall_details.Missed.count}</td>
+					<td align="center">${app.fincall_details.Rejected.count}</td>
+					<td align="center">${parseFloat(app.fincall_details.Incoming.total_duration/3600).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.fincall_details.Outgoing.total_duration/3600).toFixed(2)}</td>
+					<td align="center">${app.meeting_details.meeting_count}</td>
+					<td align="center">${parseFloat(app.meeting_details.total_meeting_duration/3600).toFixed(2)}</td>
 				</tr>`;
 		});
 		container.append(wholedata);
