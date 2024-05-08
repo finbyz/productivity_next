@@ -234,6 +234,8 @@ UserProfile = class UserProfile {
    
 	render_user_data(data) {
 		let employee_data;
+		let start_date_ = this.selected_start_date;
+		let end_date_ = this.selected_end_date;
 		if (this.selected_employee != null) {
 			employee_data = this.selected_employee;
 		} else {
@@ -455,8 +457,8 @@ UserProfile = class UserProfile {
                     args: {
                         url_data: $(this).data('url'),
                         user: employee_data,
-                        start_date: this.selected_start_date,
-                        end_date: this.selected_end_date,
+                        start_date: start_date_,
+                        end_date: end_date_,
                     },
                     callback: function(r) {
                         if (r.message) {
@@ -665,7 +667,7 @@ UserProfile = class UserProfile {
 				// Add a new hour header if it's a new hour
 				if (hour !== currentHour) {
 					currentHour = hour;
-					const hourHeader = `<div class="col-md-12"><h6>TIME - ${date} ${currentHour}:00:00</h6></div>`;
+					const hourHeader = `<div class="col-md-12"><h5><b>${date} ${currentHour}:00:00</b></h5></div>`;
 					imageContainer.append(hourHeader);
 				}
 	

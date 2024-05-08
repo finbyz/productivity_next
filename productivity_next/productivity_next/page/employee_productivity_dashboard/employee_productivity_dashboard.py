@@ -1,6 +1,7 @@
 
 from datetime import datetime,time,timedelta
 import frappe
+from frappe import utils
 
 def get_conditions(user):
     """Generates SQL conditions based on the user role."""
@@ -314,19 +315,20 @@ def get_user_data(user,start_date=None, end_date=None):
 
     usage_time = 0
     last_status = None
-
-    # Loop through logs to calculate the total duration of logged "In" sessions
+    start_time = None
     for row in all_logs:
         if row['status'] == "In" and last_status != "In":
             start_time = row['time']  # Set start time when status changes to "In" from non-"In"
         elif row['status'] == "Out" and last_status == "In":
             end_time = row['time']  # Calculate duration when status changes from "In" to "Out"
             usage_time += (end_time - start_time).total_seconds()
+            start_time = None  # Reset start_time after calculating the duration
         last_status = row['status']  # Update the last_status for the next iteration
 
-    # Check if the last status is 'In' and no 'Out' log followed
-    if last_status == "In":
-        current_time = datetime.now()
+    if last_status == "In" and start_time is not None:
+        current_time_str = utils.now()
+        # Adjusted to handle microseconds
+        current_time = datetime.strptime(current_time_str, "%Y-%m-%d %H:%M:%S.%f")
         usage_time += (current_time - start_time).total_seconds()
 
     # Convert total usage time from seconds to hours
@@ -474,7 +476,7 @@ def get_url_brief_data(url_data,user,start_date=None, end_date=None):
     query = f"""
         SELECT current_url, SUM(duration) AS duration, application_name
         FROM `tabApplication Usage log` 
-        {conditions}and domain = '{url_data}'
+        {conditions} and domain = '{url_data}'
         GROUP BY current_url
         ORDER BY SUM(duration) DESC
         """
