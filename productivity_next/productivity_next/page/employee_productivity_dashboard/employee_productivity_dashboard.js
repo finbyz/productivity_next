@@ -451,7 +451,6 @@ UserProfile = class UserProfile {
                 e.preventDefault();
                 
                 // AJAX call to Python function
-				console.log(this.selected_start_date, this.selected_end_date);
                 frappe.call({
                     method: "productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_url_brief_data",
                     args: {
