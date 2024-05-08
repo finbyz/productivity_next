@@ -127,6 +127,7 @@ def get_user_data(user,start_date=None, end_date=None):
                     new_entry = {'type': 'Idle', 'start_time': start_times[employee], 'stop_time': time}
                     results.append(new_entry)
                     del start_times[employee]
+            # frappe.throw(str(results))
             return results
 
         # Function to convert fincall logs
@@ -181,14 +182,26 @@ def get_user_data(user,start_date=None, end_date=None):
         def parse_times(data):
             idle_periods = []
             active_periods = []
+            eight_hours = timedelta(hours=8)
+            # frappe.throw(str(data))
             for entry in data:
-                from datetime import datetime
+                # Parse start and stop times
                 start_time = datetime.strptime(entry["start_time"], "%H:%M:%S")
                 stop_time = datetime.strptime(entry["stop_time"], "%H:%M:%S")
-                if entry["type"] == "Idle":
-                    idle_periods.append((start_time, stop_time))
+                duration = stop_time - start_time
+
+            # Check duration is not greater than 8 hours and that times are on the same day
+                if duration <= eight_hours:
+                    # Append periods to the respective lists based on type
+                    if entry["type"] == "Idle":
+                        idle_periods.append((start_time, stop_time))
+                    else:
+                        active_periods.append((start_time, stop_time))
                 else:
-                    active_periods.append((start_time, stop_time))
+                    # Optionally handle cases where start and stop times span multiple days
+                    # This code simply skips such entries, but you could implement additional logic as needed
+                    continue
+            
             return idle_periods, merge_overlapping_times(active_periods)
 
         def merge_overlapping_times(times):
@@ -207,10 +220,16 @@ def get_user_data(user,start_date=None, end_date=None):
 
 
         def calculate_duration(periods):
-            from datetime import timedelta
             total_duration = timedelta()
+            max_duration = timedelta(hours=8)  # Define the maximum duration allowed to be added
+            day_duration = timedelta(days=1)   # Define the threshold for ignoring long periods
+            
             for start, stop in periods:
-                total_duration += (stop - start)
+                duration = stop - start
+                # Check if the duration is less than 8 hours and less than a day
+                if duration < max_duration and duration < day_duration:
+                    total_duration += duration
+                    
             return total_duration
 
         def calculate_overlap(period1, period2):
@@ -305,6 +324,11 @@ def get_user_data(user,start_date=None, end_date=None):
             usage_time += (end_time - start_time).total_seconds()
         last_status = row['status']  # Update the last_status for the next iteration
 
+    # Check if the last status is 'In' and no 'Out' log followed
+    if last_status == "In":
+        current_time = datetime.now()
+        usage_time += (current_time - start_time).total_seconds()
+
     # Convert total usage time from seconds to hours
     total_hours = usage_time # Convert seconds to hours
     # frappe.throw(str(total_hours / 60 / 60))  
@@ -324,7 +348,10 @@ def get_user_data(user,start_date=None, end_date=None):
     # Constructing a SQL query that adapts based on whether the user is an Administrator or not
     sql_query = f"""
     SELECT 
-        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) AS total_meeting_duration,
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
     {'JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s' if user != 'Administrator' else ''}

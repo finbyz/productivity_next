@@ -86,6 +86,7 @@ def fetch_idle_time_data(conditions):
     """
     data = frappe.db.sql(sql_query, as_dict=True)
     # frappe.throw(str(data))
+    # frappe.throw(str(data))
     return calculate_idle_time_user(data)
 
 def fetch_fincall_data(conditions):
@@ -107,7 +108,10 @@ def fetch_meeting_time_data(conditions):
     sql_query = f"""
     SELECT 
         mcr.employee,
-        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) AS total_meeting_duration,
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
     JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
@@ -119,32 +123,37 @@ def fetch_meeting_time_data(conditions):
 
 def calculate_idle_time_user(data):
     time_format = "%H:%M:%S"
-    employee_active_time = defaultdict(int)  # Using int to accumulate total seconds
-
-    for record in data:
-        employee = record['employee']
-        status = record['status']
-        current_time = datetime.strptime(record['start_time'], time_format)
-
-        if status == 'start':
-            if employee not in employee_active_time:
-                employee_active_time[employee] = {'total_idle_seconds': 0, 'last_start_time': None}
-            employee_active_time[employee]['last_start_time'] = current_time
-        elif status == 'end' and employee in employee_active_time and employee_active_time[employee]['last_start_time'] is not None:
-            start_time = employee_active_time[employee]['last_start_time']
-            active_seconds = (current_time - start_time).total_seconds()
-            employee_active_time[employee]['total_idle_seconds'] += active_seconds
-            employee_active_time[employee]['last_start_time'] = None  # Reset the last start time
-
-    # Prepare final results, converting seconds to a preferred time format
+    employee_times = defaultdict(list)
     results = []
-    for employee, details in employee_active_time.items():
+
+    # Organize records by employee and sort by time
+    for record in data:
+        employee_times[record['employee']].append((record['start_time'], record['status']))
+    for employee, times in employee_times.items():
+        times.sort()
+
+    # Calculate idle time by finding the gap between 'end' of one and 'start' of next activity
+    idle_times = defaultdict(int)
+    for employee, times in employee_times.items():
+        last_end_time = None
+        for time, status in times:
+            current_time = datetime.strptime(time, time_format)
+            if status == 'start' and last_end_time is not None:
+                idle_seconds = (current_time - last_end_time).total_seconds()
+                if idle_seconds <= 7200:  # Ignore idle time greater than 2 hours
+                    idle_times[employee] += idle_seconds
+            if status == 'end':
+                last_end_time = current_time
+
+    # Prepare final results
+    for employee, total_idle_seconds in idle_times.items():
         results.append({
             'employee': employee,
-            'total_idle_time': details['total_idle_seconds'] / 3600  # Convert seconds to hours
+            'total_idle_time': total_idle_seconds / 3600  # Convert seconds to hours
         })
-
+    # frappe.throw(str(results))
     return results
+
 
 
 def fetch_total_hours(start_date, end_date, user=None):

@@ -449,13 +449,14 @@ UserProfile = class UserProfile {
                 e.preventDefault();
                 
                 // AJAX call to Python function
+				console.log(this.selected_start_date, this.selected_end_date);
                 frappe.call({
                     method: "productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_url_brief_data",
                     args: {
                         url_data: $(this).data('url'),
                         user: employee_data,
-                        start_date: self.selected_start_date,
-                        end_date: self.selected_end_date,
+                        start_date: this.selected_start_date,
+                        end_date: this.selected_end_date,
                     },
                     callback: function(r) {
                         if (r.message) {
@@ -645,19 +646,33 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 	
-		frappe.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_images", {
+		frappe.xcall("finbyz.finbyz.page.finbyz_productify_dashboard.productify_data.get_images", {
 			user: data,
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		})
 		.then((imagedata) => {
-			// console.log(imagedata);
 			const imageContainer = this.main_section.find(".recent-activity-list");
 			imageContainer.empty();
+	
+			let currentHour = null;
+	
 			imagedata.forEach((image) => {
+				const imageDateTime = new Date(image.datetime);
+				const hour = imageDateTime.getHours();
+				const date = imageDateTime.toDateString();
+	
+				// Add a new hour header if it's a new hour
+				if (hour !== currentHour) {
+					currentHour = hour;
+					const hourHeader = `<div class="col-md-12"><h6>TIME - ${date} ${currentHour}:00:00</h6></div>`;
+					imageContainer.append(hourHeader);
+				}
+	
 				const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;" class="clickable-image"></div>`;
 				imageContainer.append(imgElement);
 			});
+	
 			// Add click event listener for images
 			$('.clickable-image').on('click', function() {
 				const imgSrc = $(this).attr('src');
