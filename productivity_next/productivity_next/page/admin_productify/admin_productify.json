@@ -4,13 +4,17 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-05-02 13:04:04.600504",
+ "modified": "2024-05-10 17:00:51.169980",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "admin-productify",
  "owner": "Administrator",
  "page_name": "admin-productify",
- "roles": [],
+ "roles": [
+  {
+   "role": "Administrator"
+  }
+ ],
  "script": null,
  "standard": "Yes",
  "style": null,
