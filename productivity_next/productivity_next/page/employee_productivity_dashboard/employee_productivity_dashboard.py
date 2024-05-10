@@ -94,10 +94,10 @@ def get_user_data(user,start_date=None, end_date=None):
 
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
-        conditions_2 = f"AND mcr.employee = '{user}' AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
+        conditions_2 = f"AND mcr.employee = '{user}' AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
     else:
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
-        conditions_2 = f"AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
+        conditions_2 = f"AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
 
     
     # Function to convert idle time logs
@@ -358,7 +358,7 @@ def get_user_data(user,start_date=None, end_date=None):
     FROM `tabMeeting` as m
     {'JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s' if user != 'Administrator' else ''}
     {'and m.docstatus = 1' if user != 'Administrator' else 'WHERE m.docstatus = 1'}
-    {f'{conditions_2}' if user != 'Administrator' else ''}
+    {conditions_2}
     GROUP BY {'mcr.employee' if user != 'Administrator' else 'm.docstatus'}
     """
 

@@ -6,10 +6,14 @@ from productivity_next.productivity_next.page.employee_productivity_dashboard.em
 @frappe.whitelist()
 def get_admin_data(user, start_date=None, end_date=None):
     combined_data = []
-    employees = frappe.db.get_all("Employee", filters={"status": "Active"}, fields=["name"])
-    for employee in employees:
-        employee_data = get_user_data(employee['name'], start_date, end_date)
-        employee_data['employee'] = employee['name']
+    if user != "Administrator":
+        employees = frappe.db.get_all("Employee", filters={"status": "Active"}, fields=["name"])
+        for employee in employees:
+            employee_data = get_user_data(employee['name'], start_date, end_date)
+            employee_data['employee'] = employee['name']
+            combined_data.append(employee_data)
+    else: 
+        employee_data = get_user_data(user, start_date, end_date)
         combined_data.append(employee_data)
 
     # frappe.throw(str(combined_data))
