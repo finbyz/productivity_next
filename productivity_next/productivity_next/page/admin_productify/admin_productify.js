@@ -219,7 +219,11 @@ UserProfile = class UserProfile {
 	
 		// Await all the promises to get the results
 		const results = await Promise.all(fetchPromises);
-	
+		results.sort((a, b) => {
+			const aEffectiveHours = (a.total_hours/3600) - (a.total_idle_time/3600);
+			const bEffectiveHours = (b.total_hours/3600) - (b.total_idle_time/3600);
+			return aEffectiveHours - bEffectiveHours;
+		});
 		// Build the HTML with the results
 		results.forEach(app => {
 			const employeeUrl = `${baseUrl}employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;

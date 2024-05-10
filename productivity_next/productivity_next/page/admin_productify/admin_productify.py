@@ -40,29 +40,29 @@ def get_admin_data(user, start_date=None, end_date=None):
 #     return employee_idle_times
 
 
-# def set_dates(start_date=None, end_date=None):
-#     """
-#     Determine start and end dates for a range, formatted with specific time stamps.
-#     Args:
-#     - start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to 365 days ago.
-#     - end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to today.
+def set_dates(start_date=None, end_date=None):
+    """
+    Determine start and end dates for a range, formatted with specific time stamps.
+    Args:
+    - start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to 365 days ago.
+    - end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to today.
 
-#     Returns:
-#     - tuple: A tuple containing formatted start and end dates as strings.
-#     """
-#     now = datetime.now()
+    Returns:
+    - tuple: A tuple containing formatted start and end dates as strings.
+    """
+    now = datetime.now()
     
-#     if start_date is None:
-#         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
-#     else:
-#         start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
     
-#     if end_date is None:
-#         end_date = now.strftime('%Y-%m-%d 23:59:59')
-#     else:
-#         end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d 23:59:59')
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
 
-#     return start_date, end_date
+    return start_date, end_date
 
 # def fetch_and_calculate_times(start_date, end_date):
 #     conditions = f"WHERE call_datetime >= '{start_date}' AND call_datetime <= '{end_date}'"
