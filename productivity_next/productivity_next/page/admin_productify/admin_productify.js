@@ -229,17 +229,17 @@ UserProfile = class UserProfile {
 					<td align="center">
 						<a href="${employeeUrl}" target="_blank">${app.employeeName}</a>
 					</td>
-					<td align="center">${parseFloat(app.total_hours).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.total_hours-(app.total_idle_time)).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.total_idle_time).toFixed(2)}</td>
-					<td align="center">${app.fincall_details.Incoming.count}</td>
-					<td align="center">${app.fincall_details.Outgoing.count}</td>
-					<td align="center">${app.fincall_details.Missed.count}</td>
-					<td align="center">${app.fincall_details.Rejected.count}</td>
-					<td align="center">${parseFloat(app.fincall_details.Incoming.total_duration/3600).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.fincall_details.Outgoing.total_duration/3600).toFixed(2)}</td>
-					<td align="center">${app.meeting_details.meeting_count}</td>
-					<td align="center">${parseFloat(app.meeting_details.total_meeting_duration/3600).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
+					<td align="center">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
+					<td align="center">${app.incoming_fincall_count}</td>
+					<td align="center">${app.outgoing_fincall_count}</td>
+					<td align="center">${app.missed_fincall_count}</td>
+					<td align="center">${app.rejected_fincall_count}</td>
+					<td align="center">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
+					<td align="center">${app.total_meeting_count}</td>
+					<td align="center">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
 				</tr>`;
 		});
 	
