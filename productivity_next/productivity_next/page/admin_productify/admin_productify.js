@@ -392,20 +392,20 @@ UserProfile = class UserProfile {
 			// console.log(app);
 			wholedata += `
 				<tr>
-					<td align="center">
-						<a href="${employeeUrl}" target="_blank">${app.employeeName}</a>
+					<td align="left">
+						<a href="${employeeUrl}" target="_blank" style="color:#6420AA;">${app.employeeName}</a>
 					</td>
-					<td align="center">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
-					<td align="center">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
-					<td align="center">${app.incoming_fincall_count}</td>
-					<td align="center">${app.outgoing_fincall_count}</td>
-					<td align="center">${app.missed_fincall_count}</td>
-					<td align="center">${app.rejected_fincall_count}</td>
-					<td align="center">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
-					<td align="center">${app.total_meeting_count}</td>
-					<td align="center">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
+					<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
+					<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
+					<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
+					<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
+					<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
+					<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
+					<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
+					<td align="center" style="color:#FF4001;">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
+					<td align="center" style="color:#FF4001;">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
+					<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
+					<td align="center" style="color:#6420AA;">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
 				</tr>`;
 		});
 	

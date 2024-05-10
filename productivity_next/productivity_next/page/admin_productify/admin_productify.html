@@ -18,29 +18,35 @@
     <div class="col-md-12  mt-0">
         <div class="performance-graphs ">
             <div class="frappe-card chart-column-container hidden-xs hidden-sm ">
-                <div class="chart-wrapper ">
+                <div class="title-area mb-0 pb-0">
+                    <h4 class="card-title">{%=__("User Analysis") %}<span style="font-size: 12px;"> (User Productivity Stats)</span></h4>
+                </div>
+                <div class="chart-wrapper mt-0 pt-0">
                     <table class="table" width="100%">
                         <thead>
                             <tr align="center">
-                                <th width="15%"></th>
-                                <th width="21.25%" colspan="3">Activity Hours</th>
-                                <th width="21.25%" colspan="4">Phone Call Nos</th>
-                                <th width="21.25%" colspan="2">Phone Call Hours</th>
-                                <th width="21.25%" colspan="2">Meetings</th>
+                                <th width="100%" colspan="12" style="padding:15px !important;">All Users Of The Organization<span style="font-size: 12px;"> (Click on employee name to get brief data)</span></th>
                             </tr>
                             <tr align="center">
-                                <th>Employee</th>
-                                <th>Total</th>
-                                <th>Active</th>
-                                <th>Idle</th>
-                                <th>Incoming</th>
-                                <th>Outgoing</th>
-                                <th>Missed</th>
-                                <th>Rejected</th>
-                                <th>Incoming</th>
-                                <th>Outgoing</th>
-                                <th>Nos</th>
-                                <th>Hours</th>
+                                <th width="15%"></th>
+                                <th width="21.25%" colspan="3" style="color:#00A6E0;">Activity Hours</th>
+                                <th width="21.25%" colspan="4" style="color:#62BA46;">Phone Call Nos</th>
+                                <th width="21.25%" colspan="2" style="color:#FF4001;">Phone Call Hours</th>
+                                <th width="21.25%" colspan="2" style="color:#6420AA;">Meetings</th>
+                            </tr>
+                            <tr align="center">
+                                <th style="color:#6420AA;">Employee</th>
+                                <th style="color:#00A6E0;">Total</th>
+                                <th style="color:#00A6E0;">Active</th>
+                                <th style="color:#00A6E0;">Idle</th>
+                                <th style="color:#62BA46;">Incoming</th>
+                                <th style="color:#62BA46;">Outgoing</th>
+                                <th style="color:#62BA46;">Missed</th>
+                                <th style="color:#62BA46;">Rejected</th>
+                                <th style="color:#FF4001;">Incoming</th>
+                                <th style="color:#FF4001;">Outgoing</th>
+                                <th style="color:#6420AA;">Nos</th>
+                                <th style="color:#6420AA;">Hours</th>
                             </tr>
                         </thead>
                         <tbody id="user-activity-data">
