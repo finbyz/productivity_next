@@ -15,18 +15,18 @@ UserProfile = class UserProfile {
         this.buttonsInitialized = false;
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('start_date') == null && urlParams.get('end_date') == null) {
-            var startDate = new Date();
-            startDate.setFullYear(startDate.getFullYear() - 1);
-            var day = startDate.getDate().toString().padStart(2, '0');
-            var month = (startDate.getMonth() + 1).toString().padStart(2, '0');
-            var year = startDate.getFullYear();
-            this.selected_start_date = year + '-' + month + '-' + day;
-            this.selected_end_date = new Date().toJSON().slice(0, 10)
-        }
-        else{
-            this.selected_start_date = urlParams.get('start_date');
-            this.selected_end_date = urlParams.get('end_date');
-        }
+			var currentDate = new Date();
+			currentDate.setDate(currentDate.getDate() - 1); // Set to one day before today
+			var day = currentDate.getDate().toString().padStart(2, '0');
+			var month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+			var year = currentDate.getFullYear();
+			this.selected_start_date = year + '-' + month + '-' + day;
+			this.selected_end_date = year + '-' + month + '-' + day; // End date also one day before today
+		}
+		else {
+			this.selected_start_date = urlParams.get('start_date');
+			this.selected_end_date = urlParams.get('end_date');
+		}
         if (urlParams.get('employee') != null && urlParams.get('employee') != 'undefined'){
         this.selected_employee = urlParams.get('employee');
         }
@@ -63,6 +63,7 @@ UserProfile = class UserProfile {
 		this.setup_timespan();
 		this.main_section.empty().append(frappe.render_template("admin_productify"));
 		this.fetch_and_render_admin_data();	
+		this.render_bar_chart();
 	}
 	setup_timespan() {
         this.$user_search_button = this.page.set_primary_action(
@@ -222,14 +223,15 @@ UserProfile = class UserProfile {
 		// Build the HTML with the results
 		results.forEach(app => {
 			const employeeUrl = `${baseUrl}employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
+			console.log(app);
 			wholedata += `
 				<tr>
 					<td align="center">
 						<a href="${employeeUrl}" target="_blank">${app.employeeName}</a>
 					</td>
 					<td align="center">${parseFloat(app.total_hours).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.total_hours-(app.total_idle_time/3600)).toFixed(2)}</td>
-					<td align="center">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.total_hours-(app.total_idle_time)).toFixed(2)}</td>
+					<td align="center">${parseFloat(app.total_idle_time).toFixed(2)}</td>
 					<td align="center">${app.fincall_details.Incoming.count}</td>
 					<td align="center">${app.fincall_details.Outgoing.count}</td>
 					<td align="center">${app.fincall_details.Missed.count}</td>
@@ -242,6 +244,41 @@ UserProfile = class UserProfile {
 		});
 	
 		container.append(wholedata);
+	}
+	render_bar_chart() {
+		this.barchart = new frappe.Chart(".performance-bar-chart", {
+			type: "bar",
+			height: 250,
+			width: 400,
+			colors: ["#00A6E0"],
+			tooltipOptions: {
+				formatTooltipX: d => (d + '').toUpperCase(),
+				formatTooltipY: d => d + ' CHANGES',
+			},
+			data: {labels: [],
+            datasets: [
+                {
+                    values: [] 
+                }
+            ]},
+			isNavigable: true,
+		});
+		this.update_bar_chart_data();
+		
+	}
+
+	update_bar_chart_data() {
+		frappe
+			.xcall("productivity_next.productivity_next.page.admin_productify.admin_productify.get_barchart_data", {
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			})
+			.then((r) => {
+				if (r.labels.length === 0) {	
+				} else {
+					this.barchart.update(r);
+				}
+			});
 	}
 	
 }
