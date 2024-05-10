@@ -241,36 +241,36 @@ def get_admin_data(user, start_date=None, end_date=None):
 #             "meeting_details": meeting_dict.get(employee, {'total_meeting_duration': 0, 'meeting_count': 0})
 #         })
 #     return combined_data
-# @frappe.whitelist() 
-# def version_conditions(start_date=None, end_date=None):
-#     now = datetime.now()
-#     if start_date is None:
-#         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
-#     else:
-#         start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
+@frappe.whitelist() 
+def version_conditions(start_date=None, end_date=None):
+    now = datetime.now()
+    if start_date is None:
+        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
     
-#     if end_date is None:
-#         end_date = now.strftime('%Y-%m-%d 23:59:59')
-#     else:
-#         end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
+    if end_date is None:
+        end_date = now.strftime('%Y-%m-%d 23:59:59')
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
     
-#     condition = f"WHERE DATE(creation) >= '{start_date}' AND DATE(creation) <= '{end_date}'"
+    condition = f"WHERE DATE(creation) >= '{start_date}' AND DATE(creation) <= '{end_date}'"
 
-#     return condition
+    return condition
 
-# @frappe.whitelist()
-# def get_barchart_data(start_date=None, end_date=None):
-#     version_conditions_str = version_conditions(start_date,end_date)
-#     start_date, end_date = set_dates(start_date, end_date)
-#     data = frappe.db.sql(f"""
-#             SELECT COUNT(DISTINCT docname) AS activity_count,ref_doctype
-#             FROM `tabVersion`
-#             {version_conditions_str}
-#             GROUP BY ref_doctype
-#             ORDER BY activity_count DESC
-#         """, as_dict=1)
+@frappe.whitelist()
+def get_barchart_data(start_date=None, end_date=None):
+    version_conditions_str = version_conditions(start_date,end_date)
+    start_date, end_date = set_dates(start_date, end_date)
+    data = frappe.db.sql(f"""
+            SELECT COUNT(DISTINCT docname) AS activity_count,ref_doctype
+            FROM `tabVersion`
+            {version_conditions_str}
+            GROUP BY ref_doctype
+            ORDER BY activity_count DESC
+        """, as_dict=1)
         
-#     return {
-#         "labels": [i["ref_doctype"] for i in data],
-#         "datasets": [{"values": [(i["activity_count"]) for i in data]}]
-#     }
+    return {
+        "labels": [i["ref_doctype"] for i in data],
+        "datasets": [{"values": [(i["activity_count"]) for i in data]}]
+    }
