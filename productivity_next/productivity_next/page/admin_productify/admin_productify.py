@@ -266,7 +266,6 @@ def version_conditions(start_date=None, end_date=None):
 def get_barchart_data(start_date=None, end_date=None):
     version_conditions_str = version_conditions(start_date,end_date)
     ignore_doctype = ['File']
-
     # Convert the list into a format suitable for SQL query ("'DocType1', 'DocType2', 'DocType3'")
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
 
