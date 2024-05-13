@@ -388,25 +388,27 @@ UserProfile = class UserProfile {
 		});
 		// Build the HTML with the results
 		results.forEach(app => {
-			const employeeUrl = `${baseUrl}employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
-			// console.log(app);
-			wholedata += `
-				<tr>
-					<td align="left">
-						<a href="${employeeUrl}" target="_blank" style="color:#6420AA;">${app.employeeName}</a>
-					</td>
-					<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
-					<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
-					<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
-					<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
-					<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
-					<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
-					<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
-					<td align="center" style="color:#FF4001;">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
-					<td align="center" style="color:#FF4001;">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
-					<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
-					<td align="center" style="color:#6420AA;">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
-				</tr>`;
+			if(app.total_hours > 0){
+				const employeeUrl = `${baseUrl}employee-productivity-dashboard?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
+				// console.log(app);
+				wholedata += `
+					<tr>
+						<td align="left">
+							<a href="${employeeUrl}" target="_blank" style="color:#6420AA;">${app.employeeName}</a>
+						</td>
+						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
+						<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
+						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
+						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
+						<td align="center" style="color:#FF4001;">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
+						<td align="center" style="color:#FF4001;">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
+						<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
+						<td align="center" style="color:#6420AA;">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
+					</tr>`;
+			}
 		});
 	
 		container.append(wholedata);

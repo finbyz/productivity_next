@@ -265,11 +265,22 @@ def version_conditions(start_date=None, end_date=None):
 @frappe.whitelist()
 def get_barchart_data(start_date=None, end_date=None):
     version_conditions_str = version_conditions(start_date,end_date)
+    ignore_doctype = ['File']
+
+    # Convert the list into a format suitable for SQL query ("'DocType1', 'DocType2', 'DocType3'")
+    ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
+
+    # Check if the list is not empty to add a condition to the query
+    if ignore_doctype_str:
+        ignore_condition = f"AND ref_doctype NOT IN ({ignore_doctype_str})"
+    else:
+        ignore_condition = ""
     start_date, end_date = set_dates(start_date, end_date)
     data = frappe.db.sql(f"""
             SELECT COUNT(DISTINCT docname) AS activity_count,ref_doctype
             FROM `tabVersion`
             {version_conditions_str}
+            {ignore_condition}
             GROUP BY ref_doctype
             ORDER BY activity_count DESC
         """, as_dict=1)

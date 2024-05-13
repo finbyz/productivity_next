@@ -90,6 +90,16 @@ def version_conditions(user,start_date=None, end_date=None):
 @frappe.whitelist()
 def get_user_data(user,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
+    ignore_doctype = ['File']
+
+    # Convert the list into a format suitable for SQL query ("'DocType1', 'DocType2', 'DocType3'")
+    ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
+
+    # Check if the list is not empty to add a condition to the query
+    if ignore_doctype_str:
+        ignore_condition = f"AND ref_doctype NOT IN ({ignore_doctype_str})"
+    else:
+        ignore_condition = ""
     start_date, end_date = set_dates(start_date, end_date)
 
     if user != "Administrator":
@@ -373,13 +383,14 @@ def get_user_data(user,start_date=None, end_date=None):
     SELECT COUNT(DISTINCT docname) AS activity_count
     FROM `tabVersion`
     {version_conditions_str}
+    {ignore_condition}
     """, as_dict=True)
 
     # Application Usage Log Count, Top 10 Doc's Used Cards
     total_counts = frappe.db.sql(f"""
         SELECT
             (SELECT COUNT(DISTINCT application_name) FROM `tabApplication Usage log`{conditions})  AS application_usage,
-            (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str}) AS version_count
+            (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str} {ignore_condition})  AS version_count
         """, as_dict=1)[0]
     
     
@@ -427,6 +438,7 @@ def get_user_data(user,start_date=None, end_date=None):
         SELECT ref_doctype, COUNT(*) AS activity_count
         FROM `tabVersion`
         {version_conditions_str}
+        {ignore_condition}
         GROUP BY ref_doctype
         ORDER BY activity_count DESC
         LIMIT 10
@@ -543,11 +555,23 @@ def get_barchart_data(user, start_date=None, end_date=None):
         end_date = now.strftime('%Y-%m-%d') 
     else:
         end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d') 
+    
     version_conditions_str = version_conditions(user,start_date,end_date)
+    ignore_doctype = ['File']
+
+    # Convert the list into a format suitable for SQL query ("'DocType1', 'DocType2', 'DocType3'")
+    ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
+
+    # Check if the list is not empty to add a condition to the query
+    if ignore_doctype_str:
+        ignore_condition = f"AND ref_doctype NOT IN ({ignore_doctype_str})"
+    else:
+        ignore_condition = ""
     data = frappe.db.sql(f"""
         SELECT COUNT(DISTINCT docname) AS activity_count, ref_doctype
         FROM `tabVersion`
         {version_conditions_str}
+        {ignore_condition}
         group by ref_doctype
         order by activity_count DESC 
         LIMIT 7
