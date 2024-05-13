@@ -65,6 +65,7 @@ UserProfile = class UserProfile {
 		this.fetch_and_render_admin_data();	
 		this.render_bar_chart();
 		this.fetch_and_render_user_data();
+		this.render_line_chart();	
 	}
 	setup_timespan() {
         this.$user_search_button = this.page.set_primary_action(
@@ -326,6 +327,48 @@ UserProfile = class UserProfile {
 			</div>`;
 		container.append(wholedata);
 	};	
+	render_line_chart() {
+		this.linechart = new frappe.Chart(".performance-line-chart", {
+			type: "line",
+			height: 250,
+			width: 400,
+			colors: ["#62BA46"],
+			tooltipOptions: {
+				formatTooltipX: d => (d + '').toUpperCase(),
+				formatTooltipY: d => d + ' Minutes',
+			},
+			data: {labels: [],
+            datasets: [
+                {
+                    values: [] 
+                }
+            ]},
+		});
+		this.update_line_chart_data();
+		
+	}
+
+	update_line_chart_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		}
+		else{
+			data = this.user_id;
+		}
+		frappe
+			.xcall("productivity_next.productivity_next.page.admin_productify.admin_productify.get_linechart_data", {
+				user: data,
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			})
+			.then((r) => {
+				if (r.labels.length === 0) {	
+				} else {
+					this.linechart.update(r);
+				}
+			});
+	}
 	fetch_and_render_admin_data() {
 		let data;
 		if (this.selected_employee != null) {

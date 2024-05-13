@@ -288,3 +288,26 @@ def get_barchart_data(start_date=None, end_date=None):
         "labels": [i["ref_doctype"] for i in data],
         "datasets": [{"values": [(i["activity_count"]) for i in data]}]
     }
+
+# LINE CHART
+@frappe.whitelist()
+def get_linechart_data(user, start_date=None, end_date=None):
+    start_date, end_date = set_dates(start_date, end_date)
+    if user != "Administrator":
+        conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
+    else:
+        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+    
+    data = frappe.db.sql(f"""
+        SELECT client, SUM(duration) AS total_duration
+        FROM `tabFincall Log`
+        {conditions}
+        GROUP BY client
+        ORDER BY total_duration DESC
+        LIMIT 10
+        """, as_dict=1)
+        
+    return {
+        "labels": [i["client"] for i in data],
+        "datasets": [{"values": [round(i["total_duration"]/60,2) for i in data]}]
+    }
