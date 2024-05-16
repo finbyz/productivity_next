@@ -4,7 +4,7 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-05-10 17:00:51.169980",
+ "modified": "2024-05-16 12:35:19.246838",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "admin-productify",
@@ -13,6 +13,9 @@
  "roles": [
   {
    "role": "Administrator"
+  },
+  {
+   "role": "Productivity Manager"
   }
  ],
  "script": null,

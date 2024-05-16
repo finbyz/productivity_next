@@ -11,6 +11,7 @@ def execute():
         {"doctype": "Application Checkin Checkout", "fields": ["employee", "time"]},
         {"doctype": "Screen Screenshot Log", "fields": ["employee", "datetime"]},
         {"doctype": "Version", "fields": ["owner", "creation", "ref_doctype", "docname"]},
+        {"doctype": "Version", "fields": ["creation", "ref_doctype", "docname"]},
         {"doctype": "Idle Time Log", "fields": ["employee", "time", "status"]}
     ]
 
