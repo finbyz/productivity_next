@@ -605,20 +605,22 @@ def get_barchart_data(user, start_date=None, end_date=None):
 
 # SCREEN SHOTS
 @frappe.whitelist()
-def get_images(user, start_date=None, end_date=None):
+def get_images(user, start_date=None, end_date=None, offset=0):
+    limit = 20
     start_date, end_date = set_dates(start_date, end_date)
     if user != "Administrator":
         condition = f"WHERE employee = '{user}' AND datetime >= '{start_date}' AND datetime <= '{end_date}'"
     else:
         condition = f"WHERE datetime >= '{start_date}' AND datetime <= '{end_date}'"
+
     data = frappe.db.sql(f"""
-        SELECT screenshot,datetime as datetime
+        SELECT screenshot, datetime
         FROM `tabScreen Screenshot Log`
         {condition}
         GROUP BY datetime
         ORDER BY datetime DESC
-        """, as_dict=1)
-    
+        LIMIT {limit} OFFSET {offset}
+    """, as_dict=1)
     return data
 
 

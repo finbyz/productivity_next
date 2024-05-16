@@ -17,7 +17,7 @@ UserProfile = class UserProfile {
         if (urlParams.get('start_date') == null && urlParams.get('end_date') == null) {
 			var endDate = new Date();
 			var startDate = new Date();
-			startDate.setMonth(startDate.getMonth() - 1);
+			startDate.setDate(startDate.getDate() - 7); // Set the start date to one week back
 		
 			var endDay = endDate.getDate().toString().padStart(2, '0');
 			var endMonth = (endDate.getMonth() + 1).toString().padStart(2, '0');
@@ -31,7 +31,7 @@ UserProfile = class UserProfile {
 		} else {
 			this.selected_start_date = urlParams.get('start_date');
 			this.selected_end_date = urlParams.get('end_date');
-		}
+		}		
         if (urlParams.get('employee') != null && urlParams.get('employee') != 'undefined'){
         this.selected_employee = urlParams.get('employee');
         }
@@ -90,10 +90,6 @@ UserProfile = class UserProfile {
 					fieldname: "timespan_range",
 					label: __("Timespan Range"),
 					description: __("Select a start and end date"),
-					default: [
-						new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-						new Date().toISOString().split('T')[0]
-					]
 				},
 			],
 			primary_action_label: __("Go"),
@@ -649,48 +645,99 @@ UserProfile = class UserProfile {
 	}
 
 	render_images() {
+		let currentOffset = 0;
+		const initialLimit = 20;
+		const loadLimit = 20;
+		let isLoading = false;
 		let data;
+		let lastRenderedDate = null;
+		let lastRenderedHour = null;
+	
 		if (this.selected_employee != null) {
 			data = this.selected_employee;
 		} else {
 			data = this.user_id;
 		}
 	
-		frappe.xcall("finbyz.finbyz.page.finbyz_productify_dashboard.productify_data.get_images", {
-			user: data,
-			start_date: this.selected_start_date,
-			end_date: this.selected_end_date,
-		})
-		.then((imagedata) => {
-			const imageContainer = this.main_section.find(".recent-activity-list");
-			imageContainer.empty();
+		const imageContainer = this.main_section.find(".recent-activity-list");
 	
-			let currentHour = null;
+		// Debounce function to prevent excessive scroll event calls
+		const debounce = (func, delay) => {
+			let debounceTimer;
+			return function() {
+				const context = this;
+				const args = arguments;
+				clearTimeout(debounceTimer);
+				debounceTimer = setTimeout(() => func.apply(context, args), delay);
+			};
+		};
 	
-			imagedata.forEach((image) => {
-				const imageDateTime = new Date(image.datetime);
-				const hour = imageDateTime.getHours();
-				const date = imageDateTime.toDateString();
+		const loadImages = () => {
+			if (isLoading) return;
+			isLoading = true;
 	
-				// Add a new hour header if it's a new hour
-				if (hour !== currentHour) {
-					currentHour = hour;
-					const hourHeader = `<div class="col-md-12"><h5><b>${date} ${currentHour}:00:00</b></h5></div>`;
-					imageContainer.append(hourHeader);
-				}
+			const limit = currentOffset === 0 ? initialLimit : loadLimit;
 	
-				const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;" class="clickable-image"></div>`;
-				imageContainer.append(imgElement);
+			frappe.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_images", {
+				user: data,
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+				offset: currentOffset
+			})
+			.then((imagedata) => {
+				imagedata.forEach((image) => {
+					const imageDateTime = new Date(image.datetime);
+					const hour = imageDateTime.getHours();
+					const date = imageDateTime.toDateString();
+	
+					// Add a new hour header if it's a new hour and date
+					if (hour !== lastRenderedHour || date !== lastRenderedDate) {
+						lastRenderedHour = hour;
+						lastRenderedDate = date;
+						const hourHeader = `<div class="col-md-12"><h5><b>${date} ${lastRenderedHour}:00:00</b></h5></div>`;
+						imageContainer.append(hourHeader);
+					}
+	
+					const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;" class="clickable-image"></div>`;
+					imageContainer.append(imgElement);
+				});
+	
+				// Add click event listener for images
+				$('.clickable-image').off('click').on('click', function() {
+					const imgSrc = $(this).attr('src');
+					$('#zoomedImg').attr('src', imgSrc);
+					$('#imageModal').modal('show');
+				});
+	
+				currentOffset += imagedata.length;
+				isLoading = false;
+			})
+			.catch(() => {
+				isLoading = false; // Reset isLoading flag in case of an error
 			});
+		};
 	
-			// Add click event listener for images
-			$('.clickable-image').on('click', function() {
-				const imgSrc = $(this).attr('src');
-				$('#zoomedImg').attr('src', imgSrc);
-				$('#imageModal').modal('show');
-			});
-		});
-	}	
+		// Initial load
+		currentOffset = 0;
+		lastRenderedDate = null;
+		lastRenderedHour = null;
+		imageContainer.empty();
+		loadImages();
+	
+		// Add debounced scroll event listener
+		const handleScroll = debounce(() => {
+			const scrollHeight = $(document).height();
+			const scrollPosition = $(window).height() + $(window).scrollTop();
+			const scrollThreshold = 50; // Load more images when 50 pixels from the bottom
+	
+			if (scrollPosition >= scrollHeight - scrollThreshold) {
+				loadImages();
+			}
+		}, 250); // Debounce delay of 250ms
+	
+		$(window).on('scroll', handleScroll);
+	}
+	
 }
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;
