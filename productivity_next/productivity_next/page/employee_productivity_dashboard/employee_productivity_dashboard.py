@@ -175,15 +175,15 @@ def get_user_data(user,start_date=None, end_date=None):
         fincall_time_data = convert_time_data(fincall_time_data)
 
         # Fetch and process meeting data
-        meeting_time_data = frappe.db.sql(f"""
-        select DATE_FORMAT(m.meeting_from, '%H:%i:%s') AS start_time, DATE_FORMAT(m.meeting_to, '%H:%i:%s') AS end_time, mcr.employee
+        meeting_time_data_ = frappe.db.sql(f"""
+        select DATE_FORMAT(m.meeting_from, '%H:%i:%s') AS start_time, DATE_FORMAT(m.meeting_to, '%H:%i:%s') AS end_time, mcr.employee,m.meeting_from as start_date, m.meeting_to as end_date
         from `tabMeeting` as m
         join `tabMeeting Company Representative` as mcr on m.name = mcr.parent
         WHERE m.docstatus = 1
         {conditions_2}
         """, as_dict=True)
-        meeting_time_data = convert_meeting_data(meeting_time_data)
-
+        # frappe.throw(str(meeting_time_data_))
+        meeting_time_data = convert_meeting_data(meeting_time_data_)
         # Combine all time data into a single list
         combined_time_data = idle_time_data + fincall_time_data + meeting_time_data
         # frappe.throw(str(combined_time_data))
@@ -275,7 +275,7 @@ def get_user_data(user,start_date=None, end_date=None):
         # Calculate the total seconds
         total_seconds = time_object.hour * 3600 + time_object.minute * 60 + time_object.second
         # frappe.throw(str(total_seconds))
-        return total_seconds
+        return total_seconds,meeting_time_data_
 
     # No need to parse and reformat if we're just setting the time part explicitly
     start_date_time = start_date
@@ -289,7 +289,7 @@ def get_user_data(user,start_date=None, end_date=None):
     formatted_start_date = start_datetime_obj.strftime("%Y-%m-%d")
     formatted_end_date = end_datetime_obj.strftime("%Y-%m-%d")
 
-    total_idle_time_in_seconds = calculate_idle_time(user,formatted_start_date,formatted_end_date)
+    total_idle_time_in_seconds,meeting_data_query = calculate_idle_time(user,formatted_start_date,formatted_end_date)
     # Combined Query for Count and Total Duration of Calls by Call Type
     fincall_data = frappe.db.sql(f"""
         SELECT 
@@ -322,40 +322,62 @@ def get_user_data(user,start_date=None, end_date=None):
                                 filters=filters,
                                 fields=["status", "time"],
                                 order_by="creation asc")
+    # frappe.throw(str(all_logs))
+    # frappe.throw(str(meeting_data_query))
 
-    usage_time = 0
-    last_status = None
-    start_time = None
-    for row in all_logs:
-        if row['status'] == "In" and last_status != "In":
-            start_time = row['time']  # Set start time when status changes to "In" from non-"In"
-        elif row['status'] == "Out" and last_status == "In":
-            end_time = row['time']  # Calculate duration when status changes from "In" to "Out"
-            usage_time += (end_time - start_time).total_seconds()
-            start_time = None  # Reset start_time after calculating the duration
-        last_status = row['status']  # Update the last_status for the next iteration
+    time_intervals = []
 
-    if last_status == "In" and start_time is not None:
-        current_time_str = utils.now()
-        # Adjusted to handle microseconds
-        current_time = datetime.strptime(current_time_str, "%Y-%m-%d %H:%M:%S.%f")
-        usage_time += (current_time - start_time).total_seconds()
+    # Add log intervals
+    for i in range(len(all_logs) - 1):
+        if all_logs[i]['status'] == 'In' and all_logs[i + 1]['status'] == 'Out':
+            time_intervals.append((all_logs[i]['time'], all_logs[i + 1]['time']))
+
+    # Add meeting intervals
+    for mtg in meeting_data_query:
+        time_intervals.append((mtg['start_date'], mtg['end_date']))
+
+    # Sort intervals by start time
+    time_intervals.sort(key=lambda x: x[0])
+
+    # Merge overlapping intervals
+    merged_intervals = []
+    for start, end in time_intervals:
+        if not merged_intervals or merged_intervals[-1][1] < start:
+            merged_intervals.append((start, end))
+        else:
+            merged_intervals[-1] = (merged_intervals[-1][0], max(merged_intervals[-1][1], end))
+
+    # Calculate total usage time in seconds
+    usage_time = sum((end - start).total_seconds() for start, end in merged_intervals)
 
     # Convert total usage time from seconds to hours
-    total_hours = usage_time # Convert seconds to hours
+    total_hours = usage_time
     # frappe.throw(str(total_hours / 60 / 60))  
     # IDLE TIME CARD
-    total_idle_time_days = frappe.db.sql(f"""
-        SELECT 
-        SUM(CASE WHEN TIME_TO_SEC(TIMEDIFF(to_time, from_time)) > 120 THEN TIME_TO_SEC(TIMEDIFF(to_time, from_time)) ELSE 0 END) AS total_idle_duration_seconds,
-        COUNT(DISTINCT date) AS application_usage_days
-    FROM 
-        `tabApplication Usage log`
-        {conditions};""",as_dict=1)
-    
-    total_idle_time = total_idle_time_days[0]['total_idle_duration_seconds'] if total_idle_time_days else 0
-    total_days = total_idle_time_days[0]['application_usage_days'] if total_idle_time_days else 0
+    # Fetch application usage days
 
+    application_usage_days = frappe.db.sql(f"""
+        SELECT DISTINCT DATE(`date`) AS date 
+        FROM `tabApplication Usage log`
+        {conditions};
+    """, as_dict=True, pluck='date')
+
+    # Fetch meeting usage days
+    meeting_usage_days = frappe.db.sql(f"""
+        SELECT DISTINCT DATE(m.meeting_from) AS date 
+        FROM `tabMeeting` AS m 
+        JOIN `tabMeeting Company Representative` AS mcr 
+        ON m.name = mcr.parent 
+        {conditions_2}
+    """, as_dict=True, pluck='date')
+
+    total_days = len(set(application_usage_days + meeting_usage_days))
+
+    # Extract dates from the query results
+    # total_days_set.add(entry['application_usage_day'] for entry in application_usage_days)
+    # total_days_set.add(entry['meeting_usage_day'] for entry in meeting_usage_days)
+    # frappe.throw(str(total_days_set))
+    # total_days = len(total_days_set)
 
     # Constructing a SQL query that adapts based on whether the user is an Administrator or not
     sql_query = f"""
@@ -377,7 +399,6 @@ def get_user_data(user,start_date=None, end_date=None):
         meetings = frappe.db.sql(sql_query, (user,), as_dict=True)
     else:
         meetings = frappe.db.sql(sql_query, as_dict=True)
-
     # Documents Accessed
     total_unique_doc = frappe.db.sql(f"""
     SELECT COUNT(DISTINCT docname) AS activity_count

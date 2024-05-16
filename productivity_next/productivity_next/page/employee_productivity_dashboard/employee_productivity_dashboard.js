@@ -15,18 +15,23 @@ UserProfile = class UserProfile {
         this.buttonsInitialized = false;
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('start_date') == null && urlParams.get('end_date') == null) {
-            var startDate = new Date();
-            startDate.setFullYear(startDate.getFullYear() - 1);
-            var day = startDate.getDate().toString().padStart(2, '0');
-            var month = (startDate.getMonth() + 1).toString().padStart(2, '0');
-            var year = startDate.getFullYear();
-            this.selected_start_date = year + '-' + month + '-' + day;
-            this.selected_end_date = new Date().toJSON().slice(0, 10)
-        }
-        else{
-            this.selected_start_date = urlParams.get('start_date');
-            this.selected_end_date = urlParams.get('end_date');
-        }
+			var endDate = new Date();
+			var startDate = new Date();
+			startDate.setMonth(startDate.getMonth() - 1);
+		
+			var endDay = endDate.getDate().toString().padStart(2, '0');
+			var endMonth = (endDate.getMonth() + 1).toString().padStart(2, '0');
+			var endYear = endDate.getFullYear();
+			this.selected_end_date = endYear + '-' + endMonth + '-' + endDay;
+		
+			var startDay = startDate.getDate().toString().padStart(2, '0');
+			var startMonth = (startDate.getMonth() + 1).toString().padStart(2, '0');
+			var startYear = startDate.getFullYear();
+			this.selected_start_date = startYear + '-' + startMonth + '-' + startDay;
+		} else {
+			this.selected_start_date = urlParams.get('start_date');
+			this.selected_end_date = urlParams.get('end_date');
+		}
         if (urlParams.get('employee') != null && urlParams.get('employee') != 'undefined'){
         this.selected_employee = urlParams.get('employee');
         }
@@ -85,6 +90,10 @@ UserProfile = class UserProfile {
 					fieldname: "timespan_range",
 					label: __("Timespan Range"),
 					description: __("Select a start and end date"),
+					default: [
+						new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
+						new Date().toISOString().split('T')[0]
+					]
 				},
 			],
 			primary_action_label: __("Go"),
