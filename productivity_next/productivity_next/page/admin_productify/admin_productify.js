@@ -64,7 +64,7 @@ UserProfile = class UserProfile {
 		this.main_section.empty().append(frappe.render_template("admin_productify"));
 		this.fetch_and_render_admin_data();	
 		this.render_bar_chart();
-		this.fetch_and_render_user_data();
+		// this.fetch_and_render_user_data();
 		this.render_line_chart();	
 	}
 	setup_timespan() {
@@ -198,135 +198,158 @@ UserProfile = class UserProfile {
 				}
 			});
 	};
-	fetch_and_render_user_data() {	
-		frappe.call({
-			method: "productivity_next.productivity_next.page.admin_productify.admin_productify.get_admin_data",
-			args: {
-				user: "Administrator",
-				start_date: this.selected_start_date,
-				end_date: this.selected_end_date,
-			},
-			callback: (r) => {
-				if (r.message) {
-					this.render_user_data(r.message);
-					$(document).ready(function() {
-						$('#logCountModalTrigger').click(function() {
-							$('#logCountModal').modal('show');
-						});
-					});					
-				}
-			}
-		});
-	};
+	// fetch_and_render_user_data() {	
+	// 	frappe.call({
+	// 		method: "productivity_next.productivity_next.page.admin_productify.admin_productify.get_admin_data",
+	// 		args: {
+	// 			user: "Administrator",
+	// 			start_date: this.selected_start_date,
+	// 			end_date: this.selected_end_date,
+	// 		},
+	// 		callback: (r) => {
+	// 			if (r.message) {
+	// 				this.render_user_data(r.message);
+	// 				$(document).ready(function() {
+	// 					$('#logCountModalTrigger').click(function() {
+	// 						$('#logCountModal').modal('show');
+	// 					});
+	// 				});					
+	// 			}
+	// 		}
+	// 	});
+	// };
 
    
 	render_user_data(data) {
-		console.log(data);
-		let employee_data;
-		let start_date_ = this.selected_start_date;
-		let end_date_ = this.selected_end_date;
-		if (this.selected_employee != null) {
-			employee_data = this.selected_employee;
-		} else {
-			employee_data = this.user_id;
+		console.log('Data received:', data);
+	
+		let total_hours = 0;
+		let total_idle_hours = 0;
+		let total_meeting_hours = 0;
+		let total_meeting_count = 0;
+		let total_incoming_fincall_hours = 0;
+		let total_outgoing_fincall_hours = 0;
+		let total_unique_doc = 0;
+		let total_application_usage = 0;
+		let total_version_count = 0;
+		let total_incoming_fincall_count = 0;
+		let total_outgoing_fincall_count = 0;
+		let total_missed_fincall_count = 0;
+		let total_rejected_fincall_count = 0;
+		let total_days = 0;
+	
+		for (let i in data.combined_employee_data) {
+			const employee = data.combined_employee_data[i];
+			total_hours += employee.total_hours/3600 || 0;
+			total_idle_hours += employee.total_idle_time/3600 || 0;
+			total_meeting_hours += employee.total_meeting_duration || 0;
+			total_meeting_count += employee.total_meeting_count || 0;
+			total_incoming_fincall_hours += employee.total_incoming_fincall_count || 0;
+			total_outgoing_fincall_hours += employee.total_outgoing_fincall_count || 0;
+			total_unique_doc += employee.total_unique_doc || 0;
+			total_application_usage += employee.application_usage || 0;
+			total_version_count += employee.version_count || 0;
+			total_incoming_fincall_count += employee.incoming_fincall_count || 0;
+			total_outgoing_fincall_count += employee.outgoing_fincall_count || 0;
+			total_missed_fincall_count += employee.missed_fincall_count || 0;
+			total_rejected_fincall_count += employee.rejected_fincall_count || 0;
+			total_days += employee.total_days || 0;
 		}
-		// console.log(data.meetings)
+	
+		let employee_data = this.selected_employee || this.user_id;
+	
 		const container = this.main_section.find("#user-data-cards");
 		container.empty();
-
+	
 		let wholedata = `
-			<div class="title-area ">
+			<div class="title-area">
 				<h4 class="card-title">Productify Data</h4>
 			</div>
-			
 			<div class="row mt-3">
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(data.combined_employee_data[0].total_hours /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Working Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(total_hours).toFixed(2)}</b><span style="font-size:12px"> Working Hours</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Active Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((data.combined_employee_data[0].total_hours /60 / 60)-(data.combined_employee_data[0].total_idle_time /60 / 60)).toFixed(2)}</b><span style="font-size:12px">  Active Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(total_hours - total_idle_hours).toFixed(2)}</b><span style="font-size:12px"> Active Hours</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Idle Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(data.combined_employee_data[0].total_idle_time /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Idle Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(total_idle_hours).toFixed(2)}</b><span style="font-size:12px"> Idle Hours</span></div>
 					</div>
 				</div>
 			</div>
-
 			<div class="row mt-3">
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat((data.combined_employee_data[0].total_hours /60 / 60)/data.combined_employee_data[0].total_days).toFixed(2)}</b><span style="font-size:12px">  Working Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(total_hours / total_days).toFixed(2)}</b><span style="font-size:12px"> Working Hours Per Day</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(((data.combined_employee_data[0].total_hours /60 /60)/data.combined_employee_data[0].total_days)-((data.combined_employee_data[0].total_idle_time /60 /60)/data.combined_employee_data[0].total_days)).toFixed(2)}</b><span style="font-size:12px">  Active Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((total_hours - total_idle_hours) / total_days).toFixed(2)}</b><span style="font-size:12px"> Active Hours Per Day</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat((data.combined_employee_data[0].total_idle_time /60 /60)/data.combined_employee_data[0].total_days).toFixed(2)}</b><span style="font-size:12px">  Idle Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(total_idle_hours / total_days).toFixed(2)}</b><span style="font-size:12px"> Idle Hours Per Day</span></div>
 					</div>
 				</div>
 			</div>
-
 			<div class="row mt-3">
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.combined_employee_data[0].total_meeting_count}</b><span style="font-size:12px">  Meetings For </span><b> ${parseFloat(data.combined_employee_data[0].total_meeting_duration /60 /60).toFixed(2)}</b><span style="font-size:12px">  Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${total_meeting_count}</b><span style="font-size:12px"> Meetings For </span><b> ${parseFloat(total_meeting_hours / 3600).toFixed(2)}</b><span style="font-size:12px"> Hours</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(data.combined_employee_data[0].total_incoming_fincall_count/60/60).toFixed(2)}</b><span style="font-size:12px"> Incoming </span> |<b> ${parseFloat(data.combined_employee_data[0].total_outgoing_fincall_count/60/60).toFixed(2)}</b> <span style="font-size:12px"> Outgoing </span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(total_incoming_fincall_hours / 3600).toFixed(2)}</b><span style="font-size:12px"> Incoming </span> |<b> ${parseFloat(total_outgoing_fincall_hours / 3600).toFixed(2)}</b> <span style="font-size:12px"> Outgoing </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.combined_employee_data[0].total_unique_doc}</b><span style="font-size:12px">  Documents Created or Modified</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_unique_doc}</b><span style="font-size:12px"> Documents Created or Modified</span></div>
 					</div>
 				</div>
 			</div>
-
 			<div class="row mt-3">
 				<div class="col-md-4">
-				<div class="frappe-card  custom-card">
-				<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
-				<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
-					<b>${data.combined_employee_data[0].application_usage}</b><span style="font-size:12px">  Applications Used</span>
-				</div>
-			</div>
-			
-				</div>
-				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.combined_employee_data[0].incoming_fincall_count}</b><span style="font-size:12px"> Incoming </span>|<b> ${data.combined_employee_data[0].outgoing_fincall_count}</b><span style="font-size:12px"> Outgoing</span> |<b> ${data.combined_employee_data[0].missed_fincall_count}</b><span style="font-size:12px"> Missed</span> |<b> ${data.combined_employee_data[0].rejected_fincall_count}</b> <span style="font-size:12px">Rejected</span></div>
+					<div class="frappe-card custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
+							<b>${total_application_usage}</b><span style="font-size:12px"> Applications Used</span>
+						</div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="frappe-card  custom-card">
+					<div class="frappe-card custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${total_incoming_fincall_count}</b><span style="font-size:12px"> Incoming </span>|<b> ${total_outgoing_fincall_count}</b><span style="font-size:12px"> Outgoing</span> |<b> ${total_missed_fincall_count}</b><span style="font-size:12px"> Missed</span> |<b> ${total_rejected_fincall_count}</b> <span style="font-size:12px">Rejected</span></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Version Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.combined_employee_data[0].version_count}</b><span style="font-size:12px">  Interactions</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_version_count}</b><span style="font-size:12px"> Interactions</span></div>
 					</div>
 				</div>
 			</div>`;
 		container.append(wholedata);
-	};	
+	}
+	
 	render_line_chart() {
 		this.linechart = new frappe.Chart(".performance-line-chart", {
 			type: "line",
@@ -387,6 +410,7 @@ UserProfile = class UserProfile {
 			callback: (r) => {
 				if (r.message) {
 					this.render_admin_data(r.message);
+					this.render_user_data(r.message);
 					$(document).ready(function() {
 						$('#logCountModalTrigger').click(function() {
 							$('#logCountModal').modal('show');

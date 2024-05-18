@@ -13,12 +13,6 @@ def get_admin_data(user, start_date=None, end_date=None):
     else: 
         employee_data = get_user_data(user, start_date, end_date)
         combined_data.append(employee_data)
-
-    # frappe.throw(str(combined_data))
-    # total_idle_time_list, total_hours_data_list, fincall_data, meeting_data = fetch_and_calculate_times(start_date, end_date)
-    # combined_data = combine_employee_data(total_idle_time_list, total_hours_data_list, fincall_data, meeting_data)
-    # frappe.throw(str(combined_data))    
-    # Return result as a dictionary
     return {"combined_employee_data": combined_data}
 
 def set_dates(start_date=None, end_date=None):

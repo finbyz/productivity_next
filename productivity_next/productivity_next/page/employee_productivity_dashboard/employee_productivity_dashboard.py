@@ -324,7 +324,6 @@ def get_user_data(user,start_date=None, end_date=None):
                                 order_by="creation asc")
     # frappe.throw(str(all_logs))
     # frappe.throw(str(meeting_data_query))
-
     time_intervals = []
 
     # Add log intervals

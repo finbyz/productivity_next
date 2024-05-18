@@ -34,7 +34,8 @@
   },
   {
    "fieldname": "column_break_9",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "read_only": 1
   },
   {
    "fieldname": "employee",
@@ -54,7 +55,8 @@
    "fieldname": "duration",
    "fieldtype": "Duration",
    "hide_days": 1,
-   "label": "Duration"
+   "label": "Duration",
+   "read_only": 1
   },
   {
    "fieldname": "calltype",
@@ -92,7 +94,8 @@
   {
    "fieldname": "call_datetime",
    "fieldtype": "Datetime",
-   "label": "Call DateTime"
+   "label": "Call DateTime",
+   "read_only": 1
   },
   {
    "default": "0",
@@ -119,12 +122,13 @@
   {
    "fieldname": "date",
    "fieldtype": "Date",
-   "label": "Date"
+   "label": "Date",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-02-26 16:15:02.200762",
+ "modified": "2024-05-18 09:57:22.134606",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Fincall Log",

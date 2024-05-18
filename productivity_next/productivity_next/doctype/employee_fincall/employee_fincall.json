@@ -11,16 +11,16 @@
   "employee",
   "employee_name",
   "employee_mobile",
-  "link_to",
-  "contact",
-  "attach_to_doctype",
-  "attach_to_docname",
-  "column_break_qqss0",
+  "client",
   "customer_no",
   "call_datetime",
-  "call_duration",
-  "call_type",
-  "phone_contact_name",
+  "duration",
+  "date",
+  "column_break_qqss0",
+  "link_to",
+  "link_name",
+  "contact",
+  "calltype",
   "fincall_log_ref"
  ],
  "fields": [
@@ -53,58 +53,16 @@
   },
   {
    "fieldname": "contact",
-   "fieldtype": "Dynamic Link",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Contact",
    "no_copy": 1,
-   "options": "link_to",
-   "read_only": 1
-  },
-  {
-   "fieldname": "attach_to_doctype",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Attach to Doctype",
-   "no_copy": 1,
-   "options": "DocType",
-   "read_only": 1
-  },
-  {
-   "fieldname": "attach_to_docname",
-   "fieldtype": "Dynamic Link",
-   "in_list_view": 1,
-   "label": "Attach to Docname",
-   "no_copy": 1,
-   "options": "attach_to_doctype",
+   "options": "Contact",
    "read_only": 1
   },
   {
    "fieldname": "column_break_qqss0",
    "fieldtype": "Column Break",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "call_duration",
-   "fieldtype": "Duration",
-   "label": "Call Duration",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "call_type",
-   "fieldtype": "Data",
-   "in_filter": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Call Type",
-   "no_copy": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "phone_contact_name",
-   "fieldtype": "Data",
-   "label": "Phone Contact Name",
    "no_copy": 1,
    "read_only": 1
   },
@@ -145,11 +103,49 @@
    "no_copy": 1,
    "options": "Phone",
    "read_only": 1
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Data",
+   "label": "Client",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "label": "Duration",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "calltype",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Call Type",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "link_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Link Name",
+   "no_copy": 1,
+   "options": "link_to",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-27 11:54:55.680701",
+ "modified": "2024-05-18 10:00:01.255609",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",
