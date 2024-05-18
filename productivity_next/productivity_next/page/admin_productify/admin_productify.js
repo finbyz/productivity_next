@@ -468,6 +468,7 @@ UserProfile = class UserProfile {
 						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
 						<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
 						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
+						<td align="center" style="color:#00A6E0;">${parseFloat(((app.total_hours /60 /60)/app.total_days)-((app.total_idle_time /60 /60)/app.total_days)).toFixed(2)}</td>
 						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
@@ -493,6 +494,7 @@ UserProfile = class UserProfile {
 						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
 						<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
 						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
+						<td align="center" style="color:#00A6E0;">${parseFloat(((app.total_hours /60 /60)/app.total_days)-((app.total_idle_time /60 /60)/app.total_days)).toFixed(2)}</td>
 						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
