@@ -218,8 +218,6 @@ UserProfile = class UserProfile {
 	// 		}
 	// 	});
 	// };
-
-   
 	render_user_data(data) {
 		console.log('Data received:', data);
 	
@@ -240,10 +238,8 @@ UserProfile = class UserProfile {
 	
 		for (let i in data.combined_employee_data) {
 			const employee = data.combined_employee_data[i];
-			total_hours += employee.total_hours/3600 || 0;
-			total_idle_hours += employee.total_idle_time/3600 || 0;
-			total_meeting_hours += employee.total_meeting_duration || 0;
-			total_meeting_count += employee.total_meeting_count || 0;
+			total_hours += employee.total_hours || 0;
+			total_idle_hours += employee.total_idle_time || 0;
 			total_incoming_fincall_hours += employee.total_incoming_fincall_count || 0;
 			total_outgoing_fincall_hours += employee.total_outgoing_fincall_count || 0;
 			total_unique_doc += employee.total_unique_doc || 0;
@@ -255,6 +251,8 @@ UserProfile = class UserProfile {
 			total_rejected_fincall_count += employee.rejected_fincall_count || 0;
 			total_days += employee.total_days || 0;
 		}
+		total_meeting_hours = data.combined_employee_data[0].meeting_admin_data[0].total_meeting_duration || 0;
+		total_meeting_count = data.combined_employee_data[0].meeting_admin_data[0].meeting_count || 0;
 	
 		let employee_data = this.selected_employee || this.user_id;
 	
@@ -269,19 +267,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(total_hours).toFixed(2)}</b><span style="font-size:12px"> Working Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">${this.convertSecondsToTime(total_hours)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Active Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(total_hours - total_idle_hours).toFixed(2)}</b><span style="font-size:12px"> Active Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime((total_hours - total_idle_hours))}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Idle Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(total_idle_hours).toFixed(2)}</b><span style="font-size:12px"> Idle Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;">${this.convertSecondsToTime(total_idle_hours)}</div>
 					</div>
 				</div>
 			</div>
@@ -289,19 +287,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(total_hours / total_days).toFixed(2)}</b><span style="font-size:12px"> Working Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">${this.convertSecondsToTime(total_hours / total_days)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((total_hours - total_idle_hours) / total_days).toFixed(2)}</b><span style="font-size:12px"> Active Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime((total_hours - total_idle_hours) / total_days)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(total_idle_hours / total_days).toFixed(2)}</b><span style="font-size:12px"> Idle Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;">${this.convertSecondsToTime(total_idle_hours / total_days)}</div>
 					</div>
 				</div>
 			</div>
@@ -309,13 +307,13 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${total_meeting_count}</b><span style="font-size:12px"> Meetings For </span><b> ${parseFloat(total_meeting_hours / 3600).toFixed(2)}</b><span style="font-size:12px"> Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${total_meeting_count}</b><span style="font-size:12px"> Meetings For </span>${this.convertSecondsToTime(total_meeting_hours)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(total_incoming_fincall_hours / 3600).toFixed(2)}</b><span style="font-size:12px"> Incoming </span> |<b> ${parseFloat(total_outgoing_fincall_hours / 3600).toFixed(2)}</b> <span style="font-size:12px"> Outgoing </span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(total_incoming_fincall_hours)}<span style="font-size:12px"> Incoming </span> | ${this.convertSecondsToTime(total_outgoing_fincall_hours)}<span style="font-size:12px"> Outgoing </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -348,6 +346,12 @@ UserProfile = class UserProfile {
 				</div>
 			</div>`;
 		container.append(wholedata);
+	}
+	convertSecondsToTime(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+	
+		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
 	}
 	
 	render_line_chart() {
@@ -449,10 +453,11 @@ UserProfile = class UserProfile {
 		// Await all the promises to get the results
 		const results = await Promise.all(fetchPromises);
 		results.sort((a, b) => {
-			const aEffectiveHours = (a.total_hours/3600) - (a.total_idle_time/3600);
-			const bEffectiveHours = (b.total_hours/3600) - (b.total_idle_time/3600);
-			return aEffectiveHours - bEffectiveHours;
+			const aEffectiveHoursPerDay = parseFloat((((a.total_hours / 60 / 60) / a.total_days) - ((a.total_idle_time / 60 / 60) / a.total_days)).toFixed(2));
+			const bEffectiveHoursPerDay = parseFloat((((b.total_hours / 60 / 60) / b.total_days) - ((b.total_idle_time / 60 / 60) / b.total_days)).toFixed(2));
+			return aEffectiveHoursPerDay - bEffectiveHoursPerDay;
 		});
+
 		// Build the HTML with the results
 		let count = 1;  // Initialize a counter variable
 		let inactive_count = 1;

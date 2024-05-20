@@ -236,7 +236,12 @@ UserProfile = class UserProfile {
 			}
 		});
 	}
-   
+	convertSecondsToTime(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+	
+		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+	}
 	render_user_data(data) {
 		let employee_data;
 		let start_date_ = this.selected_start_date;
@@ -259,19 +264,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat(data.total_hours /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Working Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">${this.convertSecondsToTime(data.total_hours)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Active Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat((data.total_hours /60 / 60)-(data.total_idle_time /60 / 60)).toFixed(2)}</b><span style="font-size:12px">  Active Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime((data.total_hours)-(data.total_idle_time))}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Total Idle Hours</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat(data.total_idle_time /60 / 60).toFixed(2)}</b><span style="font-size:12px">  Idle Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;">${this.convertSecondsToTime(data.total_idle_time)}</div>
 					</div>
 				</div>
 			</div>
@@ -280,19 +285,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${parseFloat((data.total_hours /60 / 60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Working Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">${this.convertSecondsToTime((data.total_hours)/data.total_days)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(((data.total_hours /60 /60)/data.total_days)-((data.total_idle_time /60 /60)/data.total_days)).toFixed(2)}</b><span style="font-size:12px">  Active Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(((data.total_hours)/data.total_days)-((data.total_idle_time)/data.total_days))}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${parseFloat((data.total_idle_time /60 /60)/data.total_days).toFixed(2)}</b><span style="font-size:12px">  Idle Hours Per Day</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;">${this.convertSecondsToTime((data.total_idle_time)/data.total_days)}</b></div>
 					</div>
 				</div>
 			</div>
@@ -301,13 +306,13 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count}</b><span style="font-size:12px">  Meetings For </span><b> ${parseFloat(data.total_meeting_duration /60 /60).toFixed(2)}</b><span style="font-size:12px">  Hours</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count}</b><span style="font-size:12px">  Meetings For </span>${this.convertSecondsToTime(data.total_meeting_duration)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${parseFloat(data.total_incoming_fincall_count/60/60).toFixed(2)}</b><span style="font-size:12px"> Incoming </span> |<b> ${parseFloat(data.total_outgoing_fincall_count/60/60).toFixed(2)}</b> <span style="font-size:12px"> Outgoing </span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(data.total_incoming_fincall_count)}<span style="font-size:12px"> Incoming </span> | ${this.convertSecondsToTime(data.total_outgoing_fincall_count)}<span style="font-size:12px"> Outgoing </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -357,8 +362,8 @@ UserProfile = class UserProfile {
 		data.application_name.forEach(app => {
 			wholedata += `
 				<tr>
-					<td style="color:#00A6E0" width="70%"><b>${app.application_name}</b></td>
-					<td style="color:#2D9596" width="30%">${parseFloat(app.total_duration/60/60).toFixed(2)} Hours</td>
+					<td style="color:#00A6E0" width="60%"><b>${app.application_name}</b></td>
+					<td style="color:#2D9596" width="40%">${this.convertSecondsToTime(app.total_duration)}</td>
 				</tr>`;
 		});
 	
@@ -440,7 +445,7 @@ UserProfile = class UserProfile {
 				<tr>
 					<td style="color:#00A6E0 !important;"><b><a href="#" style="text-decoration:none !important;color:#00A6E0 !important;" class="url-link" data-url="${app.domain}">${app.domain}</a></b></td>
 					<td style="color:#62BA46"><b>${app.application_name}</b></td>
-					<td style="color:#FF4001">${parseFloat(app.duration/60/60).toFixed(2)} Hours</td>
+					<td style="color:#FF4001">${this.convertSecondsToTime(app.duration)}</td>
 				</tr>`;
 		});
 
@@ -475,8 +480,14 @@ UserProfile = class UserProfile {
                     }
                 });
             });
-        
+			
             function render_url_brief_data(data) {
+				function convertSecondsToTime(seconds) {
+					const hours = Math.floor(seconds / 3600);
+					const minutes = Math.floor((seconds % 3600) / 60);
+				
+					return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+				}
                 // Assuming `data` is an object or string you want to display
                 let displayContent = `
                 <div class="row mt-3">
@@ -498,7 +509,7 @@ UserProfile = class UserProfile {
                     <tr>
                         <td style="color:#00A6E0 !important;"><b>${app.current_url}</b></td>
                         <td style="color:#62BA46"><b>${app.application_name}</b></td>
-                        <td style="color:#FF4001">${parseFloat(app.duration/60/60).toFixed(2)} Hours</td>
+                        <td style="color:#FF4001">${convertSecondsToTime(app.duration)}</td>
                     </tr>`;
             });
     

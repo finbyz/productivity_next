@@ -398,6 +398,21 @@ def get_user_data(user,start_date=None, end_date=None):
         meetings = frappe.db.sql(sql_query, (user,), as_dict=True)
     else:
         meetings = frappe.db.sql(sql_query, as_dict=True)
+
+    sql_query = f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    WHERE m.docstatus = 1
+    AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
+    """
+
+    # Executing the query
+    meetings_admin_data = frappe.db.sql(sql_query, as_dict=True)
     # Documents Accessed
     total_unique_doc = frappe.db.sql(f"""
     SELECT COUNT(DISTINCT docname) AS activity_count
@@ -495,7 +510,8 @@ def get_user_data(user,start_date=None, end_date=None):
         "total_time_on_calls": fincall_data[0]['total_duration'] if fincall_data else 0,
         "total_meeting_duration": meetings[0].total_meeting_duration if meetings else 0,
         "total_meeting_count": meetings[0].meeting_count if meetings else 0,
-        "url_full_data": result_list[:10]
+        "url_full_data": result_list[:10],
+        "meeting_admin_data": meetings_admin_data,
     }
 
 @frappe.whitelist()
