@@ -4,13 +4,20 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-05-02 12:56:31.968227",
+ "modified": "2024-05-21 09:42:42.781421",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "employee-productivity-dashboard",
  "owner": "Administrator",
  "page_name": "employee-productivity-dashboard",
- "roles": [],
+ "roles": [
+  {
+   "role": "Employee"
+  },
+  {
+   "role": "Productivity User"
+  }
+ ],
  "script": null,
  "standard": "Yes",
  "style": null,

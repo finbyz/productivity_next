@@ -235,6 +235,8 @@ UserProfile = class UserProfile {
 		let total_missed_fincall_count = 0;
 		let total_rejected_fincall_count = 0;
 		let total_days = 0;
+		let internal_meeting_hours = 0;
+		let internal_meeting_count = 0;
 	
 		for (let i in data.combined_employee_data) {
 			const employee = data.combined_employee_data[i];
@@ -253,6 +255,8 @@ UserProfile = class UserProfile {
 		}
 		total_meeting_hours = data.combined_employee_data[0].meeting_admin_data[0].total_meeting_duration || 0;
 		total_meeting_count = data.combined_employee_data[0].meeting_admin_data[0].meeting_count || 0;
+		internal_meeting_hours = data.combined_employee_data[0].meetings_admin_data_internal[0].total_meeting_duration || 0;
+		internal_meeting_count = data.combined_employee_data[0].meetings_admin_data_internal[0].meeting_count || 0;
 	
 		let employee_data = this.selected_employee || this.user_id;
 	
@@ -306,8 +310,8 @@ UserProfile = class UserProfile {
 			<div class="row mt-3">
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${total_meeting_count}</b><span style="font-size:12px"> Meetings For </span>${this.convertSecondsToTime(total_meeting_hours)}</div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings<span style="font-size:12px"> (External | Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${total_meeting_count}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(total_meeting_hours)} | <b>${internal_meeting_count}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(internal_meeting_hours)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -344,14 +348,263 @@ UserProfile = class UserProfile {
 						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_version_count}</b><span style="font-size:12px"> Interactions</span></div>
 					</div>
 				</div>
-			</div>`;
+			</div>
+			<div class="row mt-3">
+			<div class="col-md-6">
+			<div class="frappe-card  custom-card">
+				<h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Applications Used</h4>
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Application Name</th>
+							<th>Duration</th>
+						</tr>
+					</thead>
+					<tbody>`;
+
+			data.apps_data.forEach(app => {
+				wholedata += `
+					<tr>
+						<td width="60%"><b><a href="#" style="text-decoration:none !important;color:#00A6E0 !important;" class="app-link" data-url="${app.application_name}">${app.application_name}</b></td>
+						<td style="color:#2D9596" width="40%">${this.convertSecondsToTime(app.total_duration)}</td>
+					</tr>`;
+			});
+
+			wholedata += `
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="col-md-6">
+			<div class="frappe-card  custom-card">
+				<h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Domains Used</h4>
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Domain</th>
+							<th>Duration</th>
+						</tr>
+					</thead>
+					<tbody>`;
+					data.urls_visited.forEach(app => {
+						wholedata += `
+							<tr>
+								<td style="color:#FF4001" width="60%"><b><a href="#" style="text-decoration:none !important;color:#FF4001 !important;" class="url-link" data-url="${app.domain}">${app.domain}</a></b></td>
+								<td style="color:#FF4001" width="40%">${this.convertSecondsToTime(app.total_duration)}</td>
+							</tr>`;
+					});
+					wholedata += `
+					</tbody>
+				</table>
+			</div>
+		</div>`;
 		container.append(wholedata);
+		$(document).ready(function() {
+			$(document).on('click', '.url-link', function(e) {
+				e.preventDefault();
+
+				// AJAX call to Python function
+				frappe.call({
+					method: "productivity_next.productivity_next.page.admin_productify.admin_productify.get_url_brief_data",
+					args: {
+						url_data: $(this).data('url'),
+						start_date: this.selected_start_date,
+						end_date: this.selected_end_date,
+					},
+					callback: function(r) {
+						if (r.message) {
+							let data = r.message;
+							console.log('Data:', data);
+							render_app_brief_data(data);
+						} else {
+							$('#URLModal').find('.modal-body').html('No data available for this DOMAIN.');
+						}
+						$('#URLModal').modal('show');  // Show the modal after data is loaded
+					}
+				});
+			});
+
+			function render_app_brief_data(data) {
+				console.log('Data received:', data);
+
+				function convertSecondsToTime(seconds) {
+					const hours = Math.floor(seconds / 3600);
+					const minutes = Math.floor((seconds % 3600) / 60);
+					return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+				}
+
+				// Helper function to fetch full name, returns a promise
+				function getEmployeeFullName(employee) {
+					return new Promise((resolve, reject) => {
+						frappe.call({
+							method: "frappe.client.get_value",
+							args: {
+								doctype: "Employee",
+								filters: { "name": employee },
+								fieldname: "employee_name"
+							},
+							callback: function(r) {
+								if (r.message) {
+									resolve({ employee, fullName: r.message.employee_name });
+								} else {
+									resolve({ employee, fullName: employee }); // fallback to employee ID if full_name is not found
+								}
+							}
+						});
+					});
+				}
+
+				// Create an array of promises to fetch full names for all employees
+				let fetchPromises = data.url_data.map(app => getEmployeeFullName(app.employee));
+
+				// Wait for all promises to resolve
+				Promise.all(fetchPromises).then(results => {
+					let displayContent = `
+					<div class="row mt-3">
+						<div class="col-md-12">
+							<div class="frappe-card custom-card">
+								<h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Top 10 Domain's Used</h4>
+								<table class="table">
+									<thead>
+										<tr style="align:center !important;">
+											<th>Employee</th>
+											<th>Domain Name</th>
+											<th>Duration</th>
+										</tr>
+									</thead>
+									<tbody>`;
+
+					data.url_data.forEach((app, index) => {
+						let employeeFullName = results.find(result => result.employee === app.employee).fullName;
+						displayContent += `
+							<tr>
+								<td style="color:#00A6E0 !important;"><b>${employeeFullName}</b></td>
+								<td style="color:#62BA46"><b>${app.domain}</b></td>
+								<td style="color:#FF4001">${convertSecondsToTime(app.total_duration)}</td>
+							</tr>`;
+					});
+
+					displayContent += `
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>`;
+
+					$('#URLModal').find('.modal-body').html(displayContent);
+				});
+			}
+		});
+
+		$(document).ready(function() {
+			$(document).on('click', '.app-link', function(e) {
+				e.preventDefault();
+
+				// AJAX call to Python function
+				frappe.call({
+					method: "productivity_next.productivity_next.page.admin_productify.admin_productify.get_app_brief_data",
+					args: {
+						app_data: $(this).data('url'),
+						start_date: this.selected_start_date,
+						end_date: this.selected_end_date,
+					},
+					callback: function(r) {
+						if (r.message) {
+							let data = r.message;
+							console.log('Data:', data);
+							render_url_brief_data(data);
+						} else {
+							$('#appModal').find('.modal-body').html('No data available for this APP.');
+						}
+						$('#appModal').modal('show');  // Show the modal after data is loaded
+					}
+				});
+			});
+
+			function render_url_brief_data(data) {
+				console.log('Data received:', data);
+
+				function convertSecondsToTime(seconds) {
+					const hours = Math.floor(seconds / 3600);
+					const minutes = Math.floor((seconds % 3600) / 60);
+					return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+				}
+
+				// Helper function to fetch full name, returns a promise
+				function getEmployeeFullName(employee) {
+					return new Promise((resolve, reject) => {
+						frappe.call({
+							method: "frappe.client.get_value",
+							args: {
+								doctype: "Employee",
+								filters: { "name": employee },
+								fieldname: "employee_name"
+							},
+							callback: function(r) {
+								if (r.message) {
+									resolve({ employee, fullName: r.message.employee_name });
+								} else {
+									resolve({ employee, fullName: employee }); // fallback to employee ID if full_name is not found
+								}
+							}
+						});
+					});
+				}
+
+				// Create an array of promises to fetch full names for all employees
+				let fetchPromises = data.app_data.map(app => getEmployeeFullName(app.employee));
+
+				// Wait for all promises to resolve
+				Promise.all(fetchPromises).then(results => {
+					let displayContent = `
+					<div class="row mt-3">
+						<div class="col-md-12">
+							<div class="frappe-card custom-card">
+								<h4 class="custom-title p-3" style="font-size: 14px !important; color: #333333;" align="center">Top 10 Application's Used</h4>
+								<table class="table">
+									<thead>
+										<tr style="align:center !important;">
+											<th>Employee</th>
+											<th>Application Name</th>
+											<th>Duration</th>
+										</tr>
+									</thead>
+									<tbody>`;
+
+					data.app_data.forEach((app, index) => {
+						let employeeFullName = results.find(result => result.employee === app.employee).fullName;
+						displayContent += `
+							<tr>
+								<td style="color:#00A6E0 !important;"><b>${employeeFullName}</b></td>
+								<td style="color:#62BA46"><b>${app.application_name}</b></td>
+								<td style="color:#FF4001">${convertSecondsToTime(app.total_duration)}</td>
+							</tr>`;
+					});
+
+					displayContent += `
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>`;
+
+					$('#appModal').find('.modal-body').html(displayContent);
+				});
+			}
+		});
+
 	}
 	convertSecondsToTime(seconds) {
 		const hours = Math.floor(seconds / 3600);
 		const minutes = Math.floor((seconds % 3600) / 60);
 	
 		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+	}
+	convertSecondsToTime_(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+	
+		return `${hours}.${minutes}`;
 	}
 	
 	render_line_chart() {
@@ -470,18 +723,18 @@ UserProfile = class UserProfile {
 						<td align="left">
 							<a href="${employeeUrl}" target="_blank" style="color:#6420AA;">${count}. ${app.employeeName}</a>
 						</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat(((app.total_hours /60 /60)/app.total_days)-((app.total_idle_time /60 /60)/app.total_days)).toFixed(2)}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.total_hours)}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.total_hours)-(app.total_idle_time))}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.total_idle_time)}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.total_hours)/app.total_days)-((app.total_idle_time)/app.total_days))}</td>
 						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
-						<td align="center" style="color:#FF4001;">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
-						<td align="center" style="color:#FF4001;">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_incoming_fincall_count)}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_outgoing_fincall_count)}</td>
 						<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
-						<td align="center" style="color:#6420AA;">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
+						<td align="center" style="color:#6420AA;">${this.convertSecondsToTime_(app.total_meeting_duration)}</td>
 					</tr>`;
 				count++;
 			}
@@ -496,18 +749,18 @@ UserProfile = class UserProfile {
 						<td align="left">
 							<a href="${employeeUrl}" target="_blank" style="color:#6420AA;">${inactive_count}. ${app.employeeName}</a>
 						</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_hours/3600).toFixed(2)}</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat((app.total_hours/3600)-(app.total_idle_time/3600)).toFixed(2)}</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat(app.total_idle_time/3600).toFixed(2)}</td>
-						<td align="center" style="color:#00A6E0;">${parseFloat(((app.total_hours /60 /60)/app.total_days)-((app.total_idle_time /60 /60)/app.total_days)).toFixed(2)}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.total_hours)}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.total_hours)-(app.total_idle_time))}</td>
+						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.total_idle_time)}</td>
+						<td align="center" style="color:#00A6E0;">0.0</td>
 						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
 						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
-						<td align="center" style="color:#FF4001;">${parseFloat(app.total_incoming_fincall_count/3600).toFixed(2)}</td>
-						<td align="center" style="color:#FF4001;">${parseFloat(app.total_outgoing_fincall_count/3600).toFixed(2)}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_incoming_fincall_count)}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_outgoing_fincall_count)}</td>
 						<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
-						<td align="center" style="color:#6420AA;">${parseFloat(app.total_meeting_duration/3600).toFixed(2)}</td>
+						<td align="center" style="color:#6420AA;">${this.convertSecondsToTime_(app.total_meeting_duration)}</td>
 					</tr>`;
 				inactive_count++;
 			}

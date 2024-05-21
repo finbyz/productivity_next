@@ -387,10 +387,10 @@ def get_user_data(user,start_date=None, end_date=None):
             END) AS total_meeting_duration,
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
-    {'JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s' if user != 'Administrator' else ''}
-    {'and m.docstatus = 1' if user != 'Administrator' else 'WHERE m.docstatus = 1'}
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
+    and m.docstatus = 1 and internal_meeting = 0
     {conditions_2}
-    GROUP BY {'mcr.employee' if user != 'Administrator' else 'm.docstatus'}
+    GROUP BY mcr.employee
     """
 
     # Executing the query
@@ -398,6 +398,22 @@ def get_user_data(user,start_date=None, end_date=None):
         meetings = frappe.db.sql(sql_query, (user,), as_dict=True)
     else:
         meetings = frappe.db.sql(sql_query, as_dict=True)
+    sql_query = f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
+    and m.docstatus = 1 and internal_meeting = 1
+    {conditions_2}
+    GROUP BY mcr.employee
+    """
+
+    # Executing the query
+    meetings_internal_employee = frappe.db.sql(sql_query, (user,), as_dict=True)
 
     sql_query = f"""
     SELECT 
@@ -407,12 +423,28 @@ def get_user_data(user,start_date=None, end_date=None):
             END) AS total_meeting_duration,
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
-    WHERE m.docstatus = 1
+    WHERE m.docstatus = 1 and internal_meeting = 0
     AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
     """
 
     # Executing the query
     meetings_admin_data = frappe.db.sql(sql_query, as_dict=True)
+
+    sql_query = f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    WHERE m.docstatus = 1 and internal_meeting = 1
+    AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
+    """
+
+    # Executing the query
+    meetings_admin_data_internal = frappe.db.sql(sql_query, as_dict=True)
+
     # Documents Accessed
     total_unique_doc = frappe.db.sql(f"""
     SELECT COUNT(DISTINCT docname) AS activity_count
@@ -510,8 +542,11 @@ def get_user_data(user,start_date=None, end_date=None):
         "total_time_on_calls": fincall_data[0]['total_duration'] if fincall_data else 0,
         "total_meeting_duration": meetings[0].total_meeting_duration if meetings else 0,
         "total_meeting_count": meetings[0].meeting_count if meetings else 0,
+        "total_meeting_duration_internal": meetings_internal_employee[0].total_meeting_duration if meetings_internal_employee else 0,
+        "total_meeting_count_internal": meetings_internal_employee[0].meeting_count if meetings_internal_employee else 0,
         "url_full_data": result_list[:10],
         "meeting_admin_data": meetings_admin_data,
+        "meetings_admin_data_internal": meetings_admin_data_internal
     }
 
 @frappe.whitelist()

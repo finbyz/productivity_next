@@ -305,8 +305,8 @@ UserProfile = class UserProfile {
 			<div class="row mt-3">
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count}</b><span style="font-size:12px">  Meetings For </span>${this.convertSecondsToTime(data.total_meeting_duration)}</div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings<span style="font-size:12px"> (External | Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count}</b><span style="font-size:12px">  Meet - </span>${this.convertSecondsToTime(data.total_meeting_duration)}| <b>${data.total_meeting_count_internal}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(data.total_meeting_duration_internal)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">

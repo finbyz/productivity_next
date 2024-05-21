@@ -4,6 +4,22 @@ from productivity_next.productivity_next.page.employee_productivity_dashboard.em
 @frappe.whitelist()
 def get_admin_data(user, start_date=None, end_date=None):
     combined_data = []
+    apps_data = frappe.db.sql(f"""
+        SELECT application_name,SUM(duration) AS total_duration
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' AND date <= '{end_date}'
+        GROUP BY application_name
+        ORDER BY total_duration DESC
+        LIMIT 10
+        """, as_dict=1)
+    urls_visited = frappe.db.sql(f"""
+        SELECT domain,SUM(duration) AS total_duration
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and domain is not null and domain != ''
+        GROUP BY domain
+        ORDER BY total_duration DESC
+        LIMIT 10
+        """, as_dict=1)
     if user != "Administrator":
         employees = frappe.db.get_all("Employee", filters={"status": "Active"}, fields=["name"])
         for employee in employees:
@@ -13,7 +29,7 @@ def get_admin_data(user, start_date=None, end_date=None):
     else: 
         employee_data = get_user_data(user, start_date, end_date)
         combined_data.append(employee_data)
-    return {"combined_employee_data": combined_data}
+    return {"combined_employee_data": combined_data,"apps_data":apps_data,"urls_visited":urls_visited}
 
 def set_dates(start_date=None, end_date=None):
     """
@@ -105,3 +121,27 @@ def get_linechart_data(user, start_date=None, end_date=None):
         "labels": [i["client"] for i in data],
         "datasets": [{"values": [round(i["total_duration"]/60,2) for i in data]}]
     }
+
+@frappe.whitelist()
+def get_app_brief_data(app_data, start_date=None, end_date=None):
+    start_date, end_date = set_dates(start_date, end_date)
+    data = frappe.db.sql(f"""
+        SELECT employee, SUM(duration) AS total_duration,application_name
+        FROM `tabApplication Usage log`
+        WHERE application_name = '{app_data}' AND date >= '{start_date}' AND date <= '{end_date}'
+        GROUP BY employee
+        ORDER BY total_duration DESC
+        """, as_dict=1)
+    return {"app_data":data}
+
+@frappe.whitelist()
+def get_url_brief_data(url_data, start_date=None, end_date=None):
+    start_date, end_date = set_dates(start_date, end_date)
+    data = frappe.db.sql(f"""
+        SELECT employee, SUM(duration) AS total_duration,domain
+        FROM `tabApplication Usage log`
+        WHERE domain = '{url_data}' AND date >= '{start_date}' AND date <= '{end_date}'
+        GROUP BY employee
+        ORDER BY total_duration DESC
+        """, as_dict=1)
+    return {"url_data":data}
