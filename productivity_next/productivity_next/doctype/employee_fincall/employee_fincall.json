@@ -21,7 +21,8 @@
   "link_name",
   "contact",
   "calltype",
-  "fincall_log_ref"
+  "fincall_log_ref",
+  "create_contact"
  ],
  "fields": [
   {
@@ -141,11 +142,16 @@
    "no_copy": 1,
    "options": "link_to",
    "read_only": 1
+  },
+  {
+   "fieldname": "create_contact",
+   "fieldtype": "Button",
+   "label": "Create Contact"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-18 10:00:01.255609",
+ "modified": "2024-05-21 16:33:13.695328",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",
