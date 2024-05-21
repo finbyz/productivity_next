@@ -388,7 +388,7 @@ def get_user_data(user,start_date=None, end_date=None):
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
     JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
-    and m.docstatus = 1 and internal_meeting = 0
+    and m.docstatus = 1
     {conditions_2}
     GROUP BY mcr.employee
     """
@@ -398,6 +398,24 @@ def get_user_data(user,start_date=None, end_date=None):
         meetings = frappe.db.sql(sql_query, (user,), as_dict=True)
     else:
         meetings = frappe.db.sql(sql_query, as_dict=True)
+
+    sql_query = f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
+    and m.docstatus = 1 and internal_meeting = 0
+    {conditions_2}
+    GROUP BY mcr.employee
+    """
+
+
+    meetings_external_employee = frappe.db.sql(sql_query, (user,), as_dict=True)
+
     sql_query = f"""
     SELECT 
         SUM(CASE 
@@ -544,6 +562,8 @@ def get_user_data(user,start_date=None, end_date=None):
         "total_meeting_count": meetings[0].meeting_count if meetings else 0,
         "total_meeting_duration_internal": meetings_internal_employee[0].total_meeting_duration if meetings_internal_employee else 0,
         "total_meeting_count_internal": meetings_internal_employee[0].meeting_count if meetings_internal_employee else 0,
+        "total_meeting_duration_external": meetings_external_employee[0].total_meeting_duration if meetings_external_employee else 0,
+        "total_meeting_count_external": meetings_external_employee[0].meeting_count if meetings_external_employee else 0,
         "url_full_data": result_list[:10],
         "meeting_admin_data": meetings_admin_data,
         "meetings_admin_data_internal": meetings_admin_data_internal
