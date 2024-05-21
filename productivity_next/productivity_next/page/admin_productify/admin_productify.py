@@ -145,3 +145,4 @@ def get_url_brief_data(url_data, start_date=None, end_date=None):
         ORDER BY total_duration DESC
         """, as_dict=1)
     return {"url_data":data}
+
