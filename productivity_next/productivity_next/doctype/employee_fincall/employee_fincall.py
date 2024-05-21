@@ -6,7 +6,20 @@ from frappe.model.document import Document
 import frappe
 
 class EmployeeFincall(Document):
-    pass
+    def validate(self):
+        if not self.contact or self.contact == "" or self.contact == None:
+            self.create_notification_log()
+    def create_notification_log(self):
+        doc = frappe.new_doc("Notification Log")
+        doc.subject = "You need to create contact for {}".format(self.client)
+        doc.for_user = frappe.db.get_value("Employee", self.employee, "user_id")
+        doc.type = "Alert"
+        doc.document_type = "Employee Fincall"
+        doc.document_name = self.name
+        doc.from_user = frappe.db.get_value("Employee", self.employee, "user_id")
+        doc.flags.ignore_permissions = True
+        doc.save()
+
 @frappe.whitelist()
 def update_contact( client_no, update_client, is_primary_phone, is_primary_mobile_no,party_type, party):
     contact_doc = frappe.get_doc("Contact", update_client)
