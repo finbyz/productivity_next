@@ -31,7 +31,7 @@ def get_heatmap_data(user, date):
         """,
         f"""
         SELECT DATE(call_datetime) as date, COUNT(*) as fincall_count
-        FROM `tabFincall Log`
+        FROM `tabEmployee Fincall`
         {conditions['employee_cond']}
         GROUP BY DATE(call_datetime)
         """,
@@ -141,7 +141,7 @@ def get_user_data(user,start_date=None, end_date=None):
             # frappe.throw(str(results))
             return results
 
-        # Function to convert fincall logs
+        # Function to convert Employee Fincalls
         def convert_time_data(time_entries):
             formatted_entries = []
             for entry in time_entries:
@@ -169,7 +169,7 @@ def get_user_data(user,start_date=None, end_date=None):
         fincall_time_data = frappe.db.sql(f"""
         SELECT DATE_FORMAT(call_datetime, '%H:%i:%s') AS start_time,
             ADDTIME(DATE_FORMAT(call_datetime, '%H:%i:%s'), SEC_TO_TIME(duration)) AS end_time, employee
-        FROM `tabFincall Log`
+        FROM `tabEmployee Fincall`
         {conditions}
         """, as_dict=True)
         fincall_time_data = convert_time_data(fincall_time_data)
@@ -296,7 +296,7 @@ def get_user_data(user,start_date=None, end_date=None):
             calltype,
             COUNT(*) AS fincall_count,
             COALESCE(SUM(duration), 0) AS total_duration
-        FROM `tabFincall Log`
+        FROM `tabEmployee Fincall`
         {conditions}
         GROUP BY calltype
     """, as_dict=True)
@@ -479,9 +479,9 @@ def get_user_data(user,start_date=None, end_date=None):
         """, as_dict=1)[0]
     
     
-    # Fincall Log Count
+    # Employee Fincall Count
     fincall_count = frappe.db.sql(f"""
-        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabFincall Log` {conditions} group by calltype
+        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabEmployee Fincall` {conditions} group by calltype
     """, as_dict=True)
     incoming_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Incoming'), 0)
     outgoing_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Outgoing'), 0)
@@ -489,9 +489,9 @@ def get_user_data(user,start_date=None, end_date=None):
     rejected_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Rejected'), 0)
 
 
-    # Fincall Log Count
+    # Employee Fincall Count
     fincall_count = frappe.db.sql(f"""
-        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabFincall Log` {conditions} group by calltype
+        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabEmployee Fincall` {conditions} group by calltype
     """, as_dict=True)
     incoming_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Incoming'), 0)
     outgoing_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Outgoing'), 0)
@@ -512,7 +512,7 @@ def get_user_data(user,start_date=None, end_date=None):
 
     caller_name = frappe.db.sql(f"""
         SELECT client, SUM(duration) AS total_duration, count(*) as call_count
-        FROM `tabFincall Log`
+        FROM `tabEmployee Fincall`
         {conditions}
         GROUP BY client
         ORDER BY total_duration DESC
@@ -621,7 +621,7 @@ def get_linechart_data(user, start_date=None, end_date=None):
     
     data = frappe.db.sql(f"""
         SELECT client, SUM(duration) AS total_duration
-        FROM `tabFincall Log`
+        FROM `tabEmployee Fincall`
         {conditions}
         GROUP BY client
         ORDER BY total_duration DESC

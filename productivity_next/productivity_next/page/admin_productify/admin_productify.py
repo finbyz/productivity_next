@@ -110,7 +110,7 @@ def get_linechart_data(user, start_date=None, end_date=None):
     
     data = frappe.db.sql(f"""
         SELECT client, SUM(duration) AS total_duration
-        FROM `tabFincall Log`
+        FROM `tabEmployee Fincall`
         {conditions}
         GROUP BY client
         ORDER BY total_duration DESC
