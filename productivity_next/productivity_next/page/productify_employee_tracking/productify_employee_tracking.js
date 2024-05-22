@@ -200,7 +200,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 	
-		frappe.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_heatmap_data", {
+		frappe.xcall("productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_heatmap_data", {
 			user: data,
 			date: date_from || frappe.datetime.year_start(),
 		})
@@ -218,7 +218,7 @@ UserProfile = class UserProfile {
 		}
 		
 		frappe.call({
-			method: "productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_user_data",
+			method: "productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_user_data",
 			args: {
 				user: data,
 				start_date: this.selected_start_date,
@@ -468,7 +468,7 @@ UserProfile = class UserProfile {
                 
                 // AJAX call to Python function
                 frappe.call({
-                    method: "productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_url_brief_data",
+                    method: "productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_url_brief_data",
                     args: {
                         url_data: $(this).data('url'),
                         user: employee_data,
@@ -562,7 +562,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_piechart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_piechart_data", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -605,7 +605,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_linechart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_linechart_data", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -648,7 +648,7 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_barchart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_barchart_data", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -695,7 +695,7 @@ UserProfile = class UserProfile {
 	
 			const limit = currentOffset === 0 ? initialLimit : loadLimit;
 	
-			frappe.xcall("productivity_next.productivity_next.page.employee_productivity_dashboard.employee_productivity_dashboard.get_images", {
+			frappe.xcall("productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking.get_images", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
