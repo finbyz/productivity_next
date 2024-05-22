@@ -597,7 +597,6 @@ def get_user_data(user,start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_url_brief_data(url_data,user,start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
@@ -617,7 +616,6 @@ def get_url_brief_data(url_data,user,start_date=None, end_date=None):
 # PIE CHART
 @frappe.whitelist()
 def get_piechart_data(user, start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
@@ -639,7 +637,6 @@ def get_piechart_data(user, start_date=None, end_date=None):
 # LINE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:

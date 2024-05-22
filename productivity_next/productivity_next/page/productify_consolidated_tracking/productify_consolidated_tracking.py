@@ -102,7 +102,6 @@ def get_barchart_data(start_date=None, end_date=None):
 # LINE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
@@ -124,7 +123,6 @@ def get_linechart_data(user, start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_app_brief_data(app_data, start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
     data = frappe.db.sql(f"""
         SELECT employee, SUM(duration) AS total_duration,application_name
         FROM `tabApplication Usage log`
@@ -136,7 +134,6 @@ def get_app_brief_data(app_data, start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_url_brief_data(url_data, start_date=None, end_date=None):
-    start_date, end_date = set_dates(start_date, end_date)
     data = frappe.db.sql(f"""
         SELECT employee, SUM(duration) AS total_duration,domain
         FROM `tabApplication Usage log`

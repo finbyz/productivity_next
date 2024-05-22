@@ -5,6 +5,8 @@ def execute():
     # List of indexes to create
     indexes = [
         {"doctype": "Application Usage log", "fields": ["employee", "date", "domain"]},
+        {"doctype": "Application Usage log", "fields": ["application_name", "date"]},
+        {"doctype": "Application Usage log", "fields": ["domain", "date"]},
         {"doctype": "Fincall Log", "fields": ["employee", "date"]},
         {"doctype": "Meeting Company Representative", "fields": ["parent", "employee"]},
         {"doctype": "Meeting", "fields": ["meeting_from", "meeting_to"]},

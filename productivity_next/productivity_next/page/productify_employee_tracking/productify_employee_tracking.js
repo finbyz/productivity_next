@@ -114,6 +114,7 @@ UserProfile = class UserProfile {
 				this.selected_start_date = urlParams.get('start_date');
 				this.selected_end_date = urlParams.get('end_date');			
 				this.make_user_profile();
+				console.log(frappe.db.get_value("Employee",{user_id:this.user_id},"name"))
 			},
 		});
 		dialog.show();
