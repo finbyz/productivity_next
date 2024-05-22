@@ -113,7 +113,7 @@ def get_linechart_data(user, start_date=None, end_date=None):
         {conditions}
         GROUP BY client
         ORDER BY total_duration DESC
-        LIMIT 10
+        LIMIT 20
         """, as_dict=1)
         
     return {
