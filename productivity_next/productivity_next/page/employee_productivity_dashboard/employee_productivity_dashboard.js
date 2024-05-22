@@ -242,6 +242,12 @@ UserProfile = class UserProfile {
 	
 		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
 	}
+	convertSecondsToTime_(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+	
+		return `<b>${hours}.${minutes}</b>`;
+	}
 	render_user_data(data) {
 		let employee_data;
 		let start_date_ = this.selected_start_date;
@@ -311,8 +317,8 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(data.total_incoming_fincall_count)}<span style="font-size:12px"> Incoming </span> | ${this.convertSecondsToTime(data.total_outgoing_fincall_count)}<span style="font-size:12px"> Outgoing </span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span><span style="font-size:12px"> (External/Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.total_incoming_fincall_count)} / ${this.convertSecondsToTime_(data.internal_total_incoming_fincall_count)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.total_outgoing_fincall_count)} / ${this.convertSecondsToTime_(data.internal_total_outgoing_fincall_count)}<span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -335,8 +341,8 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.incoming_fincall_count}</b><span style="font-size:12px"> Incoming </span>|<b> ${data.outgoing_fincall_count}</b><span style="font-size:12px"> Outgoing</span> |<b> ${data.missed_fincall_count}</b><span style="font-size:12px"> Missed</span> |<b> ${data.rejected_fincall_count}</b> <span style="font-size:12px">Rejected</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:12px"> (External/Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.incoming_fincall_count}/${data.internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.outgoing_fincall_count}/${data.internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.missed_fincall_count}/${data.internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.rejected_fincall_count}/${data.internal_rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">

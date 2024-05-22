@@ -297,7 +297,7 @@ def get_user_data(user,start_date=None, end_date=None):
             COUNT(*) AS fincall_count,
             COALESCE(SUM(duration), 0) AS total_duration
         FROM `tabEmployee Fincall`
-        {conditions}
+        {conditions} and (link_to != 'Company' or link_to is null)
         GROUP BY calltype
     """, as_dict=True)
 
@@ -310,6 +310,26 @@ def get_user_data(user,start_date=None, end_date=None):
     total_incoming_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Incoming'), 0)
     total_outgoing_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Outgoing'), 0)
     total_missed_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Missed'), 0)
+
+    internal_fincall_data = frappe.db.sql(f"""
+        SELECT 
+            calltype,
+            COUNT(*) AS fincall_count,
+            COALESCE(SUM(duration), 0) AS total_duration
+        FROM `tabEmployee Fincall`
+        {conditions} and link_to = 'Company' and link_to is not null
+        GROUP BY calltype
+    """, as_dict=True)
+
+    # Extracting data for each call type
+    internal_incoming_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Incoming'), 0)
+    internal_outgoing_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Outgoing'), 0)
+    internal_missed_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Missed'), 0)
+    internal_rejected_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Rejected'), 0)
+
+    internal_total_incoming_fincall_count = next((item['total_duration'] for item in internal_fincall_data if item['calltype'] == 'Incoming'), 0)
+    internal_total_outgoing_fincall_count = next((item['total_duration'] for item in internal_fincall_data if item['calltype'] == 'Outgoing'), 0)
+    
 
     # TOTAL HOURS CARD
     if user != "Administrator":
@@ -554,6 +574,12 @@ def get_user_data(user,start_date=None, end_date=None):
         "total_incoming_fincall_count": total_incoming_fincall_count,
         "total_outgoing_fincall_count": total_outgoing_fincall_count,
         "total_missed_fincall_count": total_missed_fincall_count,
+        "internal_incoming_fincall_count": internal_incoming_fincall_count,
+        "internal_outgoing_fincall_count": internal_outgoing_fincall_count,
+        "internal_missed_fincall_count": internal_missed_fincall_count,
+        "internal_rejected_fincall_count": internal_rejected_fincall_count,
+        "internal_total_incoming_fincall_count": internal_total_incoming_fincall_count,
+        "internal_total_outgoing_fincall_count": internal_total_outgoing_fincall_count,
         "total_idle_time": total_idle_time_in_seconds,
         "total_days": total_days,
         "total_unique_doc": total_unique_doc[0]['activity_count'] if total_unique_doc else 0,

@@ -236,6 +236,12 @@ UserProfile = class UserProfile {
 		let total_outgoing_fincall_count = 0;
 		let total_missed_fincall_count = 0;
 		let total_rejected_fincall_count = 0;
+		let internal_incoming_fincall_count = 0;
+		let internal_outgoing_fincall_count = 0;
+		let internal_missed_fincall_count = 0;
+		let internal_rejected_fincall_count = 0;
+		let internal_total_incoming_fincall_hours = 0;
+		let internal_total_outgoing_fincall_hours = 0;
 		let total_days = 0;
 		let internal_meeting_hours = 0;
 		let internal_meeting_count = 0;
@@ -253,6 +259,12 @@ UserProfile = class UserProfile {
 			total_outgoing_fincall_count += employee.outgoing_fincall_count || 0;
 			total_missed_fincall_count += employee.missed_fincall_count || 0;
 			total_rejected_fincall_count += employee.rejected_fincall_count || 0;
+			internal_incoming_fincall_count += employee.internal_incoming_fincall_count || 0;
+			internal_outgoing_fincall_count += employee.internal_outgoing_fincall_count || 0;
+			internal_missed_fincall_count += employee.internal_missed_fincall_count || 0;
+			internal_rejected_fincall_count += employee.internal_rejected_fincall_count || 0;
+			internal_total_incoming_fincall_hours += employee.internal_total_incoming_fincall_count || 0;
+			internal_total_outgoing_fincall_hours += employee.internal_total_outgoing_fincall_count || 0;
 			total_days += employee.total_days || 0;
 		}
 		total_meeting_hours = data.combined_employee_data[0].meeting_admin_data[0].total_meeting_duration || 0;
@@ -318,8 +330,8 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(total_incoming_fincall_hours)}<span style="font-size:12px"> Incoming </span> | ${this.convertSecondsToTime(total_outgoing_fincall_hours)}<span style="font-size:12px"> Outgoing </span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)(External/Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${this.convertSecondsToTime_(total_incoming_fincall_hours)}/${this.convertSecondsToTime_(internal_total_incoming_fincall_hours)}</b><span style="font-size:12px"> Inc </span> | <b>${this.convertSecondsToTime_(total_outgoing_fincall_hours)}/${this.convertSecondsToTime_(internal_total_outgoing_fincall_hours)}</b><span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -340,8 +352,8 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${total_incoming_fincall_count}</b><span style="font-size:12px"> Incoming </span>|<b> ${total_outgoing_fincall_count}</b><span style="font-size:12px"> Outgoing</span> |<b> ${total_missed_fincall_count}</b><span style="font-size:12px"> Missed</span> |<b> ${total_rejected_fincall_count}</b> <span style="font-size:12px">Rejected</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:11px">(External/Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${total_incoming_fincall_count}/${internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${total_outgoing_fincall_count}/${internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${total_missed_fincall_count}/${internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${total_rejected_fincall_count}/${internal_rejected_fincall_count}</b> <span style="font-size:12px"> Rej</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -729,12 +741,12 @@ UserProfile = class UserProfile {
 						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.total_hours)-(app.total_idle_time))}</td>
 						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.total_idle_time)}</td>
 						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.total_hours)/app.total_days)-((app.total_idle_time)/app.total_days))}</td>
-						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
-						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
-						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
-						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
-						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_incoming_fincall_count)}</td>
-						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_outgoing_fincall_count)}</td>
+						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}/${app.internal_incoming_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}/${app.internal_outgoing_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}/${app.internal_missed_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}/${app.internal_rejected_fincall_count}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_incoming_fincall_count)}/${this.convertSecondsToTime_(app.internal_total_incoming_fincall_count)}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_outgoing_fincall_count)}/${this.convertSecondsToTime_(app.internal_total_outgoing_fincall_count)}</td>
 						<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
 						<td align="center" style="color:#6420AA;">${this.convertSecondsToTime_(app.total_meeting_duration)}</td>
 					</tr>`;
@@ -755,12 +767,12 @@ UserProfile = class UserProfile {
 						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.total_hours)-(app.total_idle_time))}</td>
 						<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.total_idle_time)}</td>
 						<td align="center" style="color:#00A6E0;">0.0</td>
-						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}</td>
-						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}</td>
-						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}</td>
-						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}</td>
-						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_incoming_fincall_count)}</td>
-						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_outgoing_fincall_count)}</td>
+						<td align="center" style="color:#62BA46;">${app.incoming_fincall_count}/${app.internal_incoming_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.outgoing_fincall_count}/${app.internal_outgoing_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.missed_fincall_count}/${app.internal_missed_fincall_count}</td>
+						<td align="center" style="color:#62BA46;">${app.rejected_fincall_count}/${app.internal_rejected_fincall_count}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_incoming_fincall_count)}/${this.convertSecondsToTime_(app.internal_total_incoming_fincall_count)}</td>
+						<td align="center" style="color:#FF4001;">${this.convertSecondsToTime_(app.total_outgoing_fincall_count)}/${this.convertSecondsToTime_(app.internal_total_outgoing_fincall_count)}</td>
 						<td align="center" style="color:#6420AA;">${app.total_meeting_count}</td>
 						<td align="center" style="color:#6420AA;">${this.convertSecondsToTime_(app.total_meeting_duration)}</td>
 					</tr>`;
