@@ -1,0 +1,26 @@
+{
+ "content": null,
+ "creation": "2024-05-22 11:51:55.750783",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2024-05-22 11:52:10.415055",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Employee Tracking",
+ "owner": "Administrator",
+ "page_name": "Productify Employee Tracking",
+ "roles": [
+  {
+   "role": "Employee"
+  },
+  {
+   "role": "Productivity User"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Productify Employee Tracking"
+}
