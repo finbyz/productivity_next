@@ -12,7 +12,22 @@ def execute():
         try:
             employee_doc = frappe.get_doc("Employee", d['name'])
             contact_doc = frappe.new_doc("Contact")
-            contact_doc.first_name = employee_doc.employee_name
+            contact_doc.first_name = employee_doc.first_name
+            contact_doc.last_name = employee_doc.last_name
+            if employee_doc.gender:
+                if employee_doc.gender == 'Male':
+                    contact_doc.salutation = 'Mr'
+                else:
+                    contact_doc.salutation = 'Ms'
+            if employee_doc.company_email:
+                contact_doc.append("email_ids", {
+                    "email_id": employee_doc.company_email,
+                    "is_primary": 1
+                })
+            if employee_doc.personal_email:
+                contact_doc.append("email_ids", {
+                    "email_id": employee_doc.personal_email,
+                })
             contact_doc.append("phone_nos", {
                 "phone": employee_doc.cell_number,
                 "is_primary_phone": 1
