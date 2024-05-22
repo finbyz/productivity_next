@@ -291,19 +291,19 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">${this.convertSecondsToTime((data.total_hours)/data.total_days)}</div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">${this.convertSecondsToTime((data.total_hours)/(data.total_days)||1)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Active Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(((data.total_hours)/data.total_days)-((data.total_idle_time)/data.total_days))}</div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime(((data.total_hours)/(data.total_days)||1)-((data.total_idle_time)/(data.total_days)||1))}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Average Idle Hours Per Day</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;">${this.convertSecondsToTime((data.total_idle_time)/data.total_days)}</b></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;">${this.convertSecondsToTime((data.total_idle_time)/(data.total_days)||1)}</b></div>
 					</div>
 				</div>
 			</div>
