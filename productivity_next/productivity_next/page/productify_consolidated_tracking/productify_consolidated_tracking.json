@@ -1,0 +1,26 @@
+{
+ "content": null,
+ "creation": "2024-05-22 12:09:13.121779",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2024-05-22 12:09:53.454098",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Consolidated Tracking",
+ "owner": "Administrator",
+ "page_name": "Productify Consolidated Tracking",
+ "roles": [
+  {
+   "role": "Administrator"
+  },
+  {
+   "role": "Productivity Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Productify Consolidated Tracking"
+}

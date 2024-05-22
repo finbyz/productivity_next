@@ -1,0 +1,111 @@
+<div class="row user-profile">
+    <div class="col-md-12">
+        <div class="frappe-card chart-column-container bar-chart-container ">
+            <div class="title-area ">
+                <h4 class="card-title">{%=__("Document Analysis") %}<span style="font-size: 12px;"> (Numbers Of Document Modified)</span></h4>
+            </div>
+            <div class="chart-wrapper performance-bar-chart ">
+                <div class="null-state">
+                    <span>{%=__("No Data to Show") %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <div class="frappe-card chart-column-container hidden-xs hidden-sm" id="user-data-cards">
+            <div class="chart-wrapper ">
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="appModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title" id="modalLabel">App Information</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            </div>
+            <div class="modal-body">
+            <p id="urlDisplay">URL will be displayed here</p>
+            </div>
+            <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+        </div>
+    </div>
+    <div class="modal fade" id="URLModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title" id="modalLabel">Domain Information</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            </div>
+            <div class="modal-body">
+            <p id="urlDisplay">Domains data will be displayed here</p>
+            </div>
+            <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <div class="frappe-card chart-column-container line-chart-container ">
+            <div class="title-area ">
+                <h4 class="card-title">{%=__("Top 10 Calls Analysis") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
+            </div>
+            <div class="chart-wrapper performance-line-chart ">
+                <div class="null-state">
+                    <span>{%=__("No Data to Show") %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12  mt-0">
+        <div class="performance-graphs ">
+            <div class="frappe-card chart-column-container hidden-xs hidden-sm ">
+                <div class="title-area mb-0 pb-0">
+                    <h4 class="card-title">{%=__("User Analysis") %}<span style="font-size: 12px;"> (User Productivity Stats)</span></h4>
+                </div>
+                <div class="chart-wrapper mt-0 pt-0">
+                    <table class="table" width="100%">
+                        <thead>
+                            <tr align="center">
+                                <th width="100%" colspan="12" style="padding:15px !important;">All Users Of The Organization<span style="font-size: 12px;"> (Click on employee name to get brief data)</span></th>
+                            </tr>
+                            <tr align="center">
+                                <th width="15%"></th>
+                                <th width="32%" colspan="4" style="color:#00A6E0;">Activity Hours</th>
+                                <th width="10.50%" colspan="4" style="color:#62BA46;">Phone Call Nos<span style="font-size:10px !important;"> (External/Internal)</span></th>
+                                <th width="21.25%" colspan="2" style="color:#FF4001;">Phone Call Hours<span style="font-size:10px !important;"> (External/Internal)</span></th>
+                                <th width="21.25%" colspan="2" style="color:#6420AA;">Meetings</th>
+                            </tr>
+                            <tr align="center">
+                                <th style="color:#6420AA;">Employee</th>
+                                <th style="color:#00A6E0;">Total</th>
+                                <th style="color:#00A6E0;">Active</th>
+                                <th style="color:#00A6E0;">Idle</th>
+                                <th style="color:#00A6E0;">Avg. Active</th>
+                                <th style="color:#62BA46;">Incoming</th>
+                                <th style="color:#62BA46;">Outgoing</th>
+                                <th style="color:#62BA46;">Missed</th>
+                                <th style="color:#62BA46;">Rejected</th>
+                                <th style="color:#FF4001;">Incoming</th>
+                                <th style="color:#FF4001;">Outgoing</th>
+                                <th style="color:#6420AA;">Nos</th>
+                                <th style="color:#6420AA;">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-activity-data">
+
+                        </tbody>
+                    </table>
+                </div>
+            </div> 
+        </div>
+    </div>       
+</div>
