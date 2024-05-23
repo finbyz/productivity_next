@@ -336,7 +336,8 @@ def get_user_data(user,start_date=None, end_date=None):
         filters = {"employee": user, "time": ["Between", [start_date, end_date]]}
     else:
         filters = {"time": ["between", [start_date, end_date]]}
-
+    def get_current_time():
+        return datetime.now()
     # Fetch logs from the database
     all_logs = frappe.db.get_list("Application Checkin Checkout",
                                 filters=filters,
@@ -389,8 +390,7 @@ def get_user_data(user,start_date=None, end_date=None):
     # frappe.throw(str(total_hours / 60 / 60))  
     # IDLE TIME CARD
     # Fetch application usage days
-    def get_current_time():
-        return datetime.now()
+
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
         FROM `tabApplication Usage log`
