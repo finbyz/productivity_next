@@ -79,24 +79,21 @@ class FincallLog(Document):
                 ec_doc.fincall_log_ref = fincall_log.name
 
                 # Try to get contact details
-                try:
-                    contact_query = """
-                        SELECT c.name, dl.link_doctype, dl.link_name 
-                        FROM `tabContact` AS c 
-                        JOIN `tabContact Phone` AS cp ON cp.parent = c.name 
-                        JOIN `tabDynamic Link` AS dl ON dl.parent = c.name 
-                        WHERE cp.phone LIKE %s
-                        LIMIT 1
-                    """
-                    contact_details = frappe.db.sql(contact_query, ("%{}%".format(fincall_log.customer_no),), as_dict=True)
+                contact_query = """
+                    SELECT c.name, dl.link_doctype, dl.link_name 
+                    FROM `tabContact` AS c 
+                    JOIN `tabContact Phone` AS cp ON cp.parent = c.name 
+                    JOIN `tabDynamic Link` AS dl ON dl.parent = c.name 
+                    WHERE cp.phone LIKE %s
+                    LIMIT 1
+                """
+                contact_details = frappe.db.sql(contact_query, ("%{}%".format(fincall_log.customer_no),), as_dict=True)
 
-                    if contact_details:
-                        contact = contact_details[0]
-                        ec_doc.link_to = contact.get('link_doctype', '')
-                        ec_doc.contact = contact.get('name', '')
-                        ec_doc.link_name = contact.get('link_name', '')
-                except Exception as e:
-                    frappe.log_error(message=str(e), title="Contact Details Retrieval Failed")
+                if contact_details:
+                    contact = contact_details[0]
+                    ec_doc.link_to = contact.get('link_doctype', '')
+                    ec_doc.contact = contact.get('name', '')
+                    ec_doc.link_name = contact.get('link_name', '')
 
                 ec_doc.flags.ignore_permissions = True
                 ec_doc.save()
@@ -107,6 +104,8 @@ class FincallLog(Document):
 
     def set_date(self):
         self.date = get_datetime(self.call_datetime).date()
+
+
 
 
 
