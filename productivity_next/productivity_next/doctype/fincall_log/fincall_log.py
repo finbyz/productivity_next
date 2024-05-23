@@ -51,6 +51,7 @@ class FincallLog(Document):
                 AND customer_no = %(customer_no)s
                 AND calltype = %(calltype)s
                 AND call_datetime BETWEEN %(fifteen_days_ago)s AND %(call_datetime)s
+                and call_datetime = %(call_datetime)s
             """, {
                 "employee": employee_details['name'],
                 "customer_no": fincall_log.customer_no,
