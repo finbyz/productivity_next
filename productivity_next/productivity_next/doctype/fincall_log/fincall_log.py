@@ -60,6 +60,11 @@ class FincallLog(Document):
                     "call_datetime": fincall_log.call_datetime,
                 })
 
+                if fincall_log.customer_no[0] == "0":
+                    fincall_log.customer_no = "+91" + fincall_log.customer_no[1:]
+                elif fincall_log.customer_no[0] != "+" and fincall_log.customer_no[0] != "0":
+                    fincall_log.customer_no = "+91" + fincall_log.customer_no
+
                 if not existing_fincall:
                     # Create new Employee Fincall document
                     ec_doc = frappe.new_doc("Employee Fincall")

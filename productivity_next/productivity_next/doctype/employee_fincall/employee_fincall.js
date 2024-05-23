@@ -82,6 +82,7 @@ frappe.ui.form.on("Employee Fincall", {
                 options: "Salutation",
                 depends_on: 'eval:!doc.update_existing_client',
                 reqd: 1,
+                mandatory_depends_on: 'eval:!doc.update_existing_client'
             },
             {fieldtype: 'Column Break'},
             {

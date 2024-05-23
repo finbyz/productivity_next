@@ -21,7 +21,19 @@ class EmployeeFincall(Document):
         doc.save()
 
 @frappe.whitelist()
-def update_contact( client_no, update_client, is_primary_phone, is_primary_mobile_no,party_type, party):
+def update_contact(client_no, update_client, is_primary_phone, is_primary_mobile_no,party_type, party):
+    frappe.enqueue(
+                enqueue_update_contact,
+                client_no=client_no,
+                update_client=update_client,
+                is_primary_phone=is_primary_phone,
+                is_primary_mobile_no=is_primary_mobile_no,
+                party_type=party_type,
+                party=party,
+                queue="long",
+                job_name="Contact Updation",
+            )
+def enqueue_update_contact(client_no, update_client, is_primary_phone, is_primary_mobile_no,party_type, party):
     contact_doc = frappe.get_doc("Contact", update_client)
     is_primary_phone = True if is_primary_phone == "1" else False
     is_primary_mobile_no = True if is_primary_mobile_no == "1" else False
@@ -45,23 +57,24 @@ def update_contact( client_no, update_client, is_primary_phone, is_primary_mobil
     contact_doc.flags.ignore_permissions = True
     contact_doc.save()
     frappe.msgprint("Contact has been updated.")
-    fincall_log = frappe.db.get_all("Fincall Log", {"customer_no": client_no})
-    for row in fincall_log:
-        call_doc = frappe.get_doc("Fincall Log", row.name)
-        call_doc.contact_created = 1
-        call_doc.flags.ignore_permissions = 1
-        call_doc.save()
-        employee_fincall = frappe.db.get_all("Employee Fincall", {"customer_no": client_no})
-    for row in employee_fincall:
-        emp_call_doc = frappe.get_doc("Employee Fincall", row.name)
-        emp_call_doc.contact = contact_doc.name
-        emp_call_doc.link_to = party_type
-        emp_call_doc.link_name = party
-        emp_call_doc.flags.ignore_permissions = 1
-        emp_call_doc.save()
             
 @frappe.whitelist()
-def create_contact(is_primary_mobile_no, is_primary_phone, client_no, first_name, party_type, party, last_name=None, salutation=None):	
+def create_contact(is_primary_mobile_no, is_primary_phone, client_no, first_name, party_type, party, last_name=None, salutation=None):
+    frappe.enqueue(
+                enqueue_create_contact,
+                is_primary_mobile_no=is_primary_mobile_no,
+                is_primary_phone=is_primary_phone,
+                client_no=client_no,
+                first_name=first_name,
+                party_type=party_type,
+                party=party,
+                last_name=last_name,
+                salutation=salutation,
+                queue="long",
+                job_name="Contact Creation",
+            )	
+    
+def enqueue_create_contact(is_primary_mobile_no, is_primary_phone, client_no, first_name, party_type, party, last_name=None, salutation=None):
     contact_doc = frappe.new_doc("Contact")
     contact_doc.salutation = salutation
     contact_doc.first_name = first_name
@@ -76,18 +89,4 @@ def create_contact(is_primary_mobile_no, is_primary_phone, client_no, first_name
     contact_doc_resave.flags.ignore_permissions = True
     contact_doc_resave.save()
     frappe.msgprint("Contact has been created.")
-    fincall_log = frappe.db.get_all("Fincall Log", {"customer_no": client_no})
-    for row in fincall_log:
-        call_doc = frappe.get_doc("Fincall Log", row.name)
-        call_doc.contact_created = 1
-        call_doc.flags.ignore_permissions = 1
-        call_doc.save()
-    employee_fincall = frappe.db.get_all("Employee Fincall", {"customer_no": client_no})
-    for row in employee_fincall:
-        emp_call_doc = frappe.get_doc("Employee Fincall", row.name)
-        emp_call_doc.contact = contact_doc.name
-        emp_call_doc.link_to = party_type
-        emp_call_doc.link_name = party
-        emp_call_doc.flags.ignore_permissions = 1
-        emp_call_doc.save()
     
