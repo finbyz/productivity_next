@@ -345,11 +345,26 @@ def get_user_data(user,start_date=None, end_date=None):
     # frappe.throw(str(all_logs))
     # frappe.throw(str(meeting_data_query))
     time_intervals = []
-
+    usage_time = 0
+    last_status = None
+    start_time = None
+    time_intervals = []
     # Add log intervals
-    for i in range(len(all_logs) - 1):
-        if all_logs[i]['status'] == 'In' and all_logs[i + 1]['status'] == 'Out':
-            time_intervals.append((all_logs[i]['time'], all_logs[i + 1]['time']))
+    for row in all_logs:
+        if row['status'] == "In" and last_status != "In":
+            start_time = row['time']  # Set start time when status changes to "In" from non-"In"
+        elif row['status'] == "Out" and last_status == "In":
+            end_time = row['time']  # Calculate duration when status changes from "In" to "Out"
+            usage_time += (end_time - start_time).total_seconds()
+            time_intervals.append((start_time, end_time))
+            start_time = None  # Reset start_time after calculating the duration
+        last_status = row['status']  # Update the last_status for the next iteration
+
+    if last_status == "In" and start_time is not None:
+        current_time = get_current_time()
+        usage_time += (current_time - start_time).total_seconds()
+        time_intervals.append((start_time, current_time))
+
 
     # Add meeting intervals
     for mtg in meeting_data_query:
@@ -374,7 +389,8 @@ def get_user_data(user,start_date=None, end_date=None):
     # frappe.throw(str(total_hours / 60 / 60))  
     # IDLE TIME CARD
     # Fetch application usage days
-
+    def get_current_time():
+        return datetime.now()
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
         FROM `tabApplication Usage log`
@@ -390,7 +406,7 @@ def get_user_data(user,start_date=None, end_date=None):
         {conditions_2}
     """, as_dict=True, pluck='date')
 
-    total_days = len(set(application_usage_days + meeting_usage_days))
+    total_days = len(set(application_usage_days + meeting_usage_days)) or 1
 
     # Extract dates from the query results
     # total_days_set.add(entry['application_usage_day'] for entry in application_usage_days)
