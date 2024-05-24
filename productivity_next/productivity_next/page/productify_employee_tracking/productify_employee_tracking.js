@@ -417,7 +417,7 @@ UserProfile = class UserProfile {
 		data.caller_name.forEach(app => {
 			wholedata += `
 				<tr>
-					<td style="color:#62BA46"><b>${app.client}</b></td>
+					<td style="color:#62BA46"><b>${app.identifier}</b></td>
 					<td style="color:#03B404">${app.call_count}</td>
 					<td style="color:#00DF37">${parseFloat(app.total_duration/60).toFixed(2)} Min</td>
 				</tr>`;

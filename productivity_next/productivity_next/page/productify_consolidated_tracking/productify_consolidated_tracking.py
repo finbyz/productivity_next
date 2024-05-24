@@ -102,24 +102,32 @@ def get_barchart_data(start_date=None, end_date=None):
 # LINE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
+    # Ensure start_date and end_date are provided
+    if not start_date or not end_date:
+        frappe.throw("Start date and end date are required.")
+    
+    # Set conditions based on user role
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
+    # SQL query to group by contact, client, or customer_no
     data = frappe.db.sql(f"""
-        SELECT client, SUM(duration) AS total_duration
+        SELECT COALESCE(contact, client, customer_no) AS identifier, SUM(duration) AS total_duration
         FROM `tabEmployee Fincall`
         {conditions}
-        GROUP BY client
+        GROUP BY COALESCE(contact, client, customer_no)
         ORDER BY total_duration DESC
         LIMIT 20
         """, as_dict=1)
-        
+    
+    # Prepare data for line chart
     return {
-        "labels": [i["client"] for i in data],
-        "datasets": [{"values": [round(i["total_duration"]/60,2) for i in data]}]
+        "labels": [i["identifier"] for i in data],
+        "datasets": [{"values": [round(i["total_duration"] / 60, 2) for i in data]}]
     }
+
 
 @frappe.whitelist()
 def get_app_brief_data(app_data, start_date=None, end_date=None):

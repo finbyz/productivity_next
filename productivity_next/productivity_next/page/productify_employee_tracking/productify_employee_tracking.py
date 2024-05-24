@@ -547,13 +547,16 @@ def get_user_data(user,start_date=None, end_date=None):
 
 
     caller_name = frappe.db.sql(f"""
-        SELECT client, SUM(duration) AS total_duration, count(*) as call_count
+        SELECT COALESCE(contact, client, customer_no) AS identifier, 
+               SUM(duration) AS total_duration,
+               COUNT(*) AS call_count
         FROM `tabEmployee Fincall`
         {conditions}
-        GROUP BY client
+        GROUP BY COALESCE(contact, client, customer_no)
         ORDER BY total_duration DESC
         LIMIT 10
     """, as_dict=True)
+
 
     doc_name = frappe.db.sql(f"""
         SELECT ref_doctype, COUNT(*) AS activity_count
@@ -657,27 +660,34 @@ def get_piechart_data(user, start_date=None, end_date=None):
         "labels": [i["application_name"] for i in data],
         "datasets": [{"values": [round(i["duration"]/60/60,2) for i in data]}]
     }
-# LINE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
+    # Ensure start_date and end_date are provided
+    if not start_date or not end_date:
+        frappe.throw("Start date and end date are required.")
+    
+    # Set conditions based on user role
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
+    # SQL query to group by contact, client, or customer_no
     data = frappe.db.sql(f"""
-        SELECT client, SUM(duration) AS total_duration
+        SELECT COALESCE(contact, client, customer_no) AS identifier, SUM(duration) AS total_duration
         FROM `tabEmployee Fincall`
         {conditions}
-        GROUP BY client
+        GROUP BY COALESCE(contact, client, customer_no)
         ORDER BY total_duration DESC
         LIMIT 20
         """, as_dict=1)
-        
+    
+    # Prepare data for line chart
     return {
-        "labels": [i["client"] for i in data],
-        "datasets": [{"values": [round(i["total_duration"]/60,2) for i in data]}]
+        "labels": [i["identifier"] for i in data],
+        "datasets": [{"values": [round(i["total_duration"] / 60, 2) for i in data]}]
     }
+
 
 # BAR CHART
 @frappe.whitelist()
