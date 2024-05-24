@@ -318,32 +318,54 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span><span style="font-size:12px"> (External/Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.total_incoming_fincall_count)} / ${this.convertSecondsToTime_(data.internal_total_incoming_fincall_count)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.total_outgoing_fincall_count)} / ${this.convertSecondsToTime_(data.internal_total_outgoing_fincall_count)}<span style="font-size:12px"> Out </span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span><span style="font-size:12px"> (External)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.total_incoming_fincall_count)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.total_outgoing_fincall_count)}<span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.total_unique_doc}</b><span style="font-size:12px">  Documents Created or Modified</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:12px"> (External)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></div>
 					</div>
 				</div>
 			</div>
 
 			<div class="row mt-3">
 				<div class="col-md-4">
-				<div class="frappe-card  custom-card">
-				<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
-				<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
-					<b>${data.application_usage}</b><span style="font-size:12px">  Applications Used</span>
-				</div>
-			</div>
-			
+					<div class="frappe-card  custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Application Usage Log Count</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
+							<b>${data.application_usage}</b><span style="font-size:12px">  Applications Used</span>
+						</div>
+					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:12px"> (External/Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.incoming_fincall_count}/${data.internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.outgoing_fincall_count}/${data.internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.missed_fincall_count}/${data.internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.rejected_fincall_count}/${data.internal_rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span><span style="font-size:12px"> (Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.internal_total_incoming_fincall_count)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.internal_total_outgoing_fincall_count)}<span style="font-size:12px"> Out </span></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card  custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:12px"> (Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.internal_rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="row mt-3">
+				<div class="col-md-4">
+					<div class="frappe-card  custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Domain Usage Count</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
+							<b>${data.domain_used || 0}</b><span style="font-size:12px">  Applications Used</span>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="frappe-card  custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${data.total_unique_doc}</b><span style="font-size:12px">  Documents Created or Modified</span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
