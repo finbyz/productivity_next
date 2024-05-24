@@ -245,7 +245,7 @@ UserProfile = class UserProfile {
 		let total_days = 0;
 		let internal_meeting_hours = 0;
 		let internal_meeting_count = 0;
-	
+		let domain_usage = 0;
 		for (let i in data.combined_employee_data) {
 			const employee = data.combined_employee_data[i];
 			total_hours += employee.total_hours || 0;
@@ -266,6 +266,7 @@ UserProfile = class UserProfile {
 			internal_total_incoming_fincall_hours += employee.internal_total_incoming_fincall_count || 0;
 			internal_total_outgoing_fincall_hours += employee.internal_total_outgoing_fincall_count || 0;
 			total_days += employee.total_days || 0;
+			domain_usage += employee.domain_used || 0;
 		}
 		total_meeting_hours = data.combined_employee_data[0].meeting_admin_data[0].total_meeting_duration || 0;
 		total_meeting_count = data.combined_employee_data[0].meeting_admin_data[0].meeting_count || 0;
@@ -330,14 +331,14 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)(External/Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${this.convertSecondsToTime_(total_incoming_fincall_hours)}/${this.convertSecondsToTime_(internal_total_incoming_fincall_hours)}</b><span style="font-size:12px"> Inc </span> | <b>${this.convertSecondsToTime_(total_outgoing_fincall_hours)}/${this.convertSecondsToTime_(internal_total_outgoing_fincall_hours)}</b><span style="font-size:12px"> Out </span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)(External)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${this.convertSecondsToTime_(total_incoming_fincall_hours)}</b><span style="font-size:12px"> Inc </span> | <b>${this.convertSecondsToTime_(total_outgoing_fincall_hours)}</b><span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_unique_doc}</b><span style="font-size:12px"> Documents Created or Modified</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:11px">(External)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${total_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${total_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${total_rejected_fincall_count}</b> <span style="font-size:12px"> Rej</span></div>
 					</div>
 				</div>
 			</div>
@@ -352,14 +353,37 @@ UserProfile = class UserProfile {
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:11px">(External/Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${total_incoming_fincall_count}/${internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${total_outgoing_fincall_count}/${internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${total_missed_fincall_count}/${internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${total_rejected_fincall_count}/${internal_rejected_fincall_count}</b> <span style="font-size:12px"> Rej</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)(Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${this.convertSecondsToTime_(internal_total_incoming_fincall_hours)}</b><span style="font-size:12px"> Inc </span> | <b>${this.convertSecondsToTime_(internal_total_outgoing_fincall_hours)}</b><span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
-						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Version Log Count</h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_version_count}</b><span style="font-size:12px"> Interactions</span></div>
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:11px">(Internal)</span></h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${internal_rejected_fincall_count}</b> <span style="font-size:12px"> Rej</span></div>
+					</div>
+				</div>
+			</div>
+			<div class="row mt-3">
+			<div class="col-md-4">
+					<div class="frappe-card custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Domain Usage Count</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;">
+							<b>${domain_usage}</b><span style="font-size:12px"> Domains Accessed</span>
+						</div>
+					</div>
+				</div>
+			<div class="col-md-4">
+					<div class="frappe-card custom-card">
+						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Documents Accessed</h4>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;"><b>${total_unique_doc}</b><span style="font-size:12px"> Documents Created or Modified</span></div>
+					</div>
+				</div>
+			<div class="col-md-4">
+					<div class="frappe-card custom-card">
+					<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Version Log Count</h4>
+					<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${total_version_count}</b><span style="font-size:12px"> Interactions</span></div>
+
 					</div>
 				</div>
 			</div>
@@ -652,7 +676,7 @@ UserProfile = class UserProfile {
 		}
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_consolidated_tracking.productify_consolidated_tracking.get_linechart_data", {
-				user: data,
+				user: "Administrator",
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
 			})

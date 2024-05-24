@@ -575,6 +575,12 @@ def get_user_data(user,start_date=None, end_date=None):
     data = frappe.db.sql(query, as_dict=True)
     result_list = data
 
+    domain_used = frappe.db.sql(f"""
+        SELECT count(DISTINCT domain) as domain_count
+        FROM `tabApplication Usage log`
+        {conditions} and domain != '' and domain is not null
+        """, as_dict=True)
+    
 
     return {
         "application_usage": total_counts['application_usage'],
@@ -608,7 +614,8 @@ def get_user_data(user,start_date=None, end_date=None):
         "total_meeting_count_external": meetings_external_employee[0].meeting_count if meetings_external_employee else 0,
         "url_full_data": result_list[:10],
         "meeting_admin_data": meetings_admin_data,
-        "meetings_admin_data_internal": meetings_admin_data_internal
+        "meetings_admin_data_internal": meetings_admin_data_internal,
+        "domain_used":domain_used[0].domain_count if domain_used else 0
     }
 
 @frappe.whitelist()
