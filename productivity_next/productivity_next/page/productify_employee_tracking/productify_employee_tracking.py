@@ -730,7 +730,6 @@ def get_barchart_data(user, start_date=None, end_date=None):
         "datasets": [{"values": [i["activity_count"] for i in data]}]
     }
 
-# SCREEN SHOTS
 @frappe.whitelist()
 def get_images(user, start_date=None, end_date=None, offset=0):
     limit = 20
@@ -748,7 +747,12 @@ def get_images(user, start_date=None, end_date=None, offset=0):
         ORDER BY datetime DESC
         LIMIT {limit} OFFSET {offset}
     """, as_dict=1)
+
+    for i in data:
+        i["datetime_"] = frappe.format(i["datetime"], "Datetime")
+
     return data
+
 
 
 from datetime import datetime, timedelta

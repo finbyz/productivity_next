@@ -738,7 +738,7 @@ UserProfile = class UserProfile {
 						imageContainer.append(hourHeader);
 					}
 	
-					const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime}" alt="User Activity Image" style="margin-bottom: 10px;" class="clickable-image"></div>`;
+					const imgElement = `<div class="col-md-3"><img src="${image.screenshot}" title="${image.datetime_}" alt="User Activity Image" style="margin-bottom: 10px;" class="clickable-image"></div>`;
 					imageContainer.append(imgElement);
 				});
 	
