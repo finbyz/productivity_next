@@ -1,5 +1,6 @@
 import frappe
 from datetime import datetime,timedelta
+from frappe.utils import now 
 from productivity_next.productivity_next.page.productify_employee_tracking.productify_employee_tracking import get_user_data
 @frappe.whitelist()
 def get_admin_data(user, start_date=None, end_date=None):
@@ -41,7 +42,7 @@ def set_dates(start_date=None, end_date=None):
     Returns:
     - tuple: A tuple containing formatted start and end dates as strings.
     """
-    now = datetime.now()
+    now = now()
     
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
@@ -57,7 +58,7 @@ def set_dates(start_date=None, end_date=None):
 
 @frappe.whitelist() 
 def version_conditions(start_date=None, end_date=None):
-    now = datetime.now()
+    now = now()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
     else:
