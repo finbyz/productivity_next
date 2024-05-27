@@ -70,7 +70,7 @@ def get_heatmap_data(user, date):
 
 @frappe.whitelist() 
 def version_conditions(user,start_date=None, end_date=None):
-    now = now()
+    now = frappe.utils.now_datetime()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
     else:
@@ -338,7 +338,7 @@ def get_user_data(user,start_date=None, end_date=None):
     else:
         filters = {"time": ["between", [start_date, end_date]]}
     def get_current_time():
-        return now()
+        return frappe.utils.now_datetime()
     # Fetch logs from the database
     all_logs = frappe.db.get_list("Application Checkin Checkout",
                                 filters=filters,
@@ -693,7 +693,7 @@ def get_linechart_data(user, start_date=None, end_date=None):
 # BAR CHART
 @frappe.whitelist()
 def get_barchart_data(user, start_date=None, end_date=None):
-    now = now()
+    now = frappe.utils.now_datetime()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
     else:
@@ -763,7 +763,7 @@ def set_dates(start_date=None, end_date=None):
     Returns:
     - tuple: A tuple containing formatted start and end dates as strings.
     """
-    now = now()
+    now = frappe.utils.now_datetime()
     
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')

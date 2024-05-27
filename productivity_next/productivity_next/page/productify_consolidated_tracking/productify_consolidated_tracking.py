@@ -42,7 +42,7 @@ def set_dates(start_date=None, end_date=None):
     Returns:
     - tuple: A tuple containing formatted start and end dates as strings.
     """
-    now = now()
+    now = frappe.utils.now_datetime()
     
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
@@ -58,7 +58,7 @@ def set_dates(start_date=None, end_date=None):
 
 @frappe.whitelist() 
 def version_conditions(start_date=None, end_date=None):
-    now = now()
+    now = frappe.utils.now_datetime()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
     else:
