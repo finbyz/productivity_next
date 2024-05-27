@@ -104,17 +104,17 @@ def set_application_idletime_checkin_checkout(employee, status, time, system_gen
 @frappe.whitelist()
 def get_usage_time(employee):
 
-    #set value for safty purpose in incaase user checkout not done
-    emp_data=frappe.db.get_all("Application Checkin Checkout", filters={"time": ["Between", [nowdate(), nowdate()]],"employee":employee}, fields=["employee", "status", "time","system_generated"], order_by = "creation desc",limit=1)
-    if emp_data and emp_data[0].status=="In":
-        user_id=frappe.get_all("Employee", filters={"name": employee}, fields=["user_id"], limit=1, pluck="user_id")[0]
-        doc = frappe.new_doc("Application Checkin Checkout")
-        doc.employee = employee
-        doc.status = "Out"
-        doc.time = get_datetime().replace(microsecond=0)
-        doc.system_generated = 1
-        doc.save(ignore_permissions=True)
-        doc.db_set("owner",user_id)
+    # #set value for safty purpose in incaase user checkout not done
+    # emp_data=frappe.db.get_all("Application Checkin Checkout", filters={"time": ["Between", [nowdate(), nowdate()]],"employee":employee}, fields=["employee", "status", "time","system_generated"], order_by = "creation desc",limit=1)
+    # if emp_data and emp_data[0].status=="In":
+    #     user_id=frappe.get_all("Employee", filters={"name": employee}, fields=["user_id"], limit=1, pluck="user_id")[0]
+    #     doc = frappe.new_doc("Application Checkin Checkout")
+    #     doc.employee = employee
+    #     doc.status = "Out"
+    #     doc.time = get_datetime().replace(microsecond=0)
+    #     doc.system_generated = 1
+    #     doc.save(ignore_permissions=True)
+    #     doc.db_set("owner",user_id)
 
     all_logs = frappe.db.get_all("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
 
