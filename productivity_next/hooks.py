@@ -131,9 +131,9 @@ doc_events = {
 
 scheduler_events = {
     "cron": {
-		"*/4 * * * *": [
-			"productivity_next.schedule.checkout_inactive_users",
-		],
+		# "*/4 * * * *": [
+		# 	"productivity_next.schedule.checkout_inactive_users",
+		# ],
     },
     "daily": [
         "productivity_next.schedule.delete_older_screenshots",
