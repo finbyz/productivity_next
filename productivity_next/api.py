@@ -116,7 +116,7 @@ def get_usage_time(employee):
     #     doc.save(ignore_permissions=True)
     #     doc.db_set("owner",user_id)
 
-    all_logs = frappe.db.get_all("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
+    all_logs = frappe.db.get_all("Application Checkin Checkout", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="time asc")
 
     usage_time = 0
     last_status = None
@@ -159,7 +159,7 @@ def set_user_idel_time(*args, **kwargs):
 def get_user_idel_time(employee=None):
     if not employee:
         return 0
-    all_logs = frappe.db.get_all("Idle Time Log", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="creation asc")
+    all_logs = frappe.db.get_all("Idle Time Log", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="time asc")
 
     idle_time = 0
     last_status = None
