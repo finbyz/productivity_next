@@ -357,6 +357,7 @@ def get_user_data(user,start_date=None, end_date=None):
         all_logs.insert(0, {'status': 'In', 'time': application_in_log[0][1]})  
     if application_out_log:
         all_logs.append({'status': 'Out', 'time': application_out_log[0][1]})
+
     # frappe.throw(str(all_logs))
     # frappe.throw(str(meeting_data_query))
     time_intervals = []
