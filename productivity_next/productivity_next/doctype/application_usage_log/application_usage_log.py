@@ -20,5 +20,8 @@ class ApplicationUsagelog(Document):
 				self.application_name = application_name
 			else:
 				self.application_name = (self.process_id).split(".exe")[0].capitalize()
+		if not self.process_id:
+			if not self.application_name and self.application_title:
+				self.application_name = self.application_title.split("-")[-1].strip()
 		
 		self.duration = time_diff_in_seconds(self.to_time, self.from_time)
