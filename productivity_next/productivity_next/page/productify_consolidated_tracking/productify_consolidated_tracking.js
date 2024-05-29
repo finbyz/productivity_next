@@ -114,11 +114,11 @@ UserProfile = class UserProfile {
 	make_user_profile() {
 		this.user = frappe.user_info(this.user_id);
 		if (!this.selected_employee) { 
-			this.page.set_title(this.user.fullname + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
+			this.page.set_title("All Employees" + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
 		} else {
 			frappe.db.get_doc("Employee", this.selected_employee)
 				.then(employee => {
-					this.page.set_title(employee.employee_name + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )"); 
+					this.page.set_title("All Employees" + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )"); 
 					this.finish_user_profile_setup();
 				})
 				.catch(error => {
