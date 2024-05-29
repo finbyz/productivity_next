@@ -599,22 +599,6 @@ UserProfile = class UserProfile {
 	}
 
 	render_line_chart() {
-		this.linechart = new frappe.Chart(".performance-line-chart", {
-			type: "line",
-			height: 250,
-			width: 400,
-			colors: ["#62BA46"],
-			tooltipOptions: {
-				formatTooltipX: d => (d + '').toUpperCase(),
-				formatTooltipY: d => d + ' Minutes',
-			},
-			data: {labels: [],
-            datasets: [
-                {
-                    values: [] 
-                }
-            ]},
-		});
 		this.update_line_chart_data();
 		
 	}
@@ -636,7 +620,15 @@ UserProfile = class UserProfile {
 			.then((r) => {
 				if (r.labels.length === 0) {	
 				} else {
-					this.linechart.update(r);
+					this.linechart = new frappe.Chart(".performance-line-chart", {
+						type: "bar",
+						height: 250,
+						width: 400,
+						colors:["#fc4f51", "#78d6ff"],
+						data: {labels:r.labels,
+						datasets: r.datasets},
+						baroptions: {stacked: 1},
+					});
 				}
 			});
 	}

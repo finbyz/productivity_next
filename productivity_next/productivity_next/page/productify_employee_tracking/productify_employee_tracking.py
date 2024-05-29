@@ -3,6 +3,8 @@ from datetime import datetime,time,timedelta
 import frappe
 from frappe import utils
 from frappe.utils import now
+from collections import defaultdict
+
 
 def get_conditions(user):
     """Generates SQL conditions based on the user role."""
@@ -675,18 +677,31 @@ def get_linechart_data(user, start_date=None, end_date=None):
     
     # SQL query to group by contact, client, or customer_no
     data = frappe.db.sql(f"""
-        SELECT COALESCE(contact, client, customer_no) AS identifier, SUM(duration) AS total_duration
+        select count(*) as total_count,calltype,hour(call_datetime) as hour
         FROM `tabEmployee Fincall`
-        {conditions}
-        GROUP BY COALESCE(contact, client, customer_no)
-        ORDER BY total_duration DESC
-        LIMIT 20
+        {conditions} and (calltype = 'Incoming' or calltype = 'Outgoing')
+        group by HOUR(call_datetime),calltype
         """, as_dict=1)
+    aggregated_data = defaultdict(lambda: {'incoming_count': 0, 'outgoing_count': 0})
     
+    # Step 2: Aggregate the total_count for each hour based on calltype
+    for record in data:
+        hour = record['hour']
+        if record['calltype'] == 'Incoming':
+            aggregated_data[hour]['incoming_count'] += record['total_count']
+        elif record['calltype'] == 'Outgoing':
+            aggregated_data[hour]['outgoing_count'] += record['total_count']
+    
+    # Step 3: Convert the aggregated data back to a list of dictionaries
+    aggregated_list = [
+        {'hour': hour, 'incoming_count': counts['incoming_count'], 'outgoing_count': counts['outgoing_count']}
+        for hour, counts in aggregated_data.items()
+    ]
+    # frappe.throw(str(aggregated_list))    
     # Prepare data for line chart
     return {
-        "labels": [i["identifier"] for i in data],
-        "datasets": [{"values": [round(i["total_duration"] / 60, 2) for i in data]}]
+        "labels": [i["hour"] for i in aggregated_list],
+        "datasets": [{"name":"Incoming","values": [i["incoming_count"] for i in aggregated_list]},{"name":"Outgoing","values": [i["outgoing_count"] for i in aggregated_list]}]
     }
 
 

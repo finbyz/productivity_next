@@ -103,32 +103,59 @@ def get_barchart_data(start_date=None, end_date=None):
 # LINE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
-    # Ensure start_date and end_date are provided
-    if not start_date or not end_date:
-        frappe.throw("Start date and end date are required.")
-    
-    # Set conditions based on user role
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
-    # SQL query to group by contact, client, or customer_no
     data = frappe.db.sql(f"""
-        SELECT COALESCE(contact, client, customer_no) AS identifier, SUM(duration) AS total_duration
-        FROM `tabEmployee Fincall`
-        {conditions}
-        GROUP BY COALESCE(contact, client, customer_no)
-        ORDER BY total_duration DESC
-        LIMIT 20
-        """, as_dict=1)
+    SELECT employee, calltype, COUNT(*) as count
+    FROM `tabEmployee Fincall`
+    {conditions}
+    GROUP BY employee, calltype
+    ORDER BY count DESC
+    LIMIT 10""", as_dict=1)
+        
     
-    # Prepare data for line chart
-    return {
-        "labels": [i["identifier"] for i in data],
-        "datasets": [{"values": [round(i["total_duration"] / 60, 2) for i in data]}]
+    # Extract distinct employees
+    employees = sorted(set(entry['employee'] for entry in data))
+
+    # Initialize datasets
+    datasets = {
+        'Incoming': [0] * len(employees),
+        'Outgoing': [0] * len(employees),
+        'Missed': [0] * len(employees),
+        'Rejected': [0] * len(employees),
+        'None': [0] * len(employees)
     }
 
+    # Populate the datasets
+    employee_index = {employee: idx for idx, employee in enumerate(employees)}
+    for entry in data:
+        employee = entry['employee']
+        calltype = entry['calltype'] if entry['calltype'] else 'None'
+        count = entry['count']
+        index = employee_index[employee]
+        datasets[calltype][index] = count
+
+    # Convert datasets to required format
+    formatted_datasets = []
+    for calltype, counts in datasets.items():
+        if calltype != 'None':
+            formatted_datasets.append({
+                "name": calltype,
+                "values": counts
+            })
+    employee_name = []
+    for i in employees:
+        name = frappe.db.get_value("Employee",i,"employee_name")
+        employee_name.append(name)
+    # frappe.throw(str(result))
+    # Create the final data structure
+    return {
+        "labels": employee_name,
+        "datasets": formatted_datasets
+    }
 
 @frappe.whitelist()
 def get_app_brief_data(app_data, start_date=None, end_date=None):
