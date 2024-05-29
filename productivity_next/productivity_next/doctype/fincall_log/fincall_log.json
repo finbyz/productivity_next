@@ -38,6 +38,7 @@
    "read_only": 1
   },
   {
+   "columns": 2,
    "fieldname": "employee",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -45,6 +46,7 @@
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "client",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -52,6 +54,7 @@
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "duration",
    "fieldtype": "Duration",
    "hide_days": 1,
@@ -59,8 +62,10 @@
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "calltype",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Call Type",
    "options": "\nIncoming\nOutgoing\nMissed\nRejected",
    "read_only": 1
@@ -92,8 +97,10 @@
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "call_datetime",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "Call DateTime",
    "read_only": 1
   },
@@ -128,7 +135,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-29 11:59:38.462671",
+ "modified": "2024-05-29 14:31:26.284596",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Fincall Log",

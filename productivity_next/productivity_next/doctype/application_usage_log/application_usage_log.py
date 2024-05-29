@@ -13,12 +13,12 @@ class ApplicationUsagelog(Document):
 			x_forwarded_for = frappe.get_request_header("X-Forwarded-For", str(frappe.request.headers))
 			self.ip_address = re.search(r"^(.+)", x_forwarded_for).group(1)
 		application_names = {"code.exe":"Visual Studio Code","chrome.exe":"Google Chrome","explorer.exe":"File Explorer","ApplicationFrameHost.exe":"Whatsapp","Skype.exe":"Skype","notepad++.exe":"Notepad++","Notepad.exe":"Notepad",
-		"msedge.exe":"MS EDGE","firefox.exe":"Mozilla Firefox","AnyDesk.exe":"Any Desk","python.exe":"Python","powershell.exe":"Powershell","cmd.exe":"Command Prompt","devenv.exe":"Visual Studio","outlook.exe":"Outlook","excel.exe":"Excel","winword.exe":"Word","powerpnt.exe":"Powerpoint",}
+		"msedge.exe":"Microsoft Edge","firefox.exe":"Mozilla Firefox","AnyDesk.exe":"Any Desk","python.exe":"Python","powershell.exe":"Powershell","cmd.exe":"Command Prompt","devenv.exe":"Visual Studio","outlook.exe":"Outlook","excel.exe":"Excel","winword.exe":"Word","powerpnt.exe":"Powerpoint",}
 		if self.process_id:
-			application_name = application_names.get(self.process_id.lower(), self.process_id.lower())
+			application_name = application_names.get(self.process_id)
 			if application_name:
 				self.application_name = application_name
 			else:
-				self.application_name = self.process_id.lower().split(".exe")[0]
+				self.application_name = (self.process_id).split(".exe")[0].capitalize()
 		
 		self.duration = time_diff_in_seconds(self.to_time, self.from_time)
