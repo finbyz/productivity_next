@@ -15,6 +15,7 @@
   "computer_name",
   "ip_address",
   "current_url",
+  "process_id",
   "column_break_a0cjy",
   "application_name",
   "date",
@@ -122,11 +123,17 @@
    "fieldtype": "Data",
    "label": "Domain",
    "read_only": 1
+  },
+  {
+   "fieldname": "process_id",
+   "fieldtype": "Data",
+   "label": "Process id",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-02 09:48:17.376211",
+ "modified": "2024-05-29 10:20:29.417535",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",
