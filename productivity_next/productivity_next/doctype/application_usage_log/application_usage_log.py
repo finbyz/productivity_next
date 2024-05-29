@@ -12,14 +12,19 @@ class ApplicationUsagelog(Document):
 		if not self.ip_address:
 			x_forwarded_for = frappe.get_request_header("X-Forwarded-For", str(frappe.request.headers))
 			self.ip_address = re.search(r"^(.+)", x_forwarded_for).group(1)
-		application_names = {"code.exe":"Visual Studio Code","chrome.exe":"Google Chrome","explorer.exe":"File Explorer","ApplicationFrameHost.exe":"Whatsapp","Skype.exe":"Skype","notepad++.exe":"Notepad++","Notepad.exe":"Notepad",
-		"msedge.exe":"Microsoft Edge","firefox.exe":"Mozilla Firefox","AnyDesk.exe":"Any Desk","python.exe":"Python","powershell.exe":"Powershell","cmd.exe":"Command Prompt","devenv.exe":"Visual Studio","outlook.exe":"Outlook","excel.exe":"Excel","winword.exe":"Word","powerpnt.exe":"Powerpoint",}
+		application_names = {"code.exe":"Visual Studio Code","chrome.exe":"Google Chrome","explorer.exe":"File Explorer",
+		"ApplicationFrameHost.exe":"Whatsapp","Skype.exe":"Skype","notepad++.exe":"Notepad++","Notepad.exe":"Notepad",
+		"msedge.exe":"Microsoft Edge","firefox.exe":"Mozilla Firefox","AnyDesk.exe":"Any Desk","python.exe":"Python",
+		"powershell.exe":"Powershell","cmd.exe":"Command Prompt","devenv.exe":"Visual Studio","outlook.exe":"Outlook",
+		"excel.exe":"Excel","winword.exe":"Word","powerpnt.exe":"Powerpoint","olk.exe":"Outlook","teams.exe":"Teams",
+		"slack.exe":"Slack","zoom.exe":"Zoom","WINWORD.EXE":"Word"}
+		application_names_lower = {key.lower(): value for key, value in application_names.items()}
 		if self.process_id:
-			application_name = application_names.get(self.process_id)
+			application_name = application_names_lower.get(self.process_id.lower(), self.process_id.lower())
 			if application_name:
 				self.application_name = application_name
 			else:
-				self.application_name = (self.process_id).split(".exe")[0].capitalize()
+				self.application_name = (self.process_id).lower().split(".exe")[0].capitalize()
 		if not self.process_id:
 			if not self.application_name and self.application_title:
 				self.application_name = self.application_title.split("-")[-1].strip()

@@ -346,6 +346,17 @@ def get_user_data(user,start_date=None, end_date=None):
                                 filters=filters,
                                 fields=["status", "time"],
                                 order_by="creation asc")
+    
+    application_in_log = frappe.db.sql(f"""
+    select employee,from_time from `tabApplication Usage log` {conditions} order by from_time asc limit 1
+    """)
+    application_out_log = frappe.db.sql(f"""
+    select employee,to_time from `tabApplication Usage log` {conditions} order by to_time desc limit 1
+    """)
+    if application_in_log:
+        all_logs.insert(0, {'status': 'In', 'time': application_in_log[0][1]})  
+    if application_out_log:
+        all_logs.append({'status': 'Out', 'time': application_out_log[0][1]})
     # frappe.throw(str(all_logs))
     # frappe.throw(str(meeting_data_query))
     time_intervals = []
