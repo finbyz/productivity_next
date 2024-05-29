@@ -11,14 +11,24 @@
  "idx": 0,
  "is_public": 1,
  "is_standard": 1,
- "modified": "2024-05-29 11:08:41.015486",
+ "modified": "2024-05-29 16:14:37.897330",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Domain Analysis",
  "number_of_groups": 0,
  "owner": "Administrator",
  "report_name": "Domains Analysis",
- "roles": [],
+ "roles": [
+  {
+   "role": "Employee"
+  },
+  {
+   "role": "Productivity Manager"
+  },
+  {
+   "role": "Productivity User"
+  }
+ ],
  "time_interval": "Yearly",
  "timeseries": 0,
  "timespan": "Last Year",

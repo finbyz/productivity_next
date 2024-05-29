@@ -345,7 +345,7 @@ def get_user_data(user,start_date=None, end_date=None):
     all_logs = frappe.db.get_list("Application Checkin Checkout",
                                 filters=filters,
                                 fields=["status", "time"],
-                                order_by="creation asc")
+                                order_by="time asc")
     
     application_in_log = frappe.db.sql(f"""
     select employee,from_time from `tabApplication Usage log` {conditions} order by from_time asc limit 1
@@ -365,21 +365,30 @@ def get_user_data(user,start_date=None, end_date=None):
     last_status = None
     start_time = None
     time_intervals = []
-    # Add log intervals
+
+    # Define the maximum allowed interval duration
+    max_interval_duration = timedelta(hours=8)
+
+    # Process log intervals
     for row in all_logs:
         if row['status'] == "In" and last_status != "In":
             start_time = row['time']  # Set start time when status changes to "In" from non-"In"
         elif row['status'] == "Out" and last_status == "In":
-            end_time = row['time']  # Calculate duration when status changes from "In" to "Out"
-            usage_time += (end_time - start_time).total_seconds()
-            time_intervals.append((start_time, end_time))
+            end_time = row['time']  # Set end time when status changes from "In" to "Out"
+            interval_duration = end_time - start_time
+            if interval_duration <= max_interval_duration:
+                usage_time += interval_duration.total_seconds()
+                time_intervals.append((start_time, end_time))
             start_time = None  # Reset start_time after calculating the duration
         last_status = row['status']  # Update the last_status for the next iteration
 
+    # Handle the case where the last status is "In" and the log does not end with an "Out"
     if last_status == "In" and start_time is not None:
         current_time = get_current_time()
-        usage_time += (current_time - start_time).total_seconds()
-        time_intervals.append((start_time, current_time))
+        interval_duration = current_time - start_time
+        if interval_duration <= max_interval_duration:
+            usage_time += interval_duration.total_seconds()
+            time_intervals.append((start_time, current_time))
 
 
     # Add meeting intervals
