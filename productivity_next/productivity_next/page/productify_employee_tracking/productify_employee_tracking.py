@@ -4,7 +4,7 @@ import frappe
 from frappe import utils
 from frappe.utils import now
 from collections import defaultdict
-
+import numpy as np
 
 def get_conditions(user):
     """Generates SQL conditions based on the user role."""
@@ -332,88 +332,14 @@ def get_user_data(user,start_date=None, end_date=None):
 
     internal_total_incoming_fincall_count = next((item['total_duration'] for item in internal_fincall_data if item['calltype'] == 'Incoming'), 0)
     internal_total_outgoing_fincall_count = next((item['total_duration'] for item in internal_fincall_data if item['calltype'] == 'Outgoing'), 0)
+
+    application_usage_data = frappe.db.sql(f"""
+        SELECT sum(duration) as usage_time
+        FROM `tabApplication Usage log`
+        {conditions}
+    """, as_dict=True)
     
-
-    # TOTAL HOURS CARD
-    if user != "Administrator":
-        filters = {"employee": user, "time": ["Between", [start_date, end_date]]}
-    else:
-        filters = {"time": ["between", [start_date, end_date]]}
-    def get_current_time():
-        return frappe.utils.now_datetime()
-    # Fetch logs from the database
-    all_logs = frappe.db.get_list("Application Checkin Checkout",
-                                filters=filters,
-                                fields=["status", "time"],
-                                order_by="time asc")
-    
-    application_in_log = frappe.db.sql(f"""
-    select employee,from_time from `tabApplication Usage log` {conditions} order by from_time asc limit 1
-    """)
-    application_out_log = frappe.db.sql(f"""
-    select employee,to_time from `tabApplication Usage log` {conditions} order by to_time desc limit 1
-    """)
-    if application_in_log:
-        all_logs.insert(0, {'status': 'In', 'time': application_in_log[0][1]})  
-    if application_out_log:
-        all_logs.append({'status': 'Out', 'time': application_out_log[0][1]})
-
-    # frappe.throw(str(all_logs))
-    # frappe.throw(str(meeting_data_query))
-    time_intervals = []
-    usage_time = 0
-    last_status = None
-    start_time = None
-    time_intervals = []
-
-    # Define the maximum allowed interval duration
-    max_interval_duration = timedelta(hours=8)
-
-    # Process log intervals
-    for row in all_logs:
-        if row['status'] == "In" and last_status != "In":
-            start_time = row['time']  # Set start time when status changes to "In" from non-"In"
-        elif row['status'] == "Out" and last_status == "In":
-            end_time = row['time']  # Set end time when status changes from "In" to "Out"
-            interval_duration = end_time - start_time
-            if interval_duration <= max_interval_duration:
-                usage_time += interval_duration.total_seconds()
-                time_intervals.append((start_time, end_time))
-            start_time = None  # Reset start_time after calculating the duration
-        last_status = row['status']  # Update the last_status for the next iteration
-
-    # Handle the case where the last status is "In" and the log does not end with an "Out"
-    if last_status == "In" and start_time is not None:
-        current_time = get_current_time()
-        interval_duration = current_time - start_time
-        if interval_duration <= max_interval_duration:
-            usage_time += interval_duration.total_seconds()
-            time_intervals.append((start_time, current_time))
-
-
-    # Add meeting intervals
-    for mtg in meeting_data_query:
-        time_intervals.append((mtg['start_date'], mtg['end_date']))
-
-    # Sort intervals by start time
-    time_intervals.sort(key=lambda x: x[0])
-
-    # Merge overlapping intervals
-    merged_intervals = []
-    for start, end in time_intervals:
-        if not merged_intervals or merged_intervals[-1][1] < start:
-            merged_intervals.append((start, end))
-        else:
-            merged_intervals[-1] = (merged_intervals[-1][0], max(merged_intervals[-1][1], end))
-
-    # Calculate total usage time in seconds
-    usage_time = sum((end - start).total_seconds() for start, end in merged_intervals)
-
-    # Convert total usage time from seconds to hours
-    total_hours = usage_time
-    # frappe.throw(str(total_hours / 60 / 60))  
-    # IDLE TIME CARD
-    # Fetch application usage days
+    total_hours = application_usage_data[0].usage_time if application_usage_data else 0
 
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
@@ -431,14 +357,6 @@ def get_user_data(user,start_date=None, end_date=None):
     """, as_dict=True, pluck='date')
 
     total_days = len(set(application_usage_days + meeting_usage_days)) or 1
-
-    # Extract dates from the query results
-    # total_days_set.add(entry['application_usage_day'] for entry in application_usage_days)
-    # total_days_set.add(entry['meeting_usage_day'] for entry in meeting_usage_days)
-    # frappe.throw(str(total_days_set))
-    # total_days = len(total_days_set)
-
-    # Constructing a SQL query that adapts based on whether the user is an Administrator or not
     sql_query = f"""
     SELECT 
         SUM(CASE 
