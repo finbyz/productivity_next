@@ -4,7 +4,6 @@ import frappe
 from frappe import utils
 from frappe.utils import now
 from collections import defaultdict
-import numpy as np
 
 def get_conditions(user):
     """Generates SQL conditions based on the user role."""
