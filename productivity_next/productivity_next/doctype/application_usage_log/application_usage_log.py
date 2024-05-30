@@ -20,7 +20,7 @@ class ApplicationUsagelog(Document):
 		"slack.exe":"Slack","zoom.exe":"Zoom","WINWORD.EXE":"Word"}
 		application_names_lower = {key.lower(): value for key, value in application_names.items()}
 		if self.process_id:
-			application_name = application_names_lower.get(self.process_id.lower(), self.process_id.lower())
+			application_name = application_names_lower.get(self.process_id.lower())
 			if application_name:
 				self.application_name = application_name
 			else:
