@@ -337,8 +337,58 @@ def get_user_data(user,start_date=None, end_date=None):
         FROM `tabApplication Usage log`
         {conditions}
     """, as_dict=True)
-    
-    total_hours = application_usage_data[0].usage_time if application_usage_data else 0
+    list_data = []
+    meeting_total_data = frappe.db.sql(f"""
+        SELECT m.meeting_from as start_time, m.meeting_to as end_time
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE mcr.employee ='{user}' and m.docstatus = 1 and m.meeting_from >= '{start_date}' and m.meeting_to <= '{end_date}'
+    """, as_dict=True)
+    calls_total_data = frappe.db.sql(f"""
+        SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
+        FROM `tabEmployee Fincall`
+        WHERE employee = '{user}' and call_datetime >= '{start_date}' and call_datetime <= '{end_date}' and (calltype != 'Missed' and calltype != 'Rejected')
+    """, as_dict=True)
+
+    application_total_data = frappe.db.sql(f"""
+        SELECT from_time as start_time, to_time as end_time
+        FROM `tabApplication Usage log`
+        WHERE employee = '{user}' and date >= '{start_date}' and date <= '{end_date}'
+    """, as_dict=True)
+
+    list_data.append(meeting_total_data)
+    list_data.append(calls_total_data)
+    list_data.append(application_total_data) 
+
+    # Flatten the list of intervals
+    flat_intervals = [interval for sublist in list_data for interval in sublist]
+
+    # Sort intervals by start time
+    flat_intervals.sort(key=lambda x: x['start_time'])
+
+    # Merge overlapping intervals
+    merged_intervals = []
+    current_interval = flat_intervals[0]
+
+    for interval in flat_intervals[1:]:
+        if interval['start_time'] <= current_interval['end_time']:
+            # There is overlap, so merge the intervals
+            current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
+        else:
+            # No overlap, so add the current interval to the list and start a new one
+            merged_intervals.append(current_interval)
+            current_interval = interval
+
+    # Don't forget to add the last interval
+    merged_intervals.append(current_interval)
+
+    # Calculate the total time
+    total_time = timedelta()
+    for interval in merged_intervals:
+        total_time += interval['end_time'] - interval['start_time']    
+
+
+    total_hours = total_time.total_seconds()                                
 
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
