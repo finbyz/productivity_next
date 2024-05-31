@@ -360,35 +360,39 @@ def get_user_data(user,start_date=None, end_date=None):
     list_data.append(calls_total_data)
     list_data.append(application_total_data) 
 
-    # Flatten the list of intervals
-    flat_intervals = [interval for sublist in list_data for interval in sublist]
+    if list_data != [[], [], []]:
 
-    # Sort intervals by start time
-    flat_intervals.sort(key=lambda x: x['start_time'])
+        # Flatten the list of intervals
+        flat_intervals = [interval for sublist in list_data for interval in sublist]
 
-    # Merge overlapping intervals
-    merged_intervals = []
-    current_interval = flat_intervals[0]
+        # Sort intervals by start time
+        flat_intervals.sort(key=lambda x: x['start_time'])
 
-    for interval in flat_intervals[1:]:
-        if interval['start_time'] <= current_interval['end_time']:
-            # There is overlap, so merge the intervals
-            current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
-        else:
-            # No overlap, so add the current interval to the list and start a new one
-            merged_intervals.append(current_interval)
-            current_interval = interval
+        # Merge overlapping intervals
+        merged_intervals = []
+        current_interval = flat_intervals[0]
 
-    # Don't forget to add the last interval
-    merged_intervals.append(current_interval)
+        for interval in flat_intervals[1:]:
+            if interval['start_time'] <= current_interval['end_time']:
+                # There is overlap, so merge the intervals
+                current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
+            else:
+                # No overlap, so add the current interval to the list and start a new one
+                merged_intervals.append(current_interval)
+                current_interval = interval
 
-    # Calculate the total time
-    total_time = timedelta()
-    for interval in merged_intervals:
-        total_time += interval['end_time'] - interval['start_time']    
+        # Don't forget to add the last interval
+        merged_intervals.append(current_interval)
+
+        # Calculate the total time
+        total_time = timedelta()
+        for interval in merged_intervals:
+            total_time += interval['end_time'] - interval['start_time']    
 
 
-    total_hours = total_time.total_seconds()                                
+        total_hours = total_time.total_seconds()
+    else:
+        total_hours = 0                                
 
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
