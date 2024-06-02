@@ -147,6 +147,14 @@ def set_user_idel_time(*args, **kwargs):
     idle_time=kwargs.get("idle_time")
     status=kwargs.get("status")
 
+    data=frappe.db.get_all("Idle Time Log", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status","name"], order_by="time desc",limit=1)
+    if  data:
+        if data[0].status=="start" and status=="start":
+            frappe.delete_doc("Idle Time Log", data[0].name, ignore_permissions=True)
+        elif data[0].status=="end" and status=="end":
+            return {"status": True}
+        
+
     doc = frappe.new_doc("Idle Time Log")
     doc.employee = employee
     doc.time =idle_time
