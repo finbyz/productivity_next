@@ -92,7 +92,7 @@ def version_conditions(user,start_date=None, end_date=None):
 @frappe.whitelist()
 def get_user_data(user,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
-    ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page"]
+    ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
 
     # Convert the list into a format suitable for SQL query ("'DocType1', 'DocType2', 'DocType3'")
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
@@ -712,7 +712,7 @@ def get_barchart_data(user, start_date=None, end_date=None):
         end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d') 
     
     version_conditions_str = version_conditions(user,start_date,end_date)
-    ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page"]
+    ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
 
     # Convert the list into a format suitable for SQL query ("'DocType1', 'DocType2', 'DocType3'")
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
