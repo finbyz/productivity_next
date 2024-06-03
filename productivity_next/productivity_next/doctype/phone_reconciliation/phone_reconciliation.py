@@ -174,13 +174,13 @@ def update_contact(client_email, client_no, update_client, is_primary_phone, is_
     contact_doc.flags.ignore_permissions = True
     contact_doc.save()
     frappe.msgprint("Contact has been updated.")
-    fincall_log = frappe.db.get_all("Fincall Log", {"customer_no": client_no})
-    for row in fincall_log:
-        call_doc = frappe.get_doc("Fincall Log", row.name)
-        call_doc.create_employee_log("Contact", contact_doc.name)
-        call_doc.contact_created = 1
-        call_doc.flags.ignore_permissions = 1
-        call_doc.save()
+    # fincall_log = frappe.db.get_all("Fincall Log", {"customer_no": client_no})
+    # for row in fincall_log:
+    #     call_doc = frappe.get_doc("Fincall Log", row.name)
+    #     call_doc.create_employee_log("Contact", contact_doc.name)
+    #     call_doc.contact_created = 1
+    #     call_doc.flags.ignore_permissions = 1
+    #     call_doc.save()
 
 
 
@@ -203,13 +203,13 @@ def create_contact(is_primary_mobile_no, is_primary_phone, is_primary_email, cli
     contact_doc_resave.flags.ignore_permissions = True
     contact_doc_resave.save()
     frappe.msgprint("Contact has been created.")
-    fincall_log = frappe.db.get_all("Fincall Log", {"customer_no": client_no})
-    for row in fincall_log:
-        call_doc = frappe.get_doc("Fincall Log", row.name)
-        call_doc.create_employee_log("Contact", contact_doc.name, party_type, party)
-        call_doc.contact_created = 1
-        call_doc.flags.ignore_permissions = 1
-        call_doc.save()
+    # fincall_log = frappe.db.get_all("Fincall Log", {"customer_no": client_no})
+    # for row in fincall_log:
+    #     call_doc = frappe.get_doc("Fincall Log", row.name)
+    #     call_doc.create_employee_log("Contact", contact_doc.name, party_type, party)
+    #     call_doc.contact_created = 1
+    #     call_doc.flags.ignore_permissions = 1
+    #     call_doc.save()
 
 
 @frappe.whitelist()
@@ -228,13 +228,13 @@ def ignore_contact(client_no):
     """
     )
 
-def create_emp_logs(contact, client_no, party_type, party):
-    Fincall_logs = frappe.db.get_all(
-        "Fincall Log", {"customer_no": client_no}
-    )
-    for row in Fincall_logs:
-        call_doc = frappe.get_doc("Fincall Log", row.name)
-        call_doc.create_employee_log("Contact", contact, party_type, party)
-        call_doc.contact_created = 1
-        call_doc.flags.ignore_permissions = 1
-        call_doc.save()
+# def create_emp_logs(contact, client_no, party_type, party):
+#     Fincall_logs = frappe.db.get_all(
+#         "Fincall Log", {"customer_no": client_no}
+#     )
+#     for row in Fincall_logs:
+#         call_doc = frappe.get_doc("Fincall Log", row.name)
+#         call_doc.create_employee_log("Contact", contact, party_type, party)
+#         call_doc.contact_created = 1
+#         call_doc.flags.ignore_permissions = 1
+#         call_doc.save()
