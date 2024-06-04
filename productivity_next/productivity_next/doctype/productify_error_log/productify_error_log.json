@@ -1,11 +1,12 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "PEL-.######",
+ "autoname": "naming_series:",
  "creation": "2024-05-30 09:42:15.210374",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "error_datetime",
   "api_type",
   "employee",
@@ -62,15 +63,25 @@
    "in_list_view": 1,
    "label": "Employee Name",
    "read_only": 1
+  },
+  {
+   "default": "PEL-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PEL-.YY.MM.DD.-",
+   "read_only": 1,
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-03 22:26:32.704005",
+ "modified": "2024-06-04 22:42:55.314607",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Error Log",
- "naming_rule": "Expression (old style)",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
