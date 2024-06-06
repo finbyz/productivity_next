@@ -135,6 +135,9 @@ scheduler_events = {
 		# 	"productivity_next.schedule.checkout_inactive_users",
 		# ],
     },
+    "all": [
+		"productivity_next.schedule.bg_employee_log_generation"
+	],
     "daily": [
         "productivity_next.schedule.delete_older_screenshots",
 	]

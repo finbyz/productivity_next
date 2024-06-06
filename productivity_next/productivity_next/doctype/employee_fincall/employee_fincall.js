@@ -60,7 +60,7 @@ frappe.ui.form.on("Employee Fincall", {
                 get_query: function() {
                     return {
                         filters: {
-                            "name": ["in", ["Customer", "Supplier", "Lead"]]
+                            "name": ["in", ["Customer", "Supplier", "Lead","Company"]]
                         }
                     };
                 },
