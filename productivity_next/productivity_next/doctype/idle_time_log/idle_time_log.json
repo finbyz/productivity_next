@@ -38,6 +38,10 @@
      },
      {
       "fetch_from": "employee.employee_name",
+      "fieldname": "employee_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Employee Name",
       "read_only": 1
      },
      {
