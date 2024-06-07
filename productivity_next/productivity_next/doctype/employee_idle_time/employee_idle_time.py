@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class IdleTime(Document):
+class EmployeeIdleTime(Document):
 	pass

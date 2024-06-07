@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestIdleTime(FrappeTestCase):
+class TestEmployeeIdleTime(FrappeTestCase):
 	pass
