@@ -93,7 +93,7 @@ def get_user_data(user,start_date=None, end_date=None):
     # Fetch idle time logs
     idle_time_data = frappe.db.sql(f"""
         SELECT start_time, end_time
-        FROM `tabIdle Time`
+        FROM `tabEmployee Idle Time`
         WHERE start_time > '{start_date_}' AND end_time < '{end_date_}' AND employee = '{user}'
     """, as_dict=True)
 
