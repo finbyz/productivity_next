@@ -179,3 +179,34 @@ def get_url_brief_data(url_data, start_date=None, end_date=None):
         """, as_dict=1)
     return {"url_data":data}
 
+
+sql_query = f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    WHERE m.docstatus = 1 and internal_meeting = 0
+    AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
+    """
+
+    # Executing the query
+    meetings_admin_data = frappe.db.sql(sql_query, as_dict=True)
+
+    sql_query = f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    WHERE m.docstatus = 1 and internal_meeting = 1
+    AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
+    """
+
+    # Executing the query
+    meetings_admin_data_internal = frappe.db.sql(sql_query, as_dict=True)
+

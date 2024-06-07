@@ -121,6 +121,9 @@ UserProfile = class UserProfile {
 	}
 	make_user_profile() {
 		this.user = frappe.user_info(this.user_id);
+		if (!this.selected_employee){
+			frappe.msgprint(__("Select Employee to view the data"));
+		}
 		if (!this.selected_employee) { 
 			this.page.set_title(this.user.fullname + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
 		} else {
@@ -319,7 +322,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span><span style="font-size:12px"> (External)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.total_incoming_fincall_count)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.total_outgoing_fincall_count)}<span style="font-size:12px"> Out </span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.total_incoming_duration)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.total_outgoing_duration)}<span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -342,7 +345,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Time On Calls <span style="font-size:11px">(In Hours)</span><span style="font-size:12px"> (Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.internal_total_incoming_fincall_count)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.internal_total_outgoing_fincall_count)}<span style="font-size:12px"> Out </span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #62BA46 !important;">${this.convertSecondsToTime_(data.internal_total_incoming_duration)}<span style="font-size:12px"> Inc </span> | ${this.convertSecondsToTime_(data.internal_total_outgoing_duration)}<span style="font-size:12px"> Out </span></div>
 					</div>
 				</div>
 				<div class="col-md-4">

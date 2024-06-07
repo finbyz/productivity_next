@@ -79,7 +79,6 @@ def version_conditions(user,start_date=None, end_date=None):
 def get_user_data(user,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
     start_date_,end_date_ = set_dates(start_date, end_date)
-
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
     if ignore_doctype_str:
@@ -95,7 +94,7 @@ def get_user_data(user,start_date=None, end_date=None):
     idle_time_data = frappe.db.sql(f"""
         SELECT start_time, end_time
         FROM `tabIdle Time`
-        WHERE start_time > '{start_date}' AND end_time < '{end_date}' AND employee = '{user}'
+        WHERE start_time > '{start_date_}' AND end_time < '{end_date_}' AND employee = '{user}'
     """, as_dict=True)
 
     # Fetch fincall time logs
@@ -111,7 +110,7 @@ def get_user_data(user,start_date=None, end_date=None):
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
         WHERE m.docstatus = 1
-        AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}' AND mcr.employee = '{user}'
+        AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}' AND mcr.employee = '{user}'
     """, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)
@@ -145,6 +144,7 @@ def get_user_data(user,start_date=None, end_date=None):
         if idle_duration > 0:
             total_idle_seconds += idle_duration
     total_idle_time = round(total_idle_seconds)
+    
     fincall_data = frappe.db.sql(f"""
         SELECT 
             calltype,
@@ -155,15 +155,26 @@ def get_user_data(user,start_date=None, end_date=None):
         GROUP BY calltype
     """, as_dict=True)
 
-    # Extracting data for each call type
-    incoming_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Incoming'), 0)
-    outgoing_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Outgoing'), 0)
-    missed_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Missed'), 0)
-    rejected_fincall_count = next((item['fincall_count'] for item in fincall_data if item['calltype'] == 'Rejected'), 0)
+    # Initialize counts and total durations
+    incoming_fincall_count = outgoing_fincall_count = missed_fincall_count = rejected_fincall_count = 0
+    total_incoming_duration = total_outgoing_duration = 0
 
-    total_incoming_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Incoming'), 0)
-    total_outgoing_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Outgoing'), 0)
-    total_missed_fincall_count = next((item['total_duration'] for item in fincall_data if item['calltype'] == 'Missed'), 0)
+    # Extracting data for each call type in a single pass
+    for item in fincall_data:
+        calltype = item['calltype']
+        count = item['fincall_count']
+        duration = item['total_duration']
+        
+        if calltype == 'Incoming':
+            incoming_fincall_count = count
+            total_incoming_duration = duration
+        elif calltype == 'Outgoing':
+            outgoing_fincall_count = count
+            total_outgoing_duration = duration
+        elif calltype == 'Missed':
+            missed_fincall_count = count
+        elif calltype == 'Rejected':
+            rejected_fincall_count = count
 
     internal_fincall_data = frappe.db.sql(f"""
         SELECT 
@@ -175,14 +186,27 @@ def get_user_data(user,start_date=None, end_date=None):
         GROUP BY calltype
     """, as_dict=True)
 
-    # Extracting data for each call type
-    internal_incoming_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Incoming'), 0)
-    internal_outgoing_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Outgoing'), 0)
-    internal_missed_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Missed'), 0)
-    internal_rejected_fincall_count = next((item['fincall_count'] for item in internal_fincall_data if item['calltype'] == 'Rejected'), 0)
+    # Initialize counts and total durations
+    internal_incoming_fincall_count = internal_outgoing_fincall_count = 0
+    internal_missed_fincall_count = internal_rejected_fincall_count = 0
+    internal_total_incoming_duration = internal_total_outgoing_duration = 0
 
-    internal_total_incoming_fincall_count = next((item['total_duration'] for item in internal_fincall_data if item['calltype'] == 'Incoming'), 0)
-    internal_total_outgoing_fincall_count = next((item['total_duration'] for item in internal_fincall_data if item['calltype'] == 'Outgoing'), 0)
+    # Extracting data for each call type in a single pass
+    for item in internal_fincall_data:
+        calltype = item['calltype']
+        count = item['fincall_count']
+        duration = item['total_duration']
+        
+        if calltype == 'Incoming':
+            internal_incoming_fincall_count = count
+            internal_total_incoming_duration = duration
+        elif calltype == 'Outgoing':
+            internal_outgoing_fincall_count = count
+            internal_total_outgoing_duration = duration
+        elif calltype == 'Missed':
+            internal_missed_fincall_count = count
+        elif calltype == 'Rejected':
+            internal_rejected_fincall_count = count
 
     list_data = []
     meeting_total_data = frappe.db.sql(f"""
@@ -219,26 +243,35 @@ def get_user_data(user,start_date=None, end_date=None):
         current_interval = flat_intervals[0]
 
         for interval in flat_intervals[1:]:
-            if interval['start_time'] <= current_interval['end_time']:
-                # There is overlap, so merge the intervals
-                current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
-            else:
+            if interval['start_time'] and interval['end_time'] and current_interval['end_time']:
+                if interval['start_time'] <= current_interval['end_time']:
+                    # There is overlap, so merge the intervals
+                    current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
+                else:
+                    # No overlap, so add the current interval to the list and start a new one
+                    merged_intervals.append(current_interval)
+                    current_interval = interval
+            elif interval['start_time']:
                 # No overlap, so add the current interval to the list and start a new one
                 merged_intervals.append(current_interval)
                 current_interval = interval
 
         # Don't forget to add the last interval
-        merged_intervals.append(current_interval)
+        if current_interval:
+            merged_intervals.append(current_interval)
+
 
         # Calculate the total time
         total_time = timedelta()
         for interval in merged_intervals:
-            total_time += interval['end_time'] - interval['start_time']    
+            if interval['start_time'] and interval['end_time']:
+                total_time += interval['end_time'] - interval['start_time']
+   
 
 
         total_hours = total_time.total_seconds()
     else:
-        total_hours = 0                                
+        total_hours = 0                               
 
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
@@ -256,25 +289,6 @@ def get_user_data(user,start_date=None, end_date=None):
     """, as_dict=True, pluck='date')
 
     total_days = len(set(application_usage_days + meeting_usage_days)) or 1
-    sql_query = f"""
-    SELECT 
-        SUM(CASE 
-                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
-                ELSE 0 
-            END) AS total_meeting_duration,
-        COUNT(DISTINCT m.name) as meeting_count
-    FROM `tabMeeting` as m
-    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
-    and m.docstatus = 1
-    {conditions_2}
-    GROUP BY mcr.employee
-    """
-
-    # Executing the query
-    if user != "Administrator":
-        meetings = frappe.db.sql(sql_query, (user,), as_dict=True)
-    else:
-        meetings = frappe.db.sql(sql_query, as_dict=True)
 
     sql_query = f"""
     SELECT 
@@ -289,10 +303,7 @@ def get_user_data(user,start_date=None, end_date=None):
     {conditions_2}
     GROUP BY mcr.employee
     """
-
-
     meetings_external_employee = frappe.db.sql(sql_query, (user,), as_dict=True)
-
     sql_query = f"""
     SELECT 
         SUM(CASE 
@@ -310,36 +321,6 @@ def get_user_data(user,start_date=None, end_date=None):
     # Executing the query
     meetings_internal_employee = frappe.db.sql(sql_query, (user,), as_dict=True)
 
-    sql_query = f"""
-    SELECT 
-        SUM(CASE 
-                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
-                ELSE 0 
-            END) AS total_meeting_duration,
-        COUNT(DISTINCT m.name) as meeting_count
-    FROM `tabMeeting` as m
-    WHERE m.docstatus = 1 and internal_meeting = 0
-    AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
-    """
-
-    # Executing the query
-    meetings_admin_data = frappe.db.sql(sql_query, as_dict=True)
-
-    sql_query = f"""
-    SELECT 
-        SUM(CASE 
-                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
-                ELSE 0 
-            END) AS total_meeting_duration,
-        COUNT(DISTINCT m.name) as meeting_count
-    FROM `tabMeeting` as m
-    WHERE m.docstatus = 1 and internal_meeting = 1
-    AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'
-    """
-
-    # Executing the query
-    meetings_admin_data_internal = frappe.db.sql(sql_query, as_dict=True)
-
     # Documents Accessed
     total_unique_doc = frappe.db.sql(f"""
     SELECT COUNT(DISTINCT docname) AS activity_count
@@ -355,27 +336,6 @@ def get_user_data(user,start_date=None, end_date=None):
             (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str} {ignore_condition})  AS version_count
         """, as_dict=1)[0]
     
-    
-    # Employee Fincall Count
-    fincall_count = frappe.db.sql(f"""
-        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabEmployee Fincall` {conditions} group by calltype
-    """, as_dict=True)
-    incoming_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Incoming'), 0)
-    outgoing_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Outgoing'), 0)
-    missed_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Missed'), 0)
-    rejected_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Rejected'), 0)
-
-
-    # Employee Fincall Count
-    fincall_count = frappe.db.sql(f"""
-        SELECT COUNT(*)  AS fincall_count ,calltype FROM `tabEmployee Fincall` {conditions} group by calltype
-    """, as_dict=True)
-    incoming_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Incoming'), 0)
-    outgoing_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Outgoing'), 0)
-    missed_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Missed'), 0)
-    rejected_fincall_count = next((item['fincall_count'] for item in fincall_count if item['calltype'] == 'Rejected'), 0)
-
-
     # TABLES BELOW CARDS
     application_name = frappe.db.sql(f"""
         SELECT application_name, SUM(duration) AS total_duration
@@ -385,7 +345,6 @@ def get_user_data(user,start_date=None, end_date=None):
         ORDER BY total_duration DESC
         LIMIT 10
     """, as_dict=True)
-
 
     caller_name = frappe.db.sql(f"""
         SELECT COALESCE(contact, client, customer_no) AS identifier, 
@@ -397,7 +356,6 @@ def get_user_data(user,start_date=None, end_date=None):
         ORDER BY total_duration DESC
         LIMIT 10
     """, as_dict=True)
-
 
     doc_name = frappe.db.sql(f"""
         SELECT ref_doctype, COUNT(*) AS activity_count
@@ -429,36 +387,31 @@ def get_user_data(user,start_date=None, end_date=None):
     return {
         "application_usage": total_counts['application_usage'],
         "version_count": total_counts['version_count'],
-        "incoming_fincall_count": incoming_fincall_count,
-        "outgoing_fincall_count": outgoing_fincall_count,
-        "missed_fincall_count": missed_fincall_count,
-        "rejected_fincall_count": rejected_fincall_count,
         "application_name": application_name,
         "caller_name": caller_name,
         "doc_name": doc_name,
         "total_hours": total_hours,
-        "total_incoming_fincall_count": total_incoming_fincall_count,
-        "total_outgoing_fincall_count": total_outgoing_fincall_count,
-        "total_missed_fincall_count": total_missed_fincall_count,
+        "incoming_fincall_count": incoming_fincall_count,
+        "outgoing_fincall_count": outgoing_fincall_count,
+        "missed_fincall_count": missed_fincall_count,
+        "rejected_fincall_count": rejected_fincall_count,
+        "total_incoming_duration": total_incoming_duration,
+        "total_outgoing_duration": total_outgoing_duration,
         "internal_incoming_fincall_count": internal_incoming_fincall_count,
         "internal_outgoing_fincall_count": internal_outgoing_fincall_count,
         "internal_missed_fincall_count": internal_missed_fincall_count,
         "internal_rejected_fincall_count": internal_rejected_fincall_count,
-        "internal_total_incoming_fincall_count": internal_total_incoming_fincall_count,
-        "internal_total_outgoing_fincall_count": internal_total_outgoing_fincall_count,
+        "internal_total_incoming_duration": internal_total_incoming_duration,
+        "internal_total_outgoing_duration": internal_total_outgoing_duration,
         "total_idle_time": total_idle_time,
         "total_days": total_days,
         "total_unique_doc": total_unique_doc[0]['activity_count'] if total_unique_doc else 0,
         "total_time_on_calls": fincall_data[0]['total_duration'] if fincall_data else 0,
-        "total_meeting_duration": meetings[0].total_meeting_duration if meetings else 0,
-        "total_meeting_count": meetings[0].meeting_count if meetings else 0,
         "total_meeting_duration_internal": meetings_internal_employee[0].total_meeting_duration if meetings_internal_employee else 0,
         "total_meeting_count_internal": meetings_internal_employee[0].meeting_count if meetings_internal_employee else 0,
         "total_meeting_duration_external": meetings_external_employee[0].total_meeting_duration if meetings_external_employee else 0,
         "total_meeting_count_external": meetings_external_employee[0].meeting_count if meetings_external_employee else 0,
         "url_full_data": result_list[:10],
-        "meeting_admin_data": meetings_admin_data,
-        "meetings_admin_data_internal": meetings_admin_data_internal,
         "domain_used":domain_used[0].domain_count if domain_used else 0
     }
 

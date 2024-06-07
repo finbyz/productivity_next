@@ -14,8 +14,8 @@ def execute():
         {"doctype": "Screen Screenshot Log", "fields": ["employee", "datetime"]},
         {"doctype": "Version", "fields": ["owner", "creation", "ref_doctype", "docname"]},
         {"doctype": "Version", "fields": ["creation", "ref_doctype", "docname"]},
-        {"doctype": "Idle Time Log", "fields": ["employee", "time", "status"]}
-        {"doctype": "Employee Fincall", "fields": ["employee", "customer_no", "calltype", "call_datetime"]},
+        {"doctype": "Idle Time Log", "fields": ["employee", "time", "status"]},
+        {"doctype": "Employee Fincall", "fields": ["employee", "customer_no", "calltype", "call_datetime"]}
     ]
 
     # Attempt to create each index, handling exceptions if index already exists
