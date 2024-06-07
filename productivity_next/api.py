@@ -4,6 +4,8 @@ from frappe.core.doctype.user.user import User
 from productivity_next.utils.auth import get_bearer_token
 from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
+from frappe.utils import time_diff_in_seconds
+import datetime
 
 @frappe.whitelist(allow_guest=True)
 def login(username, password, purpose):
@@ -144,43 +146,32 @@ def update_user_auth_token(employee, purpose, date):
 @frappe.whitelist()
 def set_user_idel_time(*args, **kwargs):
     employee=kwargs.get("employee")
-    idle_time=kwargs.get("idle_time")
-    status=kwargs.get("status")
+    start_time=kwargs.get("start_time")
+    end_time=kwargs.get("end_time")
 
-    data=frappe.db.get_all("Idle Time Log", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status","name"], order_by="time desc",limit=1)
-    if  data:
-        if data[0].status=="start" and status=="start":
-            frappe.delete_doc("Idle Time Log", data[0].name, ignore_permissions=True)
-        elif data[0].status=="end" and status=="end":
-            return {"status": True}
-        
 
-    doc = frappe.new_doc("Idle Time Log")
+    doc = frappe.new_doc("Employee Idle Time")
     doc.employee = employee
-    doc.time =idle_time
-    doc.status = status
+    doc.start_time =start_time
+    doc.end_time = end_time
+    doc.duration=time_diff_in_seconds(end_time,start_time)
     doc.save(ignore_permissions=True)
 
     return {"status": True}
 
 @frappe.whitelist()
 def get_user_idel_time(employee=None):
+    date=datetime.datetime.now().date()
     if not employee:
         return 0
-    all_logs = frappe.db.get_all("Idle Time Log", filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]}, fields=["status", "time"], order_by="time asc")
+    
+    all_logs=frappe.db.get_all("Employee Idle Time", filters={"employee": employee, "end_time": ["Between", [nowdate(), nowdate()]]}, fields=["duration", "employee"], order_by="creation ")
 
     idle_time = 0
-    last_status = None
     
     for row in all_logs:
-        if row.status == "start" and last_status != "start":
-            start_time = row.time
-        elif row.status == "end" and last_status == "start":
-            end_time = row.time
-            idle_time += (end_time - start_time).total_seconds()
-
-        last_status = row.status
-
+        idle_time += row.duration
+        
     return idle_time
 
 @frappe.whitelist()
