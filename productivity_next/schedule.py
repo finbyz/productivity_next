@@ -59,7 +59,7 @@ def delete_older_screenshots():
 
 def bg_employee_log_generation():
     call_logs = frappe.db.get_all(
-        "Fincall Log", {"employee_fincall_generated": 0, "ignore_contact": 0}
+        "Fincall Log", {"employee_fincall_generated": 0, "ignore_contact": 0,"duplicate_contact": 0}
     )
     if call_logs:
         frappe.enqueue(
@@ -110,10 +110,15 @@ def create_employee_log(fincall_log):
             "call_datetime": fincall_log.call_datetime,
         })
 
+        if existing_fincall:
+            # Update flag indicating that employee fincall is generated
+            fincall_log.db_set("duplicate_contact", 1)
+            
         if fincall_log.customer_no[0] == "0":
             fincall_log.customer_no = "+91" + fincall_log.customer_no[1:]
         elif fincall_log.customer_no[0] != "+" and fincall_log.customer_no[0] != "0":
             fincall_log.customer_no = "+91" + fincall_log.customer_no
+
 
         if not existing_fincall:
             # Create new Employee Fincall document

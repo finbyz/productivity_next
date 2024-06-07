@@ -16,6 +16,7 @@
   "employee_fincall_generated",
   "ignore_contact",
   "contact_created",
+  "duplicate_contact",
   "column_break_9",
   "duration",
   "note",
@@ -131,11 +132,18 @@
    "fieldtype": "Date",
    "label": "Date",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "duplicate_contact",
+   "fieldtype": "Check",
+   "label": "Duplicate Contact",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-29 14:31:26.284596",
+ "modified": "2024-06-07 10:14:13.294215",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Fincall Log",
