@@ -225,8 +225,8 @@ UserProfile = class UserProfile {
 	
 		let total_hours = 0;
 		let total_idle_hours = 0;
-		let total_meeting_hours = 0;
-		let total_meeting_count = 0;
+		// let total_meeting_hours = 0;
+		// let total_meeting_count = 0;
 		let total_incoming_fincall_hours = 0;
 		let total_outgoing_fincall_hours = 0;
 		let total_unique_doc = 0;
@@ -243,8 +243,8 @@ UserProfile = class UserProfile {
 		let internal_total_incoming_fincall_hours = 0;
 		let internal_total_outgoing_fincall_hours = 0;
 		let total_days = 0;
-		let internal_meeting_hours = 0;
-		let internal_meeting_count = 0;
+		// let internal_meeting_hours = 0;
+		// let internal_meeting_count = 0;
 		let domain_usage = 0;
 		for (let i in data.combined_employee_data) {
 			const employee = data.combined_employee_data[i];
@@ -268,10 +268,10 @@ UserProfile = class UserProfile {
 			total_days += employee.total_days || 0;
 			domain_usage += employee.domain_used || 0;
 		}
-		total_meeting_hours = data.combined_employee_data[0].meeting_admin_data[0].total_meeting_duration || 0;
-		total_meeting_count = data.combined_employee_data[0].meeting_admin_data[0].meeting_count || 0;
-		internal_meeting_hours = data.combined_employee_data[0].meetings_admin_data_internal[0].total_meeting_duration || 0;
-		internal_meeting_count = data.combined_employee_data[0].meetings_admin_data_internal[0].meeting_count || 0;
+		// total_meeting_hours = data.combined_employee_data[0].meeting_admin_data[0].total_meeting_duration || 0;
+		// total_meeting_count = data.combined_employee_data[0].meeting_admin_data[0].meeting_count || 0;
+		// internal_meeting_hours = data.combined_employee_data[0].meetings_admin_data_internal[0].total_meeting_duration || 0;
+		// internal_meeting_count = data.combined_employee_data[0].meetings_admin_data_internal[0].meeting_count || 0;
 	
 		let employee_data = this.selected_employee || this.user_id;
 	
@@ -326,7 +326,6 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings<span style="font-size:12px"> (External | Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${total_meeting_count}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(total_meeting_hours)} | <b>${internal_meeting_count}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(internal_meeting_hours)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">

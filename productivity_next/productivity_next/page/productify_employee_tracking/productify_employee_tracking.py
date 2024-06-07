@@ -88,20 +88,20 @@ def get_user_data(user,start_date=None, end_date=None):
     start_date, end_date = set_dates(start_date, end_date)
 
     conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
-    conditions_2 = f"AND mcr.employee = '{user}' AND DATE(m.meeting_from) >= '{start_date}' AND DATE(m.meeting_to) <= '{end_date}'"
+    conditions_2 = f"AND mcr.employee = '{user}' AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
 
     # Fetch idle time logs
     idle_time_data = frappe.db.sql(f"""
         SELECT start_time, end_time
         FROM `tabEmployee Idle Time`
-        WHERE start_time > '{start_date_}' AND end_time < '{end_date_}' AND employee = '{user}'
+        WHERE employee = '{user}' AND start_time > '{start_date_}' AND end_time < '{end_date_}'
     """, as_dict=True)
 
     # Fetch fincall time logs
     fincall_time_data = frappe.db.sql(f"""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
         FROM `tabEmployee Fincall`
-        WHERE date >= '{start_date}' AND date <= '{end_date}' AND (calltype != 'Missed' AND calltype != 'Rejected') AND employee = '{user}'
+        WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}' AND (calltype != 'Missed' AND calltype != 'Rejected')
     """, as_dict=True)
 
     # Fetch meeting time logs
@@ -109,8 +109,8 @@ def get_user_data(user,start_date=None, end_date=None):
         SELECT meeting_from as start_time, meeting_to as end_time
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.docstatus = 1
-        AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}' AND mcr.employee = '{user}'
+        WHERE m.docstatus = 1 AND mcr.employee = '{user}'
+        AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'
     """, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)
@@ -213,12 +213,12 @@ def get_user_data(user,start_date=None, end_date=None):
         SELECT m.meeting_from as start_time, m.meeting_to as end_time
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE mcr.employee ='{user}' and m.docstatus = 1 and m.meeting_from >= '{start_date}' and m.meeting_to <= '{end_date}'
+        WHERE mcr.employee ='{user}' and m.docstatus = 1 and m.meeting_from >= '{start_date_}' and m.meeting_to <= '{end_date_}'
     """, as_dict=True)
     calls_total_data = frappe.db.sql(f"""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
         FROM `tabEmployee Fincall`
-        WHERE employee = '{user}' and call_datetime >= '{start_date}' and call_datetime <= '{end_date}' and (calltype != 'Missed' and calltype != 'Rejected')
+        WHERE employee = '{user}' and call_datetime >= '{start_date_}' and call_datetime <= '{end_date_}' and (calltype != 'Missed' and calltype != 'Rejected')
     """, as_dict=True)
     application_total_data = frappe.db.sql(f"""
         SELECT from_time as start_time, to_time as end_time
