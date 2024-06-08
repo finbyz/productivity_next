@@ -141,7 +141,7 @@ def create_employee_log(fincall_log):
             FROM `tabContact` AS c 
             JOIN `tabContact Phone` AS cp ON cp.parent = c.name 
             JOIN `tabDynamic Link` AS dl ON dl.parent = c.name 
-            WHERE cp.phone = '{fincall_log.customer_no}' OR cp.phone LIKE '{fincall_log.customer_no}' OR '{fincall_log.customer_no}' LIKE CONCAT("%",cp.phone) 
+            WHERE and LENGTH(cp.phone) >=10 cp.phone = '{fincall_log.customer_no}' OR cp.phone LIKE '{fincall_log.customer_no}' OR '{fincall_log.customer_no}' LIKE CONCAT("%",cp.phone) 
             LIMIT 1;
             """
             contact_details = frappe.db.sql(contact_query, as_dict=True)
