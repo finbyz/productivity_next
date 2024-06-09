@@ -253,18 +253,27 @@ UserProfile = class UserProfile {
 		return `<b>${hours}.${minutes}</b>`;
 	}
 	render_user_data(data) {
+		function getBaseURL() {
+			return window.location.origin + '/app/';
+		}
+		
 		let employee_data;
 		let start_date_ = this.selected_start_date;
 		let end_date_ = this.selected_end_date;
+		
 		if (this.selected_employee != null) {
 			employee_data = this.selected_employee;
 		} else {
 			employee_data = this.user_id;
 		}
-		// console.log(data.meetings)
+		
+		const baseUrl = getBaseURL();
 		const container = this.main_section.find("#user-data-cards");
 		container.empty();
-
+		
+		const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(employee_data)}&meeting_from=${encodeURIComponent(`["Between",["${start_date_}","${end_date_}"]]`)}&docstatus=1`;
+		const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(employee_data)}&date=${encodeURIComponent(`["Between",["${start_date_}","${end_date_}"]]`)}&link_to=${encodeURIComponent(`["!=","Company"]`)}`;
+		const employeeFincallInternalUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(employee_data)}&date=${encodeURIComponent(`["Between",["${start_date_}","${end_date_}"]]`)}&link_to=${encodeURIComponent(`["=","Company"]`)}`;
 		let wholedata = `
 			<div class="title-area ">
 				<h4 class="card-title">Productify Data</h4>
@@ -316,7 +325,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Meetings<span style="font-size:12px"> (External | Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><b>${data.total_meeting_count_external}</b><span style="font-size:12px">  Meet - </span>${this.convertSecondsToTime(data.total_meeting_duration_external)}| <b>${data.total_meeting_count_internal}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(data.total_meeting_duration_internal)}</div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #00A6E0 !important;"><a href="${employeeMeetingUrl}" target="_blank" style="color:#00A6E0;"><b>${data.total_meeting_count_external}</b><span style="font-size:12px">  Meet - </span>${this.convertSecondsToTime(data.total_meeting_duration_external)}| <b>${data.total_meeting_count_internal}</b><span style="font-size:12px"> Meet - </span>${this.convertSecondsToTime(data.total_meeting_duration_internal)}</a></div>
 					</div>
 				</div>
 				<div class="col-md-4">
@@ -328,7 +337,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:12px"> (External)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><a href="${employeeFincallUrl}" target="_blank" style="color:#FF4001;"><b>${data.incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></a></div>
 					</div>
 				</div>
 			</div>
@@ -351,7 +360,7 @@ UserProfile = class UserProfile {
 				<div class="col-md-4">
 					<div class="frappe-card  custom-card">
 						<h4 class="custom-title" style="font-size: 14px !important; color: #333333;">Fincall Log Call Count<span style="font-size:12px"> (Internal)</span></h4>
-						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><b>${data.internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.internal_rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></div>
+						<div class="number custom-number" style="font-size: 18px !important; color: #FF4001 !important;"><a href="${employeeFincallInternalUrl}" target="_blank" style="color:#FF4001;"><b>${data.internal_incoming_fincall_count}</b><span style="font-size:12px"> Inc </span>|<b> ${data.internal_outgoing_fincall_count}</b><span style="font-size:12px"> Out</span> |<b> ${data.internal_missed_fincall_count}</b><span style="font-size:12px"> Miss</span> |<b> ${data.internal_rejected_fincall_count}</b> <span style="font-size:12px">Rej</span></a></div>
 					</div>
 				</div>
 			</div>

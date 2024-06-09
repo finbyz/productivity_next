@@ -5,7 +5,6 @@ from frappe.utils import add_months,getdate
 from collections import defaultdict
 from frappe import _
 
-# HEATMAP
 @frappe.whitelist()
 def get_heatmap_data(user, date):
     one_year_ago_date = add_months(getdate(), -12)
@@ -85,7 +84,6 @@ def get_user_data(user,start_date=None, end_date=None):
         ignore_condition = f"AND ref_doctype NOT IN ({ignore_doctype_str})"
     else:
         ignore_condition = ""
-    start_date, end_date = set_dates(start_date, end_date)
 
     conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     conditions_2 = f"AND mcr.employee = '{user}' AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
