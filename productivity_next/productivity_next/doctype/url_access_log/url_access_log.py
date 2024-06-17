@@ -5,5 +5,8 @@
 from frappe.model.document import Document
 from frappe.utils import time_diff_in_seconds
 
-class WorkIntensity(Document):
-    pass
+
+class URLAccessLog(Document):
+	def validate(self):
+		self.duration = time_diff_in_seconds(self.to_time, self.from_time)
+

@@ -66,6 +66,8 @@ UserProfile = class UserProfile {
         this.render_bar_chart();
         // this.fetch_and_render_user_data();
         this.render_line_chart();
+        this.getEmployeeData('HR-EMP-00020');
+        
     }
     setup_timespan() {
         this.$user_search_button = this.page.set_primary_action(
@@ -921,7 +923,8 @@ UserProfile = class UserProfile {
         let count = 1;
         let inactive_count = 1;
         console.log('employeeDataArray:', employeeDataArray);
-        employeeDataArray.forEach(app => {
+        employeeDataArray.forEach(async app => {
+            
             if (app.totalHours > 0) {
                 const employeeUrl = `${baseUrl}Productify Employee Tracking?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
                 wholedata += `
@@ -973,7 +976,45 @@ UserProfile = class UserProfile {
         });
         container.append(wholedata);
     };
+    render_activity_user_chart(activityData){
+        let totalDurarion = 37800
+        let charthtml = `<div class="report-daybar-entries" data-name="activityBar" data-start="1718002800" data-type="multi"
+        data-average-start="" data-average-end="" ng-bind-html="data.lines | toTrustedHtml:this">
+        `
+        activityData.forEach(element => {
+            if (element.start_sec !== null && element.end_sec !== null) {
+                let duration = element.start_sec - element.end_sec
+                charthtml += `
+                    <div data-bs-toggle="tooltip" data-bs-placement="top" title="AVERAGE ACTIVITY"
+                    style="background-color: #486d49;width:${duration * 100 / totalDurarion}%;" data-is-block="true" data-start="${element.start_sec}"
+                    data-end="${element.end_sec}" data-days="undefined" data-value="${duration}"></div>
+                `
+            }
+        });
+        charthtml += `</div>`
+        document.getElementById("activecharts").innerHTML += charthtml
+    };
+    getEmployeeData(employee){
+        frappe.call({
+            method:"productivity_next.productivity_next.page.productify_consolidated_tracking.productify_consolidated_tracking.get_new_chart_data",
+            args:{
+                employee: employee,
+                start_date: this.selected_start_date,
+                end_date: this.selected_end_date,
+            },
+            callback: (r) => {
+                if (r.message) {
+                   this.render_activity_user_chart(r.message)
+                }
+            },
+            success: function(r){
+                console.log("Success");
+            }
+        })
+    }
+
 
 }
+
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;

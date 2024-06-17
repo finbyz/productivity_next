@@ -55,7 +55,6 @@
   {
    "fieldname": "contact",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "Contact",
    "no_copy": 1,
    "options": "Contact",
@@ -152,7 +151,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-23 12:36:15.919732",
+ "modified": "2024-06-17 10:19:44.730869",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",

@@ -1,7 +1,6 @@
 <div class="row user-profile">
     <div class="col-md-12 ">
         <div class="performance-graphs ">
-
             <div class="frappe-card chart-column-container heatmap-container hidden-xs hidden-sm ">
                 <div class="title-area ">
                     <h4 class="card-title">{%=__("Productify Log") %}</h4>
@@ -14,99 +13,151 @@
             </div>
             <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                    <h5 class="modal-title" id="modalLabel">URL Information</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                    </div>
-                    <div class="modal-body">
-                    <p id="urlDisplay">URL will be displayed here</p>
-                    </div>
-                    <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    </div>
-                </div>
-                </div>
-            </div>
-  
-
-
-
-            <div class="frappe-card chart-column-container hidden-xs hidden-sm " id="user-data-cards">
-                <div class="chart-wrapper ">
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="frappe-card chart-column-container pie-chart-container ">
-                        <div class="title-area ">
-                            <h4 class="card-title">{%=__("Top 5 Application Analysis") %}<span style="font-size: 12px;"> (In Hours)</span></h4>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalLabel">URL Information</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                         </div>
-                        <div class="chart-wrapper performance-pie-chart ">
-                            <div class="null-state">
-                                <span>{%=__("No Data to Show") %}</span>
-                            </div>
+                        <div class="modal-body">
+                            <p id="urlDisplay">URL will be displayed here</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Line Chart -->
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="frappe-card chart-column-container line-chart-container ">
-                        <div class="title-area ">
-                            <h4 class="card-title">{%=__("Hourly Calls Analysis") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
-                        </div>
-                        <div class="chart-wrapper performance-line-chart ">
-                            <div class="null-state">
-                                <span>{%=__("No Data to Show") %}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="performance-activity-chart"></div>
+            <div style="display: flex;">
+                <div class="icon" style="margin-left: 50px; height: 50px; width: 50px;"><svg fill="green"
+                        xmlns="http://www.w3.org/2000/svg" height="50px" viewBox="0 -960 960 960" width="57\0px" fill="green">
+                        <path
+                            d="M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 4 23 14.5t9 23.5v162q0 18-12 30t-30 12ZM520-520v-240h80v104l200-200 56 56-200 200h104v80H520Z" />
+                    </svg></div> <p style="position: relative; right: 170px;">Hello</p>
+                <div class="icon"><svg fill="#17a2b8"
+                        xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
+                        width="40px" height="40px" viewBox="0 0 1000 1000" xml:space="preserve">
+                        <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                        <g transform="matrix(1.2267 0 0 1.2267 463.2126 527.828)">
+                            <path vector-effect="non-scaling-stroke" transform="translate(-480, 480)"
+                                d="M 798 -120 q -125 0 -247 -54.5 T 329 -329 Q 229 -429 174.5 -551 T 120 -798 q 0 -18 12 -30 t 30 -12 h 162 q 14 0 25 9.5 t 13 22.5 l 26 140 q 2 16 -1 27 t -11 19 l -97 98 q 20 37 47.5 71.5 T 387 -386 q 31 31 65 57.5 t 72 48.5 l 94 -94 q 9 -9 23.5 -13.5 T 670 -390 l 138 28 q 14 4 23 14.5 t 9 23.5 v 162 q 0 18 -12 30 t -30 12 Z" />
+                        </g>
+                        <g transform="matrix(0.025 0 0 0.025 500 500)">
+                            <path vector-effect="non-scaling-stroke" transform="translate(-460, 460)"
+                                d="m 216 -160 l -56 -56 l 464 -464 H 360 v -80 h 400 v 400 h -80 v -264 L 216 -160 Z" />
+                        </g>
+                        <g transform="matrix(0.6801 0 0 0.6801 646.7528 303.4615)">
+                            <path vector-effect="non-scaling-stroke" transform="translate(-460, 460)"
+                                d="m 216 -160 l -56 -56 l 464 -464 H 360 v -80 h 400 v 400 h -80 v -264 L 216 -160 Z" />
+                        </g>
+                    </svg>
+                </div><p style="position: relative; right: 145px;">Hello</p>
+                <div class="icon" style=" margin-right: 100px;"><svg
+                        fill="#ffc107" xmlns="http://www.w3.org/2000/svg" height="45px" viewBox="0 -960 960 960"
+                        width="45px" fill="#ffc107">
+                        <path
+                            d="m136-144-92-90q-12-12-12-28t12-28q88-95 203-142.5T480-480q118 0 232.5 47.5T916-290q12 12 12 28t-12 28l-92 90q-11 11-25.5 12t-26.5-8l-116-88q-8-6-12-14t-4-18v-114q-38-12-78-19t-82-7q-42 0-82 7t-78 19v114q0 10-4 18t-12 14l-116 88q-12 9-26.5 8T136-144Zm342-362L280-704v104h-80v-240h240v80H336l141 141 226-226 57 57-282 282Z" />
+                    </svg> </div><p style="position: relative; right: 80px;">Hello</p>
+                <div class="icon" style="margin-right: 30px;"><svg
+                        fill="rgb(224, 54, 54)" xmlns="http://www.w3.org/2000/svg"
+                        xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="40px" height="40px"
+                        viewBox="0 0 1000 1000" xml:space="preserve">
+                        <rect x="0" y="0" width="100%" height="100%" fill="#ffffff" />
+                        <g transform="matrix(1.2626 0 0 1.2626 499.9905 499.9905)">
+                            <path vector-effect="non-scaling-stroke" transform="translate(-480, 480)"
+                                d="M 798 -120 q -125 0 -247 -54.5 T 329 -329 Q 229 -429 174.5 -551 T 120 -798 q 0 -18 12 -30 t 30 -12 h 162 q 14 0 25 9.5 t 13 22.5 l 26 140 q 2 16 -1 27 t -11 19 l -97 98 q 20 37 47.5 71.5 T 387 -386 q 31 31 65 57.5 t 72 48.5 l 94 -94 q 9 -9 23.5 -13.5 T 670 -390 l 138 28 q 14 4 23 14.5 t 9 23.5 v 162 q 0 18 -12 30 t -30 12 Z"
+                                stroke-linecap="round" />
+                        </g>
+                        <g transform="matrix(0.5193 0 0 0.5193 745.8186 234.0324)">
+                            <path vector-effect="non-scaling-stroke" transform="translate(-480, 480)"
+                                d="m 256 -200 l -56 -56 l 224 -224 l -224 -224 l 56 -56 l 224 224 l 224 -224 l 56 56 l -224 224 l 224 224 l -56 56 l -224 -224 l -224 224 Z"
+                                stroke-linecap="round" />
+                        </g>
+                    </svg></div><p style="position: relative;">Hello</p>
             </div>
+        
+        
 
-            <!-- Bar Chart -->
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="frappe-card chart-column-container bar-chart-container ">
-                        <div class="title-area ">
-                            <h4 class="card-title">{%=__("Top 7 Document Analysis") %}<span style="font-size: 12px;"> (Changes Per Doctype)</span></h4>
-                        </div>
-                        <div class="chart-wrapper performance-bar-chart ">
-                            <div class="null-state">
-                                <span>{%=__("No Data to Show") %}</span>
-                            </div>
+        <div class="frappe-card chart-column-container hidden-xs hidden-sm " id="user-data-cards">
+            <div class="chart-wrapper ">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="frappe-card chart-column-container pie-chart-container ">
+                    <div class="title-area ">
+                        <h4 class="card-title">{%=__("Top 5 Application Analysis") %}<span style="font-size: 12px;"> (In
+                                Hours)</span></h4>
+                    </div>
+                    <div class="chart-wrapper performance-pie-chart ">
+                        <div class="null-state">
+                            <span>{%=__("No Data to Show") %}</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="frappe-card chart-column-container user-activity-images ">
-            <div class="title-area ">
-                <h4 class="card-title">{%=__("User Activity Images") %}</h4>
-            </div>
-                <div class="image-wrapper  recent-activity-list row">
+
+        <!-- Line Chart -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="frappe-card chart-column-container line-chart-container ">
+                    <div class="title-area ">
+                        <h4 class="card-title">{%=__("Hourly Calls Analysis") %}<span style="font-size: 12px;"> (In
+                                Minutes)</span></h4>
+                    </div>
+                    <div class="chart-wrapper performance-line-chart ">
+                        <div class="null-state">
+                            <span>{%=__("No Data to Show") %}</span>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Bar Chart -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="frappe-card chart-column-container bar-chart-container ">
+                    <div class="title-area ">
+                        <h4 class="card-title">{%=__("Top 7 Document Analysis") %}<span style="font-size: 12px;">
+                                (Changes Per Doctype)</span></h4>
+                    </div>
+                    <div class="chart-wrapper performance-bar-chart ">
+                        <div class="null-state">
+                            <span>{%=__("No Data to Show") %}</span>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-custom" role="document"> <!-- Notice the addition of modal-custom -->
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="imageModalLabel">User Activity Screenshot</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <img id="zoomedImg" src="" class="img-fluid">
-                </div>
+    <div class="frappe-card chart-column-container user-activity-images ">
+        <div class="title-area ">
+            <h4 class="card-title">{%=__("User Activity Images") %}</h4>
+        </div>
+        <div class="image-wrapper  recent-activity-list row">
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-custom" role="document"> <!-- Notice the addition of modal-custom -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">User Activity Screenshot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img id="zoomedImg" src="" class="img-fluid">
             </div>
         </div>
-    </div>           
+    </div>
+</div>
 </div>

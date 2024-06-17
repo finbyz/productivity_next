@@ -441,7 +441,6 @@ def get_all_data(user, start_date=None, end_date=None):
         ignore_condition = ""
 
     conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
-    conditions_2 = f"AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
     data = frappe.db.sql(f"""
         SELECT
             -- Application Usage
@@ -490,3 +489,67 @@ def get_all_data(user, start_date=None, end_date=None):
     """, as_dict=True)
 
     return data
+
+
+def generate_query():
+    return """
+        SELECT
+            start_time,
+            end_time,
+            start_sec,
+            end_sec,color
+        FROM
+            (
+                SELECT
+                    start_time,
+                    end_time,
+                    TIME_TO_SEC(end_time) as end_sec,
+                    TIME_TO_SEC(start_time) as start_sec,
+                    'red' as color
+                FROM
+                    `tabEmployee Idle Time`
+                WHERE
+                    employee = %(employee)s AND
+                    start_time >= %(start_date)s AND end_time <= %(end_date)s
+                UNION
+                SELECT
+                    from_time as start_time,
+                    to_time as end_time,
+                    TIME_TO_SEC(to_time) as end_sec,
+                    TIME_TO_SEC(from_time) as start_sec,
+                    'green' as color
+                FROM
+                    `tabApplication Usage log`
+                WHERE
+                    employee = %(employee)s AND
+                    from_time >= %(start_date)s AND to_time <= %(end_date)s
+                UNION
+                SELECT
+                    call_datetime AS start_time,
+                    ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time,
+                    TIME_TO_SEC(call_datetime) AS start_sec,
+                    TIME_TO_SEC(ADDTIME(call_datetime, SEC_TO_TIME(duration))) AS end_sec,
+                    'green' as color
+                FROM
+                    `tabEmployee Fincall`
+                WHERE
+                    employee = %(employee)s AND
+                    call_datetime >= %(start_date)s
+            ) AS merged_data
+        ORDER BY
+            start_time,
+            end_time
+        limit 50;
+    """
+@frappe.whitelist()
+def get_new_chart_data(employee,start_date=datetime.now().date(),end_date=datetime.now().date()):
+    data = frappe.db.sql(generate_query(), {"employee": employee,"start_date":start_date,"end_date":end_date}, as_dict=True)
+    return data
+
+# def get_context(context):
+#     # employees = frappe.get_all("Employee", filters={"status": "Active"}, fields=["name"])
+#     # for employee in employees:
+#     #     context[f"{employee.name}_data"] = get_new_chart_data(employee.name)
+#     context.activityData = get_new_chart_data("HR-EMP-00020")
+#     frappe.msgprint("Data fetched successfully!")
+#     return context

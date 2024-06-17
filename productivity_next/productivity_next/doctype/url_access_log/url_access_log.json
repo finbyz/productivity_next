@@ -1,44 +1,40 @@
 {
  "actions": [],
- "allow_import": 1,
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2023-11-09 12:18:58.156890",
- "default_view": "List",
+ "creation": "2024-06-16 21:06:46.841075",
  "doctype": "DocType",
- "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
-  "application_title",
   "employee",
   "employee_name",
-  "computer_name",
-  "ip_address",
-  "current_url",
+  "url",
+  "is_url",
   "process_id",
-  "column_break_a0cjy",
-  "application_name",
-  "date",
+  "profile_id",
+  "column_break_uaph",
   "from_time",
+  "auto_start",
   "to_time",
+  "auto_end",
   "duration",
-  "domain"
+  "window_id"
  ],
  "fields": [
   {
-   "default": "AL-.YY.MM.DD.-",
+   "default": "AUUL-.YY.MM.DD.-",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": "AL-.YY.MM.DD.-",
-   "read_only": 1,
+   "options": "AUUL-.YY.MM.DD.-",
    "reqd": 1
   },
   {
    "fieldname": "employee",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
@@ -49,95 +45,93 @@
    "fetch_from": "employee.employee_name",
    "fieldname": "employee_name",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Employee Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Url",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_url",
+   "fieldtype": "Check",
+   "label": "Is Url",
+   "read_only": 1
+  },
+  {
+   "fieldname": "process_id",
+   "fieldtype": "Data",
+   "label": "Process Id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "profile_id",
+   "fieldtype": "Data",
+   "label": "Profile Id",
    "read_only": 1
   },
   {
    "fieldname": "from_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "From Time",
    "read_only": 1,
    "reqd": 1
   },
   {
+   "default": "0",
+   "fieldname": "auto_start",
+   "fieldtype": "Check",
+   "label": "Auto Start",
+   "read_only": 1
+  },
+  {
    "fieldname": "to_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "To Time",
    "read_only": 1,
    "reqd": 1
   },
   {
-   "fieldname": "column_break_a0cjy",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Date",
-   "read_only": 1,
-   "reqd": 1
-  },
-  {
-   "fieldname": "computer_name",
-   "fieldtype": "Data",
-   "label": "Computer Name",
-   "read_only": 1
-  },
-  {
-   "fieldname": "ip_address",
-   "fieldtype": "Data",
-   "label": "IP Address",
-   "read_only": 1
-  },
-  {
-   "fieldname": "application_title",
-   "fieldtype": "Data",
-   "label": "Application Title",
-   "read_only": 1
-  },
-  {
-   "fieldname": "application_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Application Name",
+   "default": "0",
+   "fieldname": "auto_end",
+   "fieldtype": "Check",
+   "label": "Auto End",
    "read_only": 1
   },
   {
    "fieldname": "duration",
    "fieldtype": "Duration",
    "in_list_view": 1,
-   "in_standard_filter": 1,
    "label": "Duration",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "window_id",
+   "fieldtype": "Data",
+   "label": "Window Id",
    "read_only": 1
   },
   {
-   "fieldname": "current_url",
-   "fieldtype": "Data",
-   "label": "Current Url",
-   "read_only": 1
-  },
-  {
-   "fieldname": "domain",
-   "fieldtype": "Data",
-   "label": "Domain",
-   "read_only": 1
-  },
-  {
-   "fieldname": "process_id",
-   "fieldtype": "Data",
-   "label": "Process id",
-   "read_only": 1
+   "fieldname": "column_break_uaph",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-11 16:44:44.035411",
+ "modified": "2024-06-16 21:48:06.409942",
  "modified_by": "Administrator",
  "module": "Productivity Next",
- "name": "Application Usage log",
+ "name": "URL Access Log",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
@@ -155,18 +149,6 @@
   },
   {
    "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Prodcutivity Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
    "email": 1,
    "export": 1,
    "print": 1,
@@ -174,6 +156,18 @@
    "report": 1,
    "role": "Employee",
    "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Productivity Manager",
+   "share": 1,
+   "write": 1
   }
  ],
  "sort_field": "modified",
