@@ -13,22 +13,24 @@
   "is_url",
   "process_id",
   "profile_id",
+  "domain",
   "column_break_uaph",
   "from_time",
   "auto_start",
   "to_time",
   "auto_end",
   "duration",
-  "window_id"
+  "window_id",
+  "current_title"
  ],
  "fields": [
   {
-   "default": "AUUL-.YY.MM.DD.-",
+   "default": "UAL.YY.MM.DD.",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": "AUUL-.YY.MM.DD.-",
+   "options": "UAL.YY.MM.DD.",
    "reqd": 1
   },
   {
@@ -54,7 +56,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Url",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "default": "0",
@@ -124,11 +127,24 @@
   {
    "fieldname": "column_break_uaph",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "domain",
+   "fieldtype": "Data",
+   "label": "Domain",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "current_title",
+   "fieldtype": "Data",
+   "label": "Current Title",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-16 21:48:06.409942",
+ "modified": "2024-06-18 22:46:29.432472",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "URL Access Log",
