@@ -1,2 +1,3 @@
 productivity_next.patches.add_indexes
 productivity_next.patches.add_contact_for_employees
+productivity_next.patches.remove_spaces_from_contact
