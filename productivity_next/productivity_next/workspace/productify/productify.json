@@ -44,6 +44,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Domain Usage",
+   "link_count": 0,
+   "link_to": "URL Access Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Screenshot Log",
    "link_count": 0,
    "link_to": "Screen Screenshot Log",
@@ -54,9 +64,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Idle Time Log",
+   "label": "Employee Idle Time",
    "link_count": 0,
-   "link_to": "Idle Time Log",
+   "link_to": "Employee Idle Time",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -150,7 +160,7 @@
    "type": "Link"
   }
  ],
- "modified": "2024-05-29 11:11:49.148473",
+ "modified": "2024-06-19 16:26:59.802458",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
