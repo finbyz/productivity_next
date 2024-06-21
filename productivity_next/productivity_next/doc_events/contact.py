@@ -27,6 +27,24 @@ def update_contacts(contacts, phone_nos, links):
 
     client_no_tuple = tuple(client_no)
 
+    # Determine the highest priority link_doctype
+    link_doctype = None
+    link_name = None
+    for link in links:
+        if link.link_doctype == "Customer":
+            link_doctype = "Customer"
+            link_name = link.link_name
+            break
+    if not link_doctype:
+        for link in links:
+            if link.link_doctype == "Lead":
+                link_doctype = "Lead"
+                link_name = link.link_name
+                break
+    if not link_doctype:
+        link_doctype = links[0].link_doctype
+        link_name = links[0].link_name
+
     # SQL query to update the Fincall Log
     frappe.db.sql("""
         UPDATE `tabFincall Log`
@@ -35,9 +53,6 @@ def update_contacts(contacts, phone_nos, links):
     """, {"client_no": client_no_tuple})
 
     # SQL query to update the Employee Fincall
-    link_doctype = links[0].link_doctype
-    link_name = links[0].link_name
-
     frappe.db.sql("""
         UPDATE `tabEmployee Fincall`
         SET contact = %(contact_name)s,
