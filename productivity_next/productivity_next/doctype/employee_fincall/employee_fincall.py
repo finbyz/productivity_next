@@ -40,17 +40,18 @@ class EmployeeFincall(Document):
         return ''
         
     def before_save(self):
-        time_minutes = self.duration / 60
-        comment = frappe.get_doc({
-            'doctype': 'Comment',
-            'comment_type': 'Comment',
-            'reference_doctype': 'Customer',
-            'reference_name': self.link_name,
-            'comment_by':self.employee_name,
-            'content': f"{ self.employee_name } {self.get_svg} call  { self.get_contact_name } at { self.call_datetime } for {time_minutes:.1f} minutes", # TODO : ADD - { if remarks } and discussed { remarks }
-        }).insert()
-        comment.save()
-        print('Comment created',self.link_name)
+        pass
+        # time_minutes = self.duration / 60
+        # comment = frappe.get_doc({
+        #     'doctype': 'Comment',
+        #     'comment_type': 'Comment',
+        #     'reference_doctype': 'Customer',
+        #     'reference_name': self.link_name,
+        #     'comment_by':self.employee_name,
+        #     'content': f"{ self.employee_name } {self.get_svg} call  { self.get_contact_name } at { self.call_datetime } for {time_minutes:.1f} minutes", # TODO : ADD - { if remarks } and discussed { remarks }
+        # }).insert()
+        # comment.save()
+        # print('Comment created',self.link_name)
         
 
 @frappe.whitelist()

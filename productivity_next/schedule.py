@@ -126,7 +126,7 @@ def create_employee_log(fincall_log):
             ec_doc.employee = employee_details['name']
             ec_doc.employee_name = employee_details['employee_name']
             ec_doc.employee_mobile = fincall_log.employee_mobile
-            ec_doc.client = fincall_log.client
+            ec_doc.client = fincall_log.client if fincall_log.client else None
             ec_doc.customer_no = fincall_log.customer_no
             ec_doc.call_datetime = fincall_log.call_datetime
             ec_doc.duration = fincall_log.duration
@@ -137,18 +137,36 @@ def create_employee_log(fincall_log):
             # Try to get contact details
             
             contact_query = f"""
-            SELECT c.name, dl.link_doctype, dl.link_name 
-            FROM `tabContact` AS c 
-            JOIN `tabContact Phone` AS cp ON cp.parent = c.name 
-            JOIN `tabDynamic Link` AS dl ON dl.parent = c.name 
-            WHERE LENGTH(cp.phone) >=10 and (cp.phone = '{fincall_log.customer_no}' OR cp.phone LIKE '%{fincall_log.customer_no}' OR '{fincall_log.customer_no}' LIKE CONCAT("%",cp.phone))
+            SELECT 
+                c.name, 
+                dl.link_doctype, 
+                dl.link_name 
+            FROM 
+                `tabContact` AS c 
+            JOIN 
+                `tabContact Phone` AS cp 
+                ON cp.parent = c.name 
+            JOIN 
+                `tabDynamic Link` AS dl 
+                ON dl.parent = c.name 
+            WHERE 
+                LENGTH(cp.phone) >= 10 
+                AND (cp.phone = '{fincall_log.customer_no}' 
+                OR cp.phone LIKE '%{fincall_log.customer_no}' 
+                OR '{fincall_log.customer_no}' LIKE CONCAT("%", cp.phone))
+            ORDER BY 
+                CASE dl.link_doctype
+                    WHEN 'Customer' THEN 1
+                    WHEN 'Lead' THEN 2
+                    ELSE 3
+                END
             LIMIT 1;
             """
             contact_details = frappe.db.sql(contact_query, as_dict=True)
             if contact_details:
                 contact = contact_details[0]
                 ec_doc.link_to = contact.get('link_doctype', '')
-                ec_doc.contact = contact.get('name', '')
+                ec_doc.contact = contact.get('name', None)
                 ec_doc.link_name = contact.get('link_name', '')
 
             ec_doc.flags.ignore_permissions = True
