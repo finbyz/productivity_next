@@ -137,31 +137,33 @@ def create_employee_log(fincall_log):
             # Try to get contact details
             
             contact_query = f"""
-            SELECT 
-                c.name, 
-                dl.link_doctype, 
-                dl.link_name 
-            FROM 
-                `tabContact` AS c 
-            JOIN 
-                `tabContact Phone` AS cp 
-                ON cp.parent = c.name 
-            JOIN 
-                `tabDynamic Link` AS dl 
-                ON dl.parent = c.name 
-            WHERE 
-                LENGTH(cp.phone) >= 10 
-                AND (cp.phone = '{fincall_log.customer_no}' 
-                OR cp.phone LIKE '%{fincall_log.customer_no}' 
-                OR '{fincall_log.customer_no}' LIKE CONCAT("%", cp.phone))
-            ORDER BY 
-                CASE dl.link_doctype
-                    WHEN 'Customer' THEN 1
-                    WHEN 'Lead' THEN 2
-                    ELSE 3
-                END
-            LIMIT 1;
+                SELECT 
+                    c.name, 
+                    dl.link_doctype, 
+                    dl.link_name 
+                FROM 
+                    `tabContact` AS c 
+                JOIN 
+                    `tabContact Phone` AS cp 
+                    ON cp.parent = c.name 
+                JOIN 
+                    `tabDynamic Link` AS dl 
+                    ON dl.parent = c.name 
+                WHERE 
+                    LENGTH(cp.phone) >= 10 
+                    AND (cp.phone = '{fincall_log.customer_no}' 
+                    OR cp.phone LIKE '%{fincall_log.customer_no}' 
+                    OR '{fincall_log.customer_no}' LIKE CONCAT("%", cp.phone))
+                ORDER BY 
+                    CASE dl.link_doctype
+                        WHEN 'Customer' THEN 1
+                        WHEN 'Lead' THEN 2
+                        ELSE 3
+                    END,
+                    c.modified DESC
+                LIMIT 1;
             """
+
             contact_details = frappe.db.sql(contact_query, as_dict=True)
             if contact_details:
                 contact = contact_details[0]
