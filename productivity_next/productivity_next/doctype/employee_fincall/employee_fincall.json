@@ -22,7 +22,9 @@
   "contact",
   "calltype",
   "fincall_log_ref",
-  "create_contact"
+  "create_contact",
+  "spoke_about",
+  "comment"
  ],
  "fields": [
   {
@@ -147,11 +149,23 @@
    "fieldname": "create_contact",
    "fieldtype": "Button",
    "label": "Create Contact"
+  },
+  {
+   "fieldname": "comment",
+   "fieldtype": "Link",
+   "label": "Comment",
+   "options": "Comment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "spoke_about",
+   "fieldtype": "Small Text",
+   "label": "Spoke About"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-17 10:19:44.730869",
+ "modified": "2024-06-24 11:07:23.562071",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",

@@ -140,7 +140,12 @@ scheduler_events = {
 	],
     "daily": [
         "productivity_next.schedule.delete_older_screenshots",
-	]
+	],
+  "cron": {
+  "*/30 * * * *":[
+    'productivity_next.schedule.schedule_comments'
+  ]
+  }
 }
 #	"all": [
 #		"productivity_next.tasks.all"
