@@ -250,13 +250,14 @@ def comment_on_employee_fincall(doc):
 def schedule_comments():
     calls = frappe.db.get_list(
         "Employee Fincall",
-        {"comment": ('is','not set')},
+        {
+            "comment": ('is','not set'),
+            "contact":("is",'set'),
+        },
         order_by="call_datetime ASC",
         page_length=100,
     )
 
     for call in calls:
         doc = frappe.get_doc("Employee Fincall", call.name)
-        if doc.get_contact_name is None or doc.link_name is None:
-            continue
         comment_on_employee_fincall(doc)
