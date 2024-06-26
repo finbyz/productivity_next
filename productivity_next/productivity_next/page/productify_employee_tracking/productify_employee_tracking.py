@@ -201,6 +201,8 @@ def get_user_data(user,start_date=None, end_date=None):
                 app_name = application_name
             else:
                 app_name = (i["process_id"]).lower().split(".exe")[0].capitalize()
+        else:
+            app_name = "Unknown"
         result_list.append({
             "domain": i['domain'],
             "total_duration": i['total_duration'],
