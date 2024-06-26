@@ -213,7 +213,7 @@ def create_employee_log(fincall_log):
             """
 
             contact_details = frappe.db.sql(contact_query, as_dict=True)
-            if contact_details and contact.get("link_doctype", "") and contact.get("link_name", ""):
+            if contact_details and contact_details[0].get("link_doctype", "") and contact_details[0].get("link_name", ""):
                 contact = contact_details[0]
                 ec_doc.link_to = contact.get("link_doctype", "")
                 ec_doc.contact = contact.get("name", None)
