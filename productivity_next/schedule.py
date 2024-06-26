@@ -260,4 +260,21 @@ def schedule_comments():
 
     for call in calls:
         doc = frappe.get_doc("Employee Fincall", call.name)
-        comment_on_employee_fincall(doc)
+        employee_fincall_url = doc.get_url()
+        
+        comment_text = doc.get_comment_text(employee_fincall_url)
+        comment = frappe.get_doc(
+            {
+                "doctype": "Comment",
+                "comment_type": "Comment",
+                "reference_doctype": "Customer",
+                "reference_name": doc.link_name,
+                "comment_by": doc.employee_name,
+                "subject": doc.calltype,
+                "content": comment_text
+            }
+        )
+
+        comment.save()
+        doc.comment = comment
+        doc.save()
