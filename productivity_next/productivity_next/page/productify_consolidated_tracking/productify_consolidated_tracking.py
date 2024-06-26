@@ -1,5 +1,9 @@
 import frappe
 from datetime import datetime,timedelta
+from frappe.utils import now
+from collections import defaultdict
+from finbyz.finbyz.page.productify_employee_tracking_finbyz.productify_employee_tracking_finbyz import get_user_data
+from finbyz.finbyz.page.productify_employee_tracking_finbyz.productify_employee_tracking_finbyz import get_issue_data
 @frappe.whitelist()
 def get_admin_data(start_date=None, end_date=None):
     start_date_, end_date_ = set_dates(start_date, end_date)
@@ -173,7 +177,7 @@ def get_admin_data(start_date=None, end_date=None):
             COUNT(*) AS fincall_count,
             COALESCE(SUM(duration), 0) AS total_duration
         FROM `tabEmployee Fincall`
-        WHERE date >= '{start_date}' AND date <= '{end_date}' AND (link_to != 'Company' or link_to is null)
+        WHERE date >= '{start_date}' AND date <= '{end_date}'
         GROUP BY employee, calltype
     """, as_dict=True)
 
@@ -207,49 +211,6 @@ def get_admin_data(start_date=None, end_date=None):
             employee_fincall_data[employee]['missed_fincall_count'] = count
         elif calltype == 'Rejected':
             employee_fincall_data[employee]['rejected_fincall_count'] = count
-
-    internal_fincall_data = frappe.db.sql(f"""
-        SELECT 
-            employee,
-            calltype,
-            COUNT(*) AS fincall_count,
-            COALESCE(SUM(duration), 0) AS total_duration
-        FROM `tabEmployee Fincall`
-        WHERE date >= '{start_date}' AND date <= '{end_date}' AND link_to = 'Company' AND link_to is not null
-        GROUP BY employee, calltype
-    """, as_dict=True)
-
-    # Initialize a dictionary to store counts and total durations by employee
-    employee_internal_fincall_data = {}
-
-    # Process the fetched data
-    for item in internal_fincall_data:
-        employee = item['employee']
-        calltype = item['calltype']
-        count = item['fincall_count']
-        duration = item['total_duration']
-        
-        if employee not in employee_internal_fincall_data:
-            employee_internal_fincall_data[employee] = {
-                'internal_incoming_fincall_count': 0,
-                'internal_outgoing_fincall_count': 0,
-                'internal_missed_fincall_count': 0,
-                'internal_rejected_fincall_count': 0,
-                'internal_total_incoming_duration': 0,
-                'internal_total_outgoing_duration': 0
-            }
-        
-        if calltype == 'Incoming':
-            employee_internal_fincall_data[employee]['internal_incoming_fincall_count'] = count
-            employee_internal_fincall_data[employee]['internal_total_incoming_duration'] = duration
-        elif calltype == 'Outgoing':
-            employee_internal_fincall_data[employee]['internal_outgoing_fincall_count'] = count
-            employee_internal_fincall_data[employee]['internal_total_outgoing_duration'] = duration
-        elif calltype == 'Missed':
-            employee_internal_fincall_data[employee]['internal_missed_fincall_count'] = count
-        elif calltype == 'Rejected':
-            employee_internal_fincall_data[employee]['internal_rejected_fincall_count'] = count
-
     
     conditions_2 = f"AND m.meeting_from >= '{start_date}' AND m.meeting_to <= '{end_date}'"
     # Fetch external meeting data for all employees
@@ -271,14 +232,35 @@ def get_admin_data(start_date=None, end_date=None):
     meetings_external_employee = {}
     for i in meetings_external_employee_raw:
         meetings_external_employee[i['employee']] = { "duration":i['total_meeting_duration'], "count":i['meeting_count']}
+
+    issue_time_count_data = frappe.db.sql(f"""
+        SELECT 
+            COUNT(DISTINCT i.subject) AS no_of_issues,
+            SUM(ti.time_involvement) AS time_in_issues,
+            ti.user_name
+        FROM `tabIssue` as i
+        JOIN `tabTime Involvement` as ti ON i.name = ti.parent
+        WHERE ti.date >= '{start_date}' AND ti.date <= '{end_date}'
+        group by ti.user_name
+    """, as_dict=1)
+    issue_data = {}
+    for i in issue_time_count_data:
+            # Fetch employee name based on user_id
+            employee = frappe.db.get_value("Employee", filters={"user_id": i['user_name']}, fieldname="name")
+            
+            # Populate the issue_data dictionary with issues and time in issues
+            issue_data[employee] = {
+                "no_of_issues": i['no_of_issues'],
+                "time_in_issues": i['time_in_issues']
+            }
     
     return {
         "total_days": total_days,
         "total_hours_per_employee": total_hours_per_employee,
         "total_idle_time": total_idle_time,
         "employee_fincall_data": employee_fincall_data,
-        "employee_internal_fincall_data": employee_internal_fincall_data,
         "meeting_employee_data": meetings_external_employee,
+        "issue_data": issue_data
     }
 
 def set_dates(start_date=None, end_date=None):
@@ -306,7 +288,7 @@ def set_dates(start_date=None, end_date=None):
     return start_date, end_date
 
 @frappe.whitelist() 
-def version_conditions(user,start_date=None, end_date=None):
+def version_conditions(start_date=None, end_date=None):
     now = frappe.utils.now_datetime()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
@@ -317,6 +299,7 @@ def version_conditions(user,start_date=None, end_date=None):
         end_date = now.strftime('%Y-%m-%d 23:59:59')
     else:
         end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
+    
     condition = f"WHERE creation >= '{start_date}' AND creation <= '{end_date}'"
 
     return condition
@@ -347,8 +330,27 @@ def get_barchart_data(start_date=None, end_date=None):
         "labels": [i["ref_doctype"] for i in data],
         "datasets": [{"values": [(i["activity_count"]) for i in data]}]
     }
+@frappe.whitelist()
+def get_client_calls_chart_data(user, start_date=None, end_date=None):
+    conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+    data = frappe.db.sql(f"""
+        select link_name,round(SUM(duration)/60,2) as total_duration
+        from `tabEmployee Fincall`
+        {conditions} and link_name is not null
+        group by link_name
+        order by total_duration desc
+        limit 20
+    """, as_dict=1)
+    labels = []
+    datasets = []
+    for i in data:
+        labels.append(i['link_name'])
+        datasets.append(i['total_duration'])
+    return {
+        "labels": labels,
+        "datasets": datasets
+    }
 
-# LINE CHART
 @frappe.whitelist()
 def get_linechart_data(user, start_date=None, end_date=None):
     if user != "Administrator":
@@ -357,51 +359,64 @@ def get_linechart_data(user, start_date=None, end_date=None):
         conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
     data = frappe.db.sql(f"""
-    SELECT employee, calltype, COUNT(*) as count
+    SELECT employee,
+           SUM(CASE WHEN calltype = 'Incoming' THEN 1 ELSE 0 END) as incoming_count,
+           SUM(CASE WHEN calltype = 'Outgoing' THEN 1 ELSE 0 END) as outgoing_count,
+           SUM(CASE WHEN calltype = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
+           SUM(CASE WHEN calltype = 'Missed' THEN 1 ELSE 0 END) as missed_count,
+           ROUND(SUM(CASE WHEN calltype = 'Incoming' THEN duration ELSE 0 END) / 60, 2) as incoming_duration,
+           ROUND(SUM(CASE WHEN calltype = 'Outgoing' THEN duration ELSE 0 END) / 60, 2) as outgoing_duration,
+           ROUND(SUM(CASE WHEN calltype = 'Rejected' THEN duration ELSE 0 END) / 60, 2) as rejected_duration,
+           ROUND(SUM(CASE WHEN calltype = 'Missed' THEN duration ELSE 0 END) / 60, 2) as missed_duration,
+           COUNT(*) as total  
     FROM `tabEmployee Fincall`
     {conditions}
-    GROUP BY employee, calltype
-    ORDER BY count DESC
-    LIMIT 10""", as_dict=1)
-        
+    GROUP BY employee
+    ORDER BY total DESC
+    LIMIT 10
+    """, as_dict=1)
     
-    # Extract distinct employees
     employees = sorted(set(entry['employee'] for entry in data))
-
-    # Initialize datasets
+    
     datasets = {
         'Incoming': [0] * len(employees),
         'Outgoing': [0] * len(employees),
         'Missed': [0] * len(employees),
         'Rejected': [0] * len(employees),
-        'None': [0] * len(employees)
+        'Incoming Duration': [0] * len(employees),
+        'Outgoing Duration': [0] * len(employees),
+        'Missed Duration': [0] * len(employees),
+        'Rejected Duration': [0] * len(employees)
     }
-
-    # Populate the datasets
+    
     employee_index = {employee: idx for idx, employee in enumerate(employees)}
     for entry in data:
         employee = entry['employee']
-        calltype = entry['calltype'] if entry['calltype'] else 'None'
-        count = entry['count']
         index = employee_index[employee]
-        datasets[calltype][index] = count
-
-    # Convert datasets to required format
+        datasets['Incoming'][index] = entry['incoming_count']
+        datasets['Outgoing'][index] = entry['outgoing_count']
+        datasets['Missed'][index] = entry['missed_count']
+        datasets['Rejected'][index] = entry['rejected_count']
+        datasets['Incoming Duration'][index] = entry['incoming_duration']
+        datasets['Outgoing Duration'][index] = entry['outgoing_duration']
+        datasets['Missed Duration'][index] = entry['missed_duration']
+        datasets['Rejected Duration'][index] = entry['rejected_duration']
+    
     formatted_datasets = []
-    for calltype, counts in datasets.items():
-        if calltype != 'None':
-            formatted_datasets.append({
-                "name": calltype,
-                "values": counts
-            })
-    employee_name = []
-    for i in employees:
-        name = frappe.db.get_value("Employee",i,"employee_name")
-        employee_name.append(name)
-    # frappe.throw(str(result))
-    # Create the final data structure
+    for calltype in ['Incoming', 'Outgoing', 'Missed', 'Rejected']:
+        formatted_datasets.append({
+            "name": calltype,
+            "counts": datasets[calltype],
+            "durations": datasets[f"{calltype} Duration"]
+        })
+    
+    employee_names = []
+    for employee in employees:
+        name = frappe.db.get_value("Employee", employee, "employee_name")
+        employee_names.append(name)
+    
     return {
-        "labels": employee_name,
+        "labels": employee_names,
         "datasets": formatted_datasets
     }
 
@@ -427,129 +442,104 @@ def get_url_brief_data(url_data, start_date=None, end_date=None):
         """, as_dict=1)
     return {"url_data":data}
 
-
-
 @frappe.whitelist()
-def get_all_data(user, start_date=None, end_date=None):
-    version_conditions_str = version_conditions(user, start_date, end_date)
-    start_date_, end_date_ = set_dates(start_date, end_date)
-    ignore_doctype = ['File', "Communication", "Fincall Log", "Custom Field", "DocType", "Web Page", "Attendance"]
-    ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
-    if ignore_doctype_str:
-        ignore_condition = f"AND ref_doctype NOT IN ({ignore_doctype_str})"
-    else:
-        ignore_condition = ""
-
-    conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+def get_issue_data_admin(start_date=None, end_date=None):
     data = frappe.db.sql(f"""
-        SELECT
-            -- Application Usage
-            (SELECT application_name, SUM(duration) AS total_duration
-            FROM `tabApplication Usage log`
-            {conditions}
-            GROUP BY employee, application_name
-            ORDER BY total_duration DESC
-            LIMIT 10) AS application_usage,
+        SELECT 
+            COUNT(DISTINCT i.subject) AS no_of_issues,
+            SUM(ti.time_involvement) AS time_in_issues
+        FROM `tabIssue` as i
+        JOIN `tabTime Involvement` as ti ON i.name = ti.parent
+        WHERE ti.date >= '{start_date}' AND ti.date <= '{end_date}'
+    """, as_dict=1)
+    # Parsing the result to return counts
+    if data:
+        no_of_issues = data[0]['no_of_issues'] if 'no_of_issues' in data[0] else 0
+        time_in_issues = data[0]['time_in_issues'] if 'time_in_issues' in data[0] else 0
+    else:
+        no_of_issues = 0
+        time_in_issues = 0
 
-            -- Caller Name
-            (SELECT COALESCE(contact, client, customer_no) AS identifier,
-                SUM(duration) AS total_duration,
-                COUNT(*) AS call_count
-            FROM `tabEmployee Fincall`
-            {conditions}
-            GROUP BY employee, COALESCE(contact, client, customer_no)
-            ORDER BY total_duration DESC
-            LIMIT 10) AS caller_name,
+    return {
+        "no_of_issues": no_of_issues,
+        "time_in_issues": time_in_issues
+    }
 
-            -- Doc Name
-            (SELECT ref_doctype, COUNT(*) AS activity_count
-            FROM `tabVersion`
-            {version_conditions_str}
-            {ignore_condition}
-            GROUP BY owner, ref_doctype
-            ORDER BY activity_count DESC
-            LIMIT 10) AS doc_name,
-
-            -- Apps Data
-            (SELECT application_name, SUM(duration) AS total_duration
-            FROM `tabApplication Usage log`
-            WHERE date >= '{start_date}' AND date <= '{end_date}'
-            GROUP BY employee, application_name
-            ORDER BY total_duration DESC
-            LIMIT 10) AS apps_data,
-
-            -- URLs Visited
-            (SELECT domain, SUM(duration) AS total_duration
-            FROM `tabApplication Usage log`
-            WHERE date >= '{start_date}' AND date <= '{end_date}' 
-                AND domain IS NOT NULL AND domain != ''
-            GROUP BY employee, domain
-            ORDER BY total_duration DESC
-            LIMIT 10) AS urls_visited
-    """, as_dict=True)
-
-    return data
-
-
-def generate_query():
-    return """
-        SELECT
-            start_time,
-            end_time,
-            start_sec,
-            end_sec,color
-        FROM
-            (
-                SELECT
-                    start_time,
-                    end_time,
-                    TIME_TO_SEC(end_time) as end_sec,
-                    TIME_TO_SEC(start_time) as start_sec,
-                    'red' as color
-                FROM
-                    `tabEmployee Idle Time`
-                WHERE
-                    employee = %(employee)s AND
-                    start_time >= %(start_date)s AND end_time <= %(end_date)s
-                UNION
-                SELECT
-                    from_time as start_time,
-                    to_time as end_time,
-                    TIME_TO_SEC(to_time) as end_sec,
-                    TIME_TO_SEC(from_time) as start_sec,
-                    'green' as color
-                FROM
-                    `tabApplication Usage log`
-                WHERE
-                    employee = %(employee)s AND
-                    from_time >= %(start_date)s AND to_time <= %(end_date)s
-                UNION
-                SELECT
-                    call_datetime AS start_time,
-                    ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time,
-                    TIME_TO_SEC(call_datetime) AS start_sec,
-                    TIME_TO_SEC(ADDTIME(call_datetime, SEC_TO_TIME(duration))) AS end_sec,
-                    'green' as color
-                FROM
-                    `tabEmployee Fincall`
-                WHERE
-                    employee = %(employee)s AND
-                    call_datetime >= %(start_date)s
-            ) AS merged_data
-        ORDER BY
-            start_time,
-            end_time
-        limit 50;
-    """
 @frappe.whitelist()
-def get_new_chart_data(employee,start_date=datetime.now().date(),end_date=datetime.now().date()):
-    data = frappe.db.sql(generate_query(), {"employee": employee,"start_date":start_date,"end_date":end_date}, as_dict=True)
-    return data
+def client_time_data(start_date=None, end_date=None):
+    start_date_, end_date_ = set_dates(start_date, end_date)
+    
+    # Query to get issue data
+    # Fetch issue data
+    issue_data = frappe.db.sql(f"""
+        SELECT 
+            p.customer,
+            SUM(ti.time_involvement) AS time_in_issues
+        FROM `tabIssue` as i
+        JOIN `tabTime Involvement` as ti ON i.name = ti.parent
+        JOIN `tabProject` as p ON p.name = i.project
+        WHERE ti.date >= '{start_date}' AND ti.date <= '{end_date}'
+        GROUP BY p.customer                 
+    """, as_dict=1)
 
-# def get_context(context):
-#     # employees = frappe.get_all("Employee", filters={"status": "Active"}, fields=["name"])
-#     # for employee in employees:
-#     #     context[f"{employee.name}_data"] = get_new_chart_data(employee.name)
-#     context.activityData = get_new_chart_data("HR-EMP-00020")
-#     frappe.msgprint("Data fetched successfully!")
-#     return context
+    # Fetch meeting data
+    meeting_data = frappe.db.sql(f"""
+        SELECT 
+            SUM(CASE 
+                    WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                    ELSE 0 
+                END) AS total_meeting_duration,
+            m.party as customer
+        FROM `tabMeeting` as m
+        WHERE m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'
+        AND m.docstatus = 1 
+        GROUP BY m.party
+    """, as_dict=1)
+
+    # Convert meeting duration from seconds to hours
+    for meeting in meeting_data:
+        meeting['total_meeting_duration'] = meeting['total_meeting_duration'] / 3600
+
+    # Merge results based on customer
+    combined_data = {}
+
+    # Add issue data to the combined data
+    for issue in issue_data:
+        customer = issue['customer']
+        combined_data[customer] = {
+            'time_in_issues': issue['time_in_issues'],
+            'total_meeting_duration': 0  # Initialize with 0
+        }
+
+    # Add meeting data to the combined data
+    for meeting in meeting_data:
+        customer = meeting['customer']
+        if customer in combined_data:
+            combined_data[customer]['total_meeting_duration'] = meeting['total_meeting_duration']
+        else:
+            combined_data[customer] = {
+                'time_in_issues': 0,  # Initialize with 0
+                'total_meeting_duration': meeting['total_meeting_duration']
+            }
+
+    # Compute total time for each customer
+    result = []
+    for customer, times in combined_data.items():
+        total_time = times['time_in_issues'] + times['total_meeting_duration']
+        result.append({
+            'customer': customer,
+            'total_time': total_time
+        })
+
+    # Sort the result by total_time in descending order and get the top 10
+    result = sorted(result, key=lambda x: x['total_time'], reverse=True)[:10]
+
+    # Return the result in the desired format
+    return {
+        "labels": [i["customer"] for i in result],
+        "datasets": [{"values": [i["total_time"] for i in result]}]
+    }
+
+@frappe.whitelist()
+def get_issue_active_chart_data(start_date=None, end_date=None):
+    pass

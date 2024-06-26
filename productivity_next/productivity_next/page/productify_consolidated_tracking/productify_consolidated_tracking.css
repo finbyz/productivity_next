@@ -14,6 +14,9 @@
     flex: 1; 
     margin-right: 0.5rem;
 }
+[data-unformatted] {
+    fill: var(--heading-color) !important;
+}
 @media (max-width: 768px) {
     .chart-column-container, .dynamic-spacing {
         padding: 1vh 1vw;

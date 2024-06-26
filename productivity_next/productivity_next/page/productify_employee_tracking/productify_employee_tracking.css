@@ -9,10 +9,21 @@
     width: 100%;
     max-width: 100%;
 }
-
+.sidebar-image{
+    max-width: 200px;
+    max-height: 250px;
+    height: auto;
+    object-fit:cover;
+}
+.form-sidebar .sidebar-image-section .sidebar-image{
+    max-height: fit-content;
+}
 .chart-column-container {
     flex: 1; 
     margin-right: 0.5rem;
+}
+[data-unformatted] {
+    fill: var(--heading-color) !important;
 }
 @media (max-width: 768px) {
     .chart-column-container, .dynamic-spacing {
@@ -24,8 +35,10 @@
     }
 
     .chart-column-container {
-        margin-right: 0;
+        margin-right: 0.5rem;
+        flex: auto;
     }
+   
 }
 
 .clickable-image {
@@ -45,3 +58,97 @@
     width: 80% !important;
     max-width: 80% !important;
 }
+.meeting-hover {
+    position: relative;
+    display: inline-block;
+    justify-content: space-between;
+}
+
+.hover-text {
+    visibility: hidden;
+    width: 300px;
+    background-color: #000;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 80%; /* Position the tooltip above the text */
+    left: 50%;
+    margin-left: -50px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.meeting-hover:hover .hover-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.calls-hover {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: relative;
+    padding: 10px;
+}
+
+.call-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.call-count {
+    padding-top: 10px;
+    font-size: 18px;
+}
+
+.hover-text-calls {
+    visibility: hidden;
+    width: 300px;
+    background-color: #000;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.calls-hover:hover .hover-text-calls {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Custom tooltip styles */
+.tooltip-custom {
+    width:800px;
+    height:40px;
+    justify-content: space-between !important;
+    padding: 5px;
+    font-size: 15px; /* Increase font size to 18 */
+}
+
+.tooltip-custom::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent white transparent transparent;
+}
+@media only screen and (max-width: 600px) {
+    .table {
+        font-size: 11px;
+    }
+}
+ 

@@ -2,8 +2,7 @@
     <div class="col-md-12">
         <div class="frappe-card chart-column-container bar-chart-container ">
             <div class="title-area ">
-                <h4 class="card-title">{%=__("Document Analysis") %}<span style="font-size: 12px;"> (Numbers Of Document
-                        Modified)</span></h4>
+                <h4 class="card-title">{%=__("Document Analysis") %}<span style="font-size: 12px;"> (Numbers Of Document Modified)</span></h4>
             </div>
             <div class="chart-wrapper performance-bar-chart ">
                 <div class="null-state">
@@ -15,42 +14,41 @@
     <div class="col-md-12">
         <div class="frappe-card chart-column-container line-chart-container ">
             <div class="title-area ">
-                <h4 class="card-title">{%=__("Top 10 Employees Call Analysis") %}<span style="font-size: 12px;"> (In
-                        Minutes)</span></h4>
+                <h4 class="card-title">{%=__("Top 10 Clients Call Analysis") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
             </div>
-            <div class="chart-wrapper performance-line-chart ">
-                <div class="null-state">
-                    <span>{%=__("No Data to Show") %}</span>
-                </div>
+            <div id="clients-call-chart">
             </div>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <div class="frappe-card chart-column-container line-chart-container ">
+            <div class="title-area ">
+                <h4 class="card-title">{%=__("Top 10 Employees Call Analysis") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
+            </div>
+            <div id="performance-line-chart"></div>
         </div>
     </div>
     <div class="col-md-12  mt-0">
         <div class="performance-graphs ">
             <div class="frappe-card chart-column-container hidden-xs hidden-sm ">
                 <div class="title-area mb-0 pb-0">
-                    <h4 class="card-title">{%=__("User Analysis") %}<span style="font-size: 12px;"> (User Productivity
-                            Stats)</span></h4>
+                    <h4 class="card-title">{%=__("User Analysis") %}<span style="font-size: 12px;"> (User Productivity Stats)</span></h4>
                 </div>
                 <div class="chart-wrapper mt-0 pt-0">
                     <table class="table" width="100%">
                         <thead>
                             <tr align="center">
-                                <th width="100%" colspan="13" style="padding:15px !important;">All Users Of The
-                                    Organization<span style="font-size: 12px;"> (Click on employee name to get brief
-                                        data)</span></th>
+                                <th width="100%" colspan="17" style="padding:15px !important;">All Users Of The Organization<span style="font-size: 12px;"> (Click on employee name to get brief data)</span></th>
                             </tr>
                             <tr align="center">
                                 <th width="15%"></th>
-                                <th width="32%" colspan="4" style="color:#00A6E0;">Activity Hours</th>
-                                <th width="10.50%" colspan="4" style="color:#62BA46;">Phone Call Nos<span
-                                        style="font-size:10px !important;"> (External/Internal)</span></th>
-                                <th width="21.25%" colspan="2" style="color:#FF4001;">Phone Call Hours<span
-                                        style="font-size:10px !important;"> (External/Internal)</span></th>
-                                <th width="21.25%" colspan="2" style="color:#6420AA;">Meetings</th>
+                                <th width="33.25%" colspan="4" style="color:#00A6E0;">Activity Hours</th>
+                                <th width="20.50%" colspan="4" style="color:#62BA46;">Phone Call Nos</th>
+                                <th width="21.25%" colspan="2" style="color:#FF4001;">Phone Call Hours</th>
+                                <th width="10.0%" colspan="2" style="color:#6420AA;">Meetings</th>
                             </tr>
                             <tr align="center">
-                                <th style="color:#6420AA;">Employee</th>
+                                <th>Employee</th>
                                 <th style="color:#00A6E0;">Total</th>
                                 <th style="color:#00A6E0;">Active</th>
                                 <th style="color:#00A6E0;">Idle</th>
@@ -70,31 +68,7 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div> 
         </div>
-    </div>
+    </div>       
 </div>
-<div id="activecharts"></div>
-<style>
-    .report-daybar-entries {
-        position: relative;
-    }
-
-    .report-daybar-entries>div {
-        display: inline-block;
-        height: 20px;
-    }
-
-    /* Example styling for different background colors */
-    div[data-is-block="true"] {
-        border: 1px solid #000;
-    }
-
-    div[data-is-block="true"][style*="background-color: #cb5047;"] {
-        background-color: #cb5047;
-    }
-
-    div[data-is-block="true"][style*="background-color: #f1ad4b;"] {
-        background-color: #f1ad4b;
-    }
-</style>
