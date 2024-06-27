@@ -33,7 +33,7 @@ class EmployeeFincall(Document):
     def get_contact_name(self):
         if frappe.db.exists("Contact", self.contact):
             contact = frappe.get_doc("Contact", self.contact)
-            return f"{contact.first_name} {contact.last_name}"
+            return f"{contact.first_name or ''} {contact.last_name if contact.last_name else ''}"
         return None
 
     def get_comment(self):
