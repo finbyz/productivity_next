@@ -60,10 +60,10 @@ class EmployeeFincall(Document):
             return ""
         time_minutes = self.duration / 60
         formatted_datetime = format_datetime(self.call_datetime, "dd-MM-yyyy HH:mm:ss")
-        spoken_about = f"<br><p>{self.spoke_about}</p>" if self.spoke_about else ""
+        spoken_about = f"<br><b>Discussed: </b><p>{self.spoke_about}</p>" if self.spoke_about else ""
         TEXT = (
-            f"{self.employee_name} <a href='{employee_fincall_url}'>{self.get_svg}</a> "
-            f"{self.get_contact_name} at {formatted_datetime} "
+            f"<b>{self.employee_name}</b> <a href='{employee_fincall_url}'>{self.get_svg}</a> "
+            f"<b>{self.get_contact_name}</b> at {formatted_datetime} "
             f"for {time_minutes:.1f} minutes {spoken_about}"
         )
         return TEXT

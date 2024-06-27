@@ -245,7 +245,7 @@ def schedule_comments():
             {
                 "doctype": "Comment",
                 "comment_type": "Comment",
-                "reference_doctype": "Customer",
+                "reference_doctype": doc.link_to,
                 "reference_name": doc.link_name,
                 "comment_by": doc.employee_name,
                 "subject": doc.calltype,

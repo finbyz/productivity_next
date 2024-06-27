@@ -35,7 +35,8 @@
    "label": "Employee",
    "no_copy": 1,
    "options": "Employee",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fetch_from": "employee.employee_name",
@@ -44,7 +45,8 @@
    "in_list_view": 1,
    "label": "Employee Name",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "link_to",
@@ -76,7 +78,8 @@
    "in_standard_filter": 1,
    "label": "Call DateTime",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "fincall_log_ref",
@@ -93,7 +96,8 @@
    "label": "Employee Mobile",
    "no_copy": 1,
    "options": "Phone",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "customer_no",
@@ -104,7 +108,8 @@
    "label": "Customer No",
    "no_copy": 1,
    "options": "Phone",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "client",
@@ -117,13 +122,15 @@
    "fieldtype": "Duration",
    "label": "Duration",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "date",
    "fieldtype": "Date",
    "label": "Date",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "calltype",
@@ -133,7 +140,8 @@
    "in_standard_filter": 1,
    "label": "Call Type",
    "no_copy": 1,
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "link_name",
@@ -165,7 +173,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-25 09:40:08.422125",
+ "modified": "2024-06-25 13:04:30.113513",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",
