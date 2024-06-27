@@ -780,8 +780,8 @@ UserProfile = class UserProfile {
 						marker: {
 							color: colors[index]  // Assigning specific colors to each dataset
 						},
-						text: dataset.durations.map(duration => `Duration: ${duration} mins`),
-						hoverinfo: 'x+y+text',
+						text: dataset.durations.map((duration, i) => `${dataset.counts[i]} Calls, Duration: ${duration} mins`),
+						hoverinfo: 'text',
 						textposition: 'auto',
 						textfont: {
 							color: themeColors.labelColor

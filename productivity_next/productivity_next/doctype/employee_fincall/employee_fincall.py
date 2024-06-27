@@ -14,7 +14,12 @@ class EmployeeFincall(Document):
 
     def create_notification_log(self):
         doc = frappe.new_doc("Notification Log")
-        doc.subject = "You need to create contact for {}".format(self.client)
+        if self.client and self.client != "":
+            subject_text = "You need to create contact for {}".format(self.client)
+        else:
+            subject_text = "You need to create contact for {}".format(self.customer_no)
+
+        doc.subject = subject_text
         doc.for_user = frappe.db.get_value("Employee", self.employee, "user_id")
         doc.type = "Alert"
         doc.document_type = "Employee Fincall"
@@ -22,6 +27,7 @@ class EmployeeFincall(Document):
         doc.from_user = frappe.db.get_value("Employee", self.employee, "user_id")
         doc.flags.ignore_permissions = True
         doc.save()
+
 
     @property
     def get_contact_name(self):
