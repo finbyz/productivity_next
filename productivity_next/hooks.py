@@ -130,19 +130,12 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
-    # "cron": {
-    # # "*/4 * * * *": [
-    # # 	"productivity_next.schedule.checkout_inactive_users",
-    # # ],
-    # },
     "all": [
         "productivity_next.schedule.bg_employee_log_generation",
+        "productivity_next.schedule.schedule_comments",
     ],
     "daily": [
         "productivity_next.schedule.delete_older_screenshots",
-    ],
-    "*/30 * * * *": [
-        "productivity_next.schedule.schedule_comments",
     ],
 }
 # 	"all": [
