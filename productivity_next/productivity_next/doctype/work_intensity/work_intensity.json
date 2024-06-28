@@ -10,7 +10,8 @@
   "date_time",
   "total_keystrokes",
   "column_break_nchj",
-  "total_mouse_clicks"
+  "total_mouse_clicks",
+  "total_scroll"
  ],
  "fields": [
   {
@@ -47,11 +48,17 @@
    "in_list_view": 1,
    "label": "Total Mouse Clicks",
    "read_only": 1
+  },
+  {
+   "fieldname": "total_scroll",
+   "fieldtype": "Int",
+   "label": "Total Scroll",
+   "options": "0"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-11 14:08:18.038239",
+ "modified": "2024-06-26 18:10:29.826764",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",
