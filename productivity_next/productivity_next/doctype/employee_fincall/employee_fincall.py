@@ -5,6 +5,7 @@
 from frappe.model.document import Document
 import frappe
 from frappe.utils.data import format_datetime
+from frappe.utils import format_duration
 
 
 class EmployeeFincall(Document):
@@ -46,9 +47,9 @@ class EmployeeFincall(Document):
     def get_svg(self) -> str:
         call_type = self.calltype.lower()
         if call_type == "incoming":
-            return '<img src="/assets/productivity_next/calltype/svg/outgoing.png">'
+            return '<img src="/assets/productivity_next/calltype/svg/incomming.png">'
         elif call_type == "outgoing":
-            return '<img src="/assets/productivity_next/calltype/svg/incoming.png">'
+            return '<img src="/assets/productivity_next/calltype/svg/outgoing.png">'
         elif call_type == "missed":
             return '<img src="/assets/productivity_next/calltype/svg/missed.png">'
         elif call_type == "rejected":
@@ -58,13 +59,13 @@ class EmployeeFincall(Document):
     def get_comment_text(self, employee_fincall_url) -> str:
         if self.get_contact_name is None:
             return ""
-        time_minutes = self.duration / 60
+        call_time = format_duration(self.duration)
         formatted_datetime = format_datetime(self.call_datetime, "dd-MM-yyyy HH:mm:ss")
         spoken_about = f"<br><b>Discussed: </b><p>{self.spoke_about}</p>" if self.spoke_about else ""
         TEXT = (
             f"<b>{self.employee_name}</b> <a href='{employee_fincall_url}'>{self.get_svg}</a> "
             f"<b>{self.get_contact_name}</b> at {formatted_datetime} "
-            f"for {time_minutes:.1f} minutes {spoken_about}"
+            f"for {call_time} {spoken_about}"
         )
         return TEXT
 

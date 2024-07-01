@@ -255,4 +255,5 @@ def schedule_comments():
 
         comment.save()
         doc.comment = comment.name
+        doc.flags.ignore_mandatory = True
         doc.save()
