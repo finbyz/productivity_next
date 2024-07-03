@@ -1,5 +1,7 @@
 import frappe
 from frappe.utils import nowdate, get_datetime, format_datetime
+from frappe.utils import get_fullname
+
 from datetime import timedelta
 from .api import (
     set_application_checkin_checkout,
@@ -244,16 +246,18 @@ def schedule_comments():
         comment = frappe.get_doc(
             {
                 "doctype": "Comment",
-                "comment_type": "Comment",
+                "comment_type": "Info",
                 "reference_doctype": doc.link_to,
                 "reference_name": doc.link_name,
-                "comment_by": doc.employee_name,
+                "comment_by": doc.employee,
                 "subject": doc.calltype,
-                "content": comment_text
+                "content": comment_text,
             }
         )
-
+        
+            
         comment.save()
+        frappe.db.set_value('Comment',comment.name, 'creation', doc.call_datetime)
         doc.comment = comment.name
         doc.flags.ignore_mandatory = True
         doc.save()
