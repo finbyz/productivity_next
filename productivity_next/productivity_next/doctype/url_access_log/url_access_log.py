@@ -9,7 +9,10 @@ import frappe
 
 class URLAccessLog(Document):
 	def validate(self):
-		self.domain=self.url.split('/')[2]
+		self.url = self.url or ''
+		url_split = self.url.split('/')
+		if len(url_split) > 3:
+			self.domain=self.url.split('/')[2]
 		self.duration = time_diff_in_seconds(self.to_time, self.from_time)
 		if self.duration <=0:
 		    raise frappe.ValidationError("To time should be greater than from time")
