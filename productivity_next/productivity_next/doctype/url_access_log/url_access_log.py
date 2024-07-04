@@ -22,5 +22,5 @@ class URLAccessLog(Document):
         if len(url_split) > 3:
             self.domain=self.url.split('/')[2]
         self.duration = time_diff_in_seconds(to_time, from_time)
-        if self.duration <=0:
-            raise frappe.ValidationError("To time should be greater than from time")
+        if self.duration <=9:
+            raise frappe.ValidationError("To time should be greater than from time and diffrance should be greater than equal 10 seconds.")
