@@ -1,18 +1,20 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "naming_series:",
  "creation": "2024-07-07 11:24:23.105130",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "daily_work_summary_section",
+  "naming_series",
   "employee",
   "employee_name",
   "date",
-  "applications",
   "calls",
   "meetings",
-  "idle"
+  "idle",
+  "applications"
  ],
  "fields": [
   {
@@ -23,53 +25,77 @@
   {
    "fieldname": "employee",
    "fieldtype": "Link",
+   "in_filter": 1,
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
    "label": "Employee",
-   "options": "Employee"
+   "options": "Employee",
+   "read_only": 1
   },
   {
    "fieldname": "date",
    "fieldtype": "Date",
+   "in_filter": 1,
    "in_list_view": 1,
-   "label": "Date"
+   "in_preview": 1,
+   "in_standard_filter": 1,
+   "label": "Date",
+   "read_only": 1
   },
   {
    "fieldname": "applications",
    "fieldtype": "Table",
    "label": "Applications",
-   "options": "Daily Work Summary Productify Application"
+   "options": "Daily Work Summary Productify Application",
+   "read_only": 1
   },
   {
    "fieldname": "calls",
    "fieldtype": "Table",
    "label": "Calls",
-   "options": "Daily Work Summary Productify Call"
+   "options": "Daily Work Summary Productify Call",
+   "read_only": 1
   },
   {
    "fieldname": "meetings",
    "fieldtype": "Table",
    "label": "Meetings",
-   "options": "Daily Work Summary Productify Meeting"
+   "options": "Daily Work Summary Productify Meeting",
+   "read_only": 1
   },
   {
    "fieldname": "idle",
    "fieldtype": "Table",
    "label": "Idle",
-   "options": "Daily Work Summary Productify Idle"
+   "options": "Daily Work Summary Productify Idle",
+   "read_only": 1
   },
   {
    "fetch_from": "employee.employee_name",
    "fieldname": "employee_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Employee Name"
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "default": "DWSP-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "DWSP-.YY.MM.DD.-"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-07 11:32:46.051968",
+ "modified": "2024-07-08 10:02:54.298674",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Daily Work Summary Productify",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
