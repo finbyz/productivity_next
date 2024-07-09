@@ -77,7 +77,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-08 12:24:18.421727",
+ "modified": "2024-07-09 11:56:23.945676",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Idle Time",
@@ -97,6 +97,7 @@
    "write": 1
   },
   {
+   "create": 1,
    "email": 1,
    "export": 1,
    "print": 1,

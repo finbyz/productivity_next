@@ -199,6 +199,40 @@ def get_user_idel_time(employee=None):
     return idle_time
 
 
+@frappe.whitelist(methods=["GET", "POST"])
+def get_employee_time(employee=None):
+    if not employee:
+        return 0
+
+    total_application_time = frappe.db.get_all(
+        "Application Usage log",
+        filters={"employee": employee, "date": ["Between", [nowdate(), nowdate()]]},
+        fields=["sum(duration) as duration"],
+    )
+
+    idle_application_time = frappe.db.get_all(
+        "Employee Idle Time",
+        filters={"employee": "HR-EMP-00018", "start_time": ["Between", [nowdate(), nowdate()]]},
+        fields=["sum(duration) as duration"],
+    )
+
+    if total_application_time:
+        total_application_time =  total_application_time[0].duration
+    else:
+        total_application_time = 0
+
+    if idle_application_time:
+        idle_application_time =  idle_application_time[0].duration
+    else:
+        idle_application_time = 0
+
+    return {
+        "total_time": total_application_time,
+        "active_time": total_application_time - idle_application_time,
+        "idle_time": idle_application_time,
+    }
+
+
 @frappe.whitelist()
 def get_user_last_check_in_and_out(emp_id):
     try:
