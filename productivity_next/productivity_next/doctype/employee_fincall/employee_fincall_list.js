@@ -6,7 +6,7 @@ frappe.listview_settings['Employee Fincall'] = {
             if (call_type === 'outgoing') {
                 return `
                 	   <div class="list-row-col hidden-xs ellipsis">
-            					<span class="indicator-pill white filterable no-indicator-dot ellipsis" data-filter="calltype,=,Missed" title="Document is in draft state">
+            					<span class="indicator-pill white filterable no-indicator-dot ellipsis" data-filter="calltype,=,Outgoing" title="Document is in draft state">
                     				<span class="ellipsis text-info">
                                         <svg fill="rgb(23, 162, 184)" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 1000 1000">
                                             <rect width="100%" height="100%" fill="rgba(255,255,255,0)" />
