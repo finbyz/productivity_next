@@ -6,6 +6,7 @@ from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
 import datetime
+from frappe.utils import flt
 
 
 @frappe.whitelist(allow_guest=True)
@@ -217,12 +218,12 @@ def get_employee_time(employee=None):
     )
 
     if total_application_time:
-        total_application_time =  total_application_time[0].duration
+        total_application_time =  flt(total_application_time[0].duration)
     else:
         total_application_time = 0
 
     if idle_application_time:
-        idle_application_time =  idle_application_time[0].duration
+        idle_application_time =  flt(idle_application_time[0].duration or 0)
     else:
         idle_application_time = 0
 
