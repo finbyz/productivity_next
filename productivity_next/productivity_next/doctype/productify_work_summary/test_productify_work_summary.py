@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestDailyWorkSummaryProductify(FrappeTestCase):
+class TestProductifyWorkSummary(FrappeTestCase):
 	pass
