@@ -5,90 +5,335 @@ import frappe
 from datetime import date
 from collections import defaultdict
 from frappe import _
-from datetime import datetime
+from frappe.utils import format_duration
+
+
 def execute(filters=None):
-    columns = get_columns()
+    columns = get_columns(filters)
     data = get_data(filters)
-    
-    chart = get_chart_data(data)
-    report_summary = get_report_summary(data)
+
+    chart = get_chart_data(filters)
+    # report_summary = get_report_summary(data)
 
     return columns, data, None, chart
 
-def get_columns():
-    return [
+
+def get_contact_group_columns(filters):
+    columns = [
         {
-            "fieldname": "date",
-            "label": _("Date"),
-            "fieldtype": "Date",
+            "fieldname": "contact",
+            "label": _("Contact"),
+            "fieldtype": "Data",
+            "width": 200,
+            "align": "left",
+        },
+        {
+            "fieldname": "party",
+            "label": _("Party"),
+            "fieldtype": "Data",
+            "width": 200,
+        },
+        {
+            "fieldname": "party_type",
+            "label": _("Party Type"),
+            "fieldtype": "Link",
+            "options": "doctype",
+            "width": 120,
+        },
+        {
+            "fieldname": "employee",
+            "label": _("Employee"),
+            "fieldtype": "Link",
+            "options": "Employee",
+            "width": 200,
+        },
+        {
+            "fieldname": "duration",
+            "label": _("Duration"),
+            "fieldtype": "Data",
             "width": 120,
         },
         {
             "fieldname": "incoming_count",
-            "label": _("Incoming Calls"),
+            "label": _("Incoming"),
+            "align": "left",
             "fieldtype": "Data",
-            "width": 120,
+            "width": 100,
         },
         {
             "fieldname": "outgoing_count",
-            "label": _("Outgoing Calls"),
+            "label": _("Outgoing"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
+            "fieldname": "missed_count",
+            "label": _("Missed"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
+            "fieldname": "rejected_count",
+            "label": _("Rejected"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+    ]
+    return columns
+
+
+def get_group_by_party_columns(filters):
+    return [
+        {
+            "fieldname": "party",
+            "label": _("Party"),
+            "fieldtype": "Data",
+            "width": 200,
+        },
+        {
+            "fieldname": "party_type",
+            "label": _("Party Type"),
+            "fieldtype": "Link",
+            "options": "doctype",
+            "width": 120,
+        },
+        {
+            "fieldname": "employee",
+            "label": _("Employee"),
+            "fieldtype": "Link",
+            "options": "Employee",
+            "width": 200,
+        },
+        {
+            "fieldname": "duration",
+            "label": _("Duration"),
             "fieldtype": "Data",
             "width": 120,
-        }
+        },
+        {
+            "fieldname": "incoming_count",
+            "label": _("Incoming"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
+            "fieldname": "outgoing_count",
+            "label": _("Outgoing"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
+            "fieldname": "missed_count",
+            "label": _("Missed"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
+            "fieldname": "rejected_count",
+            "label": _("Rejected"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 100,
+        },
     ]
+
+
+def get_columns(filters):
+    columns = [
+        {
+            "fieldname": "employee",
+            "label": _("Employee"),
+            "fieldtype": "Link",
+            "options": "Employee",
+            "width": 200,
+        },
+        {
+            "fieldname": "calltype",
+            "label": _("Call Type"),
+            "fieldtype": "Data",
+            "width": 120,
+        },
+        {
+            "fieldname": "contact",
+            "label": _("Contact"),
+            "fieldtype": "Data",
+            "width": 200,
+        },
+        {
+            "fieldname": "party_type",
+            "label": _("Party Type"),
+            "fieldtype": "Data",
+            "width": 120,
+        },
+        {
+            "fieldname": "party",
+            "label": _("Party"),
+            "fieldtype": "Dynamic Link",
+            "options": "party_type",
+            "width": 200,
+        },
+        {
+            "fieldname": "from_time",
+            "label": _("From Time"),
+            "fieldtype": "Datetime",
+            "width": 120,
+        },
+        {
+            "fieldname": "to_time",
+            "label": _("To Time"),
+            "fieldtype": "Datetime",
+            "width": 120,
+        },
+        {
+            "fieldname": "duration",
+            "label": _("Duration"),
+            "fieldtype": "Data",
+            "width": 200,
+        },
+    ]
+    if filters.get("group_by_party"):
+        columns = get_group_by_party_columns(filters)
+    if filters.get("group_by_contact"):
+        columns = get_contact_group_columns(filters)
+    return columns
+
 
 def get_data(filters):
-    data = frappe.db.sql("""
-        SELECT name, date, count(*) as incoming_count, calltype
-        FROM `tabEmployee Fincall`
-        WHERE calltype = "Incoming"
-        and date between %(from_date)s and %(to_date)s
-        GROUP BY date,calltype
-        """,
-        {
-            "from_date": filters.from_date,
-            "to_date": filters.to_date,
-        },
-        as_dict=True,
+
+    conditions_filters = {
+        "date": ["between", [filters.from_date, filters.to_date]],
+        "link_name": ["is", "set"],
+    }
+    if filters.get("employee"):
+        conditions_filters["employee"] = filters.employee
+
+    kwargs = {
+        "filters": conditions_filters,
+        "fields": [
+            "employee_name as employee",
+            "calltype",
+            "call_datetime as from_time",
+            "DATE_ADD(call_datetime,INTERVAL duration SECOND) as to_time",
+            "link_to as party_type",
+            "link_name as party",
+            "duration",
+            "calltype",
+        ],
+        "order_by": "call_datetime desc",
+    }
+    kwargs["fields"].append(
+        """
+        (CASE
+            WHEN contact IS NOT NULL THEN contact
+            WHEN client IS NOT NULL THEN client
+            WHEN customer_no IS NOT NULL THEN customer_no
+        END)
+        as contact"""
+    )
+    kwargs["fields"].append(
+        """
+        (CASE
+            WHEN contact IS NOT NULL THEN contact
+            WHEN client IS NOT NULL THEN client
+            WHEN customer_no IS NOT NULL THEN customer_no
+        END)
+        as contact"""
+    )
+    if filters.get("group_by_party"):
+        kwargs["group_by"] = "link_name,employee"
+        kwargs["fields"] = [
+            "link_name as party",
+            "link_to as party_type",
+            "employee_name as employee",
+            "SUM(duration) as duration",
+        ]
+        kwargs["order_by"] = "link_name asc"
+
+    if filters.get("group_by_contact"):
+        kwargs["group_by"] = "customer_no,employee"
+        kwargs["order_by"] = "customer_no asc"
+
+    if filters.get("group_by_contact") or filters.get("group_by_party"):
+        kwargs["fields"] = [
+            "link_name as party",
+            "link_to as party_type",
+            "employee_name as employee",
+            "SUM(duration) as duration",
+        ]
+        kwargs["fields"].extend(
+            [
+                """
+                (CASE
+                    WHEN contact IS NOT NULL THEN contact
+                    WHEN client IS NOT NULL THEN client
+                    WHEN customer_no IS NOT NULL THEN customer_no
+                END)
+                as contact
+                """,
+                """
+                SUM(
+                    CASE calltype WHEN 'Incoming' THEN 1 ELSE 0 END
+                ) as incoming_count
+                """,
+                """
+                SUM(
+                    CASE calltype WHEN 'Outgoing' THEN 1 ELSE 0 END
+                ) as outgoing_count
+                """,
+                """
+                SUM(
+                    CASE calltype WHEN 'Missed' THEN 1 ELSE 0 END
+                ) as missed_count
+                """,
+                """
+                SUM(
+                    CASE calltype WHEN 'Rejected' THEN 1 ELSE 0 END
+                ) as rejected_count
+                """,
+            ]
         )
-    
-    data += frappe.db.sql("""
-        SELECT name, date, count(*) as outgoing_count, calltype
-        FROM `tabEmployee Fincall`
-        WHERE calltype = "Outgoing"
-        and date between %(from_date)s and %(to_date)s
-        GROUP BY date,calltype
-        """,
-        {
-            "from_date": filters.from_date,
-            "to_date": filters.to_date,
+
+    data = frappe.get_list("Employee Fincall", **kwargs)
+    for row in data:
+        row["duration"] = format_duration(row["duration"], hide_days=True) or "0s"
+    return data
+
+
+def get_chart_data(filters):
+    kwargs = {
+        "filters": {
+            "date": ["between", [filters.from_date, filters.to_date]],
+            "link_name": ["is", "set"],
         },
-        as_dict=True,
-        )
-    combined_data = defaultdict(lambda: {'incoming_count': 0, 'outgoing_count': 0})
-    for record in data:
-        record_date = record['date']
-        if record['calltype'] == 'Incoming':
-            combined_data[record_date]['incoming_count'] += record['incoming_count']
-        elif record['calltype'] == 'Outgoing':
-            combined_data[record_date]['outgoing_count'] += record['outgoing_count']
+        "fields": [
+            "date",
+            """
+            SUM(
+                CASE calltype WHEN 'Incoming' THEN 1 ELSE 0 END
+            ) as incoming_count
+            """,
+            """
+            SUM(
+                CASE calltype WHEN 'Outgoing' THEN 1 ELSE 0 END
+            ) as outgoing_count
+            """,
+        ],
+        "group_by": "date",
+    }
+    if filters.get("employee"):
+        kwargs["filters"]["employee"] = filters.employee
 
-    # Step 2: Convert the combined dictionary back to a list of dictionaries
-    combined_list = [
-        {'date': record_date, 'incoming_count': counts['incoming_count'], 'outgoing_count': counts['outgoing_count']}
-        for record_date, counts in combined_data.items()
-    ]
-
-    # Step 3: Sort the combined list by date in descending order
-    combined_list.sort(key=lambda x: x['date'])
-    
-    return combined_list
-
-def get_chart_data(data):
+    data = frappe.get_list("Employee Fincall", **kwargs)
     labels = [call["date"] for call in data]
     incoming = [call["incoming_count"] for call in data]
     outgoing = [call["outgoing_count"] for call in data]
-    
+
     return {
         "data": {
             "labels": labels,
@@ -102,9 +347,9 @@ def get_chart_data(data):
         "barOptions": {"stacked": True},
     }
 
+
 def get_report_summary(data):
     if not data:
         return []
 
-    return [
-    ]
+    return []
