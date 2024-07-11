@@ -17,6 +17,7 @@ def execute():
         {"doctype": "Employee Idle Time", "fields": ["employee", "start_time", "end_time"]},
         {"doctype": "Employee Fincall", "fields": ["employee", "customer_no", "calltype", "call_datetime"]},
         {"doctype": "URL Access Log", "fields": ["employee", "from_time", "to_time","domain"]},
+        {"doctype": "Work Intensity", "fields": ["employee", "date_time"]},
     ]
 
     # Attempt to create each index, handling exceptions if index already exists
