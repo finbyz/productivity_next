@@ -213,7 +213,7 @@ def get_employee_time(employee=None):
 
     idle_application_time = frappe.db.get_all(
         "Employee Idle Time",
-        filters={"employee": "HR-EMP-00018", "start_time": ["Between", [nowdate(), nowdate()]]},
+        filters={"employee": employee, "start_time": ["Between", [nowdate(), nowdate()]]},
         fields=["sum(duration) as duration"],
     )
 
@@ -223,7 +223,7 @@ def get_employee_time(employee=None):
         total_application_time = 0
 
     if idle_application_time:
-        idle_application_time =  flt(idle_application_time[0].duration or 0)
+        idle_application_time =  flt(idle_application_time[0].duration)
     else:
         idle_application_time = 0
 
