@@ -15,15 +15,15 @@
   "employee_name",
   "computer_name",
   "ip_address",
-  "current_url",
-  "process_id",
   "column_break_a0cjy",
   "application_name",
+  "process_id",
+  "current_url",
+  "domain",
   "date",
   "from_time",
   "to_time",
-  "duration",
-  "domain"
+  "duration"
  ],
  "fields": [
   {
@@ -115,7 +115,7 @@
   },
   {
    "fieldname": "current_url",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Current Url",
    "read_only": 1
   },
@@ -134,7 +134,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-11 16:44:44.035411",
+ "modified": "2024-07-12 07:16:26.255590",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",
