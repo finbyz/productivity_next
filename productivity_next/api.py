@@ -229,7 +229,7 @@ def get_employee_time(employee=None):
 
     return {
         "total_time": total_application_time,
-        "active_time": total_application_time - idle_application_time,
+        "active_time": max(total_application_time - idle_application_time, 0),
         "idle_time": idle_application_time,
     }
 
