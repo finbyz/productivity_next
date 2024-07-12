@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class DailyWorkSummaryProductifyApplication(Document):
+class ProductifyWorkSummaryCall(Document):
 	pass

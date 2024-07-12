@@ -48,28 +48,28 @@
    "fieldname": "applications",
    "fieldtype": "Table",
    "label": "Applications",
-   "options": "Daily Work Summary Productify Application",
+   "options": "Productify Work Summary Application",
    "read_only": 1
   },
   {
    "fieldname": "calls",
    "fieldtype": "Table",
    "label": "Calls",
-   "options": "Daily Work Summary Productify Call",
+   "options": "Productify Work Summary Call",
    "read_only": 1
   },
   {
    "fieldname": "meetings",
    "fieldtype": "Table",
    "label": "Meetings",
-   "options": "Daily Work Summary Productify Meeting",
+   "options": "Productify Work Summary Meeting",
    "read_only": 1
   },
   {
    "fieldname": "idle",
    "fieldtype": "Table",
    "label": "Idle",
-   "options": "Daily Work Summary Productify Idle",
+   "options": "Productify Work Summary Idle",
    "read_only": 1
   },
   {
@@ -81,17 +81,17 @@
    "read_only": 1
   },
   {
-   "default": "DWSP-.YY.MM.DD.-",
+   "default": "PWS-.YY.MM.DD.-",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": "DWSP-.YY.MM.DD.-"
+   "options": "PWS-.YY.MM.DD.-"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-08 16:29:08.181117",
+ "modified": "2024-07-12 09:59:28.418633",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Work Summary",
