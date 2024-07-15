@@ -1,7 +1,6 @@
 {
  "actions": [],
  "allow_import": 1,
- "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2023-11-09 12:18:58.156890",
  "default_view": "List",
@@ -10,20 +9,21 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
-  "application_title",
   "employee",
   "employee_name",
+  "application_title",
+  "application_name",
+  "process_name",
+  "column_break_a0cjy",
   "computer_name",
   "ip_address",
-  "column_break_a0cjy",
-  "application_name",
-  "process_id",
-  "current_url",
-  "domain",
   "date",
   "from_time",
   "to_time",
-  "duration"
+  "duration",
+  "column_break_hqfs",
+  "url",
+  "domain"
  ],
  "fields": [
   {
@@ -56,6 +56,7 @@
   {
    "fieldname": "from_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "From Time",
    "read_only": 1,
    "reqd": 1
@@ -63,6 +64,7 @@
   {
    "fieldname": "to_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "To Time",
    "read_only": 1,
    "reqd": 1
@@ -95,6 +97,7 @@
   {
    "fieldname": "application_title",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Application Title",
    "read_only": 1
   },
@@ -114,27 +117,30 @@
    "read_only": 1
   },
   {
-   "fieldname": "current_url",
-   "fieldtype": "Small Text",
-   "label": "Current Url",
-   "read_only": 1
-  },
-  {
    "fieldname": "domain",
    "fieldtype": "Data",
    "label": "Domain",
    "read_only": 1
   },
   {
-   "fieldname": "process_id",
+   "fieldname": "column_break_hqfs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Small Text",
+   "label": "Url",
+   "read_only": 1
+  },
+  {
+   "fieldname": "process_name",
    "fieldtype": "Data",
-   "label": "Process id",
+   "label": "Process Name",
    "read_only": 1
   }
  ],
- "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-12 07:16:26.255590",
+ "modified": "2024-07-15 14:47:44.906642",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",

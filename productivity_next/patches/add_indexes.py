@@ -4,20 +4,13 @@ import frappe
 def execute():
     # List of indexes to create
     indexes = [
-        {"doctype": "Application Usage log", "fields": ["employee", "date", "domain"]},
-        {"doctype": "Application Usage log", "fields": ["application_name", "date"]},
-        {"doctype": "Application Usage log", "fields": ["domain", "date"]},
         {"doctype": "Fincall Log", "fields": ["employee", "date"]},
         {"doctype": "Meeting Company Representative", "fields": ["parent", "employee"]},
         {"doctype": "Meeting", "fields": ["meeting_from", "meeting_to"]},
-        {"doctype": "Application Checkin Checkout", "fields": ["employee", "time"]},
-        {"doctype": "Screen Screenshot Log", "fields": ["employee", "datetime"]},
         {"doctype": "Version", "fields": ["owner", "creation", "ref_doctype", "docname"]},
         {"doctype": "Version", "fields": ["creation", "ref_doctype", "docname"]},
-        {"doctype": "Employee Idle Time", "fields": ["employee", "start_time", "end_time"]},
         {"doctype": "Employee Fincall", "fields": ["employee", "customer_no", "calltype", "call_datetime"]},
-        {"doctype": "URL Access Log", "fields": ["employee", "from_time", "to_time","domain"]},
-        {"doctype": "Work Intensity", "fields": ["employee", "date_time"]},
+        {"doctype": "URL Access Log", "fields": ["employee", "from_time", "to_time","domain"]}
     ]
 
     # Attempt to create each index, handling exceptions if index already exists

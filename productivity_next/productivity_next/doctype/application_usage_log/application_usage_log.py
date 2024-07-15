@@ -43,16 +43,23 @@ class ApplicationUsagelog(Document):
         application_names_lower = {
             key.lower(): value for key, value in application_names.items()
         }
-        if self.process_id:
-            application_name = application_names_lower.get(self.process_id.lower())
+        if self.process_name:
+            application_name = application_names_lower.get(self.process_name.lower())
             if application_name:
                 self.application_name = application_name
             else:
                 self.application_name = (
-                    (self.process_id).lower().split(".exe")[0].capitalize()
+                    (self.process_name).lower().split(".exe")[0].capitalize()
                 )
-        if not self.process_id:
+        if not self.process_name:
             if not self.application_name and self.application_title:
                 self.application_name = self.application_title.split("-")[-1].strip()
 
         self.duration = time_diff_in_seconds(self.to_time, self.from_time)
+
+
+def on_doctype_update():
+    frappe.db.add_unique("Application Usage log", ["employee", "from_time", "to_time"])
+    frappe.db.add_index("Application Usage log", ["employee", "date", "domain"])
+    frappe.db.add_index("Application Usage log", ["application_name", "date"])
+    frappe.db.add_index("Application Usage log", ["domain", "date"])

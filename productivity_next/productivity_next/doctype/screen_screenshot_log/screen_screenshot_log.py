@@ -18,3 +18,6 @@ class ScreenScreenshotLog(Document):
 				frappe.db.set_value("File", name, "attached_to_field", "screenshot", update_modified=False)
 				frappe.db.set_value("File", name, "attached_to_name", self.name, update_modified=False)
 
+
+def on_doc_update(self):
+	frappe.db.add_unique("Screen Screenshot Log", ["employee", "time"])

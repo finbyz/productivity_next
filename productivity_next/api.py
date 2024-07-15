@@ -167,14 +167,14 @@ def update_user_auth_token(employee, purpose, date):
 @frappe.whitelist()
 def set_user_idel_time(*args, **kwargs):
     employee = kwargs.get("employee")
-    start_time = kwargs.get("start_time")
-    end_time = kwargs.get("end_time")
+    from_time = kwargs.get("from_time")
+    to_time = kwargs.get("to_time")
 
     doc = frappe.new_doc("Employee Idle Time")
     doc.employee = employee
-    doc.start_time = start_time
-    doc.end_time = end_time
-    doc.duration = time_diff_in_seconds(end_time, start_time)
+    doc.from_time = from_time
+    doc.to_time = to_time
+    doc.duration = time_diff_in_seconds(to_time, from_time)
     doc.save(ignore_permissions=True)
 
     return {"status": True}
@@ -207,13 +207,13 @@ def get_employee_time(employee=None):
 
     total_application_time = frappe.db.get_all(
         "Application Usage log",
-        filters={"employee": employee, "date": ["Between", [nowdate(), nowdate()]]},
+        filters={"employee": employee, "date": nowdate()},
         fields=["sum(duration) as duration"],
     )
 
     idle_application_time = frappe.db.get_all(
         "Employee Idle Time",
-        filters={"employee": employee, "start_time": ["Between", [nowdate(), nowdate()]]},
+        filters={"employee": employee, "date": nowdate()},
         fields=["sum(duration) as duration"],
     )
 

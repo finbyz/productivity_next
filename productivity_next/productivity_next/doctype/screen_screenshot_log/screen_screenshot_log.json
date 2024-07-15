@@ -11,12 +11,12 @@
   "naming_series",
   "employee",
   "employee_name",
-  "screenshot",
-  "column_break_btv1x",
   "active_app",
-  "datetime",
   "computer_name",
-  "ip_address"
+  "ip_address",
+  "column_break_btv1x",
+  "time",
+  "screenshot"
  ],
  "fields": [
   {
@@ -26,7 +26,8 @@
    "hidden": 1,
    "label": "Naming Series",
    "options": "SL-.YY.MM.DD.-",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "employee",
@@ -61,14 +62,6 @@
    "read_only": 1
   },
   {
-   "default": "now",
-   "fieldname": "datetime",
-   "fieldtype": "Datetime",
-   "label": "DateTime",
-   "read_only": 1,
-   "reqd": 1
-  },
-  {
    "fieldname": "computer_name",
    "fieldtype": "Data",
    "label": "Computer Name",
@@ -79,12 +72,19 @@
    "fieldtype": "Data",
    "label": "IP Address",
    "read_only": 1
+  },
+  {
+   "default": "now",
+   "fieldname": "time",
+   "fieldtype": "Datetime",
+   "label": "Time",
+   "read_only": 1,
+   "reqd": 1
   }
  ],
  "image_field": "screenshot",
- "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-03-26 17:45:20.904108",
+ "modified": "2024-07-15 12:29:21.953098",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",

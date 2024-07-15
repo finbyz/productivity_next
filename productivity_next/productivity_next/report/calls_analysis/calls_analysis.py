@@ -3,7 +3,6 @@
 
 import frappe
 from datetime import date
-from collections import defaultdict
 from frappe import _
 from frappe.utils import format_duration
 

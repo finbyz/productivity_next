@@ -1,17 +1,18 @@
 {
  "actions": [],
- "allow_rename": 1,
- "autoname": "format:WI-{YYYY}{MM}{DD}-{#####}",
+ "autoname": "naming_series:",
  "creation": "2024-06-10 11:45:20.571906",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "employee",
-  "date_time",
-  "total_keystrokes",
+  "employee_name",
   "column_break_nchj",
-  "total_mouse_clicks",
-  "total_scroll"
+  "time",
+  "key_strokes",
+  "mouse_clicks",
+  "mouse_scrolls"
  ],
  "fields": [
   {
@@ -21,48 +22,72 @@
    "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
-   "read_only": 1
-  },
-  {
-   "fieldname": "total_keystrokes",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "Total Keystrokes",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "column_break_nchj",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "date_time",
+   "default": "WI-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "WI-.YY.MM.DD.-",
+   "reqd": 1
+  },
+  {
+   "fieldname": "time",
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Date Time",
-   "read_only": 1
+   "label": "Time",
+   "read_only": 1,
+   "reqd": 1
   },
   {
-   "fieldname": "total_mouse_clicks",
+   "fieldname": "key_strokes",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Total Mouse Clicks",
-   "read_only": 1
+   "label": "Key Strokes",
+   "non_negative": 1,
+   "options": "0",
+   "read_only": 1,
+   "reqd": 1
   },
   {
-   "fieldname": "total_scroll",
+   "fieldname": "mouse_clicks",
    "fieldtype": "Int",
-   "label": "Total Scroll",
-   "options": "0"
+   "in_list_view": 1,
+   "label": "Mouse Clicks",
+   "non_negative": 1,
+   "options": "0",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "mouse_scrolls",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Mouse Scrolls",
+   "non_negative": 1,
+   "options": "0",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name"
   }
  ],
- "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-26 18:10:29.826764",
+ "modified": "2024-07-15 12:43:57.176432",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",
- "naming_rule": "Expression",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
