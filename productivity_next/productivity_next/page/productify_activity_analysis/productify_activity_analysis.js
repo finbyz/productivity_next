@@ -1100,7 +1100,6 @@ update_application_time_chart() {
 			})
 			.then((r) => {
 				if (r.length === 0) {
-					// console.log("No data available to plot the chart.");
 					return;
 				}
 
@@ -1112,10 +1111,8 @@ update_application_time_chart() {
 
 				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
 
-				// Example function to get current theme's label color
 				const getCurrentThemeLabelColor = () => {
-					// Replace this with your actual theme color retrieval logic
-					// This is just a placeholder
+					
 					return {
 						labelColor: '#FFFFFF', // Default to black
 						backgroundColor: 'rgba(0,0,0,0)' // Default to transparent
@@ -1752,7 +1749,7 @@ update_application_time_chart() {
 					}
 					.url-table th, .url-table td {
 						padding: 8px;
-						overflow-x: hidden;
+						overflow: hidden;
 						text-overflow: ellipsis;
 						white-space: nowrap;
 					}

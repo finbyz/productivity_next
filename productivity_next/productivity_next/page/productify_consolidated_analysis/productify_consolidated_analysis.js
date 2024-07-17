@@ -928,7 +928,19 @@ UserProfile = class UserProfile {
 							}
 						};
 					});
-	
+					function setFixedDate(timestamp) {
+						var date = new Date(timestamp);
+						date.setFullYear(2000, 0, 1);
+						return date.getTime();
+					}
+					var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
+					var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
+					var minStartTime = Math.min(...startTimeList)
+					var maxEndTime = Math.max(...endTimeList);
+					minStartTime = minStartTime - 30 * 60 * 1000;
+					maxEndTime = maxEndTime + 30 * 60 * 1000;
+					var fixedStartTime = new Date(minStartTime);
+					var fixedEndTime = new Date(maxEndTime);
 					return {
 						backgroundColor: 'transparent',
 						tooltip: {
@@ -1109,8 +1121,8 @@ UserProfile = class UserProfile {
 									return strTime;
 								}
 							},
-							min : '2000-01-01 00:00:00',
-							max : '2000-01-01 23:59:59'
+							min: fixedStartTime,
+							max: fixedEndTime,
 						},
 						series: [
 							{
