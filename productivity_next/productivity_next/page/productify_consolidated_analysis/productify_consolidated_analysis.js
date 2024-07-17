@@ -1,6 +1,5 @@
 frappe.pages['Productify Consolidated Analysis'].on_page_load = function (wrapper) {
 	new UserProfile(wrapper);
-	// create_chart();
 }
 
 UserProfile = class UserProfile {
@@ -16,12 +15,12 @@ UserProfile = class UserProfile {
 		const urlParams = new URLSearchParams(window.location.search);
 		if (urlParams.get('start_date') == null && urlParams.get('end_date') == null) {
 			var currentDate = new Date();
-			currentDate.setDate(currentDate.getDate() - 1); // Set to one day before today
+			currentDate.setDate(currentDate.getDate() - 1);
 			var day = currentDate.getDate().toString().padStart(2, '0');
 			var month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
 			var year = currentDate.getFullYear();
 			this.selected_start_date = year + '-' + month + '-' + day;
-			this.selected_end_date = year + '-' + month + '-' + day; // End date also one day before today
+			this.selected_end_date = year + '-' + month + '-' + day;
 		}
 		else {
 			this.selected_start_date = urlParams.get('start_date');
@@ -41,7 +40,6 @@ UserProfile = class UserProfile {
 
 	hide_sidebar_and_toggle() {
 		this.sidebar.hide();
-		// this.toggle_button.hide();
 		this.main_section.css('width', '100%');
 	}
 
@@ -59,22 +57,34 @@ UserProfile = class UserProfile {
 	}
 
 	finish_user_profile_setup() {
-		this.setup_user_search();
-		this.setup_timespan();
+		this.setup_refresh(); // Refresh Button
+		this.setup_timespan(); // Timespan Button
 		this.main_section.empty().append(frappe.render_template("productify_consolidated_analysis"));
-		this.fetch_and_render_admin_data();
-		this.render_bar_chart();
-		this.render_line_chart();
-		this.update_client_calls_chart_data();
-		this.overall_performance_chart();
+		this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
+		this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
+		this.employee_calls_chart(); // Top 10 Employees Call Analysis
+		this.overall_performance_chart(); // Overall Performance (All Employees)
+		this.user_analysis(); // User Analysis (User Productivity Stats)
 	}
+
+	// Refresh Button Code Starts
+	setup_refresh() {
+		if (!this.buttonsInitialized) {
+			this.page.add_action_icon("refresh", () => {
+				window.location.reload();
+			});
+			this.buttonsInitialized = true;
+		}
+	}
+	// Refresh Button Code Ends
+
+	// Timespan Button Code Starts
 	setup_timespan() {
 		this.$user_search_button = this.page.set_primary_action(
 			__("Select Timespan"),
 			() => this.setup_timespan_dialog(),
 		);
 	}
-
 	setup_timespan_dialog() {
 		let dialog = new frappe.ui.Dialog({
 			title: __("Select Timespan"),
@@ -112,6 +122,9 @@ UserProfile = class UserProfile {
 		});
 		dialog.show();
 	}
+	// Timespan Button Code Ends
+
+	// All Employees Page Title Code
 	make_user_profile() {
 		this.user = frappe.user_info(this.user_id);
 		if (!this.selected_employee) {
@@ -131,54 +144,41 @@ UserProfile = class UserProfile {
 			this.finish_user_profile_setup();
 		}
 	}
-	setup_user_search() {
-		if (!this.buttonsInitialized) {  // Check if buttons have already been initialized
-			// Add a refresh button with an icon
-			this.page.add_action_icon("refresh", () => {
-				window.location.reload();
-			});
+	// All Employees Page Title Code Ends
 
-			this.buttonsInitialized = true;  // Set the flag to true after adding buttons
-		}
+	// Code to convert time in seconds to formatted time for example 3600 seconds to 1 hours 0 minutes Code Start
+	convertSecondsToTime(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
 	}
+	// Code to convert time in seconds to formatted time for example 3600 seconds to 1 hours 0 minutes Code Ends
 
-	show_user_search_dialog() {
-		let dialog = new frappe.ui.Dialog({
-			title: __("Change Employee"),
-			fields: [
-				{
-					fieldtype: "Link",
-					fieldname: "employee",
-					options: "Employee",
-					label: __("Employee"),
-				},
-			],
-			primary_action_label: __("Go"),
-			primary_action: ({ employee }) => {
-				dialog.hide();
-				this.selected_employee = employee;
-				this.make_user_profile()
-				const newUrl = new URL(window.location.href);
-				newUrl.searchParams.set('employee', employee);
-				window.history.pushState({ path: newUrl.toString() }, '', newUrl.toString());
-			},
-		});
-		dialog.show();
 
+	// Code to convert time in seconds to formatted time for example 3600 seconds to 01:00 Code Start
+	convertSecondsToTime_(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+		const formattedHours = hours < 10 ? `0${hours}` : hours;
+
+		return `${formattedHours}:${formattedMinutes}`;
 	}
-	render_bar_chart() {
-		let barchartDom = document.querySelector('.performance-bar-chart');
+	// Code to convert time in seconds to formatted time for example 3600 seconds to 01:00 Code Ends
+
+
+	// Document Analysis (Numbers Of Document Modified) Code Starts
+	document_analysis_chart() {
+		let barchartDom = document.querySelector('.document-analysis-chart');
 		let barchart = echarts.init(barchartDom, null, { renderer: 'svg' });
 		window.addEventListener('resize', barchart.resize);
-		
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_barchart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.document_analysis_chart", {
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
 				if (r.labels.length === 0) {
-					// Handle no data scenario if needed
 				} else {
 					let option = {
 						tooltip: {
@@ -199,14 +199,14 @@ UserProfile = class UserProfile {
 						dataZoom: [
 							{
 								type: 'inside',
-								disabled: true  // Disable dataZoom inside functionality
+								disabled: true
 							},
 							{
 								type: 'slider',
 								show: false,
 								start: 0,
 								end: 100,
-								zoomLock: true,  // Lock the slider zoom
+								zoomLock: true,
 								yAxisIndex: 0
 							}
 						],
@@ -219,8 +219,6 @@ UserProfile = class UserProfile {
 					};
 	
 					barchart.setOption(option);
-	
-					// Prevent scroll and zoom interactions
 					barchart.getZr().on('mousewheel', function (e) {
 						e.preventDefault();
 					});
@@ -230,27 +228,11 @@ UserProfile = class UserProfile {
 				}
 			});
 	};
+	// Document Analysis (Numbers Of Document Modified) Code Ends
 	
-	convertSecondsToTime(seconds) {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
 
-		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
-	}
-	convertSecondsToTime_(seconds) {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
-		const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-		const formattedHours = hours < 10 ? `0${hours}` : hours;
-
-		return `${formattedHours}:${formattedMinutes}`;
-	}
-
-	render_line_chart() {
-		this.update_line_chart_data();
-	}
-
-	update_client_calls_chart_data() {
+	// Top 10 Clients Call Analysis (In Minutes) Code Starts
+	client_calls_chart() {
 		let data;
 		if (this.selected_employee != null) {
 			data = this.selected_employee;
@@ -258,20 +240,18 @@ UserProfile = class UserProfile {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_client_calls_chart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.client_calls_chart", {
 				user: "Administrator",
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
 				if (r.caller_details.length === 0) {
-					// console.log("No data available to plot the chart.");
 					return;
 				}
 	
-				const chartDom = document.getElementById('clients-call-chart');
+				const chartDom = document.getElementById('client-calls-chart');
 				if (!chartDom) {
-					// console.error('Chart container not found.');
 					return;
 				}
 	
@@ -283,17 +263,13 @@ UserProfile = class UserProfile {
 						// formatter: '{a} <br/>{b}: {c} Minutes ({d}%)',
 						formatter: function(params) {
 							let totalMinutes = params.value;
-							let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
-							let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
-						
-							// Format seconds to always display 2 digits
+							let minutes = Math.floor(totalMinutes); 
+							let seconds = Math.round((totalMinutes - minutes) * 60);
 							let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
 						
 							if (params.seriesName === 'Caller Origin' || params.seriesName === 'Caller Details') {
-								// For specific series, show only label, minutes and seconds, and percentage
 								return `${params.marker} ${params.name}: ${minutes}:${formattedSeconds} Min`;
 							} else {
-								// For other series, show series name, label, minutes and seconds, and percentage
 								return `${params.seriesName} <br/>${params.marker} ${params.name}: ${minutes}.${formattedSeconds} Min`;
 							}
 						},
@@ -314,16 +290,16 @@ UserProfile = class UserProfile {
 							},
 							data: r.company_details,
 							color: [
-								'#FF6384', // Red
-								'#36A2EB', // Blue
-								'#FFCE56', // Yellow
-								'#4BC0C0', // Cyan
-								'#9966FF', // Lavender
-								'#FF9966', // Orange
-								'#66CCCC', // Light Blue
-								'#6699FF', // Light Blue
-								'#FF6666', // Light Red
-								'#FFCC66'  // Light Yellow
+								'#FF6384',
+								'#36A2EB',
+								'#FFCE56',
+								'#4BC0C0',
+								'#9966FF',
+								'#FF9966',
+								'#66CCCC',
+								'#6699FF',
+								'#FF6666',
+								'#FFCC66'
 							]
 						},
 						{
@@ -337,13 +313,12 @@ UserProfile = class UserProfile {
 							label: {
 								formatter: function(params) {
 									let totalMinutes = params.value;
-									let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
-									let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
-								
-									// Format seconds to always display 2 digits
+									let minutes = Math.floor(totalMinutes);
+									let seconds = Math.round((totalMinutes - minutes) * 60); 
+							
 									let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
 								
-									let customIndex = params.data.customIndex || 0; // Default to index 0 if customIndex is not provided
+									let customIndex = params.data.customIndex || 0; 
 									let customName = customNames[customIndex];
 								
 									return `{a|${customName}} {abg|}\n{hr|}\n  {b|     ${params.name}：}${minutes}:${formattedSeconds} Min  `;
@@ -357,10 +332,10 @@ UserProfile = class UserProfile {
 									a: {
 									  color: '#6E7079',
 									  lineHeight: 22,
-									  textAlign: 'center', // add this to align the text to the left
-									  overflow: 'hidden', // add this to prevent long names from overflowing
-									  textOverflow: 'ellipsis', // add this to show an ellipsis for long names
-									  whiteSpace: 'nowrap', // add this to prevent wrapping
+									  textAlign: 'center',
+									  overflow: 'hidden',
+									  textOverflow: 'ellipsis',
+									  whiteSpace: 'nowrap',
 									},
 									hr: {
 									  borderColor: '#8C8D8E',
@@ -373,7 +348,7 @@ UserProfile = class UserProfile {
 									  fontSize: 14,
 									  fontWeight: 'bold',
 									  lineHeight: 30,
-									  marginRight: 10, // add some space between b and per
+									  marginRight: 10,
 									},
 									per: {
 									  color: '#',
@@ -381,29 +356,27 @@ UserProfile = class UserProfile {
 									  padding: 5,
 									  borderRadius: 4,
 									  width: 30,
-									  textAlign: 'center', // add this to center the percentage
+									  textAlign: 'center',
 									},
 								  },
 							},
 							data: r.caller_details,
 							color: [
-								'#FF6384', // Red
-								'#36A2EB', // Blue
-								'#FFCE56', // Yellow
-								'#4BC0C0', // Cyan
-								'#9966FF', // Lavender
-								'#FF9966', // Orange
-								'#66CCCC', // Light Blue
-								'#6699FF', // Light Blue
-								'#FF6666', // Light Red
-								'#FFCC66'  // Light Yellow
+								'#FF6384', 
+								'#36A2EB', 
+								'#FFCE56', 
+								'#4BC0C0', 
+								'#9966FF', 
+								'#FF9966', 
+								'#66CCCC', 
+								'#6699FF', 
+								'#FF6666', 
+								'#FFCC66'  
+
 							]
 						}
 					],
 				};
-				
-	
-				// Set dynamic width and height for the chart
 				myChart.resize();
 	
 				myChart.setOption(option);
@@ -411,17 +384,15 @@ UserProfile = class UserProfile {
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-	
-				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
-				// console.error("Error fetching chart data:", error);
 			});
 	}
-	
+	// Top 10 Clients Call Analysis (In Minutes) Code Ends
 
 
-	update_line_chart_data() {
+	// Top 10 Employees Call Analysis Code Starts
+	employee_calls_chart() {
 		let data;
 		if (this.selected_employee != null) {
 			data = this.selected_employee;
@@ -430,24 +401,20 @@ UserProfile = class UserProfile {
 		}
 		
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_linechart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.employee_calls_chart", {
 				user: "Administrator",
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
-				// console.log('Line chart data:', r); // Log to check the response data
 				
 				if (r.labels.length === 0 || r.datasets.length === 0) {
-					// console.log("No data to show");
-					return; // Exit early if no data to display
+					return;
 				}
 				
 				let seriesData = [];
-	
-				// Iterate through each dataset (Incoming, Outgoing, Missed, Rejected)
 				r.datasets.forEach(dataset => {
-					const counts = dataset.counts.map(count => parseInt(count)); // Convert counts to integers
+					const counts = dataset.counts.map(count => parseInt(count)); 
 					const series = {
 						name: dataset.name,
 						data: counts,
@@ -455,9 +422,7 @@ UserProfile = class UserProfile {
 						stack: 'x'
 					};
 					seriesData.push(series);
-				});
-				// console.log('Series Data:', seriesData);
-	
+				});	
 				let option = {
 					tooltip: {
 						trigger: 'axis',
@@ -497,16 +462,14 @@ UserProfile = class UserProfile {
 							params.forEach(param => {
 								let color = '';
 								if (param.seriesName === 'Incoming') {
-									color = '#91cc75'; // Green
+									color = '#91cc75'; 
 								} else if (param.seriesName === 'Outgoing') {
-									color = '#5470c6'; // Blue
+									color = '#5470c6'; 
 								} else if (param.seriesName === 'Missed') {
-									color = '#fac858'; // Yellow
+									color = '#fac858'; 
 								} else if (param.seriesName === 'Rejected') {
-									color = '#ee6666'; // Red
+									color = '#ee6666'; 
 								}
-						
-								// Append each series data to the tooltip HTML
 								html += `
 									<div style="margin-bottom: 5px;">
 										<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${color}; margin-right: 5px;"></span>
@@ -532,10 +495,8 @@ UserProfile = class UserProfile {
 					series: seriesData
 				};
 	
-				let chartDom = document.getElementById('performance-line-chart');
+				let chartDom = document.getElementById('employee-calls-chart');
 				let myChart = echarts.init(chartDom, null, { renderer: 'svg' });
-				
-				// Set chart options and resize chart on window resize
 				myChart.setOption(option);
 				window.addEventListener('resize', function() {
 					myChart.resize();
@@ -545,195 +506,10 @@ UserProfile = class UserProfile {
 				console.error("Error fetching chart data:", error);
 			});
 	}
-	
+	// Top 10 Employees Call Analysis Code Ends
 
 
-
-
-
-
-
-	fetch_and_render_admin_data() {
-		let data;
-		if (this.selected_employee != null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-		frappe.call({
-			method: "productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_admin_data",
-			args: {
-				user: "Administrator",
-				start_date: this.selected_start_date,
-				end_date: this.selected_end_date,
-			},
-			callback: (r) => {
-				if (r.message) {
-					this.render_admin_data(r.message);
-				}
-			}
-		});
-	};
-	async render_admin_data(data) {
-		// console.log('Data received:', data);
-	
-		function calculateActiveTime(totalHours, totalIdleTime) {
-			return totalHours - totalIdleTime;
-		}
-
-
-		// Function to convert seconds to time format (hh:mm:ss)
-		function convertSecondsToTime(seconds) {
-			const hours = Math.floor(seconds / 3600);
-			const minutes = Math.floor((seconds % 3600) / 60);
-			const remainingSeconds = seconds % 60;
-			return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
-		}
-
-	
-		// Function to convert seconds to time format (hh:mm:ss)
-		function convertSecondsToTime(seconds) {
-			const hours = Math.floor(seconds / 3600);
-			const minutes = Math.floor((seconds % 3600) / 60);
-			const remainingSeconds = seconds % 60;
-			return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
-		}
-
-		function getBaseURL() {
-			return window.location.origin + '/app/';
-		}
-	
-		let employee_data;
-		if (this.selected_employee != null) {
-			employee_data = this.selected_employee;
-		} else {
-			employee_data = this.user_id;
-		}
-	
-		const container = this.main_section.find("#user-activity-data");
-		container.empty();
-		let wholedata = ``;
-		const baseUrl = getBaseURL();
-		const fetchPromises = Object.keys(data.total_hours_per_employee).map(async employee => {
-			// Fetch employee full name asynchronously
-			// console.log('employee:', employee);
-			const response = await frappe.db.get_value("Employee", employee, "employee_name");
-			const employee_name = response.message.employee_name;
-	
-			// Check if internal_employee_fincall_data exists before accessing properties
-			const internalEmployeeFincallData = data.internal_employee_fincall_data?.[employee] || {};
-			const meetingEmployeeData = data.meeting_employee_data?.[employee] || {};
-	
-			// Return the employee data along with the fetched employee name
-			return {
-				employee,
-				employeeName: employee_name,
-				totalHours: data.total_hours_per_employee[employee] || 0,
-				totalIdleTime: data.total_idle_time[employee] || 0,
-				incomingFincallCount: data.employee_fincall_data[employee]?.incoming_fincall_count || 0,
-				outgoingFincallCount: data.employee_fincall_data[employee]?.outgoing_fincall_count || 0,
-				missedFincallCount: data.employee_fincall_data[employee]?.missed_fincall_count || 0,
-				rejectedFincallCount: data.employee_fincall_data[employee]?.rejected_fincall_count || 0,
-				totalIncomingDuration: data.employee_fincall_data[employee]?.total_incoming_duration || 0,
-				totalOutgoingDuration: data.employee_fincall_data[employee]?.total_outgoing_duration || 0,
-				totalDays: data.total_days[employee] || 1,
-				meetingCount: meetingEmployeeData.count || 0,
-				meetingDuration: meetingEmployeeData.duration || 0,
-				keystroke: data.work_intensity_data[employee]?.total_keystrokes || 0,
-				clicks: data.work_intensity_data[employee]?.total_mouse_clicks || 0,
-				scrolls: data.work_intensity_data[employee]?.total_scroll || 0
-			};
-		});
-	
-		const employeeDataArray = await Promise.all(fetchPromises);
-	
-		// Sort by active time in descending order
-		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
-	
-		let count = 1;
-		// console.log('employeeDataArray:', employeeDataArray);
-	
-		// Variables to store the totals
-		let totalHours = 0;
-		let totalIdleTime = 0;
-		let totalIncomingFincallCount = 0;
-		let totalOutgoingFincallCount = 0;
-		let totalMissedFincallCount = 0;
-		let totalRejectedFincallCount = 0;
-		let totalIncomingDuration = 0;
-		let totalOutgoingDuration = 0;
-		let totalMeetingCount = 0;
-		let totalMeetingDuration = 0;
-		let totalDays = 0;
-		let totalKeystrokes = 0;
-		let totalMouseClicks = 0;
-		let totalScrolls = 0;
-		this.start_date_ = this.selected_start_date;
-		this.end_date_ = this.selected_end_date;
-		employeeDataArray.forEach(app => {
-			const employeeUrl = `${baseUrl}Productify Activity Analysis?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
-			const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(app.employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
-			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
-			wholedata += `
-				<tr>
-					<td align="left">
-						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
-					</td>
-					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>
-					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.totalHours) - (app.totalIdleTime))}</td>
-					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalIdleTime)}</td>
-					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.totalHours) / app.totalDays) - ((app.totalIdleTime) / app.totalDays))}</td>
-					<td align="center" ><a href="${employeeFincallUrl}&calltype=Incoming" style="color:#62BA46;" target="_blank">${app.incomingFincallCount} (${this.convertSecondsToTime_(app.totalIncomingDuration)} H)</a></td>
-					<td align="center" ><a href="${employeeFincallUrl}&calltype=Outgoing" style="color:#62BA46;" target="_blank">${app.outgoingFincallCount} (${this.convertSecondsToTime_(app.totalOutgoingDuration)} H)</a></td>
-					<td align="center" ><a href="${employeeFincallUrl}&calltype=Missed" style="color:#62BA46;" target="_blank">${app.missedFincallCount}</a></td>
-					<td align="center" ><a href="${employeeFincallUrl}&calltype=Rejected" style="color:#62BA46;" target="_blank">${app.rejectedFincallCount}</a></td>
-					<td align="center" style="color:#FF4001;">${app.keystroke}</td>
-					<td align="center" style="color:#FF4001;">${app.clicks}</td>
-					<td align="center" style="color:#FF4001;">${app.scrolls}</td>
-					<td align="center"><a href="${employeeMeetingUrl}" style="color:#6420AA;" target="_blank">${app.meetingCount}</a></td>
-					<td align="center"><a href="${employeeMeetingUrl}" style="color:#6420AA;" target="_blank">${this.convertSecondsToTime_(app.meetingDuration)}</a></td>
-				</tr>`;
-			count++;
-	
-			// Accumulate totals
-			totalHours += app.totalHours;
-			totalIdleTime += app.totalIdleTime;
-			totalIncomingFincallCount += app.incomingFincallCount;
-			totalOutgoingFincallCount += app.outgoingFincallCount;
-			totalMissedFincallCount += app.missedFincallCount;
-			totalRejectedFincallCount += app.rejectedFincallCount;
-			totalIncomingDuration += app.totalIncomingDuration;
-			totalOutgoingDuration += app.totalOutgoingDuration;
-			totalMeetingCount += app.meetingCount;
-			totalMeetingDuration += app.meetingDuration;
-			totalKeystrokes += app.keystroke;
-			totalMouseClicks += app.clicks;
-			totalScrolls += app.scrolls;
-		});
-	
-		// Add the totals row
-		wholedata += `
-			<tr>
-				<td align="left"><strong>Total</strong></td>
-				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours)}</strong></td>
-				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours - totalIdleTime)}</strong></td>
-				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalIdleTime)}</strong></td>
-				<td align="center" style="color:#00A6E0;"><strong></strong></td>
-				<td align="center" style="color:#62BA46;"><strong>${totalIncomingFincallCount} (${this.convertSecondsToTime_(totalIncomingDuration)} H)</strong></td>
-				<td align="center" style="color:#62BA46;"><strong>${totalOutgoingFincallCount} (${this.convertSecondsToTime_(totalOutgoingDuration)} H)</strong></td>
-				<td align="center" style="color:#62BA46;"><strong>${totalMissedFincallCount}</strong></td>
-				<td align="center" style="color:#62BA46;"><strong>${totalRejectedFincallCount}</strong></td>
-				<td align="center" style="color:#FF4001;"><strong>${totalKeystrokes}</strong></td>
-				<td align="center" style="color:#FF4001;"><strong>${totalMouseClicks}</strong></td>
-				<td align="center" style="color:#FF4001;"><strong>${totalScrolls}</strong></td>
-				<td align="center" style="color:#6420AA;"><strong>${totalMeetingCount}</strong></td>
-				<td align="center" style="color:#6420AA;"><strong>${this.convertSecondsToTime_(totalMeetingDuration)}</strong></td>
-			</tr>`;
-	
-		container.append(wholedata);
-	};
-	
-
+	// Overall Performance (All Employees) Code Starts
 	overall_performance_chart() {
 		let overallPerformanceDom = document.querySelector('.overall-performance-chart');
 		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
@@ -744,9 +520,7 @@ UserProfile = class UserProfile {
 			end_date: this.selected_end_date,
 		}).then((r) => {
 			if (r.base_data.length === 0) {
-				// Handle no data scenario if needed
 			} else {
-				// Process the data
 				var _rawData = {
 					flight: {
 						dimensions: r.base_dimensions,
@@ -777,8 +551,6 @@ UserProfile = class UserProfile {
 				function padZero(num) {
 					return num < 10 ? `0${num}` : num;
 				}
-	
-				// Process data and add inactive periods
 				var inactivePeriods = [];
 				var employeeFirstEntry = {};
 	
@@ -804,8 +576,6 @@ UserProfile = class UserProfile {
 						}
 					}
 				}
-	
-				// Convert all existing data points to use fixed date
 				_rawData.flight.data = _rawData.flight.data.map(item => {
 					return [
 						item[0],
@@ -868,7 +638,6 @@ UserProfile = class UserProfile {
 					var DIM_CATEGORY_INDEX = 0;
 					var DIM_TIME_ARRIVAL = 1;
 					var DIM_TIME_DEPARTURE = 2;
-					// Additional functionality from the second function
 					var categoryIndex = api.value(DIM_CATEGORY_INDEX);
 					var timeArrival = api.coord([api.value(DIM_TIME_ARRIVAL), categoryIndex]);
 					var timeDeparture = api.coord([api.value(DIM_TIME_DEPARTURE), categoryIndex]);
@@ -890,7 +659,7 @@ UserProfile = class UserProfile {
 							style: api.style({
 								fill: 'transparent',
 								stroke: 'transparent',
-								text: 'Additional Text',  // Replace with your logic for text
+								text: 'Additional Text',
 								textFill: '#fff'
 							})
 						}
@@ -901,14 +670,13 @@ UserProfile = class UserProfile {
 				
 				function clipRectByRect(params, rect) {
 					return echarts.graphic.clipRectByRect(rect, {
-					  x: params.coordSys.x,
-					  y: params.coordSys.y,
-					  width: params.coordSys.width,
-					  height: params.coordSys.height
+						x: params.coordSys.x,
+						y: params.coordSys.y,
+						width: params.coordSys.width,
+						height: params.coordSys.height
 					});
-				  }
+					}
 				function makeOption() {
-					// Define activity names and their corresponding colors
 					var activityLegends = [
 						{ name: 'Application', color: '#00A6E0' },
 						{ name: 'Idle', color: '#FF4001' },
@@ -917,8 +685,6 @@ UserProfile = class UserProfile {
 						{ name: 'External Meeting', color: '#6699FF' },
 						{ name: 'Inactive', color: '#C1C1C1' }
 					];
-				
-					// Generate legend data based on activityLegends
 					var legendData = activityLegends.map(function (item) {
 						return {
 							name: item.name,
@@ -1115,7 +881,7 @@ UserProfile = class UserProfile {
 									var minutes = date.getMinutes();
 									var ampm = hours >= 12 ? 'PM' : 'AM';
 									hours = hours % 12;
-									hours = hours ? hours : 12; // Handle midnight (0 hours) as 12 AM
+									hours = hours ? hours : 12;
 									var minutesStr = minutes < 10 ? '0' + minutes : minutes;
 									var strTime = hours + ':' + minutesStr + ' ' + ampm;
 									return strTime;
@@ -1340,8 +1106,155 @@ UserProfile = class UserProfile {
 				}
 			});
 	}
+	// Overall Performance (All Employees) Code Ends
 	
+		
+	// User Analysis (User Productivity Stats) Code Starts
+	user_analysis() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		} else {
+			data = this.user_id;
+		}
+		frappe.call({
+			method: "productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.user_analysis_data",
+			args: {
+				user: "Administrator",
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			},
+			callback: (r) => {
+				if (r.message) {
+					this.user_analysis_data(r.message);
+				}
+			}
+		});
+	};
+	async user_analysis_data(data) {
+		function calculateActiveTime(totalHours, totalIdleTime) {
+			return totalHours - totalIdleTime;
+		}
+		function getBaseURL() {
+			return window.location.origin + '/app/';
+		}
 	
+		let employee_data;
+		if (this.selected_employee != null) {
+			employee_data = this.selected_employee;
+		} else {
+			employee_data = this.user_id;
+		}
+	
+		const container = this.main_section.find("#user-analysis");
+		container.empty();
+		let wholedata = ``;
+		const baseUrl = getBaseURL();
+		const fetchPromises = Object.keys(data.total_hours_per_employee).map(async employee => {
+			const response = await frappe.db.get_value("Employee", employee, "employee_name");
+			const employee_name = response.message.employee_name;
+			const internalEmployeeFincallData = data.internal_employee_fincall_data?.[employee] || {};
+			const meetingEmployeeData = data.meeting_employee_data?.[employee] || {};
+			return {
+				employee,
+				employeeName: employee_name,
+				totalHours: data.total_hours_per_employee[employee] || 0,
+				totalIdleTime: data.total_idle_time[employee] || 0,
+				incomingFincallCount: data.employee_fincall_data[employee]?.incoming_fincall_count || 0,
+				outgoingFincallCount: data.employee_fincall_data[employee]?.outgoing_fincall_count || 0,
+				missedFincallCount: data.employee_fincall_data[employee]?.missed_fincall_count || 0,
+				rejectedFincallCount: data.employee_fincall_data[employee]?.rejected_fincall_count || 0,
+				totalIncomingDuration: data.employee_fincall_data[employee]?.total_incoming_duration || 0,
+				totalOutgoingDuration: data.employee_fincall_data[employee]?.total_outgoing_duration || 0,
+				totalDays: data.total_days[employee] || 1,
+				meetingCount: meetingEmployeeData.count || 0,
+				meetingDuration: meetingEmployeeData.duration || 0,
+				keystroke: data.work_intensity_data[employee]?.total_keystrokes || 0,
+				clicks: data.work_intensity_data[employee]?.total_mouse_clicks || 0,
+				scrolls: data.work_intensity_data[employee]?.total_scroll || 0
+			};
+		});
+	
+		const employeeDataArray = await Promise.all(fetchPromises);
+		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
+	
+		let count = 1;
+		let totalHours = 0;
+		let totalIdleTime = 0;
+		let totalIncomingFincallCount = 0;
+		let totalOutgoingFincallCount = 0;
+		let totalMissedFincallCount = 0;
+		let totalRejectedFincallCount = 0;
+		let totalIncomingDuration = 0;
+		let totalOutgoingDuration = 0;
+		let totalMeetingCount = 0;
+		let totalMeetingDuration = 0;
+		let totalDays = 0;
+		let totalKeystrokes = 0;
+		let totalMouseClicks = 0;
+		let totalScrolls = 0;
+		this.start_date_ = this.selected_start_date;
+		this.end_date_ = this.selected_end_date;
+		employeeDataArray.forEach(app => {
+			const employeeUrl = `${baseUrl}Productify Activity Analysis?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
+			const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(app.employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
+			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
+			wholedata += `
+				<tr>
+					<td align="left">
+						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
+					</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.totalHours) - (app.totalIdleTime))}</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalIdleTime)}</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.totalHours) / app.totalDays) - ((app.totalIdleTime) / app.totalDays))}</td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Incoming" style="color:#62BA46;" target="_blank">${app.incomingFincallCount} (${this.convertSecondsToTime_(app.totalIncomingDuration)} H)</a></td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Outgoing" style="color:#62BA46;" target="_blank">${app.outgoingFincallCount} (${this.convertSecondsToTime_(app.totalOutgoingDuration)} H)</a></td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Missed" style="color:#62BA46;" target="_blank">${app.missedFincallCount}</a></td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Rejected" style="color:#62BA46;" target="_blank">${app.rejectedFincallCount}</a></td>
+					<td align="center" style="color:#FF4001;">${app.keystroke}</td>
+					<td align="center" style="color:#FF4001;">${app.clicks}</td>
+					<td align="center" style="color:#FF4001;">${app.scrolls}</td>
+					<td align="center"><a href="${employeeMeetingUrl}" style="color:#6420AA;" target="_blank">${app.meetingCount}</a></td>
+					<td align="center"><a href="${employeeMeetingUrl}" style="color:#6420AA;" target="_blank">${this.convertSecondsToTime_(app.meetingDuration)}</a></td>
+				</tr>`;
+			count++;
+			totalHours += app.totalHours;
+			totalIdleTime += app.totalIdleTime;
+			totalIncomingFincallCount += app.incomingFincallCount;
+			totalOutgoingFincallCount += app.outgoingFincallCount;
+			totalMissedFincallCount += app.missedFincallCount;
+			totalRejectedFincallCount += app.rejectedFincallCount;
+			totalIncomingDuration += app.totalIncomingDuration;
+			totalOutgoingDuration += app.totalOutgoingDuration;
+			totalMeetingCount += app.meetingCount;
+			totalMeetingDuration += app.meetingDuration;
+			totalKeystrokes += app.keystroke;
+			totalMouseClicks += app.clicks;
+			totalScrolls += app.scrolls;
+		});
+		wholedata += `
+			<tr>
+				<td align="left"><strong>Total</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours)}</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours - totalIdleTime)}</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalIdleTime)}</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong></strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalIncomingFincallCount} (${this.convertSecondsToTime_(totalIncomingDuration)} H)</strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalOutgoingFincallCount} (${this.convertSecondsToTime_(totalOutgoingDuration)} H)</strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalMissedFincallCount}</strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalRejectedFincallCount}</strong></td>
+				<td align="center" style="color:#FF4001;"><strong>${totalKeystrokes}</strong></td>
+				<td align="center" style="color:#FF4001;"><strong>${totalMouseClicks}</strong></td>
+				<td align="center" style="color:#FF4001;"><strong>${totalScrolls}</strong></td>
+				<td align="center" style="color:#6420AA;"><strong>${totalMeetingCount}</strong></td>
+				<td align="center" style="color:#6420AA;"><strong>${this.convertSecondsToTime_(totalMeetingDuration)}</strong></td>
+			</tr>`;
+	
+		container.append(wholedata);
+	};
+	// User Analysis (User Productivity Stats) Code Ends
+		
 }
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;
