@@ -623,7 +623,7 @@ UserProfile = class UserProfile {
 		});
 	}
 	overall_performance_chart() {
-		console.log("Overall Performance Chart",this.activeTimeData);
+		console.log("Overall Performance Chart", this.activeTimeData);
 		let overallPerformanceDom = document.querySelector('.overall-performance-chart');
 		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
 		window.addEventListener('resize', overallPerformance.resize);
@@ -668,19 +668,14 @@ UserProfile = class UserProfile {
 							{ name: 'Inactive', color: '#C1C1C1' }
 						];
 						function convertDateTime(dateTimeString) {
-							// Step 1: Parse the input datetime string
 							const date = new Date(dateTimeString);
-						
-							// Step 2: Format the date in the desired format
-							const formattedDate = `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
-						
-							return formattedDate;
+							return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
 						}
 						
-						// Function to pad single digit numbers with leading zero
 						function padZero(num) {
 							return num < 10 ? `0${num}` : num;
 						}
+	
 						// Add inactive periods
 						var inactivePeriods = [];
 						var employeeFirstEntry = {};
@@ -694,65 +689,40 @@ UserProfile = class UserProfile {
 								employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
 								var lastEndTime = new Date(employeeActivities[0][3]).getTime();
 						
-								for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
-									var employeeName = _rawData.parkingApron.data[i];
-									var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
-									employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
-								
-									if (employeeActivities.length > 0) {
-										employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
-										var lastEndTime = new Date(employeeActivities[0][3]).getTime();
-								
-										for (var j = 1; j < employeeActivities.length; j++) {
-											var startTime = new Date(employeeActivities[j][2]).getTime();
-											if (startTime > lastEndTime) {
-												// Convert timestamps to string format
-												var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
-												var endTimeString = convertDateTime(new Date(startTime).toISOString());
-												
-												inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
-											}
-											lastEndTime = new Date(employeeActivities[j][3]).getTime();
-										}
+								for (var j = 1; j < employeeActivities.length; j++) {
+									var startTime = new Date(employeeActivities[j][2]).getTime();
+									if (startTime > lastEndTime) {
+										var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
+										var endTimeString = convertDateTime(new Date(startTime).toISOString());
+										
+										inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
 									}
+									lastEndTime = new Date(employeeActivities[j][3]).getTime();
 								}
-								
 							}
 						}
 						
 						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-						_rawData.flight.data.sort(function (a, b) {
-							return new Date(a[2]).getTime() - new Date(b[2]).getTime();
-						});
-						_rawData.flight.data.sort(function (a, b) {
-							return priorityOrder[a[0]] - priorityOrder[b[0]];
-							});
+						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
 						
 						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
-						// Function to set the date portion to '2000-01-01'
 						function setFixedDate(timestamp) {
 							var date = new Date(timestamp);
-							date.setFullYear(2000, 0, 1); // Set year, month, and day
-							return date.getTime(); // Return the updated timestamp
+							date.setFullYear(2000, 0, 1);
+							return date.getTime();
 						}
-
-						// Map and convert start times to '2000-01-01'
 						var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
-
-						// Map and convert end times to '2000-01-01'
 						var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
-
-						// Find min and max of the adjusted timestamps
 						var minStartTime = Math.min(...startTimeList);
 						var maxEndTime = Math.max(...endTimeList);
-
-						// Create Date objects with adjusted timestamps
+	
 						var fixedStartTime = new Date(minStartTime);
 						var fixedEndTime = new Date(maxEndTime);
-
-						// Log the results for verification
+	
 						console.log("Min Start Time:", fixedStartTime);
 						console.log("Max End Time:", fixedEndTime);
+	
 						return {
 							backgroundColor: 'transparent',
 							tooltip: {
@@ -763,31 +733,19 @@ UserProfile = class UserProfile {
 									var endTime_ = new Date(params.data[3]);
 									var startTimeString = startTime_.toLocaleTimeString();
 									var endTimeString = endTime_.toLocaleTimeString();
-
-									// Calculate duration in seconds
+	
 									var durationMs = endTime_ - startTime_;
 									var durationSeconds = Math.floor(durationMs / 1000);
-
-									// Convert seconds to hours, minutes, and seconds
 									var hours = Math.floor(durationSeconds / 3600);
 									var minutes = Math.floor((durationSeconds % 3600) / 60);
 									var seconds = durationSeconds % 60;
-
+	
 									var durationString = "";
-									if (hours > 0) {
-										durationString += hours + "h ";
-									}
-									if (minutes > 0) {
-										durationString += minutes + "m ";
-									}
-									if (seconds > 0 || durationString === "") {
-										durationString += seconds + "s";
-									}
-									var activityType = params.data[0];
-									var date = params.data[1];
-									var startTime_ = new Date(params.data[2]).toLocaleTimeString();
-									var endTime_ = new Date(params.data[3]).toLocaleTimeString();
-									var tooltipContent = `<div style="line-height: 1.5;">`
+									if (hours > 0) durationString += hours + "h ";
+									if (minutes > 0) durationString += minutes + "m ";
+									if (seconds > 0 || durationString === "") durationString += seconds + "s";
+	
+									var tooltipContent = `<div style="line-height: 1.5;">`;
 									if (activityType === 'Call' && params.data[4]) {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
@@ -796,17 +754,15 @@ UserProfile = class UserProfile {
 										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[5]}</span> <br>`;
 									}
 									tooltipContent += `<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
-													<span style="font-weight: bold;">Date:</span> ${date}<br>
-													<span style="font-weight: bold;">Start:</span> ${startTime_}<br>
-													<span style="font-weight: bold;">End:</span> ${endTime_}<br>
-													<span style="font-weight: bold;">Duration:</span> ${durationString}`;
-							
+												<span style="font-weight: bold;">Date:</span> ${date}<br>
+												<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
+												<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
+												<span style="font-weight: bold;">Duration:</span> ${durationString}`;
 							
 									tooltipContent += `</div>`;
 									return tooltipContent;
 								},
 							},
-														
 							animation: false,
 							toolbox: {
 								left: 20,
@@ -815,38 +771,38 @@ UserProfile = class UserProfile {
 							}, 
 							dataZoom: [
 								{
-								  type: 'slider',
-								  yAxisIndex: 0,
-								  zoomLock: true,
-								  width: 10,
-								  right: 10,
-								  top: 70,
-								  bottom: 20,
-								  start: 0,
-								  end: 75,
-								  handleSize: 0,
-								  showDetail: false
+									type: 'slider',
+									yAxisIndex: 0,
+									zoomLock: true,
+									width: 10,
+									right: 10,
+									top: 70,
+									bottom: 20,
+									start: 0,
+									end: 50,  // Show fewer rows at a time
+									handleSize: 0,
+									showDetail: false
 								},
 								{
-								  type: 'inside',
-								  id: 'insideY',
-								  yAxisIndex: 0,
-								  start: 0,
-								  end: 75,
-								  zoomOnMouseWheel: false,
-								  moveOnMouseMove: true,
-								  moveOnMouseWheel: true
+									type: 'inside',
+									id: 'insideY',
+									yAxisIndex: 0,
+									start: 0,
+									end: 50,  // Show fewer rows at a time
+									zoomOnMouseWheel: false,
+									moveOnMouseMove: true,
+									moveOnMouseWheel: true
 								}
-							  ],                    
+							],                    
 							grid: {
 								show: false,
-								top: 20, // Adjust top margin as needed
+								top: 20,
 								bottom: 5,
-								left: 120, // Increase left margin to accommodate y-axis labels
+								left: 120,
 								right: 20,
 								backgroundColor: 'transparent',
 								borderWidth: 0
-							},							
+							},                            
 							xAxis: {
 								type: 'time',
 								position: 'top',
@@ -857,9 +813,7 @@ UserProfile = class UserProfile {
 										color: ['#E9EDFF']
 									}
 								},
-								axisLine: {
-									show: false
-								},
+								axisLine: { show: false },
 								axisTick: {
 									lineStyle: {
 										color: '#929ABA'
@@ -875,13 +829,11 @@ UserProfile = class UserProfile {
 										var minutes = date.getMinutes();
 										var ampm = hours >= 12 ? 'PM' : 'AM';
 										hours = hours % 12;
-										hours = hours ? hours : 12; // Handle midnight (0 hours) as 12 AM
+										hours = hours ? hours : 12;
 										var minutesStr = minutes < 10 ? '0' + minutes : minutes;
-										var strTime = hours + ':' + minutesStr + ' ' + ampm;
-										return strTime;
+										return hours + ':' + minutesStr + ' ' + ampm;
 									}
 								}
-								
 							},
 							yAxis: {
 								type: 'category',
@@ -922,73 +874,31 @@ UserProfile = class UserProfile {
 									
 										switch (activityType) 
 										{
-											case 'Application':
-												color = '#4BC0C0';
-												break;
-											case 'Idle':
-												color = '#FF6666';
-												break;
-											case 'Call':
-												color = '#FFCC66';
-												break;
-											case 'Internal Meeting':
-												color = '#9966FF';
-												break;
-											case 'External Meeting':
-												color = '#6699FF';
-												break;
-											case 'Inactive':
-												color = '#E9EAEC';
-												break;
-											default:
-												color = '#000000';
+											case 'Application': color = '#4BC0C0'; break;
+											case 'Idle': color = '#FF6666'; break;
+											case 'Call': color = '#FFCC66'; break;
+											case 'Internal Meeting': color = '#9966FF'; break;
+											case 'External Meeting': color = '#6699FF'; break;
+											case 'Inactive': color = '#E9EAEC'; break;
+											default: color = '#000000';
 										}
 									
+										var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);  // Adjust bar height
+	
 										var item = {
 											type: 'rect',
 											shape: {
 												x: api.coord([xValue, yValue])[0],
-												y: yValue - 10,
+												y: yValue - barHeight / 2,
 												width: api.size([xEndValue - xValue, 0])[0],
-												height: 20,
+												height: barHeight,
 											},
 											style: api.style({
-												fill: color,
+												fill: color,  // Add 50% opacity
 												stroke: 'rgba(0,0,0,0.2)'
 											})
 										};
-										var HEIGHT_RATIO = 0.6;
-										var DIM_CATEGORY_INDEX = 0;
-										var DIM_TIME_ARRIVAL = 1;
-										var DIM_TIME_DEPARTURE = 2;
-										// Additional functionality from the second function
-										var categoryIndex = api.value(DIM_CATEGORY_INDEX);
-										var timeArrival = api.coord([api.value(DIM_TIME_ARRIVAL), categoryIndex]);
-										var timeDeparture = api.coord([api.value(DIM_TIME_DEPARTURE), categoryIndex]);
-										var barLength = timeDeparture[0] - timeArrival[0];
-										var barHeight = api.size([0, 1])[1] * HEIGHT_RATIO;
-									
-										var rectText = clipRectByRect(params, {
-											x: timeArrival[0],
-											y: timeArrival[1] - barHeight,
-											width: barLength,
-											height: barHeight
-										});
-									
-										item.children = [
-											{
-												type: 'rect',
-												ignore: !rectText,
-												shape: rectText,
-												style: api.style({
-													fill: 'transparent',
-													stroke: 'transparent',
-													text: 'Additional Text',  // Replace with your logic for text
-													textFill: '#fff'
-												})
-											}
-										];
-									
+	
 										return item;
 									},
 									dimensions: _rawData.flight.dimensions,
@@ -1001,14 +911,7 @@ UserProfile = class UserProfile {
 							]
 						};
 					}
-					function clipRectByRect(params, rect) {
-						return echarts.graphic.clipRectByRect(rect, {
-						  x: params.coordSys.x,
-						  y: params.coordSys.y,
-						  width: params.coordSys.width,
-						  height: params.coordSys.height
-						});
-					  }
+	
 					overallPerformance.setOption(makeOption());
 					overallPerformance.on('click', function (params) {
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
@@ -1838,47 +1741,56 @@ update_application_time_chart() {
 					const hours = Math.floor(seconds / 3600);
 					const minutes = Math.floor((seconds % 3600) / 60);
 					const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-
 					return `${hours}:${formattedMinutes}`;
 				}
-				// Assuming `data` is an object or string you want to display
+			
 				let displayContent = `
-				<div class="row mt-3">
-					<div class="col-md-12">
-						<div class="frappe-card  custom-card">
-							<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 URL's Used</h4>
-							<div class="table-responsive">
-							<table class="table">
-								<thead>
-									<tr style="align:center !important;">
-										<th>Page Title</th>
-										<th>Page URL</th>
-										<th>Page Visits</th>
-										<th>Duration</th>
-									</tr>
-								</thead>
-								<tbody>`;
-
+				<style>
+					.url-table {
+						width: 100%;
+						table-layout: fixed;
+					}
+					.url-table th, .url-table td {
+						padding: 8px;
+						overflow-x: hidden;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+					}
+					.url-table th:nth-child(1), .url-table td:nth-child(1) { width: 30%; }
+					.url-table th:nth-child(2), .url-table td:nth-child(2) { width: 40%; }
+					.url-table th:nth-child(3), .url-table td:nth-child(3) { width: 15%; }
+					.url-table th:nth-child(4), .url-table td:nth-child(4) { width: 15%; }
+				</style>
+				<div class="frappe-card custom-card">
+					<h4 class="custom-title p-3" style="font-size: 14px !important; text-align: center;">Top 10 URL's Used</h4>
+					<div class="table-responsive" style="overflow-x: hidden;">
+						<table class="table url-table">
+							<thead>
+								<tr>
+									<th>Page Title</th>
+									<th>Page URL</th>
+									<th>Page Visits</th>
+									<th>Duration</th>
+								</tr>
+							</thead>
+							<tbody>`;
+			
 				data.forEach(app => {
 					displayContent += `
 					<tr>
-						<td style="color:#00A6E0 !important; width: 50% !important;"><b>${app.application_title}</b></td>
-						<td style="color:#00A6E0 !important; width: 15% !important;"><b>${app.url}</b></td>
-						<td style="color:#62BA46; width: 15% !important;"><b>${app.count}</b></td>
-						<td style="color:#FF4001; width: 20% !important;">${convertSecondsToTime_(app.duration)} H</td>
+						<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
+						<td title="${app.url}"><span style="color:#00A6E0;"><b>${app.url}</b></span></td>
+						<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
+						<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
 					</tr>`;
 				});
-
+			
 				displayContent += `
-								</tbody>
-							</table>
-						</div>
+							</tbody>
+						</table>
 					</div>
-				</div>
-				</div>
-				</div>
-				`;
-
+				</div>`;
+			
 				$('#urlModal').find('.modal-body').html(displayContent);
 			}
 		});

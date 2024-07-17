@@ -3,7 +3,6 @@ frappe.pages['Productify Consolidated Analysis'].on_page_load = function (wrappe
 	// create_chart();
 }
 
-
 UserProfile = class UserProfile {
 	constructor(wrapper) {
 		this.wrapper = $(wrapper);
@@ -975,7 +974,6 @@ UserProfile = class UserProfile {
 									<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
 									<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
 									<span style="font-weight: bold;">Duration:</span> ${durationString}`;
-							
 								tooltipContent += `</div>`;
 							
 								return tooltipContent;
@@ -1099,7 +1097,7 @@ UserProfile = class UserProfile {
 								color: '#929ABA',
 								inside: false,
 								align: 'center',
-								formatter: function (value, index) {
+								formatter: function(value, index) {
 									var date = new Date(value);
 									var hours = date.getHours();
 									var minutes = date.getMinutes();
