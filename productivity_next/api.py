@@ -1,12 +1,13 @@
+import json
 import frappe
 from frappe.auth import LoginManager
-from frappe.core.doctype.user.user import User
 from productivity_next.utils.auth import get_bearer_token
 from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
-import datetime
 from frappe.utils import flt
+import requests
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -48,7 +49,6 @@ def set_application_checkin_checkout(
     doc.save()
     if system_genereted:
         doc.db_set("owner", user)
-
 
     return {"status": last_status}
 
@@ -218,12 +218,12 @@ def get_employee_time(employee=None):
     )
 
     if total_application_time:
-        total_application_time =  flt(total_application_time[0].duration)
+        total_application_time = flt(total_application_time[0].duration)
     else:
         total_application_time = 0
 
     if idle_application_time:
-        idle_application_time =  flt(idle_application_time[0].duration)
+        idle_application_time = flt(idle_application_time[0].duration)
     else:
         idle_application_time = 0
 
@@ -299,3 +299,60 @@ def get_app_usage_time(employee):
         idle_time += row.duration
 
     return idle_time
+
+@frappe.whitelist(methods=["POST"])
+def organization_signup(
+    domain,
+    organization_name,
+    contact_person,
+    email,
+    mobile_no,
+    subscription_plan="",
+):
+    user_details = frappe.get_doc("User", frappe.session.user)
+    api_secret = frappe.generate_hash(length=15)
+    if not user_details.api_key:
+        api_key = frappe.generate_hash(length=15)
+        user_details.api_key = api_key
+        user_details.api_secret = api_secret
+    user_details.save()
+    
+    response = requests.post(
+        "https://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup/",
+        json={
+            "domain": domain,
+            "organization_name": organization_name,
+            "contact_person": contact_person,
+            "email": email,
+            "mobile_no": mobile_no,
+            "api_key": user_details.api_key,
+            "api_secret": api_secret,
+            "subscription_plan": subscription_plan,
+        },
+    )
+    
+    return response.json()
+    
+@frappe.whitelist()
+def add_meeting(meeting_from, meeting_to, meeting_arranged_by, internal_meeting, purpose,
+                industry, party_type, party, discussion, meeting_company_representative):
+    meeting_company_representative = json.loads(meeting_company_representative)
+    meeting = frappe.new_doc("Meeting")
+    meeting.meeting_from = meeting_from
+    meeting.meeting_to = meeting_to
+    meeting.meeting_arranged_by = meeting_arranged_by
+    meeting.internal_meeting = internal_meeting
+    meeting.purpose = purpose
+    meeting.industry = industry if industry else None
+    meeting.party_type = party_type if party_type else None
+    meeting.party = party if party else None
+    meeting.discussion = discussion
+    for row in meeting_company_representative:
+        meeting.append("meeting_company_representative", {
+            "employee": row.get('employee'),
+            "employee_name": row.get('employee_name')
+        })
+    meeting.save()
+    meeting.submit()
+
+    return {"message": "Meeting added successfully"}

@@ -1,0 +1,1337 @@
+frappe.pages['Productify Consolidated Analysis'].on_page_load = function (wrapper) {
+	new UserProfile(wrapper);
+	// create_chart();
+}
+
+
+UserProfile = class UserProfile {
+	constructor(wrapper) {
+		this.wrapper = $(wrapper);
+		this.page = frappe.ui.make_app_page({
+			parent: wrapper,
+		});
+		this.sidebar = this.wrapper.find(".layout-side-section");
+		this.toggle_button = this.wrapper.find(".sidebar-toggle-placeholder");
+		this.main_section = this.wrapper.find(".layout-main-section");
+		this.buttonsInitialized = false;
+		const urlParams = new URLSearchParams(window.location.search);
+		if (urlParams.get('start_date') == null && urlParams.get('end_date') == null) {
+			var currentDate = new Date();
+			currentDate.setDate(currentDate.getDate() - 1); // Set to one day before today
+			var day = currentDate.getDate().toString().padStart(2, '0');
+			var month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+			var year = currentDate.getFullYear();
+			this.selected_start_date = year + '-' + month + '-' + day;
+			this.selected_end_date = year + '-' + month + '-' + day; // End date also one day before today
+		}
+		else {
+			this.selected_start_date = urlParams.get('start_date');
+			this.selected_end_date = urlParams.get('end_date');
+		}
+		if (urlParams.get('employee') != null && urlParams.get('employee') != 'undefined') {
+			this.selected_employee = urlParams.get('employee');
+		}
+		else {
+			this.selected_employee = null;
+		}
+		this.hide_sidebar_and_toggle();
+		this.wrapper.bind("show", () => {
+			this.show();
+		});
+	}
+
+	hide_sidebar_and_toggle() {
+		this.sidebar.hide();
+		// this.toggle_button.hide();
+		this.main_section.css('width', '100%');
+	}
+
+	show() {
+		this.user_id = frappe.session.user;
+		frappe.dom.freeze(__("Loading user profile") + "...");
+		frappe.db.exists("User", this.user_id).then((exists) => {
+			frappe.dom.unfreeze();
+			if (exists) {
+				this.make_user_profile();
+			} else {
+				frappe.msgprint(__("User does not exist"));
+			}
+		});
+	}
+
+	finish_user_profile_setup() {
+		this.setup_user_search();
+		this.setup_timespan();
+		this.main_section.empty().append(frappe.render_template("productify_consolidated_analysis"));
+		this.fetch_and_render_admin_data();
+		this.render_bar_chart();
+		this.render_line_chart();
+		this.update_client_calls_chart_data();
+		this.overall_performance_chart();
+	}
+	setup_timespan() {
+		this.$user_search_button = this.page.set_primary_action(
+			__("Select Timespan"),
+			() => this.setup_timespan_dialog(),
+		);
+	}
+
+	setup_timespan_dialog() {
+		let dialog = new frappe.ui.Dialog({
+			title: __("Select Timespan"),
+			fields: [
+				{
+					fieldtype: "DateRange",
+					fieldname: "timespan_range",
+					label: __("Timespan Range"),
+					description: __("Select a start and end date"),
+				},
+			],
+			primary_action_label: __("Go"),
+			primary_action: (data) => {
+				let startDate, endDate;
+				if (data.timespan_range) {
+					[startDate, endDate] = data.timespan_range;
+				} else {
+					const today = new Date();
+					endDate = today.toISOString().split('T')[0];
+
+					const oneYearAgo = new Date(new Date().setFullYear(today.getFullYear() - 1));
+					startDate = oneYearAgo.toISOString().split('T')[0];
+				}
+
+				dialog.hide();
+				const newUrl = new URL(window.location.href);
+				newUrl.searchParams.set('start_date', startDate);
+				newUrl.searchParams.set('end_date', endDate);
+				window.history.pushState({ path: newUrl.toString() }, '', newUrl.toString());
+				const urlParams = new URLSearchParams(window.location.search);
+				this.selected_start_date = urlParams.get('start_date');
+				this.selected_end_date = urlParams.get('end_date');
+				this.make_user_profile();
+			},
+		});
+		dialog.show();
+	}
+	make_user_profile() {
+		this.user = frappe.user_info(this.user_id);
+		if (!this.selected_employee) {
+			this.page.set_title("All Employees" + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
+		} else {
+			frappe.db.get_doc("Employee", this.selected_employee)
+				.then(employee => {
+					this.page.set_title("All Employees" + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
+					this.finish_user_profile_setup();
+				})
+				.catch(error => {
+					console.error("Failed to get employee details:", error);
+					frappe.msgprint(__("Failed to load employee details"));
+				});
+		}
+		if (!this.selected_employee) {
+			this.finish_user_profile_setup();
+		}
+	}
+	setup_user_search() {
+		if (!this.buttonsInitialized) {  // Check if buttons have already been initialized
+			// Add a refresh button with an icon
+			this.page.add_action_icon("refresh", () => {
+				window.location.reload();
+			});
+
+			this.buttonsInitialized = true;  // Set the flag to true after adding buttons
+		}
+	}
+
+	show_user_search_dialog() {
+		let dialog = new frappe.ui.Dialog({
+			title: __("Change Employee"),
+			fields: [
+				{
+					fieldtype: "Link",
+					fieldname: "employee",
+					options: "Employee",
+					label: __("Employee"),
+				},
+			],
+			primary_action_label: __("Go"),
+			primary_action: ({ employee }) => {
+				dialog.hide();
+				this.selected_employee = employee;
+				this.make_user_profile()
+				const newUrl = new URL(window.location.href);
+				newUrl.searchParams.set('employee', employee);
+				window.history.pushState({ path: newUrl.toString() }, '', newUrl.toString());
+			},
+		});
+		dialog.show();
+
+	}
+	render_bar_chart() {
+		let barchartDom = document.querySelector('.performance-bar-chart');
+		let barchart = echarts.init(barchartDom, null, { renderer: 'svg' });
+		window.addEventListener('resize', barchart.resize);
+		
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_barchart_data", {
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			})
+			.then((r) => {
+				if (r.labels.length === 0) {
+					// Handle no data scenario if needed
+				} else {
+					let option = {
+						tooltip: {
+							trigger: 'item'
+						},
+						xAxis: {
+							type: 'category',
+							data: r.labels,
+							axisLabel: {
+								interval: 0,
+								rotate: 90,
+							},
+							z: 10
+						},
+						yAxis: {
+							type: 'value',
+						},
+						dataZoom: [
+							{
+								type: 'inside',
+								disabled: true  // Disable dataZoom inside functionality
+							},
+							{
+								type: 'slider',
+								show: false,
+								start: 0,
+								end: 100,
+								zoomLock: true,  // Lock the slider zoom
+								yAxisIndex: 0
+							}
+						],
+						series: [
+							{
+								data: r.datasets[0].values,
+								type: 'bar'
+							}
+						],
+					};
+	
+					barchart.setOption(option);
+	
+					// Prevent scroll and zoom interactions
+					barchart.getZr().on('mousewheel', function (e) {
+						e.preventDefault();
+					});
+					barchart.getZr().on('pinch', function (e) {
+						e.preventDefault();
+					});
+				}
+			});
+	};
+	
+	convertSecondsToTime(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+
+		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+	}
+	convertSecondsToTime_(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+		const formattedHours = hours < 10 ? `0${hours}` : hours;
+
+		return `${formattedHours}:${formattedMinutes}`;
+	}
+
+	render_line_chart() {
+		this.update_line_chart_data();
+	}
+
+	update_client_calls_chart_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		} else {
+			data = this.user_id;
+		}
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_client_calls_chart_data", {
+				user: "Administrator",
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date
+			})
+			.then((r) => {
+				if (r.caller_details.length === 0) {
+					// console.log("No data available to plot the chart.");
+					return;
+				}
+	
+				const chartDom = document.getElementById('clients-call-chart');
+				if (!chartDom) {
+					// console.error('Chart container not found.');
+					return;
+				}
+	
+				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
+				let customNames = r.customNames;
+				const option = {
+					tooltip: {
+						trigger: 'item',
+						// formatter: '{a} <br/>{b}: {c} Minutes ({d}%)',
+						formatter: function(params) {
+							let totalMinutes = params.value;
+							let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
+							let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
+						
+							// Format seconds to always display 2 digits
+							let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
+						
+							if (params.seriesName === 'Caller Origin' || params.seriesName === 'Caller Details') {
+								// For specific series, show only label, minutes and seconds, and percentage
+								return `${params.marker} ${params.name}: ${minutes}:${formattedSeconds} Min`;
+							} else {
+								// For other series, show series name, label, minutes and seconds, and percentage
+								return `${params.seriesName} <br/>${params.marker} ${params.name}: ${minutes}.${formattedSeconds} Min`;
+							}
+						},
+						position: ['50%', '50%'],
+					},
+					series: [
+						{
+							name: 'Caller Origin',
+							type: 'pie',
+							selectedMode: 'single',
+							radius: [0, '30%'],
+							label: {
+								position: 'inner',
+								fontSize: 14,
+							},
+							labelLine: {
+								show: true
+							},
+							data: r.company_details,
+							color: [
+								'#FF6384', // Red
+								'#36A2EB', // Blue
+								'#FFCE56', // Yellow
+								'#4BC0C0', // Cyan
+								'#9966FF', // Lavender
+								'#FF9966', // Orange
+								'#66CCCC', // Light Blue
+								'#6699FF', // Light Blue
+								'#FF6666', // Light Red
+								'#FFCC66'  // Light Yellow
+							]
+						},
+						{
+							name: 'Caller Details',
+							type: 'pie',
+							radius: ['45%', '60%'],
+							labelLine: {
+								length: 30,
+								show: true
+							},
+							label: {
+								formatter: function(params) {
+									let totalMinutes = params.value;
+									let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
+									let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
+								
+									// Format seconds to always display 2 digits
+									let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
+								
+									let customIndex = params.data.customIndex || 0; // Default to index 0 if customIndex is not provided
+									let customName = customNames[customIndex];
+								
+									return `{a|${customName}} {abg|}\n{hr|}\n  {b|     ${params.name}：}${minutes}:${formattedSeconds} Min  `;
+								},
+								backgroundColor: '#F6F8FC',
+								borderColor: '#8C8D8E',
+								borderWidth: 1,
+								borderRadius: 4,
+								show: true,
+								rich: {
+									a: {
+									  color: '#6E7079',
+									  lineHeight: 22,
+									  textAlign: 'center', // add this to align the text to the left
+									  overflow: 'hidden', // add this to prevent long names from overflowing
+									  textOverflow: 'ellipsis', // add this to show an ellipsis for long names
+									  whiteSpace: 'nowrap', // add this to prevent wrapping
+									},
+									hr: {
+									  borderColor: '#8C8D8E',
+									  width: '100%',
+									  borderWidth: 1,
+									  height: 0,
+									},
+									b: {
+									  color: '#4C5058',
+									  fontSize: 14,
+									  fontWeight: 'bold',
+									  lineHeight: 30,
+									  marginRight: 10, // add some space between b and per
+									},
+									per: {
+									  color: '#',
+									  backgroundColor: '#4C5058',
+									  padding: 5,
+									  borderRadius: 4,
+									  width: 30,
+									  textAlign: 'center', // add this to center the percentage
+									},
+								  },
+							},
+							data: r.caller_details,
+							color: [
+								'#FF6384', // Red
+								'#36A2EB', // Blue
+								'#FFCE56', // Yellow
+								'#4BC0C0', // Cyan
+								'#9966FF', // Lavender
+								'#FF9966', // Orange
+								'#66CCCC', // Light Blue
+								'#6699FF', // Light Blue
+								'#FF6666', // Light Red
+								'#FFCC66'  // Light Yellow
+							]
+						}
+					],
+				};
+				
+	
+				// Set dynamic width and height for the chart
+				myChart.resize();
+	
+				myChart.setOption(option);
+	
+				window.addEventListener('resize', function () {
+					myChart.resize();
+				});
+	
+				// console.log("Chart plotted successfully.");
+			})
+			.catch(error => {
+				// console.error("Error fetching chart data:", error);
+			});
+	}
+	
+
+
+	update_line_chart_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		} else {
+			data = this.user_id;
+		}
+		
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_linechart_data", {
+				user: "Administrator",
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date
+			})
+			.then((r) => {
+				// console.log('Line chart data:', r); // Log to check the response data
+				
+				if (r.labels.length === 0 || r.datasets.length === 0) {
+					// console.log("No data to show");
+					return; // Exit early if no data to display
+				}
+				
+				let seriesData = [];
+	
+				// Iterate through each dataset (Incoming, Outgoing, Missed, Rejected)
+				r.datasets.forEach(dataset => {
+					const counts = dataset.counts.map(count => parseInt(count)); // Convert counts to integers
+					const series = {
+						name: dataset.name,
+						data: counts,
+						type: 'bar',
+						stack: 'x'
+					};
+					seriesData.push(series);
+				});
+				// console.log('Series Data:', seriesData);
+	
+				let option = {
+					tooltip: {
+						trigger: 'axis',
+						axisPointer: {
+							type: 'shadow'
+						},
+						
+						formatter: function(params) {
+							let html = `
+								<div class="custom-tooltip" style="
+									position: absolute;
+									display: block;
+									border-style: solid;
+									white-space: nowrap;
+									z-index: 9999999;
+									will-change: transform;
+									box-shadow: rgba(0, 0, 0, 0.2) 1px 2px 10px;
+									transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1) 0s, visibility 0.2s cubic-bezier(0.23, 1, 0.32, 1) 0s, transform 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s;
+									background-color: rgb(255, 255, 255);
+									border-width: 1px;
+									border-radius: 4px;
+									color: rgb(102, 102, 102);
+									font: 14px / 21px 'Microsoft YaHei';
+									padding: 12px; /* Increased padding */
+									width: 200px; /* Adjust width as needed */
+									top: 0px;
+									left: 0px;
+									transform: translate3d(0, 0, 0);
+									border-color: rgb(255, 255, 255);
+									pointer-events: none;
+								">
+									<div style="font-size: 16px; color: #666; font-weight: 400; margin-bottom: 10px;"> <!-- Increased font-size -->
+										${params[0].axisValueLabel} 
+									</div>
+							`;
+						
+							params.forEach(param => {
+								let color = '';
+								if (param.seriesName === 'Incoming') {
+									color = '#91cc75'; // Green
+								} else if (param.seriesName === 'Outgoing') {
+									color = '#5470c6'; // Blue
+								} else if (param.seriesName === 'Missed') {
+									color = '#fac858'; // Yellow
+								} else if (param.seriesName === 'Rejected') {
+									color = '#ee6666'; // Red
+								}
+						
+								// Append each series data to the tooltip HTML
+								html += `
+									<div style="margin-bottom: 5px;">
+										<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${color}; margin-right: 5px;"></span>
+										<span style="font-size: 14px; color: #666; font-weight: 400;">${param.seriesName}</span>
+										<span style="float: right; font-size: 13px; color: #666; font-weight: 900;">${param.value} Calls</span>
+										<div style="clear: both;"></div>
+									</div>
+								`;
+							});
+						
+							html += `
+								</div>
+							`;
+						
+							return html;
+						}
+					},
+						
+					xAxis: {
+						data: r.labels
+					},
+					yAxis: {},
+					series: seriesData
+				};
+	
+				let chartDom = document.getElementById('performance-line-chart');
+				let myChart = echarts.init(chartDom, null, { renderer: 'svg' });
+				
+				// Set chart options and resize chart on window resize
+				myChart.setOption(option);
+				window.addEventListener('resize', function() {
+					myChart.resize();
+				});
+			})
+			.catch((error) => {
+				console.error("Error fetching chart data:", error);
+			});
+	}
+	
+
+
+
+
+
+
+
+	fetch_and_render_admin_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		} else {
+			data = this.user_id;
+		}
+		frappe.call({
+			method: "productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.get_admin_data",
+			args: {
+				user: "Administrator",
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			},
+			callback: (r) => {
+				if (r.message) {
+					this.render_admin_data(r.message);
+				}
+			}
+		});
+	};
+	async render_admin_data(data) {
+		// console.log('Data received:', data);
+	
+		function calculateActiveTime(totalHours, totalIdleTime) {
+			return totalHours - totalIdleTime;
+		}
+
+
+		// Function to convert seconds to time format (hh:mm:ss)
+		function convertSecondsToTime(seconds) {
+			const hours = Math.floor(seconds / 3600);
+			const minutes = Math.floor((seconds % 3600) / 60);
+			const remainingSeconds = seconds % 60;
+			return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+		}
+
+	
+		// Function to convert seconds to time format (hh:mm:ss)
+		function convertSecondsToTime(seconds) {
+			const hours = Math.floor(seconds / 3600);
+			const minutes = Math.floor((seconds % 3600) / 60);
+			const remainingSeconds = seconds % 60;
+			return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+		}
+
+		function getBaseURL() {
+			return window.location.origin + '/app/';
+		}
+	
+		let employee_data;
+		if (this.selected_employee != null) {
+			employee_data = this.selected_employee;
+		} else {
+			employee_data = this.user_id;
+		}
+	
+		const container = this.main_section.find("#user-activity-data");
+		container.empty();
+		let wholedata = ``;
+		const baseUrl = getBaseURL();
+		const fetchPromises = Object.keys(data.total_hours_per_employee).map(async employee => {
+			// Fetch employee full name asynchronously
+			// console.log('employee:', employee);
+			const response = await frappe.db.get_value("Employee", employee, "employee_name");
+			const employee_name = response.message.employee_name;
+	
+			// Check if internal_employee_fincall_data exists before accessing properties
+			const internalEmployeeFincallData = data.internal_employee_fincall_data?.[employee] || {};
+			const meetingEmployeeData = data.meeting_employee_data?.[employee] || {};
+	
+			// Return the employee data along with the fetched employee name
+			return {
+				employee,
+				employeeName: employee_name,
+				totalHours: data.total_hours_per_employee[employee] || 0,
+				totalIdleTime: data.total_idle_time[employee] || 0,
+				incomingFincallCount: data.employee_fincall_data[employee]?.incoming_fincall_count || 0,
+				outgoingFincallCount: data.employee_fincall_data[employee]?.outgoing_fincall_count || 0,
+				missedFincallCount: data.employee_fincall_data[employee]?.missed_fincall_count || 0,
+				rejectedFincallCount: data.employee_fincall_data[employee]?.rejected_fincall_count || 0,
+				totalIncomingDuration: data.employee_fincall_data[employee]?.total_incoming_duration || 0,
+				totalOutgoingDuration: data.employee_fincall_data[employee]?.total_outgoing_duration || 0,
+				totalDays: data.total_days[employee] || 1,
+				meetingCount: meetingEmployeeData.count || 0,
+				meetingDuration: meetingEmployeeData.duration || 0,
+				keystroke: data.work_intensity_data[employee]?.total_keystrokes || 0,
+				clicks: data.work_intensity_data[employee]?.total_mouse_clicks || 0,
+				scrolls: data.work_intensity_data[employee]?.total_scroll || 0
+			};
+		});
+	
+		const employeeDataArray = await Promise.all(fetchPromises);
+	
+		// Sort by active time in descending order
+		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
+	
+		let count = 1;
+		// console.log('employeeDataArray:', employeeDataArray);
+	
+		// Variables to store the totals
+		let totalHours = 0;
+		let totalIdleTime = 0;
+		let totalIncomingFincallCount = 0;
+		let totalOutgoingFincallCount = 0;
+		let totalMissedFincallCount = 0;
+		let totalRejectedFincallCount = 0;
+		let totalIncomingDuration = 0;
+		let totalOutgoingDuration = 0;
+		let totalMeetingCount = 0;
+		let totalMeetingDuration = 0;
+		let totalDays = 0;
+		let totalKeystrokes = 0;
+		let totalMouseClicks = 0;
+		let totalScrolls = 0;
+		this.start_date_ = this.selected_start_date;
+		this.end_date_ = this.selected_end_date;
+		employeeDataArray.forEach(app => {
+			const employeeUrl = `${baseUrl}Productify Activity Analysis?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
+			const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(app.employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
+			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
+			wholedata += `
+				<tr>
+					<td align="left">
+						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
+					</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.totalHours) - (app.totalIdleTime))}</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalIdleTime)}</td>
+					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.totalHours) / app.totalDays) - ((app.totalIdleTime) / app.totalDays))}</td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Incoming" style="color:#62BA46;" target="_blank">${app.incomingFincallCount} (${this.convertSecondsToTime_(app.totalIncomingDuration)} H)</a></td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Outgoing" style="color:#62BA46;" target="_blank">${app.outgoingFincallCount} (${this.convertSecondsToTime_(app.totalOutgoingDuration)} H)</a></td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Missed" style="color:#62BA46;" target="_blank">${app.missedFincallCount}</a></td>
+					<td align="center" ><a href="${employeeFincallUrl}&calltype=Rejected" style="color:#62BA46;" target="_blank">${app.rejectedFincallCount}</a></td>
+					<td align="center" style="color:#FF4001;">${app.keystroke}</td>
+					<td align="center" style="color:#FF4001;">${app.clicks}</td>
+					<td align="center" style="color:#FF4001;">${app.scrolls}</td>
+					<td align="center"><a href="${employeeMeetingUrl}" style="color:#6420AA;" target="_blank">${app.meetingCount}</a></td>
+					<td align="center"><a href="${employeeMeetingUrl}" style="color:#6420AA;" target="_blank">${this.convertSecondsToTime_(app.meetingDuration)}</a></td>
+				</tr>`;
+			count++;
+	
+			// Accumulate totals
+			totalHours += app.totalHours;
+			totalIdleTime += app.totalIdleTime;
+			totalIncomingFincallCount += app.incomingFincallCount;
+			totalOutgoingFincallCount += app.outgoingFincallCount;
+			totalMissedFincallCount += app.missedFincallCount;
+			totalRejectedFincallCount += app.rejectedFincallCount;
+			totalIncomingDuration += app.totalIncomingDuration;
+			totalOutgoingDuration += app.totalOutgoingDuration;
+			totalMeetingCount += app.meetingCount;
+			totalMeetingDuration += app.meetingDuration;
+			totalKeystrokes += app.keystroke;
+			totalMouseClicks += app.clicks;
+			totalScrolls += app.scrolls;
+		});
+	
+		// Add the totals row
+		wholedata += `
+			<tr>
+				<td align="left"><strong>Total</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours)}</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours - totalIdleTime)}</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalIdleTime)}</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong></strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalIncomingFincallCount} (${this.convertSecondsToTime_(totalIncomingDuration)} H)</strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalOutgoingFincallCount} (${this.convertSecondsToTime_(totalOutgoingDuration)} H)</strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalMissedFincallCount}</strong></td>
+				<td align="center" style="color:#62BA46;"><strong>${totalRejectedFincallCount}</strong></td>
+				<td align="center" style="color:#FF4001;"><strong>${totalKeystrokes}</strong></td>
+				<td align="center" style="color:#FF4001;"><strong>${totalMouseClicks}</strong></td>
+				<td align="center" style="color:#FF4001;"><strong>${totalScrolls}</strong></td>
+				<td align="center" style="color:#6420AA;"><strong>${totalMeetingCount}</strong></td>
+				<td align="center" style="color:#6420AA;"><strong>${this.convertSecondsToTime_(totalMeetingDuration)}</strong></td>
+			</tr>`;
+	
+		container.append(wholedata);
+	};
+	
+
+	overall_performance_chart() {
+		let overallPerformanceDom = document.querySelector('.overall-performance-chart');
+		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
+		window.addEventListener('resize', overallPerformance.resize);
+	
+		frappe.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.overall_performance_chart", {
+			start_date: this.selected_start_date,
+			end_date: this.selected_end_date,
+		}).then((r) => {
+			if (r.base_data.length === 0) {
+				// Handle no data scenario if needed
+			} else {
+				// Process the data
+				var _rawData = {
+					flight: {
+						dimensions: r.base_dimensions,
+						data: r.base_data
+					},
+					parkingApron: {
+						dimensions: r.dimensions,
+						data: r.data
+					}
+				};
+	
+				var priorityOrder = {
+					'Inactive': 0,
+					'Application': 1,
+					'Idle': 2,
+					'Internal Meeting': 3,
+					'External Meeting': 4,
+					'Call': 5
+				};
+	
+				function convertDateTime(dateTimeString) {
+					const date = new Date(dateTimeString);
+					const fixedDate = new Date(2000, 0, 1);
+					fixedDate.setHours(date.getHours(), date.getMinutes(), date.getSeconds());
+					return `2000-01-01 ${padZero(fixedDate.getHours())}:${padZero(fixedDate.getMinutes())}:${padZero(fixedDate.getSeconds())}`;
+				}
+	
+				function padZero(num) {
+					return num < 10 ? `0${num}` : num;
+				}
+	
+				// Process data and add inactive periods
+				var inactivePeriods = [];
+				var employeeFirstEntry = {};
+	
+				for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
+					var employeeName = _rawData.parkingApron.data[i][0];
+					var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
+					employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
+	
+					if (employeeActivities.length > 0) {
+						employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
+						var lastEndTime = new Date(employeeActivities[0][3]).getTime();
+	
+						for (var j = 1; j < employeeActivities.length; j++) {
+							var startTime = new Date(employeeActivities[j][2]).getTime();
+							if (startTime > lastEndTime) {
+								console.log('Inactive period found for', employeeName, 'from', lastEndTime, 'to', startTime);
+								var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
+								var endTimeString = convertDateTime(new Date(startTime).toISOString());
+								
+								inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+							}
+							lastEndTime = new Date(employeeActivities[j][3]).getTime();
+						}
+					}
+				}
+	
+				// Convert all existing data points to use fixed date
+				_rawData.flight.data = _rawData.flight.data.map(item => {
+					return [
+						item[0],
+						item[1],
+						convertDateTime(item[2]),
+						convertDateTime(item[3]),
+						...item.slice(4)
+					];
+				});
+	
+				_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+				_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+	
+				function renderGanttItem(params, api) {
+					var xValue = api.value(2);
+					var xEndValue = api.value(3);
+					var gateIndex = api.value(1);
+					var yValue = api.coord([0, gateIndex])[1];
+					var activityType = api.value(0);
+				
+					var color;
+				
+					switch (activityType) {
+						case 'Application':
+							color = '#4BC0C0';
+							break;
+						case 'Idle':
+							color = '#FF6666';
+							break;
+						case 'Call':
+							color = '#FFCC66';
+							break;
+						case 'Internal Meeting':
+							color = '#9966FF';
+							break;
+						case 'External Meeting':
+							color = '#6699FF';
+							break;
+						case 'Inactive':
+							color = '#E9EAEC';
+							break;
+						default:
+							color = '#000000';
+					}
+				
+					var item = {
+						type: 'rect',
+						shape: {
+							x: api.coord([xValue, yValue])[0],
+							y: yValue - 10,
+							width: api.size([xEndValue - xValue, 0])[0],
+							height: 20,
+						},
+						style: api.style({
+							fill: color,
+							stroke: 'rgba(0,0,0,0.2)'
+						})
+					};
+					var HEIGHT_RATIO = 0.6;
+					var DIM_CATEGORY_INDEX = 0;
+					var DIM_TIME_ARRIVAL = 1;
+					var DIM_TIME_DEPARTURE = 2;
+					// Additional functionality from the second function
+					var categoryIndex = api.value(DIM_CATEGORY_INDEX);
+					var timeArrival = api.coord([api.value(DIM_TIME_ARRIVAL), categoryIndex]);
+					var timeDeparture = api.coord([api.value(DIM_TIME_DEPARTURE), categoryIndex]);
+					var barLength = timeDeparture[0] - timeArrival[0];
+					var barHeight = api.size([0, 1])[1] * HEIGHT_RATIO;
+				
+					var rectText = clipRectByRect(params, {
+						x: timeArrival[0],
+						y: timeArrival[1] - barHeight,
+						width: barLength,
+						height: barHeight
+					});
+				
+					item.children = [
+						{
+							type: 'rect',
+							ignore: !rectText,
+							shape: rectText,
+							style: api.style({
+								fill: 'transparent',
+								stroke: 'transparent',
+								text: 'Additional Text',  // Replace with your logic for text
+								textFill: '#fff'
+							})
+						}
+					];
+				
+					return item;
+				}
+				
+				function clipRectByRect(params, rect) {
+					return echarts.graphic.clipRectByRect(rect, {
+					  x: params.coordSys.x,
+					  y: params.coordSys.y,
+					  width: params.coordSys.width,
+					  height: params.coordSys.height
+					});
+				  }
+				function makeOption() {
+					// Define activity names and their corresponding colors
+					var activityLegends = [
+						{ name: 'Application', color: '#00A6E0' },
+						{ name: 'Idle', color: '#FF4001' },
+						{ name: 'Call', color: '#62BA46' },
+						{ name: 'Internal Meeting', color: '#6420AA' },
+						{ name: 'External Meeting', color: '#6699FF' },
+						{ name: 'Inactive', color: '#C1C1C1' }
+					];
+				
+					// Generate legend data based on activityLegends
+					var legendData = activityLegends.map(function (item) {
+						return {
+							name: item.name,
+							icon: 'rect',
+							textStyle: {
+								color: '#333'
+							}
+						};
+					});
+	
+					return {
+						backgroundColor: 'transparent',
+						tooltip: {
+							formatter: function(params) {
+								var activityType = params.data[0];
+								var employeeName = params.data[1];
+								var startTime = new Date(params.data[2]);
+								var endTime = new Date(params.data[3]);
+								var startTimeString = startTime.toTimeString().split(' ')[0];
+								var endTimeString = endTime.toTimeString().split(' ')[0];
+							
+								var durationMs = endTime - startTime;
+								var durationSeconds = Math.floor(durationMs / 1000);
+							
+								var hours = Math.floor(durationSeconds / 3600);
+								var minutes = Math.floor((durationSeconds % 3600) / 60);
+								var seconds = durationSeconds % 60;
+							
+								var durationString = "";
+								if (hours > 0) {
+									durationString += hours + "h ";
+								}
+								if (minutes > 0) {
+									durationString += minutes + "m ";
+								}
+								if (seconds > 0 || durationString === "") {
+									durationString += seconds + "s";
+								}
+							
+								var tooltipContent = `<div style="line-height: 1.5;">`;
+							
+								if (activityType === 'Call' && params.data[4]) {
+									tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span><br>`;
+									tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
+								} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
+									if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
+									if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
+								}
+							
+								tooltipContent += `
+									<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
+									<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
+									<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
+									<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
+									<span style="font-weight: bold;">Duration:</span> ${durationString}`;
+							
+								tooltipContent += `</div>`;
+							
+								return tooltipContent;
+							},
+						},
+						animation: false,
+						toolbox: {
+							left: 20,
+							top: 0,
+							itemSize: 20
+						},
+						legend: {
+							show: true,
+							data: legendData,
+							top: 0,
+							left: 'center',
+							itemWidth: 25,
+							itemHeight: 14,
+							textStyle: {
+								fontSize: 12
+							},
+							itemGap: 25,
+							selectedMode: false,
+							formatter: function(name) {
+								var item = activityLegends.find(l => l.name === name);
+								return `{marker|} {name|${name}}`;
+							},
+							textStyle: {
+								rich: {
+									marker: {
+										width: 25,
+										height: 14,
+										align: 'center',
+										verticalAlign: 'middle',
+										backgroundColor: function(params) {
+											var item = activityLegends.find(l => l.name === params.name);
+											return item ? item.color : '';
+										}
+									},
+									name: {
+										fontSize: 12,
+										padding: [0, 0, 0, 5]
+									}
+								}
+							}
+						},
+						dataZoom: [
+							{
+								type: 'slider',
+								yAxisIndex: 0,
+								zoomLock: true,
+								width: 10,
+								right: 10,
+								top: 70,
+								bottom: 20,
+								start: 95,
+								end: 150,
+								handleSize: 0,
+								showDetail: false
+							},
+							{
+								type: 'inside',
+								id: 'insideY',
+								yAxisIndex: 0,
+								start: 95,
+								end: 150,
+								zoomOnMouseWheel: false,
+								moveOnMouseMove: false,
+								moveOnMouseWheel: true
+							}
+						],  
+						grid: {
+							show: true,
+							top: 20,
+							bottom: 20,
+							left: 50,
+							right: 20,
+							backgroundColor: 'transparent',
+							borderWidth: 0
+						},
+						yAxis: {
+							type: 'category',
+							axisTick: { show: false },
+							splitLine: { show: false },
+							axisLine: { show: false },
+							axisLabel: { 
+								show: true,
+								align: 'left',
+								margin: 5,
+								formatter: function(value) {
+									return value.length > 20 ? value.substr(0, 17) + '...' : value;
+								},
+								rich: {
+									a: {
+										align: 'left',
+										width: 140, 
+									}
+								}
+							},
+							data: _rawData.parkingApron.data.map(item => item[0]),
+							min: 0,
+							max: _rawData.parkingApron.data.length - 1
+						},
+						xAxis: {
+							type: 'time',
+							position: 'top',
+							splitLine: {
+								lineStyle: {
+									color: ['#E9EDFF']
+								}
+							},
+							axisLine: {
+								show: false
+							},
+							axisTick: {
+								lineStyle: {
+									color: '#929ABA'
+								}
+							},
+							axisLabel: {
+								color: '#929ABA',
+								inside: false,
+								align: 'center',
+								formatter: function (value, index) {
+									var date = new Date(value);
+									var hours = date.getHours();
+									var minutes = date.getMinutes();
+									var ampm = hours >= 12 ? 'PM' : 'AM';
+									hours = hours % 12;
+									hours = hours ? hours : 12; // Handle midnight (0 hours) as 12 AM
+									var minutesStr = minutes < 10 ? '0' + minutes : minutes;
+									var strTime = hours + ':' + minutesStr + ' ' + ampm;
+									return strTime;
+								}
+							},
+							min : '2000-01-01 00:00:00',
+							max : '2000-01-01 23:59:59'
+						},
+						series: [
+							{
+								id: 'flightData',
+								type: 'custom',
+								renderItem: renderGanttItem,
+								dimensions: _rawData.flight.dimensions,
+								encode: {
+									x: [2, 3],
+									y: 1,
+								},
+								data: _rawData.flight.data
+							},
+							{
+								type: 'custom',
+								render: renderAxisLabelItem,
+								dimensions: _rawData.parkingApron.dimensions,
+								encode: {
+									x: -1,
+									y: 0
+								},
+								data: _rawData.parkingApron.data.map(function (item, index) {
+									return [index].concat(item);
+								})
+							}
+						]
+					};
+				}
+	
+				function renderAxisLabelItem(params, api) {
+					var yIndex = api.value(0);
+					var xValue = api.value(1);
+	
+					return {
+						type: 'text',
+						position: [xValue, yIndex],
+						value: xValue,
+						style: api.style()
+					};
+				}
+					overallPerformance.setOption(makeOption());
+					overallPerformance.on('click', function (params) {
+						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
+							var startTime = params.value[2];
+							var endTime = params.value[3];
+							var employeeName = params.value[1];
+	
+							frappe.db.get_value("Employee", {
+								employee_name: employeeName
+							}, "user_id").then(r => {
+								var employeeId = r.message.user_id;
+								const table_fields = [
+									{
+										label: "Employee",
+										fieldname: "employee",
+										fieldtype: "Link",
+										in_list_view: 1,
+										options: "Employee",
+									},
+									{
+										label: "Employee Name",
+										fieldname: "employee_name",
+										fieldtype: "Data",
+										in_list_view: 1,
+									}
+								];
+								var fields = [
+									{
+										fieldtype: "HTML",
+										options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
+									},
+									{
+										fieldtype: 'Section Break',
+									},
+									{
+										label: "Internal Meeting",
+										fieldname: "internal_meeting",
+										fieldtype: "Check",
+									},
+									{
+										label: "Purpose",
+										fieldname: "purpose",
+										fieldtype: "Link",
+										options: "Meeting Purpose",
+										reqd: 1
+									},
+									{
+										label: __("Party Type"),
+										fieldtype: 'Link',
+										options: "DocType",
+										fieldname: 'party_type',
+										get_query: function () {
+											return {
+												filters: {
+													"name": ["in", ["Customer", "Supplier", "Lead"]]
+												}
+											};
+										},
+										depends_on: 'eval:!doc.internal_meeting',
+										mandatory_depends_on: 'eval:!doc.internal_meeting',
+									},
+									{
+										label: __("Party"),
+										fieldtype: 'Dynamic Link',
+										options: "party_type",
+										fieldname: 'party',
+										depends_on: 'eval:!doc.internal_meeting',
+										mandatory_depends_on: 'eval:!doc.internal_meeting',
+									},
+									{
+										label: "Meeting Arranged By",
+										fieldname: "meeting_arranged_by",
+										fieldtype: "Link",
+										options: "User",
+										default: employeeId
+									},
+									{
+										fieldtype: 'Column Break',
+									},
+									{
+										label: 'Meeting From',
+										fieldname: 'meeting_from',
+										fieldtype: 'Datetime',
+										default: startTime
+									},
+									{
+										label: 'Meeting To',
+										fieldname: 'meeting_to',
+										fieldtype: 'Datetime',
+										default: endTime
+									},
+									{
+										label: "Industry",
+										fieldname: "industry",
+										fieldtype: "Link",
+										options: "Industry Type",
+										depends_on: 'eval:!doc.internal_meeting',
+										mandatory_depends_on: 'eval:!doc.internal_meeting',
+									},
+									{
+										fieldtype: 'Section Break',
+									},
+									{
+										label: 'Meeting Company Representative',
+										"allow_bulk_edit": 1,
+										fieldname: 'meeting_company_representative',
+										fieldtype: 'Table',
+										fields: table_fields,
+										options: 'Meeting Company Representative',
+									},
+									{
+										label: "Discussion",
+										fieldname: "discussion",
+										fieldtype: "Text Editor",
+										reqd: 1
+									},
+								];
+	
+								let d = new frappe.ui.Dialog({
+									title: 'Add Meeting',
+									fields: fields,
+									primary_action_label: 'Submit',
+									primary_action(values) {
+										frappe.call({
+											method: "productivity_next.api.add_meeting",
+											args: {
+												meeting_from: values.meeting_from,
+												meeting_to: values.meeting_to,
+												meeting_arranged_by: values.meeting_arranged_by,
+												internal_meeting: values.internal_meeting,
+												purpose: values.purpose,
+												industry: values.industry || null,
+												party_type: values.party_type || null,
+												party: values.party || null,
+												discussion: values.discussion,
+												meeting_company_representative: values.meeting_company_representative
+											},
+											callback: (r) => {
+												if (r.message) {
+													frappe.msgprint("Meeting added successfully");
+													d.hide();
+												}
+											}
+										});
+									},
+									onshow: function () {
+										var me = this;
+										this.fields_dict.meeting_company_representative.grid.wrapper.on('click', '.grid-row', function () {
+											var grid_row = $(this).closest('.grid-row');
+											var employee = grid_row.find('input[data-fieldname="employee"]').val();
+											if (employee) {
+												frappe.db.get_value('Employee', employee, 'employee_name', function (r) {
+													if (r.employee_name) {
+														grid_row.find('input[data-fieldname="employee_name"]').val(r.employee_name);
+													}
+												});
+											}
+										});
+									}
+								});
+								d.fields_dict.purpose.get_query = function () {
+									return {
+										filters: {
+											internal_meeting: d.get_value('internal_meeting')
+										}
+									};
+								};
+	
+								d.show();
+							}).catch(err => {
+								console.error("Error fetching employee details:", err);
+							});
+						}
+					});
+				}
+			});
+	}
+	
+	
+}
+frappe.provide("frappe.ui");
+frappe.ui.UserProfile = UserProfile;

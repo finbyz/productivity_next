@@ -1,15 +1,15 @@
 {
  "content": null,
- "creation": "2024-05-22 12:09:13.121779",
+ "creation": "2024-07-17 10:03:22.160123",
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-05-22 12:09:53.454098",
+ "modified": "2024-07-17 10:03:54.995640",
  "modified_by": "Administrator",
  "module": "Productivity Next",
- "name": "Productify Consolidated Tracking",
+ "name": "Productify Consolidated Analysis",
  "owner": "Administrator",
- "page_name": "Productify Consolidated Tracking",
+ "page_name": "Productify Consolidated Analysis",
  "roles": [
   {
    "role": "Administrator"
@@ -22,5 +22,5 @@
  "standard": "Yes",
  "style": null,
  "system_page": 0,
- "title": "Productify Consolidated Tracking"
+ "title": "Productify Consolidated Analysis"
 }

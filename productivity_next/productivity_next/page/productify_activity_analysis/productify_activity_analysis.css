@@ -1,36 +1,67 @@
+:root {
+    --color-chart-label: #F6F8FC;
+    /* Default light theme color */
+}
+
+[data-theme="dark"] {
+    --color-chart-label: #2b2e33;
+    /* Dark theme color */
+}
+
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 .dynamic-spacing {
     padding: 2vh 2vw;
-    margin-bottom: 1rem; 
+    margin-bottom: 1rem;
 }
-.performance-graphs, .recent-activity {
+
+.performance-graphs,
+.recent-activity {
     display: flex;
     flex-direction: column;
     gap: 1rem;
     width: 100%;
     max-width: 100%;
 }
-.sidebar-image{
+
+.sidebar-image {
     max-width: 200px;
     max-height: 250px;
     height: auto;
-    object-fit:cover;
+    object-fit: cover;
 }
-.form-sidebar .sidebar-image-section .sidebar-image{
+
+.form-sidebar .sidebar-image-section .sidebar-image {
     max-height: fit-content;
 }
+
 .chart-column-container {
-    flex: 1; 
+    flex: 1;
     margin-right: 0.5rem;
 }
+
 [data-unformatted] {
     fill: var(--heading-color) !important;
 }
+
 @media (max-width: 768px) {
-    .chart-column-container, .dynamic-spacing {
+    .container {
+        padding-left: 21px;
+        padding-right: 2px;
+    }
+
+    .chart-column-container,
+    .dynamic-spacing {
         padding: 1vh 1vw;
     }
 
-    .performance-graphs, .recent-activity {
+    .performance-graphs,
+    .recent-activity {
         flex-direction: column;
     }
 
@@ -38,7 +69,7 @@
         margin-right: 0.5rem;
         flex: auto;
     }
-   
+
 }
 
 .clickable-image {
@@ -54,10 +85,12 @@
     width: 80% !important;
     max-width: 80% !important;
 }
+
 .modal-dialog.modal-custom {
     width: 80% !important;
     max-width: 80% !important;
 }
+
 .meeting-hover {
     position: relative;
     display: inline-block;
@@ -74,7 +107,8 @@
     padding: 5px 0;
     position: absolute;
     z-index: 1;
-    bottom: 80%; /* Position the tooltip above the text */
+    bottom: 80%;
+    /* Position the tooltip above the text */
     left: 50%;
     margin-left: -50px;
     opacity: 0;
@@ -129,11 +163,17 @@
 
 /* Custom tooltip styles */
 .tooltip-custom {
-    width:800px;
-    height:40px;
+    width: 800px;
+    height: 40px;
     justify-content: space-between !important;
     padding: 5px;
-    font-size: 15px; /* Increase font size to 18 */
+    font-size: 15px;
+    /* Increase font size to 18 */
+}
+
+.tooltip-inner {
+    max-width: 400px;
+
 }
 
 .tooltip-custom::before {
@@ -146,9 +186,47 @@
     border-style: solid;
     border-color: transparent white transparent transparent;
 }
+
 @media only screen and (max-width: 600px) {
     .table {
         font-size: 11px;
     }
 }
- 
+
+[dominant-baseline] {
+    fill: var(--heading-color) !important;
+
+}
+
+path[paint-order="stroke"] {
+    fill: var(--color-chart-label) !important;
+}
+.chart-wrapper {
+    width: 100%;
+    /* Ensure the chart wrapper occupies full width */
+    height: 100%;
+    /* Ensure the chart wrapper occupies full height */
+}
+
+.table-spacing {
+    font-size: medium !important;
+    width: 270px;
+}
+
+.heading-custom {
+    font-size: medium !important;
+}
+
+.w-max {
+    max-width: none;
+}
+
+.chart-container {
+    height: 400px; /* Set a fixed height or use a percentage */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.overall-performance-chart {
+    width: 100%;
+    min-height: 100%;
+}

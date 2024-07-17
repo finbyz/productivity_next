@@ -1,3 +1,48 @@
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <head>
+        <style>
+            .frappe-card {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                box-sizing: border-box; 
+            }
+    
+            .frappe-card .card-title h4 {
+                margin-bottom: 10px;
+            }
+    
+            /* Optional: Adjust chart height */
+            #calls-time-chart,
+            #calls-type-chart {
+                min-height: 500px;
+                min-width: 200px;
+            }
+            .frappe-card .card-title {
+            max-width: 100%; /* Adjust as needed */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .frappe-card .chart-container {
+            max-width: 100%; /* Adjust as needed */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .frappe-card .chart-container .chart-title {
+            max-width: 100%; /* Adjust as needed */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        </style>
+    </head>
+    
+</head>
 <div class="container row user-profile">
     <div class="col-md-12">
         <div class="performance-graphs">
@@ -35,41 +80,51 @@
                     <div class="title-area ">
                         <h4 class="card-title">{%=__("Work Intensity") %}</h4>
                     </div>
-                    <div  id="intensity-heatmap-container">
+                    <div class="intensity-heatmap-container" style="width: 100%; min-height: 350px">
                     </div>
                 </div>
             </div>
-
             <div class="row">
-                <div class="frappe-card chart-column-container col-sm-12 col-md-6">
-                    <div class="card-title ">
+                <div class="frappe-card chart-column-container col-md-12">
+                    <div class="title-area ">
+                        <h4 class="card-title">{%=__("Overall Performance") %}<span style="font-size: 12px;"> </span></h4>
+                    </div>
+                    <div class="overall-performance-chart" style="width: 100%; min-height: 450px; max-height: 650px;">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="frappe-card chart-column-container col-sm-12 col-md-6 order-sm-1">
+                    <div class="card-title">
                         <h4 class="card-title">{%=__("Applications Used") %}</h4>
                     </div>
-                    <div  id="application-usage-time-chart">
+                    <div class="chart-wrapper" id="application-usage-time-chart" style="width: 80%; min-height: 500px;">
+                        <!-- Application usage chart content -->
                     </div>
                 </div>
-
-                <div class="frappe-card chart-column-container col-sm-12 col-md-6">
-                    <div class="card-title ">
+            
+                <div class="frappe-card chart-column-container col-sm-12 col-md-6 order-md-2">
+                    <div class="card-title">
                         <h4 class="card-title">{%=__("Web Browsing Time") %}</h4>
                     </div>
-                    <div class="chart-wrapper" id="domain-usage-time-chart">
+                    <div class="chart-wrapper" id="domain-usage-time-chart" style="width: 100%; min-height: 500px;">
+                        <!-- Web browsing time chart content -->
                     </div>
                 </div>
             </div>
+            
             <div class="row">
-                <div class="frappe-card chart-column-container col-sm-12 col-md-8 ">
+                <div class="frappe-card chart-column-container col-sm-12 col-md-12">
                     <div class="card-title ">
                         <h4 class="card-title">{%=__("Top Phone calls") %}</h4>
                     </div>
-                    <div  id="calls-time-chart">
-                    </div>
+                    <div id="calls-time-chart" style="width: 100%; min-height: 500px"></div>
                 </div>
                 <div class="frappe-card chart-column-container col-sm-12 col-md-4">
                     <div class="card-title ">
                         <h4 class="card-title">{%=__("Type of Calls") %}</h4>
                     </div>
-                    <div  id="calls-type-chart">
+                    <div id="calls-type-chart" style="width: 100%; min-height: 500px">
                     </div>
                 </div>
             </div>
@@ -83,41 +138,24 @@
                 </div>
             </div>
             <div class="row">
-                <div class="frappe-card chart-column-container pie-chart-container col-md-12">
-                    <div class="title-area ">
-                        <h4 class="card-title">{%=__("Top 5 Application Analysis") %}<span style="font-size: 12px;"> (In
-                                Hours)</span></h4>
-                    </div>
-                    <div class="chart-wrapper performance-pie-chart ">
-                        <div class=" null-state">
-                            <span>{%=__("No Data to Show") %}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
                 <div class="frappe-card chart-column-container line-chart-container col-md-12">
                     <div class="title-area ">
                         <h4 class="card-title">{%=__("Hourly Calls Analysis ") %}<span style="font-size: 12px;"> (In
                                 Minutes)</span></h4>
                     </div>
-                    <div class="chart-wrapper performance-line-chart ">
-                        <div class="null-state">
-                            <span>{%=__("No Data to Show") %}</span>
-                        </div>
+                    <div class="performance-line-chart" style="width: 100%; min-height: 350px">
+
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="frappe-card chart-column-container bar-chart-container col-md-12">
-                    <div class="title-area ">
+                    <div class="title-area">
                         <h4 class="card-title">{%=__("Top 7 Document Analysis") %}<span style="font-size: 12px;">
                                 (Changes Per Doctype)</span></h4>
                     </div>
-                    <div class="chart-wrapper performance-bar-chart ">
-                        <div class="null-state">
-                            <span>{%=__("No Data to Show") %}</span>
-                        </div>
+                    <div class="performance-bar-chart" style="width: 100%; min-height: 350px">
+                        <!-- Chart will be rendered here -->
                     </div>
                 </div>
             </div>

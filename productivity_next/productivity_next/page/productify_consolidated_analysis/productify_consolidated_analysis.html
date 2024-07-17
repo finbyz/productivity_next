@@ -1,0 +1,114 @@
+<div class="container">
+    <div class="row user-profile">
+        <div class="col-md-12">
+            <div class="frappe-card chart-column-container bar-chart-container">
+                <div class="title-area">
+                    <h4 class="card-title">{%=__("Document Analysis") %}<span style="font-size: 12px;"> (Numbers Of Document Modified)</span></h4>
+                </div>
+                <div class="performance-bar-chart" style="min-height: 300px;">
+                    <!-- Placeholder for Document Analysis Bar Chart -->
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12">
+            <div class="frappe-card chart-column-container line-chart-container">
+                <div class="title-area">
+                    <h4 class="card-title">{%=__("Top 10 Clients Call Analysis") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
+                </div>
+                <div id="clients-call-chart" style="min-height: 555px;">
+                    <!-- Placeholder for Top 10 Clients Call Analysis Line Chart -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="frappe-card chart-column-container line-chart-container">
+                <div class="title-area">
+                    <h4 class="card-title">{%=__("Top 10 Employees Call Analysis") %}<span style="font-size: 12px;"></span></h4>
+                </div>
+                <div id="performance-line-chart" style="min-height: 355px;">
+                    <!-- Placeholder for Top 10 Employees Call Analysis Line Chart -->
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-md-12">
+            <div class="frappe-card chart-column-container time-chart-container">
+                <div class="title-area">
+                    <h4 class="card-title">{%=__("Overall Performance") %}<span style="font-size: 12px;"> (All Employees)</span></h4>
+                </div>
+                <div class="chart-wrapper overall-performance-chart" style="min-height: 650px;">
+                    <!-- Placeholder for Time Consumption In Issue Chart -->
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12 mt-0">
+            <div class="performance-graphs">
+                <div class="frappe-card chart-column-container">
+                    <div class="title-area mb-0 pb-0">
+                        <h4 class="card-title">{%=__("User Analysis") %}<span style="font-size: 12px;"> (User Productivity Stats)</span></h4>
+                    </div>
+                    <div class="chart-wrapper mt-0 pt-0">
+                        <div class="table-responsive">
+                            <table class="table" width="100%">
+                                <thead>
+                                    <tr align="center">
+                                        <th width="100%" colspan="17" style="padding:15px !important;">All Users Of The Organization<span style="font-size: 12px;"> (Click on employee name to get brief data)</span></th>
+                                    </tr>
+                                    <tr align="center">
+                                        <th width="15%">Employee</th>
+                                        <th width="32%" colspan="4" style="color:#00A6E0;">Activity Hours</th>
+                                        <th width="29.50%" colspan="4" style="color:#62BA46;">Phone Calls</th>
+                                        <th width="13.50%" colspan="3" style="color:#FF4001;">Work Intensity</th>
+                                        <th width="10.0%" colspan="2" style="color:#6420AA;">Meetings</th>
+                                    </tr>
+                                    <tr align="center">
+                                        <th></th>
+                                        <th style="color:#00A6E0;">Total</th>
+                                        <th style="color:#00A6E0;">Active</th>
+                                        <th style="color:#00A6E0;">Idle</th>
+                                        <th style="color:#00A6E0;">Avg. Active</th>
+                                        <th style="color:#62BA46;">Incoming</th>
+                                        <th style="color:#62BA46;">Outgoing</th>
+                                        <th style="color:#62BA46;">Missed</th>
+                                        <th style="color:#62BA46;">Rejected</th>
+                                        <th style="color:#FF4001;">Keyboard</th>
+                                        <th style="color:#FF4001;">Mouse</th>
+                                        <th style="color:#FF4001;">Scroll</th>
+                                        <th style="color:#6420AA;">Nos</th>
+                                        <th style="color:#6420AA;">Hours</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="user-activity-data">
+                                    <!-- Placeholder for User Analysis Data -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Modal -->
+<div class="modal fade" id="activityDetailsModal" tabindex="-1" aria-labelledby="activityDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="activityDetailsModalLabel">Activity Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong id="modalActivityName"></strong></p>
+          <p id="modalActivityTime"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+</div>
+  

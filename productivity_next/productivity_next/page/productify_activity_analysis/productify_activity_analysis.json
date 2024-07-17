@@ -1,15 +1,15 @@
 {
  "content": null,
- "creation": "2024-05-22 11:51:55.750783",
+ "creation": "2024-07-17 09:39:38.979129",
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-05-22 11:52:10.415055",
+ "modified": "2024-07-17 09:40:06.123031",
  "modified_by": "Administrator",
  "module": "Productivity Next",
- "name": "Productify Employee Tracking",
+ "name": "Productify Activity Analysis",
  "owner": "Administrator",
- "page_name": "Productify Employee Tracking",
+ "page_name": "Productify Activity Analysis",
  "roles": [
   {
    "role": "Employee"
@@ -22,5 +22,5 @@
  "standard": "Yes",
  "style": null,
  "system_page": 0,
- "title": "Productify Employee Tracking"
+ "title": "Productify Activity Analysis"
 }
