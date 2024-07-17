@@ -11,7 +11,12 @@ on_session_creation = "productivity_next.session.on_session_creation"
 
 # Includes in <head>
 # ------------------
-app_include_js = ["https://cdn.plot.ly/plotly-latest.min.js","https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"]
+app_include_js = [
+    "https://cdn.plot.ly/plotly-latest.min.js",
+    "https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js",
+    # "assets/productivity_next/productivity_next/setup.js",
+]
+# setup_wizard_requires = "assets/productivity_next/setup.js"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/productivity_next/css/productivity_next.css"
 # app_include_js = "/assets/productivity_next/js/productivity_next.js"
@@ -66,7 +71,7 @@ app_include_js = ["https://cdn.plot.ly/plotly-latest.min.js","https://cdn.jsdeli
 # ------------
 
 # before_install = "productivity_next.install.before_install"
-# after_install = "productivity_next.install.after_install"
+# after_install = "productivity_next.setup.install.after_install"
 
 # Uninstallation
 # ------------
@@ -137,6 +142,11 @@ scheduler_events = {
     "daily": [
         "productivity_next.schedule.delete_older_screenshots",
     ],
+    "cron":{
+		"0 1 * * *": [
+			"productivity_next.schedule.create_productify_work_summary"
+		]
+	},
 }
 # 	"all": [
 # 		"productivity_next.tasks.all"
