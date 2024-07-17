@@ -14,8 +14,8 @@
             }
     
             /* Optional: Adjust chart height */
-            #calls-time-chart,
-            #calls-type-chart {
+            #top-phone-calls,
+            #type-of-calls {
                 min-height: 500px;
                 min-width: 200px;
             }
@@ -44,8 +44,78 @@
     
 </head>
 <div class="container row user-profile">
+    
     <div class="col-md-12">
         <div class="performance-graphs">
+            <div class="row">
+                <div class="frappe-card chart-column-container col-md-12">
+                    <div class="title-area ">
+                        <h4 class="card-title">{%=__("Work Intensity") %}</h4>
+                    </div>
+                    <div class="work-intensity" style="width: 100%; min-height: 350px">
+                        <!-- Work Intensity Chart Container -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="frappe-card chart-column-container col-md-12">
+                    <div class="title-area ">
+                        <h4 class="card-title">{%=__("Overall Performance") %}<span style="font-size: 12px;"> </span></h4>
+                    </div>
+                    <div class="overall-performance" style="width: 100%; min-height: 450px; max-height: 650px;">
+                        <!-- Overall Performance Chart Container -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="frappe-card chart-column-container col-sm-12 col-md-6 order-sm-1">
+                    <div class="card-title">
+                        <h4 class="card-title">{%=__("Applications Used") %}</h4>
+                    </div>
+                    <div class="chart-wrapper" id="application-usage-time" style="width: 80%; min-height: 500px;">
+                        <!-- Application usage chart content -->
+                    </div>
+                </div>
+            
+                <div class="frappe-card chart-column-container col-sm-12 col-md-6 order-md-2">
+                    <div class="card-title">
+                        <h4 class="card-title">{%=__("Web Browsing Time") %}</h4>
+                    </div>
+                    <div class="chart-wrapper" id="web-browsing-time" style="width: 100%; min-height: 500px;">
+                        <!-- Web browsing time chart content -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="frappe-card chart-column-container col-sm-12 col-md-12">
+                    <div class="card-title ">
+                        <h4 class="card-title">{%=__("Top Phone calls") %}</h4>
+                    </div>
+                    <div id="top-phone-calls" style="width: 100%; min-height: 500px">
+                        <!-- Phone Calls Chart Content -->
+                    </div>
+                </div>
+                <div class="frappe-card chart-column-container col-sm-12 col-md-4">
+                    <div class="card-title ">
+                        <h4 class="card-title">{%=__("Type of Calls") %}</h4>
+                    </div>
+                    <div id="type-of-calls" style="width: 100%; min-height: 500px">
+                        <!-- Type of calls chart content -->
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="chart-column-container" id="url-data">
+                <div class="chart-wrapper">
+                    <!-- URL DATA HERE -->
+                </div>
+            </div>
+
+            <!-- URL INFORMATION MODAL CODE START -->
             <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
@@ -64,113 +134,43 @@
                     </div>
                 </div>
             </div>
+            <!-- URL INFORMATION MODAL CODE END -->
 
-            <!-- <div class="row">
-                <div class="frappe-card chart-column-container col-md-12">
-                    <div class="title-area ">
-                        <h4 class="card-title">{%=__("Timeframe Chart") %}<span style="font-size: 12px;"> (Overall Activity)</span></h4>
-                    </div>
-                    <div  id="overall-activity-gantt-container">
-                    </div>
-                </div>
-            </div> -->
-
-            <div class="row">
-                <div class="frappe-card chart-column-container col-md-12">
-                    <div class="title-area ">
-                        <h4 class="card-title">{%=__("Work Intensity") %}</h4>
-                    </div>
-                    <div class="intensity-heatmap-container" style="width: 100%; min-height: 350px">
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="frappe-card chart-column-container col-md-12">
-                    <div class="title-area ">
-                        <h4 class="card-title">{%=__("Overall Performance") %}<span style="font-size: 12px;"> </span></h4>
-                    </div>
-                    <div class="overall-performance-chart" style="width: 100%; min-height: 450px; max-height: 650px;">
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="frappe-card chart-column-container col-sm-12 col-md-6 order-sm-1">
-                    <div class="card-title">
-                        <h4 class="card-title">{%=__("Applications Used") %}</h4>
-                    </div>
-                    <div class="chart-wrapper" id="application-usage-time-chart" style="width: 80%; min-height: 500px;">
-                        <!-- Application usage chart content -->
-                    </div>
-                </div>
-            
-                <div class="frappe-card chart-column-container col-sm-12 col-md-6 order-md-2">
-                    <div class="card-title">
-                        <h4 class="card-title">{%=__("Web Browsing Time") %}</h4>
-                    </div>
-                    <div class="chart-wrapper" id="domain-usage-time-chart" style="width: 100%; min-height: 500px;">
-                        <!-- Web browsing time chart content -->
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="frappe-card chart-column-container col-sm-12 col-md-12">
-                    <div class="card-title ">
-                        <h4 class="card-title">{%=__("Top Phone calls") %}</h4>
-                    </div>
-                    <div id="calls-time-chart" style="width: 100%; min-height: 500px"></div>
-                </div>
-                <div class="frappe-card chart-column-container col-sm-12 col-md-4">
-                    <div class="card-title ">
-                        <h4 class="card-title">{%=__("Type of Calls") %}</h4>
-                    </div>
-                    <div id="calls-type-chart" style="width: 100%; min-height: 500px">
-                    </div>
-                </div>
-            </div>
-
-
-            <div class="working-stats-bar-chart"></div>
-
-
-            <div class="chart-column-container" id="user-data-cards">
-                <div class="chart-wrapper ">
-                </div>
-            </div>
             <div class="row">
                 <div class="frappe-card chart-column-container line-chart-container col-md-12">
                     <div class="title-area ">
-                        <h4 class="card-title">{%=__("Hourly Calls Analysis ") %}<span style="font-size: 12px;"> (In
-                                Minutes)</span></h4>
+                        <h4 class="card-title">{%=__("Hourly Calls Analysis ") %}<span style="font-size: 12px;"> (In Minutes)</span></h4>
                     </div>
-                    <div class="performance-line-chart" style="width: 100%; min-height: 350px">
-
+                    <div class="hourly-calls-analysis" style="width: 100%; min-height: 350px">
+                        <!-- Hourly calls analysis content -->
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="frappe-card chart-column-container bar-chart-container col-md-12">
                     <div class="title-area">
-                        <h4 class="card-title">{%=__("Top 7 Document Analysis") %}<span style="font-size: 12px;">
-                                (Changes Per Doctype)</span></h4>
+                        <h4 class="card-title">{%=__("Top 7 Document Analysis") %}<span style="font-size: 12px;">(Changes Per Doctype)</span></h4>
                     </div>
-                    <div class="performance-bar-chart" style="width: 100%; min-height: 350px">
-                        <!-- Chart will be rendered here -->
+                    <div class="top-document-analysis" style="width: 100%; min-height: 350px">
+                        <!-- Top 7 document analysis chart content -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
     <div class="frappe-card chart-column-container user-activity-images ">
         <div class="title-area ">
             <h4 class="card-title">{%=__("User Activity Images") %}</h4>
         </div>
-        <div class="image-wrapper  recent-activity-list row">
+        <div class="image-wrapper recent-activity-list row">
+            <!-- User Activity Images -->
         </div>
     </div>
 </div>
-<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel"
-    aria-hidden="true">
+
+<!-- On click User Activity Images Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-custom" role="document"> <!-- Notice the addition of modal-custom -->
         <div class="modal-content">
             <div class="modal-header">
@@ -184,5 +184,4 @@
             </div>
         </div>
     </div>
-</div>
 </div>

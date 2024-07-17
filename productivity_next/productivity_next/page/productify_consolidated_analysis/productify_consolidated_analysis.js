@@ -566,7 +566,7 @@ UserProfile = class UserProfile {
 						for (var j = 1; j < employeeActivities.length; j++) {
 							var startTime = new Date(employeeActivities[j][2]).getTime();
 							if (startTime > lastEndTime) {
-								console.log('Inactive period found for', employeeName, 'from', lastEndTime, 'to', startTime);
+								// console.log('Inactive period found for', employeeName, 'from', lastEndTime, 'to', startTime);
 								var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
 								var endTimeString = convertDateTime(new Date(startTime).toISOString());
 								

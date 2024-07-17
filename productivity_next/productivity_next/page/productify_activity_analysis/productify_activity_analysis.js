@@ -95,29 +95,28 @@ UserProfile = class UserProfile {
 
 
 	finish_user_profile_setup() {
-		this.setup_user_search();
 		this.setup_timespan();
+		this.setup_user_search();
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
-		// this.render_overall_activity_chart();
-		this.render_intensity_heatmap();
-		this.overall_performance_chart();
-		this.update_application_time_chart();
-		this.update_domain_time_chart();
-		this.update_calls_time_chart();
-		this.update_calls_type_chart();
-		this.fetch_and_render_user_data();
-		this.render_line_chart();
-		this.render_bar_chart();
+		this.work_intensity();
+		this.overall_performance();
+		this.application_usage_time();
+		this.web_browsing_time();
+		this.top_phone_calls();
+		this.type_of_calls();
+		this.fetch_url_data();
+		this.hourly_calls_analysis();
+		this.top_document_analysis();
 		this.render_images();
 	}
 
+	// Timespan Select Code Starts
 	setup_timespan() {
 		this.$user_search_button = this.page.set_primary_action(
 			__("Select Timespan"),
 			() => this.setup_timespan_dialog(),
 		);
 	}
-
 	setup_timespan_dialog() {
 		let dialog = new frappe.ui.Dialog({
 			title: __("Select Timespan"),
@@ -155,54 +154,7 @@ UserProfile = class UserProfile {
 		});
 		dialog.show();
 	}
-	render_user_details() {
-		function getBaseURL() {
-			return window.location.origin + '/app/';
-		}
-		this.start_date_ = this.selected_start_date;
-		this.end_date_ = this.selected_end_date;
-		const baseUrl = getBaseURL();
-		if (this.numberCardData) {
-			this.callsHoursIncoming = this.convertSecondsToTime_(this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration)
-			this.callsHoursOutgoing = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration)
-			this.meeting_hours = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)
-			this.internal_meeting_hours = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_internal)
-			this.external_meeting_hours = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external)
-		} else {
-			this.callsHoursIncoming = 0;
-			this.callsHoursOutgoing = 0;
-			this.meeting_hours = 0;
-			this.internal_meeting_hours = 0;
-			this.external_meeting_hours = 0;
-		}
-		frappe.db.get_value("Employee", this.selected_employee, "image")
-			.then((result) => {
-				const userImage = result.message.image;
-				const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(this.selected_employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
-				const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(this.selected_employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
-				this.sidebar.empty().append(
-					this.update_activity_chart_data(),
-					frappe.render_template("productify_activity_analysis_sidebar", {
-						user_image: userImage,
-						user_abbr: this.user.abbr,
-						user_location: this.user.location,
-						numberCardData: this.numberCardData,
-						employeeMeetingUrl: employeeMeetingUrl,
-						employeeFincallUrl: employeeFincallUrl,
-						callsHoursIncoming: this.callsHoursIncoming,
-						callsHoursOutgoing: this.callsHoursOutgoing,
-						meeting_total_hours: this.meeting_hours,
-						internal_meeting_hours: this.internal_meeting_hours,
-						external_meeting_hours: this.external_meeting_hours
-					})
-				);
-			})
-			.catch((err) => {
-				console.error("Error fetching user image:", err);
-			});
-
-		this.setup_user_profile_links();
-	}
+	// Timespan Select Code Ends
 
 	setup_user_profile_links() {
 		if (this.user_id !== frappe.session.user) {
@@ -217,6 +169,8 @@ UserProfile = class UserProfile {
 			});
 		}
 	}
+
+	// Employee Name And Date Title Code Starts
 	make_user_profile() {
 		this.user = frappe.user_info(this.user_id);
 		if (!this.selected_employee) {
@@ -239,6 +193,9 @@ UserProfile = class UserProfile {
 			this.finish_user_profile_setup();
 		}
 	}
+	// Employee Name And Date Title Code Ends
+
+	// Change Employee Button Code Starts
 	setup_user_search() {
 		if (!this.buttonsInitialized) { // Check if buttons have already been initialized
 			// Add a refresh button with an icon
@@ -258,7 +215,6 @@ UserProfile = class UserProfile {
 			this.buttonsInitialized = true; // Set the flag to true after adding buttons
 		}
 	}
-
 	show_user_search_dialog() {
 		let dialog = new frappe.ui.Dialog({
 			title: __("Change Employee"),
@@ -283,222 +239,11 @@ UserProfile = class UserProfile {
 			},
 		});
 		dialog.show();
-
 	}
-	// render_activity_chart() {
-	// 	this.progressChart = new frappe.Chart(".activity-chart-data", {
-	// 		type: "bar",
-	// 		height: 250,
-	// 		width: 400,
-	// 		colors: ["#00A6E0"],
-	// 		tooltipOptions: {
-	// 			formatTooltipX: d => (d + '').toUpperCase(),
-	// 			formatTooltipY: d => d + ' Hours',
-	// 		},
-	// 		data: {
-	// 			labels: [],
-	// 			datasets: [
-	// 				{
-	// 					values: []
-	// 				}
-	// 			]
-	// 		},
-	// 		isNavigable: true,
-	// 	});
-	// 	this.update_activity_chart_data();
-	// }
-	update_activity_chart_data() {
-		let data;
-		if (this.selected_employee != null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_activity_chart_data", {
-			user: data,
-			start_date: this.selected_start_date,
-			end_date: this.selected_end_date,
-		})
-			.then((r) => {
+	// Change Employee Button Code Ends
 
-				// Convert time values from seconds to formatted hours and minutes
-				const total_hours = this.convertSecondsToTime_(r.total_hours);
-				const total_system_hours = this.convertSecondsToTime_(r.total_system_hours);
-				const total_active_hours = this.convertSecondsToTime_(r.total_active_hours);
-				const total_idle_time = this.convertSecondsToTime_(r.total_idle_time);
-				const total_call_data = this.convertSecondsToTime_(r.total_call_data);
-				const total_meeting_data = this.convertSecondsToTime_(r.total_meeting_data);
-				const total_inactive_hours = this.convertSecondsToTime_(r.total_inactive_hours);
-				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
-				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
-				const total_system_raw = this.convertSecondsToTime_(r.total_hours - r.total_idle_time);
-				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
-				let inactiveHoursRow = '';
-				let inactiveHoursRow_ = '';
-				if (r.total_inactive_hours > 0) {
-					inactiveHoursRow = `
-						<tr class='text-white'>
-							<td><b>Inactive Time:</b></td>
-							<td>-</td>
-							<td><b>${total_inactive_hours} H</b></td>
-						</tr>
-					`;
-				}
-				if (r.total_inactive_hours > 0) {
-					inactiveHoursRow_ = `
-						<tr class='text-dark'>
-							<td><b>Inactive Time:</b></td>
-							<td>-</td>
-							<td><b>${total_inactive_hours} H</b></td>
-						</tr>
-					`;
-				}
-				const container = $("#activity-chart-data");
-				const customStyles = `
-					<style>
-						.tight-table tr {
-							margin-bottom: 0 !important;
-							padding-bottom: 0 !important;
-						}
-					</style>
-				`;
-				container.html(`
-					 ${customStyles}
-    		<div class="progress" style="max-width: 400px !important;" 
-				data-toggle="tooltip" 
-				title="
-			</div>
-            <div>
-                <b class='heading-custom'>User Activity</b>
-                <table class='table-borderless table-tooltip table-spacing'>
-                    <tbody>
-                        <tr class='text-white'>
-						<td>Call:</td>
-						<td>-</td>
-						<td>${total_call_raw} H</td>
-                        </tr>
-                        <tr class='text-white'>
-						<td>Meeting:</td>
-						<td>-</td>
-						<td>${total_meeting_raw} H</td>
-                        </tr>
-                        <tr class='text-white'>
-						<td>System:</td>
-						<td>-</td>
-						<td>${total_system_hours} H</td>
-                        </tr>
-                        <tr class='text-white border-bottom'>
-                            <td>Overlapping:</td>
-                            <td>-</td>
-                            <td>-${overlapping} H</td>
-                        </tr>
-						<tr class='text-white'>
-                            <td><b>Active Time:</b></td>
-                            <td>-</td>
-                            <td><b>${total_active_hours} H</b></td>
-                        </tr>
-                        <tr class='text-white'>
-                            <td><b>Idle Time:</b></td>
-                            <td>-</td>
-                            <td><b>${total_idle_time} H</b></td>
-                        </tr>
-                        ${inactiveHoursRow}
-						<tr class='text-white border-top'>
-                            <td><b>Total Time:</b></td>
-                            <td>-</td>
-                            <td><b>${total_hours} H</b></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>"
-         data-html="true"
-         data-placement="left">
-        <div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-    </div>
-`);
-
-
-				var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
-				myDefaultWhiteList.table = ['class'];
-				myDefaultWhiteList.tbody = [];
-				myDefaultWhiteList.tr = [];
-				myDefaultWhiteList.td = [];
-
-				$('[data-toggle="tooltip"]').tooltip({
-					container: 'body',
-					html: true,
-					whiteList: myDefaultWhiteList,
-					title: function () { return '<u>text1</u><table class="table text-light"><tr><td>text2</td></tr></table>'; }
-				});
-
-
-				// Enable tooltips with custom class
-				$('[data-toggle="tooltip"]').tooltip({
-					html: true,
-					container: 'body',
-					placement: 'left', // Set tooltip placement to left
-					template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>'
-				});
-				const mobilecontainer = $("#activity-chart-data_mobile");
-				mobilecontainer.html(`
-					<div class="d-lg-none">
-						<div class="card border-primary shadow">
-							<div class="card-body">
-								<h5 class="card-title text-primary border-bottom pb-2 text-center">User Activity</h5>
-								<table class="table table-borderless">
-									<tbody>
-										<tr>
-											<td align="right">Call:</td>
-											<td>-</td>
-											<td>${total_call_raw} H</td>
-										</tr>
-										<tr>
-											<td align="right">Meeting:</td>
-											<td>-</td>
-											<td>${total_meeting_raw} H</td>
-										</tr>
-										<tr>
-											<td align="right">System:</td>
-											<td>-</td>
-											<td>${total_system_hours} H</td>
-										</tr>
-										<tr  style="border-bottom: 1px solid #E5E4E2;">
-											<td align="right">Overlapping:</td>
-											<td>-</td>
-											<td>-${overlapping} H</td>
-										</tr>
-										<tr>
-											<td align="right"><b>Active Time:</b></td>
-											<td>-</td>
-											<td><b>${total_active_hours} H</b></td>
-										</tr>
-										<tr>
-											<td align="right"><b>Idle Time:</b></td>
-											<td>-</td>
-											<td><b>${total_idle_time} H<b></td>
-										</tr>
-										 ${inactiveHoursRow_}
-										 <tr style="border-top: 1px solid #E5E4E2;">
-											<td align="right"><b>Total Time:</b></td>
-											<td>-</td>
-											<td><b>${total_hours} H</b></td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
-						</div>
-					</div>`
-				)
-
-			});
-	}
-
-
-	render_intensity_heatmap() {
+	// Work Intensity Code Starts
+	work_intensity() {
 		let user;
 		if (this.selected_employee !== null) {
 			user = this.selected_employee;
@@ -506,7 +251,7 @@ UserProfile = class UserProfile {
 			user = this.user_id;
 		}
 	
-		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_intensityChart_data", {
+		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.work_intensity", {
 			user: user,
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
@@ -552,7 +297,7 @@ UserProfile = class UserProfile {
 	
 			// console.log("Min and Max values:", minValue, maxValue);
 	
-			const heatMapDom = document.querySelector('.intensity-heatmap-container');
+			const heatMapDom = document.querySelector('.work-intensity');
 			// console.log("Heatmap container element:", heatMapDom);
 	
 			const heatMapChart = echarts.init(heatMapDom, null, { renderer: 'svg' });
@@ -622,19 +367,22 @@ UserProfile = class UserProfile {
 			console.error("Error fetching data:", error);
 		});
 	}
-	overall_performance_chart() {
-		console.log("Overall Performance Chart", this.activeTimeData);
-		let overallPerformanceDom = document.querySelector('.overall-performance-chart');
+	// Work Intensity Code Ends
+
+	// Overall Performance Chart Code Starts
+	overall_performance() {
+		// console.log("Overall Performance Chart", this.activeTimeData);
+		let overallPerformanceDom = document.querySelector('.overall-performance');
 		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
 		window.addEventListener('resize', overallPerformance.resize);
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.overall_performance_chart", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.overall_performance", {
 				employee: this.selected_employee,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date    
 			})
 			.then((r) => {
-				console.log("Overall Performance Data:", r);
+				// console.log("Overall Performance Data:", r);
 				if (r.base_data.length === 0) {
 					// Handle no data scenario if needed
 				} else {
@@ -720,8 +468,8 @@ UserProfile = class UserProfile {
 						var fixedStartTime = new Date(minStartTime);
 						var fixedEndTime = new Date(maxEndTime);
 	
-						console.log("Min Start Time:", fixedStartTime);
-						console.log("Max End Time:", fixedEndTime);
+						// console.log("Min Start Time:", fixedStartTime);
+						// console.log("Max End Time:", fixedEndTime);
 	
 						return {
 							backgroundColor: 'transparent',
@@ -1088,12 +836,13 @@ UserProfile = class UserProfile {
 				}
 			});
 	}
-		
-	
-update_application_time_chart() {
+	// Overall Performance Chart Code Ends
+
+	// Application Used Chart Code Starts
+	application_usage_time() {
 		let data = this.selected_employee;
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_applicationTimeChart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.application_usage_time", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -1103,7 +852,7 @@ update_application_time_chart() {
 					return;
 				}
 
-				const chartDom = document.getElementById('application-usage-time-chart');
+				const chartDom = document.getElementById('application-usage-time');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
@@ -1211,8 +960,10 @@ update_application_time_chart() {
 				console.error("Error fetching chart data:", error);
 			});
 	}
+	// Application Used Chart Code Ends
 
-	update_domain_time_chart() {
+	// Web Browsing Time Chart Code Starts
+	web_browsing_time() {
 		let data;
 		if (this.selected_employee !== null) {
 			data = this.selected_employee;
@@ -1222,7 +973,7 @@ update_application_time_chart() {
 
 		// Fetch the data and render the pie chart using ECharts
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_domainTimeChart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.web_browsing_time", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -1233,7 +984,7 @@ update_application_time_chart() {
 					return;
 				}
 
-				const chartDom = document.getElementById('domain-usage-time-chart');
+				const chartDom = document.getElementById('web-browsing-time');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
@@ -1327,9 +1078,10 @@ update_application_time_chart() {
 				console.error("Error fetching chart data:", error);
 			});
 	}
-
-
-	update_calls_time_chart() {
+	// Web Browsing Time Chart Code Ends
+	
+	// Top phone calls chart code starts
+	top_phone_calls() {
 		let data;
 		if (this.selected_employee !== null) {
 			data = this.selected_employee;
@@ -1338,7 +1090,7 @@ update_application_time_chart() {
 		}
 	
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_callsTimeChart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.top_phone_calls", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -1349,7 +1101,7 @@ update_application_time_chart() {
 					return;
 				}
 	
-				const chartDom = document.getElementById('calls-time-chart');
+				const chartDom = document.getElementById('top-phone-calls');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
@@ -1499,10 +1251,10 @@ update_application_time_chart() {
 				console.error("Error fetching chart data:", error);
 			});
 	}
+	// Top phone calls chart code ends
 	
-
-
-	update_calls_type_chart() {
+	// Type of calls chart code starts
+	type_of_calls() {
 		let data;
 		if (this.selected_employee !== null) {
 			data = this.selected_employee;
@@ -1511,7 +1263,7 @@ update_application_time_chart() {
 		}
 
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_callsTypeChart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.type_of_calls", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -1522,7 +1274,7 @@ update_application_time_chart() {
 					return;
 				}
 
-				const chartDom = document.getElementById('calls-type-chart');
+				const chartDom = document.getElementById('type-of-calls');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
@@ -1603,10 +1355,10 @@ update_application_time_chart() {
 				console.error("Error fetching chart data:", error);
 			});
 	}
+	// Type of calls chart code ends
 
-
-	fetch_and_render_user_data() {
-
+	// URL DATA Code Starts
+	fetch_url_data() {
 		this.numberCardData = {};
 		let data;
 		if (this.selected_employee != null) {
@@ -1616,7 +1368,7 @@ update_application_time_chart() {
 		}
 
 		frappe.call({
-			method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_user_data",
+			method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.fetch_url_data",
 			args: {
 				user: data,
 				start_date: this.selected_start_date,
@@ -1625,32 +1377,18 @@ update_application_time_chart() {
 			callback: (r) => {
 				if (r.message) {
 					this.numberCardData = r.message;
-					this.render_user_data(r.message);
-					// // console.log("URL DATA", r.message.url_full_data);
+					this.url_data(r.message);
 					$(document).ready(function () {
 						$('#logCountModalTrigger').click(function () {
 							$('#logCountModal').modal('show');
 						});
 					});
-					this.render_user_details();
+					this.activity_data();
 				}
 			}
 		});
 	}
-	convertSecondsToTime(seconds) {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
-
-		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
-	}
-	convertSecondsToTime_(seconds) {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
-		const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-		const formattedHours = hours < 10 ? `0${hours}` : hours;
-		return `${formattedHours}:${formattedMinutes}`;
-	}
-	render_user_data(data) {
+	url_data(data) {
 		function getBaseURL() {
 			return window.location.origin + '/app/';
 		}
@@ -1665,7 +1403,7 @@ update_application_time_chart() {
 		}
 
 		const baseUrl = getBaseURL();
-		const container = this.main_section.find("#user-data-cards");
+		const container = this.main_section.find("#url-data");
 		container.empty();
 		let wholedata = `
 			<div class="title-area">
@@ -1792,12 +1530,246 @@ update_application_time_chart() {
 			}
 		});
 	};
-	render_line_chart() {
-		this.update_line_chart_data();
+	// URL DATA Code Ends
 
+	// Sidebar Activity Data code starts
+	activity_data() {
+		function getBaseURL() {
+			return window.location.origin + '/app/';
+		}
+		this.start_date_ = this.selected_start_date;
+		this.end_date_ = this.selected_end_date;
+		const baseUrl = getBaseURL();
+		if (this.numberCardData) {
+			this.callsHoursIncoming = this.convertSecondsToTime_(this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration)
+			this.callsHoursOutgoing = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration)
+			this.meeting_hours = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)
+			this.internal_meeting_hours = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_internal)
+			this.external_meeting_hours = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external)
+		} else {
+			this.callsHoursIncoming = 0;
+			this.callsHoursOutgoing = 0;
+			this.meeting_hours = 0;
+			this.internal_meeting_hours = 0;
+			this.external_meeting_hours = 0;
+		}
+		frappe.db.get_value("Employee", this.selected_employee, "image")
+			.then((result) => {
+				const userImage = result.message.image;
+				const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(this.selected_employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
+				const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(this.selected_employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
+				this.sidebar.empty().append(
+					this.update_activity_chart_data(),
+					frappe.render_template("productify_activity_analysis_sidebar", {
+						user_image: userImage,
+						user_abbr: this.user.abbr,
+						user_location: this.user.location,
+						numberCardData: this.numberCardData,
+						employeeMeetingUrl: employeeMeetingUrl,
+						employeeFincallUrl: employeeFincallUrl,
+						callsHoursIncoming: this.callsHoursIncoming,
+						callsHoursOutgoing: this.callsHoursOutgoing,
+						meeting_total_hours: this.meeting_hours,
+						internal_meeting_hours: this.internal_meeting_hours,
+						external_meeting_hours: this.external_meeting_hours
+					})
+				);
+			})
+			.catch((err) => {
+				console.error("Error fetching user image:", err);
+			});
+
+		this.setup_user_profile_links();
 	}
+	update_activity_chart_data() {
+		let data;
+		if (this.selected_employee != null) {
+			data = this.selected_employee;
+		} else {
+			data = this.user_id;
+		}
+		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_activity_chart_data", {
+			user: data,
+			start_date: this.selected_start_date,
+			end_date: this.selected_end_date,
+		})
+			.then((r) => {
 
-	update_line_chart_data() {
+				// Convert time values from seconds to formatted hours and minutes
+				const total_hours = this.convertSecondsToTime_(r.total_hours);
+				const total_system_hours = this.convertSecondsToTime_(r.total_system_hours);
+				const total_active_hours = this.convertSecondsToTime_(r.total_active_hours);
+				const total_idle_time = this.convertSecondsToTime_(r.total_idle_time);
+				const total_inactive_hours = this.convertSecondsToTime_(r.total_inactive_hours);
+				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
+				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
+				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
+				let inactiveHoursRow = '';
+				let inactiveHoursRow_ = '';
+				if (r.total_inactive_hours > 0) {
+					inactiveHoursRow = `
+						<tr class='text-white'>
+							<td><b>Inactive Time:</b></td>
+							<td>-</td>
+							<td><b>${total_inactive_hours} H</b></td>
+						</tr>
+					`;
+				}
+				if (r.total_inactive_hours > 0) {
+					inactiveHoursRow_ = `
+						<tr class='text-dark'>
+							<td><b>Inactive Time:</b></td>
+							<td>-</td>
+							<td><b>${total_inactive_hours} H</b></td>
+						</tr>
+					`;
+				}
+				const container = $("#user-activity");
+				const customStyles = `
+					<style>
+						.tight-table tr {
+							margin-bottom: 0 !important;
+							padding-bottom: 0 !important;
+						}
+					</style>
+				`;
+				container.html(`
+					 ${customStyles}
+    		<div class="progress" style="max-width: 400px !important;" 
+				data-toggle="tooltip" 
+				title="
+			</div>
+            <div>
+                <b class='heading-custom'>User Activity</b>
+                <table class='table-borderless table-tooltip table-spacing'>
+                    <tbody>
+                        <tr class='text-white'>
+						<td>Call:</td>
+						<td>-</td>
+						<td>${total_call_raw} H</td>
+                        </tr>
+                        <tr class='text-white'>
+						<td>Meeting:</td>
+						<td>-</td>
+						<td>${total_meeting_raw} H</td>
+                        </tr>
+                        <tr class='text-white'>
+						<td>System:</td>
+						<td>-</td>
+						<td>${total_system_hours} H</td>
+                        </tr>
+                        <tr class='text-white border-bottom'>
+                            <td>Overlapping:</td>
+                            <td>-</td>
+                            <td>-${overlapping} H</td>
+                        </tr>
+						<tr class='text-white'>
+                            <td><b>Active Time:</b></td>
+                            <td>-</td>
+                            <td><b>${total_active_hours} H</b></td>
+                        </tr>
+                        <tr class='text-white'>
+                            <td><b>Idle Time:</b></td>
+                            <td>-</td>
+                            <td><b>${total_idle_time} H</b></td>
+                        </tr>
+                        ${inactiveHoursRow}
+						<tr class='text-white border-top'>
+                            <td><b>Total Time:</b></td>
+                            <td>-</td>
+                            <td><b>${total_hours} H</b></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>"
+         data-html="true"
+         data-placement="left">
+        <div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+        <div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+        <div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+        <div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+        <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+    </div>
+`);
+
+
+				var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
+				myDefaultWhiteList.table = ['class'];
+				myDefaultWhiteList.tbody = [];
+				myDefaultWhiteList.tr = [];
+				myDefaultWhiteList.td = [];
+
+				$('[data-toggle="tooltip"]').tooltip({
+					container: 'body',
+					html: true,
+					whiteList: myDefaultWhiteList,
+					title: function () { return '<u>text1</u><table class="table text-light"><tr><td>text2</td></tr></table>'; }
+				});
+
+
+				// Enable tooltips with custom class
+				$('[data-toggle="tooltip"]').tooltip({
+					html: true,
+					container: 'body',
+					placement: 'left', // Set tooltip placement to left
+					template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>'
+				});
+				const mobilecontainer = $("#user-activity-mobile");
+				mobilecontainer.html(`
+					<div class="d-lg-none">
+						<div class="card border-primary shadow">
+							<div class="card-body">
+								<h5 class="card-title text-primary border-bottom pb-2 text-center">User Activity</h5>
+								<table class="table table-borderless">
+									<tbody>
+										<tr>
+											<td align="right">Call:</td>
+											<td>-</td>
+											<td>${total_call_raw} H</td>
+										</tr>
+										<tr>
+											<td align="right">Meeting:</td>
+											<td>-</td>
+											<td>${total_meeting_raw} H</td>
+										</tr>
+										<tr>
+											<td align="right">System:</td>
+											<td>-</td>
+											<td>${total_system_hours} H</td>
+										</tr>
+										<tr  style="border-bottom: 1px solid #E5E4E2;">
+											<td align="right">Overlapping:</td>
+											<td>-</td>
+											<td>-${overlapping} H</td>
+										</tr>
+										<tr>
+											<td align="right"><b>Active Time:</b></td>
+											<td>-</td>
+											<td><b>${total_active_hours} H</b></td>
+										</tr>
+										<tr>
+											<td align="right"><b>Idle Time:</b></td>
+											<td>-</td>
+											<td><b>${total_idle_time} H<b></td>
+										</tr>
+										 ${inactiveHoursRow_}
+										 <tr style="border-top: 1px solid #E5E4E2;">
+											<td align="right"><b>Total Time:</b></td>
+											<td>-</td>
+											<td><b>${total_hours} H</b></td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>`
+				)
+			});
+	}
+	// Sidebar Activity Data code ends
+
+	// Hourly Calls Analysis (In Minutes) Chart code starts
+	hourly_calls_analysis() {
 		let data;
 		if (this.selected_employee != null) {
 			data = this.selected_employee;
@@ -1805,7 +1777,7 @@ update_application_time_chart() {
 			data = this.user_id;
 		}
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_linechart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.hourly_calls_analysis", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -1813,7 +1785,7 @@ update_application_time_chart() {
 			.then((r) => {
 				if (r.labels.length === 0) {
 				} else {
-					let chartDom = document.querySelector('.performance-line-chart')
+					let chartDom = document.querySelector('.hourly-calls-analysis')
 					let chart = echarts.init(chartDom, null, {
 						renderer: 'svg',
 						useDirtyRect: false
@@ -1878,13 +1850,10 @@ update_application_time_chart() {
 				}
 			});
 	}
+	// Hourly Calls Analysis (In Minutes) Chart code ends
 
-
-	render_bar_chart() {
-		this.update_bar_chart_data();
-	}
-
-	update_bar_chart_data() {
+	// Top 7 Document Analysis (Changes Per Doctype) code starts
+	top_document_analysis() {
 		let data;
 		if (this.selected_employee != null) {
 			data = this.selected_employee;
@@ -1893,7 +1862,7 @@ update_application_time_chart() {
 		}
 	
 		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_barchart_data", {
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.top_document_analysis", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
@@ -1906,7 +1875,7 @@ update_application_time_chart() {
 	
 				// console.log("Chart data received:", r);
 	
-				const chartDom = document.querySelector('.performance-bar-chart');
+				const chartDom = document.querySelector('.top-document-analysis');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
@@ -1963,9 +1932,9 @@ update_application_time_chart() {
 				console.error("Error fetching or rendering chart:", error);
 			});
 	}
+	// Top 7 Document Analysis (Changes Per Doctype) code ends
 	
-
-
+	// User Activity Images code starts
 	async render_images() {
 		let startDatetime = new Date(this.selected_start_date + " 00:00:00"); // Replace with your start datetime
 		let endDatetime = new Date(this.selected_end_date + " 23:59:59"); // Replace with your end datetime
@@ -1993,7 +1962,7 @@ update_application_time_chart() {
 
 		async function loadImages(user, start_time, end_time) {
 			let flag = 0;
-			await frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_images", {
+			await frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.user_activity_images", {
 				user: user,
 				start_date: start_time,
 				end_date: end_time,
@@ -2154,6 +2123,27 @@ update_application_time_chart() {
 			$(window).on('scroll', handleScroll);
 		}
 	}
+	// User Activity Images code ends
+	
+	// Convert seconds to time for example 3600 seconds to 1 hours 0 minutes code starts
+	convertSecondsToTime(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+
+		return `<b>${hours}</b><span style="font-size:12px"> hours </span><b>${minutes}</b><span style="font-size:12px"> minutes</span>`;
+	}
+	// Convert seconds to time for example 3600 seconds to 1 hours 0 minutes code ends
+
+	// Convert seconds to time for example 3600 seconds to 01:00 code starts
+	convertSecondsToTime_(seconds) {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+		const formattedHours = hours < 10 ? `0${hours}` : hours;
+		return `${formattedHours}:${formattedMinutes}`;
+	}
+	// Convert seconds to time for example 3600 seconds to 01:00 code ends
+	
 }
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;

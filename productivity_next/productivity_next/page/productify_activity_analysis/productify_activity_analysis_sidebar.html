@@ -1,6 +1,9 @@
-
+<!-- This is the sidebar of the page. It contains the user image, user location, and the number of calls and meetings the user has made. -->
 <div class="form-sidebar overlay-sidebar hidden-xs hidden-sm">
-    <ul class="list-unstyled sidebar-menu user-actions hidden"></ul>
+
+    <ul class="list-unstyled sidebar-menu user-actions hidden"></ul> 
+
+    <!-- User Profile Photo Code Starts-->
     <ul class="list-unstyled sidebar-menu sidebar-image-section">
         <li class="sidebar-image-wrapper"> 
             {% if user_image %}
@@ -18,6 +21,9 @@
             </div>
         </li>
     </ul>
+    <!-- User Profile Photo Code Ends-->
+
+    <!-- User Location Code Starts -->
     <div class="profile-details">
         {% if user_location %}
         <div class="detail-item">
@@ -36,15 +42,20 @@
                 {{user_location}}
             </p>
         </div>
-        {% endif %}
-        
+        {% endif %}  
     </div>
+    <!-- User Location Code Ends -->
     
-{% if numberCardData %}
-<div id = "activity-chart-data" ></div><br>
-<div id = "activity-chart-data_mobile"></div><br>
+    {% if numberCardData %}
+    <!-- Activity On Hover Of Progress Bar Code Starts -->
+    <div id = "user-activity" ></div><br>
+    <!-- Activity On Hover Of Progress Bar Code Ends -->
 
-<div id = "activity-average-chart-data" ></div><br>
+    <!-- Activity Shown By Default In Mobile View Code Starts -->
+    <div id = "user-activity-mobile"></div><br>
+    <!-- Activity Shown By Default In Mobile View Code Ends -->
+
+    <!-- Calls SVG and call data on hover code starts -->
     <div class="calls-container">
         <a href="{{employeeFincallUrl}}">
             <div class="calls-hover">
@@ -88,8 +99,9 @@
             </div>
         </a>
     </div>
-   
-    
+    <!-- Calls SVG and call data on hover code ends -->
+     
+    <!-- Meetings SVG and meetings data on hover code starts -->
     <div class="meeting-container row">
         <div class="col-md-12" style="text-align: center;">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
@@ -170,6 +182,7 @@
             {% endif %}
         </div>
     </div>
-</div>
-{% endif %}
+    <!-- Meetings SVG and meetings data on hover code ends -->
+    {% endif %}
+
 </div>
