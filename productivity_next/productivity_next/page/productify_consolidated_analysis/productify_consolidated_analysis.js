@@ -945,9 +945,10 @@ UserProfile = class UserProfile {
 									y: 1,
 								},
 								data: _rawData.flight.data,
-								barWidth: 10, // Adjust bar width with an absolute value
 								barGap: '5%', // Adjust gap between bars
-								barCategoryGap: '20%', // Adjust gap between categories/groups of bars
+								barCategoryGap: '20%',
+								barWidth: 8, // Adjust bar width
+       							barMaxWidth: 20, 
 							},
 							{
 								type: 'custom',

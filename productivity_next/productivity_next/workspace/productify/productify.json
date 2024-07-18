@@ -9,7 +9,7 @@
    "label": "Domain Analysis"
   }
  ],
- "content": "[{\"id\":\"kTleKoHteR\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Calls Analysis\",\"col\":12}},{\"id\":\"3eQva58f3z\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Domain Analysis\",\"col\":12}},{\"id\":\"R7fg31EHP2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Productify Logs and Pages</b></span>\",\"col\":12}},{\"id\":\"ynT1x747L9\",\"type\":\"card\",\"data\":{\"card_name\":\"Desktop Applications\",\"col\":4}},{\"id\":\"YStjTUAy_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Mobile Applications\",\"col\":4}},{\"id\":\"cBU3BdUehf\",\"type\":\"card\",\"data\":{\"card_name\":\"Pages\",\"col\":4}}]",
+ "content": "[{\"id\":\"kTleKoHteR\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Calls Analysis\",\"col\":12}},{\"id\":\"3eQva58f3z\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Domain Analysis\",\"col\":12}},{\"id\":\"R7fg31EHP2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Productify Pages, Logs and Reports</b></span>\",\"col\":12}},{\"id\":\"cBU3BdUehf\",\"type\":\"card\",\"data\":{\"card_name\":\"Pages\",\"col\":4}},{\"id\":\"Vw51ZmjMj2\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"ynT1x747L9\",\"type\":\"card\",\"data\":{\"card_name\":\"Desktop Applications\",\"col\":4}},{\"id\":\"YStjTUAy_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Mobile Applications\",\"col\":4}}]",
  "creation": "2024-05-28 16:11:12.552958",
  "custom_blocks": [],
  "docstatus": 0,
@@ -114,7 +114,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Pages",
-   "link_count": 4,
+   "link_count": 2,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -122,9 +122,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Productify Consolidated Tracking",
+   "label": "Productify Consolidated Analysis",
    "link_count": 0,
-   "link_to": "Productify Consolidated Tracking",
+   "link_to": "Productify Consolidated Analysis",
    "link_type": "Page",
    "onboard": 0,
    "type": "Link"
@@ -132,9 +132,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Productify Employee Tracking",
+   "label": "Productify Activity Analysis",
    "link_count": 0,
-   "link_to": "Productify Employee Tracking",
+   "link_to": "Productify Activity Analysis",
    "link_type": "Page",
    "onboard": 0,
    "type": "Link"
@@ -142,6 +142,15 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
    "label": "Calls Analysis",
    "link_count": 0,
    "link_to": "Calls Analysis",
@@ -151,7 +160,7 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Domains Analysis",
    "link_count": 0,
    "link_to": "Domains Analysis",
@@ -160,7 +169,7 @@
    "type": "Link"
   }
  ],
- "modified": "2024-06-19 16:26:59.802458",
+ "modified": "2024-07-18 13:43:30.546962",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
