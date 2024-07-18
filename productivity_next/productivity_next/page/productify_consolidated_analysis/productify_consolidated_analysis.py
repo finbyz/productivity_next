@@ -327,7 +327,7 @@ def overall_performance_chart(start_date=None, end_date=None):
         ])
     base_data = sorted(base_data, key=lambda x: x[2])
     data = []
-    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
+    employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["name", "employee_name"])
     for i in employees:
         data.append([
             i['employee_name'].split()[0] + " " + i['employee_name'].split()[-1][0] + "." if i['employee_name'] else "",
