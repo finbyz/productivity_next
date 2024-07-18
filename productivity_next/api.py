@@ -7,7 +7,7 @@ from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
 from frappe.utils import flt
 import requests
-
+from werkzeug import Response
 
 
 @frappe.whitelist(allow_guest=True)
@@ -300,7 +300,8 @@ def get_app_usage_time(employee):
 
     return idle_time
 
-@frappe.whitelist(methods=["POST"])
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def organization_signup(
     domain,
     organization_name,
@@ -309,33 +310,54 @@ def organization_signup(
     mobile_no,
     subscription_plan="",
 ):
+    """
+    API_PATH: /api/method/productivity_next.api.organization_signup
+    """
     user_details = frappe.get_doc("User", frappe.session.user)
     api_secret = frappe.generate_hash(length=15)
     if not user_details.api_key:
         api_key = frappe.generate_hash(length=15)
         user_details.api_key = api_key
-        user_details.api_secret = api_secret
+    user_details.api_secret = api_secret
+    user_details.flags.ignore_permissions = True
     user_details.save()
-    
-    response = requests.post(
-        "https://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup/",
-        json={
+
+    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup"
+
+    payload = json.dumps(
+        {
             "domain": domain,
             "organization_name": organization_name,
             "contact_person": contact_person,
             "email": email,
             "mobile_no": mobile_no,
+            "subscription_plan": subscription_plan,
             "api_key": user_details.api_key,
             "api_secret": api_secret,
-            "subscription_plan": subscription_plan,
-        },
+        }
     )
-    
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
     return response.json()
-    
+
+
 @frappe.whitelist()
-def add_meeting(meeting_from, meeting_to, meeting_arranged_by, internal_meeting, purpose,
-                industry, party_type, party, discussion, meeting_company_representative):
+def add_meeting(
+    meeting_from,
+    meeting_to,
+    meeting_arranged_by,
+    internal_meeting,
+    purpose,
+    industry,
+    party_type,
+    party,
+    discussion,
+    meeting_company_representative,
+):
     meeting_company_representative = json.loads(meeting_company_representative)
     meeting = frappe.new_doc("Meeting")
     meeting.meeting_from = meeting_from
@@ -348,10 +370,13 @@ def add_meeting(meeting_from, meeting_to, meeting_arranged_by, internal_meeting,
     meeting.party = party if party else None
     meeting.discussion = discussion
     for row in meeting_company_representative:
-        meeting.append("meeting_company_representative", {
-            "employee": row.get('employee'),
-            "employee_name": row.get('employee_name')
-        })
+        meeting.append(
+            "meeting_company_representative",
+            {
+                "employee": row.get("employee"),
+                "employee_name": row.get("employee_name"),
+            },
+        )
     meeting.save()
     meeting.submit()
 

@@ -20,6 +20,9 @@ def get_oath_client():
 
 
 def get_bearer_token(user, expires_in_days=1, purpose=None, date=None):
+    if not frappe.has_role(user, "Productify API") and user != frappe.session.user:
+        frappe.throw(_("You are not allowed to access this resource"), frappe.PermissionError)
+
     if not date:
         date = get_datetime()
     else:

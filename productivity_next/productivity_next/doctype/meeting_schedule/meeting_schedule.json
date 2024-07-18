@@ -1,0 +1,242 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2017-12-27 10:31:55.073354",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "internal_meeting",
+  "purpose",
+  "scheduled_from",
+  "scheduled_to",
+  "party_type",
+  "party",
+  "company",
+  "organisation",
+  "is_online",
+  "column_break_7",
+  "meeting_arranged_by",
+  "contact",
+  "contact_person_name",
+  "mobile_no",
+  "email_id",
+  "meeting_agenda",
+  "description",
+  "cc_to",
+  "email_template",
+  "invitation_message",
+  "send_invitation",
+  "amended_from",
+  "lead",
+  "customer",
+  "opportunity"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "SCH-"
+  },
+  {
+   "fieldname": "scheduled_from",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Scheduled From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "scheduled_to",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Scheduled To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "party_type",
+   "fieldtype": "Select",
+   "label": "Party Type",
+   "options": "\nLead\nCustomer\nSupplier\nSales Partner"
+  },
+  {
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "label": "Party",
+   "options": "party_type"
+  },
+  {
+   "fieldname": "organisation",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Organisation",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_online",
+   "fieldtype": "Check",
+   "label": "Is Online"
+  },
+  {
+   "fieldname": "column_break_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meeting_arranged_by",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "in_standard_filter": 1,
+   "label": "Meeting Arranged By",
+   "options": "User"
+  },
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "label": "Contact",
+   "options": "Contact"
+  },
+  {
+   "fetch_from": "contact.first_name",
+   "fieldname": "contact_person_name",
+   "fieldtype": "Data",
+   "label": "Contact Person Name"
+  },
+  {
+   "fetch_from": "contact.mobile_no",
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "label": "Mobile No"
+  },
+  {
+   "fieldname": "email_id",
+   "fieldtype": "Data",
+   "label": "Email Id",
+   "options": "Email"
+  },
+  {
+   "fieldname": "meeting_agenda",
+   "fieldtype": "Small Text",
+   "label": "Meeting Agenda"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "cc_to",
+   "fieldtype": "Data",
+   "label": "CC To"
+  },
+  {
+   "fieldname": "invitation_message",
+   "fieldtype": "Text Editor",
+   "label": "Invitation Message"
+  },
+  {
+   "fieldname": "send_invitation",
+   "fieldtype": "Button",
+   "label": "Send Invitation",
+   "options": "send_invitation"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Meeting Schedule",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "lead",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Lead",
+   "options": "Lead"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "opportunity",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Opportunity",
+   "options": "Opportunity"
+  },
+  {
+   "fieldname": "email_template",
+   "fieldtype": "Link",
+   "label": "email template",
+   "options": "Email Template"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Purpose",
+   "options": "Meeting Purpose",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "internal_meeting",
+   "fieldtype": "Check",
+   "label": "Internal Meeting"
+  }
+ ],
+ "links": [],
+ "modified": "2024-07-09 12:55:54.226332",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Meeting Schedule",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "organisation,contact_person_name",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "organisation",
+ "track_changes": 1
+}

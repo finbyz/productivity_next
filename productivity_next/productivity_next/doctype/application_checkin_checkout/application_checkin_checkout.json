@@ -6,12 +6,13 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "system_generated",
   "naming_series",
   "employee",
+  "employee_name",
+  "column_break_aojx",
   "time",
   "status",
-  "employee_name"
+  "system_generated"
  ],
  "fields": [
   {
@@ -21,7 +22,8 @@
    "in_standard_filter": 1,
    "label": "Employee",
    "options": "Employee",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "status",
@@ -37,15 +39,18 @@
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "label": "Time",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
+   "default": "ACC-.YY.MM.DD.-",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
    "options": "ACC-.YY.MM.DD.-",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fetch_from": "employee.employee_name",
@@ -61,11 +66,15 @@
    "in_standard_filter": 1,
    "label": "System Generated",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_aojx",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-08 11:07:45.465009",
+ "modified": "2024-07-16 10:34:46.990158",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Checkin Checkout",
