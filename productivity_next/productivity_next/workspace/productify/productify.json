@@ -25,55 +25,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Desktop Applications",
-   "link_count": 4,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Application Usage Log",
-   "link_count": 0,
-   "link_to": "Application Usage log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Domain Usage",
-   "link_count": 0,
-   "link_to": "URL Access Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Screenshot Log",
-   "link_count": 0,
-   "link_to": "Screen Screenshot Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Employee Idle Time",
-   "link_count": 0,
-   "link_to": "Employee Idle Time",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Application Checkin Checkout",
    "link_count": 0,
    "link_to": "Application Checkin Checkout",
@@ -167,9 +118,48 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Desktop Applications",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Application Usage Log",
+   "link_count": 0,
+   "link_to": "Application Usage log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Screenshot Log",
+   "link_count": 0,
+   "link_to": "Screen Screenshot Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Idle Time",
+   "link_count": 0,
+   "link_to": "Employee Idle Time",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2024-07-18 13:43:30.546962",
+ "modified": "2024-07-18 16:19:28.259057",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
