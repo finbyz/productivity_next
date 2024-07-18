@@ -549,9 +549,10 @@ def create_productify_work_summary_today():
                     """, as_dict=True)
 
                     applications_data = frappe.db.sql(f"""
-                    select from_time as start, to_time as end, 'application' as type
-                    from `tabApplication Usage log`
-                    where employee = '{employee}' and date = '{date}' and from_time >= '{last_activity}'
+                    select pwsa.from_time as start, pwsa.to_time as end, 'application' as type
+                    from `tabProductify Work Summary` as pws
+                    JOIN `tabProductify Work Summary Application` as pwsa ON pws.name = pwsa.parent
+                    where pws.employee = '{employee}' and pws.date = '{date}'
                     """, as_dict=True)
 
                     data = calls_data + internal_meetings_data + idle_logs + applications_data + external_meeting_data
