@@ -181,6 +181,9 @@ UserProfile = class UserProfile {
 				if (r.labels.length === 0) {
 				} else {
 					let option = {
+						grid: {
+							top: 5, 
+						},
 						tooltip: {
 							trigger: 'item'
 						},
@@ -189,7 +192,7 @@ UserProfile = class UserProfile {
 							data: r.labels,
 							axisLabel: {
 								interval: 0,
-								rotate: 90,
+								rotate: 50,
 							},
 							z: 10
 						},
@@ -239,6 +242,7 @@ UserProfile = class UserProfile {
 		} else {
 			data = this.user_id;
 		}
+	
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis.client_calls_chart", {
 				user: "Administrator",
@@ -257,10 +261,10 @@ UserProfile = class UserProfile {
 	
 				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
 				let customNames = r.customNames;
+	
 				const option = {
 					tooltip: {
 						trigger: 'item',
-						// formatter: '{a} <br/>{b}: {c} Minutes ({d}%)',
 						formatter: function(params) {
 							let totalMinutes = params.value;
 							let minutes = Math.floor(totalMinutes); 
@@ -315,7 +319,7 @@ UserProfile = class UserProfile {
 									let totalMinutes = params.value;
 									let minutes = Math.floor(totalMinutes);
 									let seconds = Math.round((totalMinutes - minutes) * 60); 
-							
+								
 									let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
 								
 									let customIndex = params.data.customIndex || 0; 
@@ -330,35 +334,27 @@ UserProfile = class UserProfile {
 								show: true,
 								rich: {
 									a: {
-									  color: '#6E7079',
-									  lineHeight: 22,
-									  textAlign: 'center',
-									  overflow: 'hidden',
-									  textOverflow: 'ellipsis',
-									  whiteSpace: 'nowrap',
+										color: '#6E7079',
+										lineHeight: 22,
+										textAlign: 'center',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+										whiteSpace: 'nowrap',
 									},
 									hr: {
-									  borderColor: '#8C8D8E',
-									  width: '100%',
-									  borderWidth: 1,
-									  height: 0,
+										borderColor: '#8C8D8E',
+										width: '100%',
+										borderWidth: 1,
+										height: 0,
 									},
 									b: {
-									  color: '#4C5058',
-									  fontSize: 14,
-									  fontWeight: 'bold',
-									  lineHeight: 30,
-									  marginRight: 10,
-									},
-									per: {
-									  color: '#',
-									  backgroundColor: '#4C5058',
-									  padding: 5,
-									  borderRadius: 4,
-									  width: 30,
-									  textAlign: 'center',
-									},
-								  },
+										color: '#4C5058',
+										fontSize: 14,
+										fontWeight: 'bold',
+										lineHeight: 30,
+										marginRight: 10,
+									}
+								},
 							},
 							data: r.caller_details,
 							color: [
@@ -372,22 +368,44 @@ UserProfile = class UserProfile {
 								'#6699FF', 
 								'#FF6666', 
 								'#FFCC66'  
-
 							]
 						}
 					],
 				};
-				myChart.resize();
 	
+				myChart.resize();
 				myChart.setOption(option);
+				var selected_start_date = this.selected_start_date;
+				var selected_end_date = this.selected_end_date;
+				// Add click event listener to the link after the chart is rendered
+				document.getElementById('client-calls-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent default link behavior
+					goToCallsAnalysisClient(selected_start_date, selected_end_date); // Pass dates to redirect function
+				});
 	
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
 			})
 			.catch(error => {
+				console.error('Error fetching data:', error);
 			});
+	
+		// Function to redirect to Calls Analysis page with selected dates
+		function goToCallsAnalysisClient(start_date, end_date) {
+			console.log("start_date", start_date);	
+			console.log("end_date", end_date);
+			var baseUrl = window.location.origin;
+			
+			// Construct the URL with the parameters
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Calls Analysis?group_by_party=1&from_date=" + start_date + "&to_date=" + end_date;
+			
+			// Redirect to the constructed URL
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	}
+	
+	
 	// Top 10 Clients Call Analysis (In Minutes) Code Ends
 
 
@@ -489,7 +507,11 @@ UserProfile = class UserProfile {
 					},
 						
 					xAxis: {
-						data: r.labels
+						data: r.labels,
+						axisLabel: {
+							interval: 0,
+							rotate: 50,
+						},
 					},
 					yAxis: {},
 					series: seriesData
@@ -498,6 +520,13 @@ UserProfile = class UserProfile {
 				let chartDom = document.getElementById('employee-calls-chart');
 				let myChart = echarts.init(chartDom, null, { renderer: 'svg' });
 				myChart.setOption(option);
+				var selected_start_date = this.selected_start_date;
+				var selected_end_date = this.selected_end_date;
+				// Add click event listener to the link after the chart is rendered
+				document.getElementById('employee-calls-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent default link behavior
+					goToCallsAnalysisEmployee(selected_start_date, selected_end_date); // Pass dates to redirect function
+				});
 				window.addEventListener('resize', function() {
 					myChart.resize();
 				});
@@ -505,6 +534,19 @@ UserProfile = class UserProfile {
 			.catch((error) => {
 				console.error("Error fetching chart data:", error);
 			});
+
+		// Function to redirect to Calls Analysis page with selected dates
+		function goToCallsAnalysisEmployee(start_date, end_date) {
+			console.log("start_date", start_date);	
+			console.log("end_date", end_date);
+			var baseUrl = window.location.origin;
+			
+			// Construct the URL with the parameters
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Calls Analysis?from_date=" + start_date + "&to_date=" + end_date;
+			
+			// Redirect to the constructed URL
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	}
 	// Top 10 Employees Call Analysis Code Ends
 
@@ -521,6 +563,7 @@ UserProfile = class UserProfile {
 		}).then((r) => {
 			if (r.base_data.length === 0) {
 			} else {
+				// console.log(r);
 				var _rawData = {
 					flight: {
 						dimensions: r.base_dimensions,
@@ -685,15 +728,17 @@ UserProfile = class UserProfile {
 						{ name: 'External Meeting', color: '#6699FF' },
 						{ name: 'Inactive', color: '#C1C1C1' }
 					];
-					var legendData = activityLegends.map(function (item) {
-						return {
-							name: item.name,
-							icon: 'rect',
-							textStyle: {
-								color: '#333'
-							}
-						};
+					var legendData = [];
+					activityLegends.forEach(function(item) {
+					legendData.push({
+						name: item.name,
+						icon: 'rect',
+						textStyle: {
+						fontSize: 12
+						}
 					});
+					});
+				
 					function setFixedDate(timestamp) {
 						var date = new Date(timestamp);
 						date.setFullYear(2000, 0, 1);
@@ -766,13 +811,11 @@ UserProfile = class UserProfile {
 						legend: {
 							show: true,
 							data: legendData,
-							top: 0,
+							orient: 'horizontal',
+							top: 80,
 							left: 'center',
 							itemWidth: 25,
 							itemHeight: 14,
-							textStyle: {
-								fontSize: 12
-							},
 							itemGap: 25,
 							selectedMode: false,
 							formatter: function(name) {
@@ -798,6 +841,7 @@ UserProfile = class UserProfile {
 								}
 							}
 						},
+						zIndex: 100,
 						dataZoom: [
 							{
 								type: 'slider',
@@ -827,7 +871,7 @@ UserProfile = class UserProfile {
 							show: true,
 							top: 20,
 							bottom: 20,
-							left: 50,
+							left: 5,
 							right: 20,
 							backgroundColor: 'transparent',
 							borderWidth: 0
@@ -900,7 +944,10 @@ UserProfile = class UserProfile {
 									x: [2, 3],
 									y: 1,
 								},
-								data: _rawData.flight.data
+								data: _rawData.flight.data,
+								barWidth: 10, // Adjust bar width with an absolute value
+								barGap: '5%', // Adjust gap between bars
+								barCategoryGap: '20%', // Adjust gap between categories/groups of bars
 							},
 							{
 								type: 'custom',
@@ -947,12 +994,7 @@ UserProfile = class UserProfile {
 										fieldtype: "Link",
 										in_list_view: 1,
 										options: "Employee",
-									},
-									{
-										label: "Employee Name",
-										fieldname: "employee_name",
-										fieldtype: "Data",
-										in_list_view: 1,
+										ignore_user_permissions: 1,
 									}
 								];
 								var fields = [
@@ -1073,20 +1115,6 @@ UserProfile = class UserProfile {
 												}
 											}
 										});
-									},
-									onshow: function () {
-										var me = this;
-										this.fields_dict.meeting_company_representative.grid.wrapper.on('click', '.grid-row', function () {
-											var grid_row = $(this).closest('.grid-row');
-											var employee = grid_row.find('input[data-fieldname="employee"]').val();
-											if (employee) {
-												frappe.db.get_value('Employee', employee, 'employee_name', function (r) {
-													if (r.employee_name) {
-														grid_row.find('input[data-fieldname="employee_name"]').val(r.employee_name);
-													}
-												});
-											}
-										});
 									}
 								});
 								d.fields_dict.purpose.get_query = function () {
@@ -1127,6 +1155,7 @@ UserProfile = class UserProfile {
 			callback: (r) => {
 				if (r.message) {
 					this.user_analysis_data(r.message);
+					// console.log(r.message);
 				}
 			}
 		});
@@ -1153,7 +1182,6 @@ UserProfile = class UserProfile {
 		const fetchPromises = Object.keys(data.total_hours_per_employee).map(async employee => {
 			const response = await frappe.db.get_value("Employee", employee, "employee_name");
 			const employee_name = response.message.employee_name;
-			const internalEmployeeFincallData = data.internal_employee_fincall_data?.[employee] || {};
 			const meetingEmployeeData = data.meeting_employee_data?.[employee] || {};
 			return {
 				employee,
@@ -1189,7 +1217,6 @@ UserProfile = class UserProfile {
 		let totalOutgoingDuration = 0;
 		let totalMeetingCount = 0;
 		let totalMeetingDuration = 0;
-		let totalDays = 0;
 		let totalKeystrokes = 0;
 		let totalMouseClicks = 0;
 		let totalScrolls = 0;

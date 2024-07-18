@@ -71,3 +71,14 @@
     width: 80% !important;
     max-width: 80% !important;
 }
+/* #customLegend {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #333;
+}
+#customLegend div {
+    margin-bottom: 5px;
+}
+#customLegend span {
+    vertical-align: middle;
+} */

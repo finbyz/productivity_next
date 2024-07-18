@@ -464,7 +464,8 @@ UserProfile = class UserProfile {
 						var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
 						var minStartTime = Math.min(...startTimeList);
 						var maxEndTime = Math.max(...endTimeList);
-	
+						minStartTime = minStartTime - 30 * 60 * 1000;
+						maxEndTime = maxEndTime + 30 * 60 * 1000;
 						var fixedStartTime = new Date(minStartTime);
 						var fixedEndTime = new Date(maxEndTime);
 	
@@ -662,6 +663,7 @@ UserProfile = class UserProfile {
 	
 					overallPerformance.setOption(makeOption());
 					overallPerformance.on('click', function (params) {
+						console.log("Click event:", params.value);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
 							var startTime = params.value[2];
 							var endTime = params.value[3];
@@ -678,13 +680,8 @@ UserProfile = class UserProfile {
 										fieldtype: "Link",
 										in_list_view: 1,
 										options: "Employee",
+										ignore_user_permissions: 1,
 									},
-									{
-										label: "Employee Name",
-										fieldname: "employee_name",
-										fieldtype: "Data",
-										in_list_view: 1,
-									}
 								];
 								var fields = [
 									{
@@ -810,13 +807,6 @@ UserProfile = class UserProfile {
 										this.fields_dict.meeting_company_representative.grid.wrapper.on('click', '.grid-row', function () {
 											var grid_row = $(this).closest('.grid-row');
 											var employee = grid_row.find('input[data-fieldname="employee"]').val();
-											if (employee) {
-												frappe.db.get_value('Employee', employee, 'employee_name', function (r) {
-													if (r.employee_name) {
-														grid_row.find('input[data-fieldname="employee_name"]').val(r.employee_name);
-													}
-												});
-											}
 										});
 									}
 								});
@@ -1514,7 +1504,7 @@ UserProfile = class UserProfile {
 					displayContent += `
 					<tr>
 						<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
-						<td title="${app.url}"><span style="color:#00A6E0;"><b>${app.url}</b></span></td>
+						<td title="${app.url}"><a href="${app.url}" target="_blank"><span style="color:#00A6E0;"><b>${app.url}</b></span></a></td>
 						<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
 						<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
 					</tr>`;
@@ -1557,7 +1547,7 @@ UserProfile = class UserProfile {
 			.then((result) => {
 				const userImage = result.message.image;
 				const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(this.selected_employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
-				const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(this.selected_employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
+				const employeeFincallUrl = `${baseUrl}query-report/Calls Analysis?employee=${encodeURIComponent(this.selected_employee)}&from_date=${encodeURIComponent(this.start_date_)}&to_date=${encodeURIComponent(this.end_date_)}`;
 				this.sidebar.empty().append(
 					this.update_activity_chart_data(),
 					frappe.render_template("productify_activity_analysis_sidebar", {

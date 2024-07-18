@@ -57,7 +57,7 @@
 
     <!-- Calls SVG and call data on hover code starts -->
     <div class="calls-container">
-        <a href="{{employeeFincallUrl}}">
+        <a href="{{employeeFincallUrl}}" target="_blank">
             <div class="calls-hover">
                 <div class="call-item">
                     <svg fill="green" xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px">
@@ -174,7 +174,7 @@
             </span>
             {% endif %}
             {% if numberCardData %}
-            <a style="padding-top:10px;font-size: 13px;" href={{employeeMeetingUrl}}>
+            <a style="padding-top:10px;font-size: 13px;" href={{employeeMeetingUrl}} target="_blank">
                 <span style="font-size: 18px;"><b>{{numberCardData.total_meeting_count_external + numberCardData.total_meeting_count_internal}} </b></span>
                 Meetings For
                 <span style="font-size: 18px;"><b>{{meeting_total_hours}} </b></span>
