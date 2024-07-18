@@ -41,9 +41,12 @@ def update_contacts(contacts, phone_nos, links):
                 link_doctype = "Lead"
                 link_name = link.link_name
                 break
-    if not link_doctype:
+    if not link_doctype and links:
         link_doctype = links[0].link_doctype
         link_name = links[0].link_name
+    
+    if not links:
+        return
 
     # SQL query to update the Fincall Log
     frappe.db.sql("""
