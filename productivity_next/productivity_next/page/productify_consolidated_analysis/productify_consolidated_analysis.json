@@ -4,7 +4,7 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2024-07-17 10:03:54.995640",
+ "modified": "2024-07-18 15:15:32.870102",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Consolidated Analysis",
@@ -16,6 +16,12 @@
   },
   {
    "role": "Productivity Manager"
+  },
+  {
+   "role": "Employee"
+  },
+  {
+   "role": "Productivity User"
   }
  ],
  "script": null,
