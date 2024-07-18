@@ -192,7 +192,7 @@ UserProfile = class UserProfile {
 							data: r.labels,
 							axisLabel: {
 								interval: 0,
-								rotate: 50,
+								rotate: 15,
 							},
 							z: 10
 						},
@@ -510,7 +510,7 @@ UserProfile = class UserProfile {
 						data: r.labels,
 						axisLabel: {
 							interval: 0,
-							rotate: 50,
+							rotate: 20,
 						},
 					},
 					yAxis: {},
