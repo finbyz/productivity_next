@@ -1162,6 +1162,7 @@ UserProfile = class UserProfile {
 		});
 	};
 	async user_analysis_data(data) {
+		console.log("Overall Performance Data", data);
 		function calculateActiveTime(totalHours, totalIdleTime) {
 			return totalHours - totalIdleTime;
 		}

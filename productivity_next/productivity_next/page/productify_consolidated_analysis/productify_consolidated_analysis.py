@@ -426,7 +426,7 @@ def user_analysis_data(start_date=None, end_date=None):
             SELECT DATE(m.meeting_from) AS date, mcr.employee
             FROM `tabMeeting` AS m 
             JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent 
-            WHERE m.docstatus = 1 AND m.meeting_from >= DATE('2024-05-30') AND m.meeting_to <= DATE('2024-06-06')
+            WHERE m.docstatus = 1 AND m.meeting_from >= DATE('{start_date}') AND m.meeting_to <= DATE('{end_date}')
             UNION
             SELECT DATE(`date`) AS date, employee
             FROM `tabApplication Usage log`

@@ -427,7 +427,8 @@ UserProfile = class UserProfile {
 						// Add inactive periods
 						var inactivePeriods = [];
 						var employeeFirstEntry = {};
-						
+						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
 						for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
 							var employeeName = _rawData.parkingApron.data[i];
 							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
@@ -452,7 +453,7 @@ UserProfile = class UserProfile {
 						
 						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
 						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);						
 						
 						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
 						function setFixedDate(timestamp) {
