@@ -1169,7 +1169,7 @@ UserProfile = class UserProfile {
 		function getBaseURL() {
 			return window.location.origin + '/app/';
 		}
-	
+		
 		let employee_data;
 		if (this.selected_employee != null) {
 			employee_data = this.selected_employee;
@@ -1184,6 +1184,9 @@ UserProfile = class UserProfile {
 		const fetchPromises = Object.keys(data.total_hours_per_employee).map(async employee => {
 			const response = await frappe.db.get_value("Employee", employee, "employee_name");
 			const employee_name = response.message.employee_name;
+			if (!employee_name) {
+				return;
+			}
 			const meetingEmployeeData = data.meeting_employee_data?.[employee] || {};
 			return {
 				employee,
