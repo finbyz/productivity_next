@@ -1495,8 +1495,8 @@ UserProfile = class UserProfile {
 								<tr>
 									<th>Page Title</th>
 									<th>Page URL</th>
-									<th>Page Visits</th>
 									<th>Duration</th>
+									<th>Page Visits</th>
 								</tr>
 							</thead>
 							<tbody>`;
@@ -1506,8 +1506,8 @@ UserProfile = class UserProfile {
 					<tr>
 						<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
 						<td title="${app.url}"><a href="${app.url}" target="_blank"><span style="color:#00A6E0;"><b>${app.url}</b></span></a></td>
-						<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
 						<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
+						<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
 					</tr>`;
 				});
 			
