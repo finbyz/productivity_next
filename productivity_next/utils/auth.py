@@ -4,6 +4,12 @@ import frappe
 from frappe import _
 from frappe.utils import cint, get_datetime, get_url
 
+import hashlib
+
+import frappe.oauth
+import jwt
+from oauthlib.oauth2.rfc6749.tokens import random_token_generator
+
 
 def get_oath_client():
     client = frappe.db.get_value("OAuth Client", {})
@@ -20,19 +26,13 @@ def get_oath_client():
 
 
 def get_bearer_token(user, expires_in_days=1, purpose=None, date=None):
-    if not frappe.has_role(user, "Productify API") and user != frappe.session.user:
+    if "Productify API" not in frappe.get_roles() and user != frappe.session.user:
         frappe.throw(_("You are not allowed to access this resource"), frappe.PermissionError)
 
     if not date:
         date = get_datetime()
     else:
         date = get_datetime(date)
-
-    import hashlib
-
-    import frappe.oauth
-    import jwt
-    from oauthlib.oauth2.rfc6749.tokens import random_token_generator
     
     expiration_time = date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=max(cint(expires_in_days), 1))
 
