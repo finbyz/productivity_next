@@ -234,3 +234,7 @@ scheduler_events = {
 # auth_hooks = [
 # 	"productivity_next.auth.validate"
 # ]
+
+fixtures = [
+    {"dt": "Role", "filters": [["name", "=", "Productify API"]]},
+]
