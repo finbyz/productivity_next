@@ -263,6 +263,7 @@ def schedule_comments():
 
 @frappe.whitelist()
 def create_productify_work_summary():
+    from frappe.utils import nowdate, get_datetime, format_datetime,add_to_date, today, date_diff
     date = add_to_date(today(), days=-1)
     if frappe.db.exists('Productify Work Summary', {'date': date}):
         pws_docs = frappe.get_all('Productify Work Summary', filters={'date': date})
@@ -394,6 +395,7 @@ def create_productify_work_summary():
 def create_productify_work_summary_today():
     date = today()
     if not frappe.db.exists('Productify Work Summary', {'date': date}):
+        print("DOES NOT EXIST")
         employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
         for i in employees:
             employee = i['name']
@@ -521,116 +523,118 @@ def create_productify_work_summary_today():
             employee = PWS_DOC.employee
             if PWS_DOC.applications:
                 last_activity = PWS_DOC.applications[-1].to_time
-                def productify_work_summary(employee,date,last_activity):
-                    print('employee',employee)
-                    calls_data = frappe.db.sql(f"""
-                    SELECT call_datetime as start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end, 'call' as type,  COALESCE(
-                        (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
-                        COALESCE(contact, client, customer_no)
-                    ) AS caller
-                    from `tabEmployee Fincall`
-                    where employee = '{employee}' and date = '{date}' and call_datetime >= '{last_activity}'
-                    """, as_dict=True)
-                    print('calls_data',len(calls_data))
-                    internal_meetings_data = frappe.db.sql(f"""
-                    SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
-                    FROM `tabMeeting` as m
-                    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-                    WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 1 and m.meeting_from >= '{last_activity}'
-                    """, as_dict=True)
+            else:
+                last_activity = f"{date} 00:00:00"
+            print('last_activity',last_activity)
+            def productify_work_summary(employee,date,last_activity):
+                calls_data = frappe.db.sql(f"""
+                SELECT call_datetime as start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end, 'call' as type,  COALESCE(
+                    (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
+                    COALESCE(contact, client, customer_no)
+                ) AS caller
+                from `tabEmployee Fincall`
+                where employee = '{employee}' and date = '{date}' and call_datetime >= '{last_activity}'
+                """, as_dict=True)
+                print('calls_data',len(calls_data))
+                internal_meetings_data = frappe.db.sql(f"""
+                SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
+                FROM `tabMeeting` as m
+                JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+                WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 1 and m.meeting_from >= '{last_activity}'
+                """, as_dict=True)
 
-                    external_meeting_data = frappe.db.sql(f"""
-                    SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.party as party,  m.internal_meeting as meeting_type
-                    FROM `tabMeeting` as m
-                    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-                    WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 0 and m.meeting_from >= '{last_activity}'
-                    """, as_dict=True)                         
+                external_meeting_data = frappe.db.sql(f"""
+                SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.party as party,  m.internal_meeting as meeting_type
+                FROM `tabMeeting` as m
+                JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+                WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 0 and m.meeting_from >= '{last_activity}'
+                """, as_dict=True)                         
 
-                    idle_logs = frappe.db.sql(f"""
-                    select from_time as start, to_time as end, 'idle' as type
-                    from `tabEmployee Idle Time`
-                    where employee = '{employee}' and from_time >= '{date} 00:00:00' and to_time <= '{date} 23:59:59' and from_time >= '{last_activity}'
-                    """, as_dict=True)
+                idle_logs = frappe.db.sql(f"""
+                select from_time as start, to_time as end, 'idle' as type
+                from `tabEmployee Idle Time`
+                where employee = '{employee}' and from_time >= '{date} 00:00:00' and to_time <= '{date} 23:59:59' and from_time >= '{last_activity}'
+                """, as_dict=True)
 
-                    applications_data = frappe.db.sql(f"""
-                    select from_time as start, to_time as end, 'application' as type
-                    from `tabApplication Usage log`
-                    where employee = '{employee}' and date = '{date}' and from_time >= '{last_activity}'
-                    """, as_dict=True)
+                applications_data = frappe.db.sql(f"""
+                select from_time as start, to_time as end, 'application' as type
+                from `tabApplication Usage log`
+                where employee = '{employee}' and date = '{date}' and from_time >= '{last_activity}'
+                """, as_dict=True)
 
-                    data = calls_data + internal_meetings_data + idle_logs + applications_data + external_meeting_data
-                    data = sorted(data, key=lambda x: x['start'])
+                data = calls_data + internal_meetings_data + idle_logs + applications_data + external_meeting_data
+                data = sorted(data, key=lambda x: x['start'])
 
-                    priority_order = {'call': 3, 'meeting': 2, 'idle': 1, 'application': 0}
+                priority_order = {'call': 3, 'meeting': 2, 'idle': 1, 'application': 0}
 
-                    for i in data:
-                        i['priority'] = priority_order[i['type']]
+                for i in data:
+                    i['priority'] = priority_order[i['type']]
 
-                    return data
-                def remove_overlapping(data):
-                    i = 0
-                    while i < len(data) - 1:
-                        j = i + 1
-                        while j < len(data):
-                            if data[i]['end'] > data[j]['start']:
-                                if data[i]['priority'] > data[j]['priority']:
-                                    if data[j]['end'] <= data[i]['end'] and data[j]['start'] >= data[i]['start']:
-                                        data.pop(j)
-                                        continue
-                                    else:
-                                        from datetime import datetime, timedelta
-                                        new_start = data[i]['end'] + timedelta(seconds=1)
-                                        data[j]['start'] = new_start
-                                        if j + 1 < len(data) and data[j]['end'] <= data[j + 1]['start']:
-                                            j += 1
-                                        else:
-                                            data.sort(key=lambda x: x['start'])
-                                            i = 0
+                return data
+            def remove_overlapping(data):
+                i = 0
+                while i < len(data) - 1:
+                    j = i + 1
+                    while j < len(data):
+                        if data[i]['end'] > data[j]['start']:
+                            if data[i]['priority'] > data[j]['priority']:
+                                if data[j]['end'] <= data[i]['end'] and data[j]['start'] >= data[i]['start']:
+                                    data.pop(j)
+                                    continue
                                 else:
-                                    if data[i]['end'] <= data[j]['end'] and data[i]['start'] >= data[j]['start']:
-                                        data.pop(i)
-                                        break
+                                    from datetime import datetime, timedelta
+                                    new_start = data[i]['end'] + timedelta(seconds=1)
+                                    data[j]['start'] = new_start
+                                    if j + 1 < len(data) and data[j]['end'] <= data[j + 1]['start']:
+                                        j += 1
                                     else:
-                                        from datetime import datetime, timedelta
-                                        new_end = data[j]['start'] - timedelta(seconds=1)
-                                        data[i]['end'] = new_end
-                                        if i > 0 and data[i]['start'] <= data[i - 1]['end']:
-                                            i -= 1
-                                            break
+                                        data.sort(key=lambda x: x['start'])
+                                        i = 0
                             else:
-                                j += 1
-                        i += 1
-                    
-                    return data
-
-                data = productify_work_summary(employee, date, last_activity)
-                final_data = remove_overlapping(data)
-                combined_applications = []
-                current_app = None
-
-                for entry in final_data:
-                    if entry['type'] == 'application':
-                        if current_app is None or (entry['start'] - current_app['end']).total_seconds() <= 20:
-                            if current_app is None:
-                                current_app = entry.copy()
-                            else:
-                                current_app['end'] = entry['end']
-                        if (entry['start'] - current_app['end']).total_seconds() <= 20:
-                            current_app['end'] = entry['end']
+                                if data[i]['end'] <= data[j]['end'] and data[i]['start'] >= data[j]['start']:
+                                    data.pop(i)
+                                    break
+                                else:
+                                    from datetime import datetime, timedelta
+                                    new_end = data[j]['start'] - timedelta(seconds=1)
+                                    data[i]['end'] = new_end
+                                    if i > 0 and data[i]['start'] <= data[i - 1]['end']:
+                                        i -= 1
+                                        break
                         else:
-                            combined_applications.append(current_app)
+                            j += 1
+                    i += 1
+                
+                return data
+
+            data = productify_work_summary(employee, date, last_activity)
+            final_data = remove_overlapping(data)
+            combined_applications = []
+            current_app = None
+
+            for entry in final_data:
+                if entry['type'] == 'application':
+                    if current_app is None or (entry['start'] - current_app['end']).total_seconds() <= 20:
+                        if current_app is None:
                             current_app = entry.copy()
+                        else:
+                            current_app['end'] = entry['end']
+                    if (entry['start'] - current_app['end']).total_seconds() <= 20:
+                        current_app['end'] = entry['end']
                     else:
-                        if current_app is not None:
-                            combined_applications.append(current_app)
-                            current_app = None
-                if current_app is not None:
-                    combined_applications.append(current_app)
-                PWS = frappe.get_doc('Productify Work Summary', PWS['name'])
-                for app_entry in combined_applications:
-                    PWS.append('applications', {
-                        'from_time': app_entry['start'],
-                        'to_time': app_entry['end']
-                    })
-                PWS.save()
-                print(PWS.name)
+                        combined_applications.append(current_app)
+                        current_app = entry.copy()
+                else:
+                    if current_app is not None:
+                        combined_applications.append(current_app)
+                        current_app = None
+            if current_app is not None:
+                combined_applications.append(current_app)
+            PWS = frappe.get_doc('Productify Work Summary', PWS['name'])
+            for app_entry in combined_applications:
+                PWS.append('applications', {
+                    'from_time': app_entry['start'],
+                    'to_time': app_entry['end']
+                })
+            PWS.save()
+            print(PWS.name)
