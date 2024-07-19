@@ -11,7 +11,7 @@ frappe.ui.form.on('Meeting Schedule', {
 	refresh: function(frm) {
 		frm.add_custom_button(__("Create Meeting"), function() {
 			frappe.model.open_mapped_doc({
-				method : "finbyzerp.finbyzerp.doctype.meeting_schedule.meeting_schedule.make_meeting",
+				method : "productivity_next.productivity_next.doctype.meeting_schedule.meeting_schedule.make_meeting",
 				frm : frm
 			})
 		});

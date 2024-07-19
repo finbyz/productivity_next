@@ -8,7 +8,9 @@ from frappe.utils import time_diff_in_seconds
 from frappe.utils import flt
 import requests
 from werkzeug import Response
-
+from frappe import _
+from frappe.model.mapper import get_mapped_doc
+from frappe.utils import cint, getdate, get_fullname, get_url_to_form,now_datetime,validate_email_address
 
 @frappe.whitelist(allow_guest=True)
 def login(username, password, purpose):
@@ -381,3 +383,43 @@ def add_meeting(
     meeting.submit()
 
     return {"message": "Meeting added successfully"}
+
+
+@frappe.whitelist()
+def make_meetings(source_name, doctype, ref_doctype, target_doc=None):
+	def set_missing_values(source, target):
+		target.party_type = doctype
+		now = now_datetime()
+		if ref_doctype == "Meeting Schedule":
+			target.scheduled_from = target.scheduled_to = now
+		else:
+			target.meeting_from = target.meeting_to = now
+			if doctype == "Lead":
+				target.organization = source.company_name
+
+	def update_contact(source, target, source_parent):
+		if doctype == 'Lead':
+			if not source.organization_lead:
+				target.contact = source.lead_name
+
+	doclist = get_mapped_doc(doctype, source_name, {
+			doctype: {
+				"doctype": ref_doctype,
+				"field_map":  {
+					'company_name': 'organization',
+					'customer_name':'organization',
+					'contact_email':'email_id',
+					'contact_mobile':'mobile_no'
+				},
+				"field_no_map": [
+					"naming_series",
+					"lead",
+					"customer",
+					"opportunity"
+					
+				],
+				"postprocess": update_contact
+			}
+		}, target_doc, set_missing_values)
+
+	return doclist
