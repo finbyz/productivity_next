@@ -16,6 +16,7 @@ def execute():
     # Attempt to create each index, handling exceptions if index already exists
     for index in indexes:
         try:
+            import frappe
             frappe.db.add_index(index["doctype"], index["fields"])
             print(f"Index added to {index['doctype']} on fields {index['fields']}")
         except Exception as e:

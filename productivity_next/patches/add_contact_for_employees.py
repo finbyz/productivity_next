@@ -39,4 +39,4 @@ def execute():
             contact_doc.save(ignore_permissions=True)
             print("Contact created for Employee: " + d['name'])
         except Exception as e:
-            print(message=str(e), title="Error creating Contact for Employee: " + d['name'])
+            print("FAILED")
