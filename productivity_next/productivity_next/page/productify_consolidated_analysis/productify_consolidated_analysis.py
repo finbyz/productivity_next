@@ -32,11 +32,15 @@ def set_dates(start_date=None, end_date=None):
 @frappe.whitelist()
 def get_employees():
     employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["name", "employee_name"])
+    if not employees:
+        return []
     return employees
 
 @frappe.whitelist()
 def get_employees_version():
     employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["user_id"])
+    if not employees:
+        return []
     return employees
 
 # Conditions to be applied to get data from versions table code starts
@@ -51,6 +55,8 @@ def version_conditions(start_date=None, end_date=None):
 @frappe.whitelist()
 def document_analysis_chart(start_date=None, end_date=None):
     employees = get_employees_version()
+    if not employees:
+        return {}
     version_conditions_str = version_conditions(start_date,end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
@@ -86,6 +92,8 @@ def document_analysis_chart(start_date=None, end_date=None):
 @frappe.whitelist()
 def client_calls_chart(start_date=None, end_date=None):
     employees = get_employees()
+    if not employees:
+        return {}
     start_date_, end_date_ = set_dates(start_date, end_date)
     caller_name = frappe.db.sql(f"""
     SELECT 
@@ -170,6 +178,8 @@ def client_calls_chart(start_date=None, end_date=None):
 @frappe.whitelist()
 def employee_calls_chart(user, start_date=None, end_date=None):
     employees = get_employees()
+    if not employees:
+        return {}
     if user != "Administrator":
         conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
     else:
@@ -241,6 +251,8 @@ def employee_calls_chart(user, start_date=None, end_date=None):
 @frappe.whitelist()
 def overall_performance_chart(start_date=None, end_date=None):
     employees = get_employees()
+    if not employees:
+        return {}
     calls = frappe.db.sql(f"""
         SELECT name AS parent, 
             call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
@@ -346,6 +358,8 @@ def overall_performance_chart(start_date=None, end_date=None):
 @frappe.whitelist()
 def user_analysis_data(start_date=None, end_date=None):
     employees = get_employees()
+    if not employees:
+        return {}
     start_date_, end_date_ = set_dates(start_date, end_date)
     conditions_2 = f"AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
 
