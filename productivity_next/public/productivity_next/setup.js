@@ -1,3 +1,4 @@
+const { error } = require("echarts/types/src/util/log.js");
 
 document.addEventListener("DOMContentLoaded", function () {
     let data = {
@@ -120,26 +121,27 @@ document.addEventListener("DOMContentLoaded", function () {
             if (values.sales_person_sub) {
                 subscription_plan.push('Sales Person');
             }
-            console.log(subscription_plan);
-            dialog.show();            
-            // frappe.call({
-            //     method: 'productivity_next.api.organization_signup',
-            //     type: 'POST',
-            //     args: {
-            //         domain: values.domain,
-            //         organization_name: values.organization_name,
-            //         contact_person: values.contact_person,
-            //         email: values.email_id,
-            //         mobile_no: values.mobile_no,
-            //         subscription_plan: subscription_plan.join(', '),
-            //         application: values.application_sub,
-            //         sales_person: values.sales_person_sub
-            //     },
-            //     callback: (r) => {
-            //         d.hide();
-            //         frm.refresh();
-            //     }
-            // });
+            frappe.call({
+                method: 'productivity_next.api.organization_signup',
+                type: 'POST',
+                args: {
+                    domain: values.domain,
+                    organization_name: values.organization_name,
+                    contact_person: values.contact_person,
+                    email: values.email_id,
+                    mobile_no: values.mobile_no,
+                    subscription_plan: subscription_plan.join(', '),
+                    application: values.application_sub,
+                    sales_person: values.sales_person_sub
+                },
+                success: (r) => {
+                    console.log(r);
+                    dialog.show();
+                },
+                error: (r) => {
+                    frappe.errprint(r.message);
+                }
+            });
         }
     });
 
