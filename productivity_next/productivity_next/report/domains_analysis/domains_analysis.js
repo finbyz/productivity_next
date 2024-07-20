@@ -4,16 +4,42 @@
 frappe.query_reports["Domains Analysis"] = {
 	"filters": [
 		{
-			"fieldname":"from_date",
+			"fieldname": "from_date",
 			"label": __("From Date"),
 			"fieldtype": "Date",
 			"default": frappe.datetime.add_days(frappe.datetime.get_today(), -7)
 		},
 		{
-			"fieldname":"to_date",
+			"fieldname": "to_date",
 			"label": __("To Date"),
 			"fieldtype": "Date",
 			"default": frappe.datetime.get_today()
-		}
+		},
+		{
+			"fieldname": "employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee"
+		},
+		
+		{
+			"fieldname": "group_by_employee_and_domain",
+			"label": __("Group By Employee & Domain"),
+			"fieldtype": "Check",
+			on_change: function (query_report) {
+				frappe.query_report.get_filter('group_by_domain').input.checked = false
+				frappe.query_report.refresh();
+			},
+		
+		},
+		{
+			"fieldname": "group_by_domain",
+			"label": __("Group By Domain"),
+			"fieldtype": "Check",
+			on_change: function (query_report) {
+				frappe.query_report.get_filter('group_by_employee_and_domain').input.checked = false
+				frappe.query_report.refresh();
+			},
+		},
 	]
 };

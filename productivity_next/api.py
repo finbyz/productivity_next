@@ -10,7 +10,15 @@ import requests
 from werkzeug import Response
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import cint, getdate, get_fullname, get_url_to_form,now_datetime,validate_email_address
+from frappe.utils import (
+    cint,
+    getdate,
+    get_fullname,
+    get_url_to_form,
+    now_datetime,
+    validate_email_address,
+)
+
 
 @frappe.whitelist(allow_guest=True)
 def login(username, password, purpose):
@@ -303,6 +311,84 @@ def get_app_usage_time(employee):
     return idle_time
 
 
+@frappe.whitelist()
+def add_meeting(
+    meeting_from,
+    meeting_to,
+    meeting_arranged_by,
+    internal_meeting,
+    purpose,
+    industry,
+    party_type,
+    party,
+    discussion,
+    meeting_company_representative,
+):
+    meeting_company_representative = json.loads(meeting_company_representative)
+    meeting = frappe.new_doc("Meeting")
+    meeting.meeting_from = meeting_from
+    meeting.meeting_to = meeting_to
+    meeting.meeting_arranged_by = meeting_arranged_by
+    meeting.internal_meeting = internal_meeting
+    meeting.purpose = purpose
+    meeting.industry = industry if industry else None
+    meeting.party_type = party_type if party_type else None
+    meeting.party = party if party else None
+    meeting.discussion = discussion
+    for row in meeting_company_representative:
+        meeting.append(
+            "meeting_company_representative",
+            {
+                "employee": row.get("employee"),
+                "employee_name": row.get("employee_name"),
+            },
+        )
+    meeting.save()
+    meeting.submit()
+
+    return {"message": "Meeting added successfully"}
+
+
+@frappe.whitelist()
+def make_meetings(source_name, doctype, ref_doctype, target_doc=None):
+    def set_missing_values(source, target):
+        target.party_type = doctype
+        now = now_datetime()
+        if ref_doctype == "Meeting Schedule":
+            target.scheduled_from = target.scheduled_to = now
+        else:
+            target.meeting_from = target.meeting_to = now
+            if doctype == "Lead":
+                target.organization = source.company_name
+
+    def update_contact(source, target, source_parent):
+        if doctype == "Lead":
+            if not source.organization_lead:
+                target.contact = source.lead_name
+
+    doclist = get_mapped_doc(
+        doctype,
+        source_name,
+        {
+            doctype: {
+                "doctype": ref_doctype,
+                "field_map": {
+                    "company_name": "organization",
+                    "customer_name": "organization",
+                    "contact_email": "email_id",
+                    "contact_mobile": "mobile_no",
+                },
+                "field_no_map": ["naming_series", "lead", "customer", "opportunity"],
+                "postprocess": update_contact,
+            }
+        },
+        target_doc,
+        set_missing_values,
+    )
+
+    return doclist
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def organization_signup(
     domain,
@@ -344,82 +430,8 @@ def organization_signup(
 
     response = requests.request("POST", url, headers=headers, data=payload)
 
-    return response.json()
-
-
-@frappe.whitelist()
-def add_meeting(
-    meeting_from,
-    meeting_to,
-    meeting_arranged_by,
-    internal_meeting,
-    purpose,
-    industry,
-    party_type,
-    party,
-    discussion,
-    meeting_company_representative,
-):
-    meeting_company_representative = json.loads(meeting_company_representative)
-    meeting = frappe.new_doc("Meeting")
-    meeting.meeting_from = meeting_from
-    meeting.meeting_to = meeting_to
-    meeting.meeting_arranged_by = meeting_arranged_by
-    meeting.internal_meeting = internal_meeting
-    meeting.purpose = purpose
-    meeting.industry = industry if industry else None
-    meeting.party_type = party_type if party_type else None
-    meeting.party = party if party else None
-    meeting.discussion = discussion
-    for row in meeting_company_representative:
-        meeting.append(
-            "meeting_company_representative",
-            {
-                "employee": row.get("employee"),
-                "employee_name": row.get("employee_name"),
-            },
-        )
-    meeting.save()
-    meeting.submit()
-
-    return {"message": "Meeting added successfully"}
-
-
-@frappe.whitelist()
-def make_meetings(source_name, doctype, ref_doctype, target_doc=None):
-	def set_missing_values(source, target):
-		target.party_type = doctype
-		now = now_datetime()
-		if ref_doctype == "Meeting Schedule":
-			target.scheduled_from = target.scheduled_to = now
-		else:
-			target.meeting_from = target.meeting_to = now
-			if doctype == "Lead":
-				target.organization = source.company_name
-
-	def update_contact(source, target, source_parent):
-		if doctype == 'Lead':
-			if not source.organization_lead:
-				target.contact = source.lead_name
-
-	doclist = get_mapped_doc(doctype, source_name, {
-			doctype: {
-				"doctype": ref_doctype,
-				"field_map":  {
-					'company_name': 'organization',
-					'customer_name':'organization',
-					'contact_email':'email_id',
-					'contact_mobile':'mobile_no'
-				},
-				"field_no_map": [
-					"naming_series",
-					"lead",
-					"customer",
-					"opportunity"
-					
-				],
-				"postprocess": update_contact
-			}
-		}, target_doc, set_missing_values)
-
-	return doclist
+    return Response(
+        response=response.text,
+        status=response.status_code,
+        content_type="application/json",
+    )
