@@ -691,12 +691,6 @@ UserProfile = class UserProfile {
 						}
 					});
 					});
-				
-					function setFixedDate(timestamp) {
-						var date = new Date(timestamp);
-						date.setFullYear(2000, 0, 1);
-						return date.getTime();
-					}
 					var startTimeList = _rawData.flight.data.map(item => new Date(item[2]).getTime());
 					var endTimeList = _rawData.flight.data.map(item => new Date(item[3]).getTime());
 					var minStartTime = Math.min(...startTimeList);
@@ -717,8 +711,8 @@ UserProfile = class UserProfile {
 								var employeeName = params.data[1];
 								var startTime = new Date(params.data[2]);
 								var endTime = new Date(params.data[3]);
-								var startTimeString = startTime.toTimeString().split(' ')[0];
-								var endTimeString = endTime.toTimeString().split(' ')[0];
+								var startTimeString = startTime.toLocaleString();
+								var endTimeString = endTime.toLocaleString();
 							
 								var durationMs = endTime - startTime;
 								var durationSeconds = Math.floor(durationMs / 1000);
