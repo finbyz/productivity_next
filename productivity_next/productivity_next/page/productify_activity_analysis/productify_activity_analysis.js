@@ -529,7 +529,7 @@ UserProfile = class UserProfile {
 									top: 70,
 									bottom: 20,
 									start: 0,
-									end: 50,  // Show fewer rows at a time
+									end: 15,  // Show fewer rows at a time
 									handleSize: 0,
 									showDetail: false
 								},
