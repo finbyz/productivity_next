@@ -393,8 +393,8 @@ UserProfile = class UserProfile {
 	
 		// Function to redirect to Calls Analysis page with selected dates
 		function goToCallsAnalysisClient(start_date, end_date) {
-			console.log("start_date", start_date);	
-			console.log("end_date", end_date);
+			// console.log("start_date", start_date);	
+			// console.log("end_date", end_date);
 			var baseUrl = window.location.origin;
 			
 			// Construct the URL with the parameters
@@ -537,8 +537,8 @@ UserProfile = class UserProfile {
 
 		// Function to redirect to Calls Analysis page with selected dates
 		function goToCallsAnalysisEmployee(start_date, end_date) {
-			console.log("start_date", start_date);	
-			console.log("end_date", end_date);
+			// console.log("start_date", start_date);	
+			// console.log("end_date", end_date);
 			var baseUrl = window.location.origin;
 			
 			// Construct the URL with the parameters
@@ -583,19 +583,22 @@ UserProfile = class UserProfile {
 					'External Meeting': 4,
 					'Call': 5
 				};
-	
-				function convertDateTime(dateTimeString) {
-					const date = new Date(dateTimeString);
-					const fixedDate = new Date(2000, 0, 1);
-					fixedDate.setHours(date.getHours(), date.getMinutes(), date.getSeconds());
-					return `2000-01-01 ${padZero(fixedDate.getHours())}:${padZero(fixedDate.getMinutes())}:${padZero(fixedDate.getSeconds())}`;
-				}
-	
-				function padZero(num) {
-					return num < 10 ? `0${num}` : num;
-				}
+
 				var inactivePeriods = [];
 				var employeeFirstEntry = {};
+
+				function formatTimestamp(timestamp) {
+					const date = new Date(timestamp);
+					
+					const year = date.getFullYear();
+					const month = String(date.getMonth() + 1).padStart(2, '0');
+					const day = String(date.getDate()).padStart(2, '0');
+					const hours = String(date.getHours()).padStart(2, '0');
+					const minutes = String(date.getMinutes()).padStart(2, '0');
+					const seconds = String(date.getSeconds()).padStart(2, '0');
+				
+					return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+				}
 	
 				for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
 					var employeeName = _rawData.parkingApron.data[i][0];
@@ -609,26 +612,15 @@ UserProfile = class UserProfile {
 						for (var j = 1; j < employeeActivities.length; j++) {
 							var startTime = new Date(employeeActivities[j][2]).getTime();
 							if (startTime > lastEndTime) {
-								// console.log('Inactive period found for', employeeName, 'from', lastEndTime, 'to', startTime);
-								var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
-								var endTimeString = convertDateTime(new Date(startTime).toISOString());
-								
+								// console.log('Inactive period found for', employeeName, 'from', lastEndTime, 'to', startTime)
+								var startTimeString = formatTimestamp(lastEndTime);
+								var endTimeString = formatTimestamp(startTime);
 								inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
 							}
 							lastEndTime = new Date(employeeActivities[j][3]).getTime();
 						}
 					}
 				}
-				_rawData.flight.data = _rawData.flight.data.map(item => {
-					return [
-						item[0],
-						item[1],
-						convertDateTime(item[2]),
-						convertDateTime(item[3]),
-						...item.slice(4)
-					];
-				});
-	
 				_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
 				_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
 	
@@ -705,12 +697,16 @@ UserProfile = class UserProfile {
 						date.setFullYear(2000, 0, 1);
 						return date.getTime();
 					}
-					var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
-					var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
-					var minStartTime = Math.min(...startTimeList)
+					var startTimeList = _rawData.flight.data.map(item => new Date(item[2]).getTime());
+					var endTimeList = _rawData.flight.data.map(item => new Date(item[3]).getTime());
+					var minStartTime = Math.min(...startTimeList);
 					var maxEndTime = Math.max(...endTimeList);
-					minStartTime = minStartTime - 30 * 60 * 1000;
-					maxEndTime = maxEndTime + 30 * 60 * 1000;
+
+					// Add 30 minutes padding to both start and end times
+					minStartTime = minStartTime - (60 * 60 * 1000);
+					maxEndTime = maxEndTime + (60 * 60 * 1000);
+
+					// Create Date objects for the xAxis min and max
 					var fixedStartTime = new Date(minStartTime);
 					var fixedEndTime = new Date(maxEndTime);
 					return {
@@ -962,9 +958,12 @@ UserProfile = class UserProfile {
 				}
 					overallPerformance.setOption(makeOption());
 					overallPerformance.on('click', function (params) {
+						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
+							// console.log("start",params.value[2]);
 							var startTime = params.value[2];
 							var endTime = params.value[3];
+							// console.log("hiiiiiiiiiiiiiiiiiiii",startTime, endTime);
 							var employeeName = params.value[1];
 	
 							frappe.db.get_value("Employee", {

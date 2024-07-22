@@ -527,9 +527,9 @@ UserProfile = class UserProfile {
 									width: 10,
 									right: 10,
 									top: 70,
+									start: 95,
+									end: 100,
 									bottom: 20,
-									start: 0,
-									end: 15,  // Show fewer rows at a time
 									handleSize: 0,
 									showDetail: false
 								},
@@ -537,8 +537,8 @@ UserProfile = class UserProfile {
 									type: 'inside',
 									id: 'insideY',
 									yAxisIndex: 0,
-									start: 0,
-									end: 50,  // Show fewer rows at a time
+									start: 95,
+									end: 100,  // Show fewer rows at a time
 									zoomOnMouseWheel: false,
 									moveOnMouseMove: true,
 									moveOnMouseWheel: true
@@ -593,7 +593,7 @@ UserProfile = class UserProfile {
 								axisLabel: { 
 									show: true,
 									align: 'right',
-									margin: 20,
+									margin: 10,   // Adjust margin between axis labels and bars
 									formatter: function(value) {
 										return '{a|' + value + '}';
 									},
@@ -605,7 +605,7 @@ UserProfile = class UserProfile {
 									}
 								},
 								data: uniqueDates,
-							},
+							},							
 							series: [
 								{
 									id: 'flightData',
