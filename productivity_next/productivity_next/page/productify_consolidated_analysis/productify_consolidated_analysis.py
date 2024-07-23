@@ -376,9 +376,11 @@ def user_analysis_data(start_date=None, end_date=None):
         WHERE date >= '{start_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)}) and (calltype != 'Missed' and calltype != 'Rejected')
     """, as_dict=True)
     application_total_data = frappe.db.sql(f"""
-        SELECT from_time as start_time, to_time as end_time, employee
-        FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        SELECT a.from_time AS start_time, a.to_time AS end_time, dwsp.employee as employee
+        FROM `tabProductify Work Summary` AS dwsp
+        JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
+        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        ORDER BY dwsp.employee
     """, as_dict=True)
 
     list_data.append(meeting_total_data)
