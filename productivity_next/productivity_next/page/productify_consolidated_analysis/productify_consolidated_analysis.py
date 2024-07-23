@@ -96,12 +96,12 @@ def document_analysis_chart(start_date=None, end_date=None):
 # Document Analysis (Numbers Of Document Modified) Code Ends
 
 # Top 10 Clients Call Analysis (In Minutes) Code Starts
+
 @frappe.whitelist()
 def client_calls_chart(start_date=None, end_date=None):
     employees = get_employees()
     if not employees:
         return {}
-    start_date_, end_date_ = set_dates(start_date, end_date)
     caller_name = frappe.db.sql(f"""
     SELECT 
         CASE 
@@ -184,8 +184,8 @@ def client_calls_chart(start_date=None, end_date=None):
 # Top 10 Employees Call Analysis Code Starts
 @frappe.whitelist()
 def employee_calls_chart(user, start_date=None, end_date=None):
-    employees = get_employees()
-    if not employees:
+    employees_list = get_employees()
+    if not employees_list:
         return {}
     conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
@@ -201,7 +201,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
            ROUND(SUM(CASE WHEN calltype = 'Missed' THEN duration ELSE 0 END) / 60, 2) as missed_duration,
            COUNT(*) as total  
     FROM `tabEmployee Fincall`
-    {conditions} AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+    {conditions} AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees_list)})
     GROUP BY employee
     ORDER BY total DESC
     LIMIT 10
@@ -241,9 +241,8 @@ def employee_calls_chart(user, start_date=None, end_date=None):
         })
     
     employee_names = []
-    for employee in employees:
-        name = frappe.db.get_value("Employee", employee, "employee_name")
-        employee_names.append(name)
+    for employee in employees_list:
+        employee_names.append(employee['employee_name'])
     
     return {
         "labels": employee_names,
@@ -343,7 +342,6 @@ def overall_performance_chart(start_date=None, end_date=None):
         ])
     base_data = sorted(base_data, key=lambda x: x[2])
     data = []
-    employees = frappe.get_list("Productify Work Summary", filters={"date":end_date}, fields=["employee", "employee_name"])
     for i in employees:
         data.append([
             i['employee_name'].split()[0] + " " + i['employee_name'].split()[-1][0] + "." if i['employee_name'] else "",
@@ -365,8 +363,6 @@ def user_analysis_data(start_date=None, end_date=None):
     if not employees:
         return {}
     start_date_, end_date_ = set_dates(start_date, end_date)
-    conditions_2 = f"AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
-
     list_data = []
     meeting_total_data = frappe.db.sql(f"""
         SELECT m.meeting_from as start_time, m.meeting_to as end_time, mcr.employee
