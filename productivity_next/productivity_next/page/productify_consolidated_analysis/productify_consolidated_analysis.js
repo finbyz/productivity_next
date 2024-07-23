@@ -126,7 +126,6 @@ UserProfile = class UserProfile {
 
 	// All Employees Page Title Code
 	make_user_profile() {
-		this.user = frappe.user_info(this.user_id);
 		if (!this.selected_employee) {
 			this.page.set_title("All Employees" + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
 		} else {
@@ -870,7 +869,7 @@ UserProfile = class UserProfile {
 							},
 							data: _rawData.parkingApron.data.map(item => item[0]),
 							min: 0,
-							max: _rawData.parkingApron.data.length - 1
+							max: _rawData.parkingApron.data.length - 1,
 						},
 						xAxis: {
 							type: 'time',
