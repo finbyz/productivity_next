@@ -43,6 +43,13 @@ def get_employees_version():
         return []
     return employees
 
+@frappe.whitelist()
+def get_employees_overall_performance(end_date):
+    employees = frappe.get_list("Productify Work Summary", filters={"date": end_date}, fields=["employee","employee_name"])
+    if not employees:
+        return []
+    return employees
+
 # Conditions to be applied to get data from versions table code starts
 @frappe.whitelist() 
 def version_conditions(start_date=None, end_date=None):
@@ -250,7 +257,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
 # Overall Performance (All Employees) Code Starts
 @frappe.whitelist()
 def overall_performance_chart(start_date=None, end_date=None):
-    employees = get_employees()
+    employees = get_employees_overall_performance(end_date)
     if not employees:
         return {}
     calls = frappe.db.sql(f"""
@@ -258,7 +265,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
             employee, employee_name,COALESCE(contact, client, customer_no) as caller, calltype
         FROM `tabEmployee Fincall`
-        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -268,7 +275,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             mcr.employee, mcr.employee_name
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
-        WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
         ORDER BY mcr.employee
     """, as_dict=True)
 
@@ -277,7 +284,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             from_time AS idle_start, to_time AS idle_end,
             employee, employee_name
         FROM `tabEmployee Idle Time`
-        WHERE from_time >= '{end_date} 00:00:00' and to_time <= '{end_date} 23:59:59' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE from_time >= '{end_date} 00:00:00' and to_time <= '{end_date} 23:59:59' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -287,7 +294,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             dwsp.employee, dwsp.employee_name
         FROM `tabProductify Work Summary` AS dwsp
         JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
-        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
         ORDER BY dwsp.employee
     """, as_dict=True)
 
@@ -339,11 +346,11 @@ def overall_performance_chart(start_date=None, end_date=None):
         ])
     base_data = sorted(base_data, key=lambda x: x[2])
     data = []
-    employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["name", "employee_name"])
+    employees = frappe.get_list("Productify Work Summary", filters={"date":end_date}, fields=["employee", "employee_name"])
     for i in employees:
         data.append([
             i['employee_name'].split()[0] + " " + i['employee_name'].split()[-1][0] + "." if i['employee_name'] else "",
-            i['name'],
+            i['employee'],
         ])
 
     return{

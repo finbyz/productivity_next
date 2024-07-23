@@ -360,7 +360,8 @@ def create_productify_work_summary():
         final_data = remove_overlapping(data)
         combined_applications = []
         current_app = None
-
+        if len(final_data) == 0:
+            continue
         for entry in final_data:
             if entry['type'] == 'application':
                 if current_app is None or (entry['start'] - current_app['end']).total_seconds() <= 20:
@@ -484,6 +485,8 @@ def create_productify_work_summary_today():
 
             data = productify_work_summary(employee, date)
             final_data = remove_overlapping(data)
+            if len(final_data) == 0:
+                continue
             combined_applications = []
             current_app = None
 
@@ -609,6 +612,8 @@ def create_productify_work_summary_today():
 
             data = productify_work_summary(employee, date, last_activity)
             final_data = remove_overlapping(data)
+            if len(final_data) == 0:
+                continue
             combined_applications = []
             current_app = None
 
