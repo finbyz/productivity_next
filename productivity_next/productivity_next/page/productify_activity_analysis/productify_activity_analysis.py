@@ -190,9 +190,9 @@ def work_intensity(user=None, start_date=None, end_date=None):
             SUM(mouse_clicks) as total_mouse_clicks,
             SUM(mouse_scrolls) as total_mouse_scrolls
         FROM `tabWork Intensity`
-        WHERE time >= '{start_date} 00:00:00' 
+        WHERE employee = '{user}'
+            AND time >= '{start_date} 00:00:00'      
             AND time <= '{end_date} 23:59:59' 
-            AND employee = '{user}' 
             AND HOUR(time) BETWEEN 7 AND 23
         GROUP BY hour, day_of_week
     """, as_dict=True)
@@ -801,7 +801,7 @@ def top_document_analysis(user, start_date=None, end_date=None):
 # User Activity Images Code Starts
 @frappe.whitelist()
 def user_activity_images(user, start_date=None, end_date=None, offset=0):
-    data = frappe.get_all("Screen Screenshot Log", filters={"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]],"employee": user}, order_by="time desc", group_by="time", fields=["screenshot", "time"])
+    data = frappe.get_all("Screen Screenshot Log", filters={"employee": user,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time"])
     for i in data:
         i["time_"] = frappe.format(i["time"], "Datetime")
     return data
@@ -812,7 +812,7 @@ def user_activity_images(user, start_date=None, end_date=None, offset=0):
 def version_conditions(user,start_date=None, end_date=None):
     if user != "Administrator":
         email = frappe.db.get_value("Employee", user, "company_email")
-        condition = f"WHERE creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59' and owner = '{email}'"
+        condition = f"WHERE creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59' and modified_by = '{email}'"
     else:
         condition = f"WHERE creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59'"
 

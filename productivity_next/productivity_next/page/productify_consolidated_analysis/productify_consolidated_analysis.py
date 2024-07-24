@@ -84,7 +84,8 @@ def document_analysis_chart(start_date=None, end_date=None):
             SELECT COUNT(DISTINCT docname) AS activity_count,ref_doctype
             FROM `tabVersion`
             {version_conditions_str}
-            {ignore_condition} and modified_by IN ({','.join(f"'{employee['user_id']}'" for employee in employees)})
+            and modified_by IN ({','.join(f"'{employee['user_id']}'" for employee in employees)})
+            {ignore_condition} 
             GROUP BY ref_doctype
             ORDER BY activity_count DESC
         """, as_dict=1)
@@ -576,7 +577,7 @@ def user_analysis_data(start_date=None, end_date=None):
             COALESCE(SUM(mouse_clicks), 0) AS total_mouse_clicks,
             COALESCE(SUM(mouse_scrolls), 0) AS total_scroll
         FROM `tabWork Intensity`
-        WHERE time >= '{start_date_}' AND time <= '{end_date_}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE employee IN ({','.join(f"'{employee['name']}'" for employee in employees)}) and time >= '{start_date_}' AND time <= '{end_date_}'
         GROUP BY employee
     """, as_dict=True)
     
