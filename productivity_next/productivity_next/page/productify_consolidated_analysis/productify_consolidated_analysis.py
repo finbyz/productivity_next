@@ -54,7 +54,7 @@ def get_employees_overall_performance(end_date):
 @frappe.whitelist() 
 def version_conditions(start_date=None, end_date=None):
     start_date, end_date = set_dates(start_date, end_date)
-    condition = f"WHERE creation >= '{start_date}' AND creation <= '{end_date}'"
+    condition = f"AND creation >= '{start_date}' AND creation <= '{end_date}'"
     return condition
 # Conditions to be applied to get data from versions table code ends
 
@@ -83,8 +83,8 @@ def document_analysis_chart(start_date=None, end_date=None):
     documents_modified = frappe.db.sql(f"""
             SELECT COUNT(DISTINCT docname) AS activity_count,ref_doctype
             FROM `tabVersion`
+            WHERE modified_by IN ({','.join(f"'{employee['user_id']}'" for employee in employees)})
             {version_conditions_str}
-            and modified_by IN ({','.join(f"'{employee['user_id']}'" for employee in employees)})
             {ignore_condition} 
             GROUP BY ref_doctype
             ORDER BY activity_count DESC

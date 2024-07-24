@@ -812,7 +812,7 @@ def user_activity_images(user, start_date=None, end_date=None, offset=0):
 def version_conditions(user,start_date=None, end_date=None):
     if user != "Administrator":
         email = frappe.db.get_value("Employee", user, "company_email")
-        condition = f"WHERE creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59' and modified_by = '{email}'"
+        condition = f"WHERE modified_by = '{email}' and creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59'"
     else:
         condition = f"WHERE creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59'"
 
