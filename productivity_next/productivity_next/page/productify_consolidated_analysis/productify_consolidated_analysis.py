@@ -281,7 +281,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             from_time AS idle_start, to_time AS idle_end,
             employee, employee_name
         FROM `tabEmployee Idle Time`
-        WHERE date >= '{end_date}' and to_time <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
