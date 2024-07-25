@@ -60,6 +60,4 @@ class ApplicationUsagelog(Document):
 
 def on_doctype_update():
     frappe.db.add_unique("Application Usage log", ["employee", "from_time", "to_time"])
-    frappe.db.add_index("Application Usage log", ["employee", "date", "domain"])
-    frappe.db.add_index("Application Usage log", ["application_name", "date"])
-    frappe.db.add_index("Application Usage log", ["domain", "date"])
+    frappe.db.add_index("Application Usage log", ["date", "employee", "domain"])
