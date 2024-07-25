@@ -7,8 +7,6 @@ def execute():
         {"doctype": "Fincall Log", "fields": ["employee", "date"]},
         {"doctype": "Meeting Company Representative", "fields": ["parent", "employee"]},
         {"doctype": "Meeting", "fields": ["meeting_from", "meeting_to"]},
-        {"doctype": "Version", "fields": ["owner", "creation", "ref_doctype", "docname"]},
-        {"doctype": "Version", "fields": ["creation", "ref_doctype", "docname"]},
         {"doctype": "Employee Fincall", "fields": ["employee", "customer_no", "calltype", "call_datetime"]},
         {"doctype": "URL Access Log", "fields": ["employee", "from_time", "to_time","domain"]}
     ]
