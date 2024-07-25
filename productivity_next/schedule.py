@@ -394,12 +394,13 @@ def create_productify_work_summary():
 
 @frappe.whitelist()
 def create_productify_work_summary_today():
+    from frappe.utils import today
     date = today()
-    if not frappe.db.exists('Productify Work Summary', {'date': date}):
-        print("DOES NOT EXIST")
-        employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
-        for i in employees:
-            employee = i['name']
+    employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
+    for i in employees:
+        employee = i['name']
+        if not frappe.db.exists('Productify Work Summary', {'date': date,'employee':i['name']}):
+            # print("DOES NOT EXIST")
             date = date
             def productify_work_summary(employee,date):
                 print('employee',employee)
@@ -411,7 +412,7 @@ def create_productify_work_summary_today():
                 from `tabEmployee Fincall`
                 where employee = '{employee}' and date = '{date}'
                 """, as_dict=True)
-                print('calls_data',len(calls_data))
+                # print('calls_data',len(calls_data))
                 internal_meetings_data = frappe.db.sql(f"""
                 SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
                 FROM `tabMeeting` as m
@@ -431,13 +432,14 @@ def create_productify_work_summary_today():
                 from `tabEmployee Idle Time`
                 where employee = '{employee}' and from_time >= '{date} 00:00:00' and to_time <= '{date} 23:59:59'
                 """, as_dict=True)
-
+                # print("employee",employee)
+                # print("date",date)
                 applications_data = frappe.db.sql(f"""
                 select from_time as start, to_time as end, 'application' as type
                 from `tabApplication Usage log`
                 where employee = '{employee}' and date = '{date}'
                 """, as_dict=True)
-
+                # print('applications_data',applications_data)
                 data = calls_data + internal_meetings_data + idle_logs + applications_data + external_meeting_data
                 data = sorted(data, key=lambda x: x['start'])
 
@@ -518,17 +520,17 @@ def create_productify_work_summary_today():
                     'to_time': app_entry['end']
                 })
             PWS.save()
-            print(PWS.name)
-    else:
-        pws_docs = frappe.get_all('Productify Work Summary', filters={'date': date})
-        for PWS in pws_docs:
-            PWS_DOC = frappe.get_doc('Productify Work Summary', PWS['name'])
-            employee = PWS_DOC.employee
+            # print(PWS.name)
+        else:
+            PWS_DOC = frappe.get_doc('Productify Work Summary',{'date': date,'employee':i['name']})
+            employee = i['name']
+            print("else"+ employee)
+            print("else"+ date) 
+            print("else"+ PWS_DOC.name)
             if PWS_DOC.applications:
                 last_activity = PWS_DOC.applications[-1].to_time
             else:
                 last_activity = f"{date} 00:00:00"
-            print('last_activity',last_activity)
             def productify_work_summary(employee,date,last_activity):
                 calls_data = frappe.db.sql(f"""
                 SELECT call_datetime as start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end, 'call' as type,  COALESCE(
@@ -538,7 +540,7 @@ def create_productify_work_summary_today():
                 from `tabEmployee Fincall`
                 where employee = '{employee}' and date = '{date}' and call_datetime >= '{last_activity}'
                 """, as_dict=True)
-                print('calls_data',len(calls_data))
+                # print('calls_data',len(calls_data))
                 internal_meetings_data = frappe.db.sql(f"""
                 SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
                 FROM `tabMeeting` as m
@@ -564,7 +566,7 @@ def create_productify_work_summary_today():
                 from `tabApplication Usage log`
                 where employee = '{employee}' and date = '{date}' and from_time >= '{last_activity}'
                 """, as_dict=True)
-
+                # print('applications_data',applications_data)
                 data = calls_data + internal_meetings_data + idle_logs + applications_data + external_meeting_data
                 data = sorted(data, key=lambda x: x['start'])
 
@@ -635,11 +637,11 @@ def create_productify_work_summary_today():
                         current_app = None
             if current_app is not None:
                 combined_applications.append(current_app)
-            PWS = frappe.get_doc('Productify Work Summary', PWS['name'])
+            PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['name']})
             for app_entry in combined_applications:
                 PWS.append('applications', {
                     'from_time': app_entry['start'],
                     'to_time': app_entry['end']
                 })
             PWS.save()
-            print(PWS.name)
+            # print(PWS.name)

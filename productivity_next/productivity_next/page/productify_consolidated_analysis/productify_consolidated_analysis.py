@@ -380,7 +380,7 @@ def user_analysis_data(start_date=None, end_date=None):
         SELECT a.from_time AS start_time, a.to_time AS end_time, dwsp.employee as employee
         FROM `tabProductify Work Summary` AS dwsp
         JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
-        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE dwsp.date >= '{start_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY dwsp.employee
     """, as_dict=True)
 
@@ -460,7 +460,7 @@ def user_analysis_data(start_date=None, end_date=None):
     idle_time_data = frappe.db.sql(f"""
         SELECT employee, from_time as start_time, to_time as end_time
         FROM `tabEmployee Idle Time`
-        WHERE date > '{start_date}' AND date < '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
     """, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)

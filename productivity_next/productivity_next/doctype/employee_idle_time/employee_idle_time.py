@@ -12,4 +12,4 @@ class EmployeeIdleTime(Document):
 
 def on_doctype_update():
 	frappe.db.add_unique("Employee Idle Time", ["employee", "from_time", "to_time"])
-	frappe.db.add_index("Employee Idle Time",["date","employee"])
+	frappe.db.add_index("Employee Idle Time",["date","employee"])	

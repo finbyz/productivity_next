@@ -618,7 +618,8 @@ def fetch_url_data(user,start_date=None, end_date=None):
             END) AS total_meeting_duration,
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
-    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}'
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE m.meeting_from >= '{start_date} 00:00:00' 
+    AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}' and m.internal_meeting = 0
     GROUP BY mcr.employee
     """, as_dict=True)
 
@@ -631,7 +632,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
     JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent 
-    WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}'
+    WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}' and m.internal_meeting = 1
     GROUP BY mcr.employee
     """, as_dict=True)
 
