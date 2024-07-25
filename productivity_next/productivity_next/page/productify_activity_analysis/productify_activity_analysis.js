@@ -149,6 +149,9 @@ UserProfile = class UserProfile {
 				const urlParams = new URLSearchParams(window.location.search);
 				this.selected_start_date = urlParams.get('start_date');
 				this.selected_end_date = urlParams.get('end_date');
+				if (urlParams.get('employee')) {
+					this.selected_employee = urlParams.get('employee');
+				}
 				this.make_user_profile();
 			},
 		});
@@ -527,8 +530,8 @@ UserProfile = class UserProfile {
 									width: 10,
 									right: 10,
 									top: 70,
-									start: 95,
-									end: 100,
+									startValue: 0,
+									endValue: 10,
 									bottom: 20,
 									handleSize: 0,
 									showDetail: false
@@ -537,8 +540,8 @@ UserProfile = class UserProfile {
 									type: 'inside',
 									id: 'insideY',
 									yAxisIndex: 0,
-									start: 95,
-									end: 100,  // Show fewer rows at a time
+									startValue: 0,
+									endValue: 10,
 									zoomOnMouseWheel: false,
 									moveOnMouseMove: true,
 									moveOnMouseWheel: true
@@ -661,7 +664,6 @@ UserProfile = class UserProfile {
 							]
 						};
 					}
-	
 					overallPerformance.setOption(makeOption());
 					overallPerformance.on('click', function (params) {
 						console.log("Click event:", params.value);
@@ -775,7 +777,6 @@ UserProfile = class UserProfile {
 										reqd: 1
 									},
 								];
-	
 								let d = new frappe.ui.Dialog({
 									title: 'Add Meeting',
 									fields: fields,
@@ -1404,7 +1405,7 @@ UserProfile = class UserProfile {
 			<div class="row mt-3">
 				<div class="col-md-12">
 					<div class="custom-card">
-						<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 Site's Used</h4>
+						<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 Sites Used</h4>
 						<div class="table-responsive">
 						<table class="table">
 							<thead>

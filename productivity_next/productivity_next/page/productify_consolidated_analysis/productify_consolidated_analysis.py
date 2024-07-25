@@ -460,7 +460,7 @@ def user_analysis_data(start_date=None, end_date=None):
     idle_time_data = frappe.db.sql(f"""
         SELECT employee, from_time as start_time, to_time as end_time
         FROM `tabEmployee Idle Time`
-        WHERE date > '{start_date}' AND date < '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
     """, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)
