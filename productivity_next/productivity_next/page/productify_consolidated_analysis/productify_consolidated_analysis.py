@@ -190,7 +190,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
         return {}
     conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
-    emoyees_calls_data = frappe.db.sql(f"""
+    employees_calls_data = frappe.db.sql(f"""
     SELECT employee,
            SUM(CASE WHEN calltype = 'Incoming' THEN 1 ELSE 0 END) as incoming_count,
            SUM(CASE WHEN calltype = 'Outgoing' THEN 1 ELSE 0 END) as outgoing_count,
@@ -207,31 +207,31 @@ def employee_calls_chart(user, start_date=None, end_date=None):
     ORDER BY total DESC
     LIMIT 10
     """, as_dict=1)
-    employees = sorted(set(entry['employee'] for entry in emoyees_calls_data))
+
+    # Filter out employees with no data
+    employees_with_data = [entry['employee'] for entry in employees_calls_data if any(entry[f'{calltype}_count'] for calltype in ['incoming', 'outgoing', 'rejected', 'missed'])]
     
     datasets = {
-        'Incoming': [0] * len(employees),
-        'Outgoing': [0] * len(employees),
-        'Missed': [0] * len(employees),
-        'Rejected': [0] * len(employees),
-        'Incoming Duration': [0] * len(employees),
-        'Outgoing Duration': [0] * len(employees),
-        'Missed Duration': [0] * len(employees),
-        'Rejected Duration': [0] * len(employees)
+        'Incoming': [],
+        'Outgoing': [],
+        'Missed': [],
+        'Rejected': [],
+        'Incoming Duration': [],
+        'Outgoing Duration': [],
+        'Missed Duration': [],
+        'Rejected Duration': []
     }
     
-    employee_index = {employee: idx for idx, employee in enumerate(employees)}
-    for entry in emoyees_calls_data:
-        employee = entry['employee']
-        index = employee_index[employee]
-        datasets['Incoming'][index] = entry['incoming_count']
-        datasets['Outgoing'][index] = entry['outgoing_count']
-        datasets['Missed'][index] = entry['missed_count']
-        datasets['Rejected'][index] = entry['rejected_count']
-        datasets['Incoming Duration'][index] = entry['incoming_duration']
-        datasets['Outgoing Duration'][index] = entry['outgoing_duration']
-        datasets['Missed Duration'][index] = entry['missed_duration']
-        datasets['Rejected Duration'][index] = entry['rejected_duration']
+    for entry in employees_calls_data:
+        if entry['employee'] in employees_with_data:
+            datasets['Incoming'].append(entry['incoming_count'])
+            datasets['Outgoing'].append(entry['outgoing_count'])
+            datasets['Missed'].append(entry['missed_count'])
+            datasets['Rejected'].append(entry['rejected_count'])
+            datasets['Incoming Duration'].append(entry['incoming_duration'])
+            datasets['Outgoing Duration'].append(entry['outgoing_duration'])
+            datasets['Missed Duration'].append(entry['missed_duration'])
+            datasets['Rejected Duration'].append(entry['rejected_duration'])
     
     formatted_datasets = []
     all_zero = True
@@ -252,9 +252,11 @@ def employee_calls_chart(user, start_date=None, end_date=None):
     if all_zero:
         formatted_datasets = []
     
+    # Get employee names only for employees with data
     employee_names = []
     for employee in employees_list:
-        employee_names.append(employee['employee_name'])
+        if employee['name'] in employees_with_data:
+            employee_names.append(employee['employee_name'])
     
     return {
         "labels": employee_names,
