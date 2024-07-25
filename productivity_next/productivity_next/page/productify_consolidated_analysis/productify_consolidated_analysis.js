@@ -249,9 +249,12 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
+				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
-					return;
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
 				}
+	
 	
 				const chartDom = document.getElementById('client-calls-chart');
 				if (!chartDom) {
@@ -425,7 +428,10 @@ UserProfile = class UserProfile {
 			})
 			.then((r) => {
 				
-				if (r.labels.length === 0 || r.datasets.length === 0) {
+				const containerElement = document.getElementById('employee-calls');
+				if (r.datasets.length === 0) {
+					console.log("No data found for employee calls");
+					if (containerElement) containerElement.style.display = 'none';
 					return;
 				}
 				
@@ -799,8 +805,8 @@ UserProfile = class UserProfile {
                                 filterMode: 'weakFilter',
                                 height: 20,
                                 bottom: 0,
-                                start: 0,  // Adjust start to cover the full range
-                                end: 200,  // Adjust end to cover the full range
+                                startValue: 0,
+								endValue: 10,
                                 handleIcon: 'path://M10.7,11.9H9.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4h1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
                                 handleSize: '80%',
                                 showDetail: false
@@ -810,8 +816,8 @@ UserProfile = class UserProfile {
                                 id: 'insideX',
                                 xAxisIndex: 0,
                                 filterMode: 'weakFilter',
-                                start: 50,
-                                end: 200,
+                                startValue: 0,
+								endValue: 10,
                                 zoomOnMouseWheel: false,
                                 moveOnMouseMove: true
                             },
@@ -823,8 +829,8 @@ UserProfile = class UserProfile {
                               right: 10,
                               top: 70,
                               bottom: 20,
-                              start: 50,
-                              end: 80,
+                              startValue: 0,
+							  endValue: 10,
                               handleSize: 0,
                               showDetail: false
                             },
@@ -832,8 +838,8 @@ UserProfile = class UserProfile {
                               type: 'inside',
                               id: 'insideY',
                               yAxisIndex: 0,
-                              start: 95,
-                              end: 500,
+                              startValue: 0,
+							  endValue: 10,
                               zoomOnMouseWheel: false,
                               moveOnMouseMove: true,
                               moveOnMouseWheel: true
