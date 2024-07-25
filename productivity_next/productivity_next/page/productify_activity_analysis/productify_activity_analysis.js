@@ -1088,9 +1088,10 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
+				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
-					// console.log("No data available to plot the chart.");
-					return;
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
 				}
 	
 				const chartDom = document.getElementById('top-phone-calls');
@@ -1775,8 +1776,11 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
+				const containerElement = document.getElementById("hourly-calls");
 				if (r.labels.length === 0) {
-				} else {
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
+				}else {
 					let chartDom = document.querySelector('.hourly-calls-analysis')
 					let chart = echarts.init(chartDom, null, {
 						renderer: 'svg',

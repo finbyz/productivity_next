@@ -234,12 +234,23 @@ def employee_calls_chart(user, start_date=None, end_date=None):
         datasets['Rejected Duration'][index] = entry['rejected_duration']
     
     formatted_datasets = []
+    all_zero = True
+
     for calltype in ['Incoming', 'Outgoing', 'Missed', 'Rejected']:
+        counts = datasets[calltype]
+        durations = datasets[f"{calltype} Duration"]
+        
+        if any(count != 0 for count in counts):
+            all_zero = False
+        
         formatted_datasets.append({
             "name": calltype,
-            "counts": datasets[calltype],
-            "durations": datasets[f"{calltype} Duration"]
+            "counts": counts,
+            "durations": durations
         })
+
+    if all_zero:
+        formatted_datasets = []
     
     employee_names = []
     for employee in employees_list:

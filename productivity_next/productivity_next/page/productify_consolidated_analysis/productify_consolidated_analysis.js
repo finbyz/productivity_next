@@ -249,8 +249,10 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
+				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
-					return;
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
 				}
 	
 				const chartDom = document.getElementById('client-calls-chart');
@@ -424,11 +426,13 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
-				
-				if (r.labels.length === 0 || r.datasets.length === 0) {
+				const containerElement = document.getElementById('employee-calls');
+				if (r.datasets.length === 0) {
+					console.log("No data found for employee calls");
+					if (containerElement) containerElement.style.display = 'none';
 					return;
 				}
-				
+				else{
 				let seriesData = [];
 				r.datasets.forEach(dataset => {
 					const counts = dataset.counts.map(count => parseInt(count)); 
@@ -529,6 +533,7 @@ UserProfile = class UserProfile {
 				window.addEventListener('resize', function() {
 					myChart.resize();
 				});
+				}
 			})
 			.catch((error) => {
 				console.error("Error fetching chart data:", error);
