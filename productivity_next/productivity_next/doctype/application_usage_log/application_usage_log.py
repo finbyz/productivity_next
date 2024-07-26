@@ -39,6 +39,7 @@ class ApplicationUsagelog(Document):
             "slack.exe": "Slack",
             "zoom.exe": "Zoom",
             "WINWORD.EXE": "Word",
+            "mintty.exe": "Git Bash",
         }
         application_names_lower = {
             key.lower(): value for key, value in application_names.items()
