@@ -478,6 +478,16 @@ UserProfile = class UserProfile {
 	
 						return {
 							backgroundColor: 'transparent',
+							legend: {
+								selected: {
+									'Application': true,
+									'Idle': true,
+									'Call': true,
+									'Internal Meeting': true,
+									'External Meeting': true,
+									'Inactive': true
+								},
+							},
 							tooltip: {
 								formatter: function(params) {
 									var activityType = params.data[0];
@@ -665,6 +675,56 @@ UserProfile = class UserProfile {
 						};
 					}
 					overallPerformance.setOption(makeOption());
+					function updateChart() {
+						let legends = overallPerformance.getOption().legend[0].selected
+						legends = Object.keys(legends).filter(legend => legends[legend]);
+						var filteredData = _rawData.flight.data.filter(item => {
+							var activityType = item[0];
+							return legends.includes(activityType);
+						});
+
+						overallPerformance.setOption({
+							series: [{
+								id: 'flightData',
+								data: filteredData
+							}]
+						});
+					}
+					$('#overallChartLegends li').each(function() {
+						let li = $(this);
+						$(li).attr('selected', 'true');
+					});
+					function updateLegend() {
+						let overallChartLegends = $('#overallChartLegends li');
+						let legends = {};
+
+						overallChartLegends.each(function() {
+							let li = $(this);
+							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+							console.log(li.attr('data-value'));
+						});
+
+						overallPerformance.setOption({
+							legend: {
+								selected: legends
+							}
+						});
+
+						console.log(legends);
+
+					}
+					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+					$.each(overallChartLegends, function(index, li) {
+						$(li).on('click', function() {
+							if ($(li).attr('selected')) {
+								$(li).removeAttr('selected');
+							} else {
+								$(li).attr('selected', 'true');
+							}
+							updateLegend();
+							updateChart();
+						});
+					});
 					overallPerformance.on('click', function (params) {
 						console.log("Click event:", params.value);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {

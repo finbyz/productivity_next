@@ -82,3 +82,7 @@
 #customLegend span {
     vertical-align: middle;
 } */
+
+#overallChartLegends > li:not([selected='selected']) {
+    opacity: 0.5;
+}

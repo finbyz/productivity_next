@@ -230,3 +230,8 @@ path[paint-order="stroke"] {
     width: 100%;
     min-height: 100%;
 }
+
+
+#overallChartLegends > li:not([selected='selected']) {
+    opacity: 0.5;
+}

@@ -103,23 +103,23 @@
                         <h4 class="card-title">{%=__("Activity Summary") %}<span style="font-size: 12px;"> </span></h4>
                     </div>
                     <div style="display: flex; justify-content: center;">
-                        <ul class="row list-unstyled" style="display: flex; padding: 0; list-style: none;">
-                            <li class="row align-center" style="margin-right: 20px;"><span
+                        <ul class="row list-unstyled" style="display: flex; padding: 0; list-style: none;" id="overallChartLegends">
+                            <li data-value="Inactive" class="row align-center" style="margin-right: 20px;"><span
                                     style="background-color: #E9EAEC; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Inactive
                             </li>
-                            <li class="row align-center" style="margin-right: 20px;"><span
+                            <li data-value="Application" class="row align-center" style="margin-right: 20px;"><span
                                     style="background-color: #4BC0C0; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Application
                             </li>
-                            <li class="row align-center" style="margin-right: 20px;"><span
+                            <li data-value="Idle" class="row align-center" style="margin-right: 20px;"><span
                                     style="background-color: #FF6666; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Idle
                             </li>
-                            <li class="row align-center" style="margin-right: 20px;"><span
+                            <li data-value="Internal Meeting" class="row align-center" style="margin-right: 20px;"><span
                                     style="background-color: #9966FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Internal
                                 Meeting</li>
-                            <li class="row align-center" style="margin-right: 20px;"><span
+                            <li data-value="External Meeting" class="row align-center" style="margin-right: 20px;"><span
                                     style="background-color: #6699FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>External
                                 Meeting</li>
-                            <li class="row align-center"><span
+                            <li data-value="Call" class="row align-center"><span
                                     style="background-color: #FFCC66; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Call
                             </li>
                         </ul>
