@@ -402,7 +402,7 @@ def user_analysis_data(start_date=None, end_date=None):
 
     if list_data:
         # Flatten the list of intervals
-        flat_intervals = [interval for sublist in list_data for interval in sublist]
+        flat_intervals = [interval.copy() for sublist in list_data for interval in sublist]
 
         # Sort intervals by employee and start time
         flat_intervals.sort(key=lambda x: (x['employee'], x['start_time']))
