@@ -802,7 +802,7 @@ def top_document_analysis(user, start_date=None, end_date=None):
 # User Activity Images Code Starts
 @frappe.whitelist()
 def user_activity_images(user, start_date=None, end_date=None, offset=0):
-    data = frappe.get_all("Screen Screenshot Log", filters={"employee": user,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time"])
+    data = frappe.get_all("Screen Screenshot Log", filters={"employee": user,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
     for i in data:
         i["time_"] = frappe.format(i["time"], "Datetime")
     return data

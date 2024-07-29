@@ -196,7 +196,7 @@ UserProfile = class UserProfile {
 			this.finish_user_profile_setup();
 		}
 	}
-	// Employee Name And Date Title Code Ends
+	// Employee Name And Date Title Code End
 
 	// Change Employee Button Code Starts
 	setup_user_search() {
@@ -1684,6 +1684,10 @@ UserProfile = class UserProfile {
 							margin-bottom: 0 !important;
 							padding-bottom: 0 !important;
 						}
+						.progress-bar {
+           					 width: 100%; /* Allow the progress bar to take the full height of its container */
+        }
+						
 					</style>
 				`;
 				container.html(`
@@ -1744,6 +1748,27 @@ UserProfile = class UserProfile {
         <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
     </div>
 `);
+$(document).ready(function() {
+    function adjustProgressBarHeight() {
+        var imageWidth = $(".sidebar-image").width();
+        if (imageWidth) {
+            $(".progress").css("height", imageWidth);
+        }
+    }
+
+    // Adjust progress bar height when the image is loaded
+    $(".sidebar-image").on('load', function() {
+        adjustProgressBarHeight();
+    });
+
+    // Adjust progress bar height on window resize
+    $(window).resize(function() {
+        adjustProgressBarHeight();
+    });
+
+    // Initial adjustment
+    adjustProgressBarHeight();
+});
 
 
 				var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
@@ -2064,7 +2089,7 @@ UserProfile = class UserProfile {
 									const imgElement = `
 								<div class="col-md-3">
 								<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
-									<img src="${image.screenshot}" title="${image.time_}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
+									<img src="${image.screenshot}" title="${image.time_}" data-active-app="${image.active_app}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
 								</div>
 								<p style="text-align: center;"><b>${slotTimeString}</b></p>
 								</div>`;
@@ -2096,9 +2121,14 @@ UserProfile = class UserProfile {
 		
 					$('.clickable-image').off('click').on('click', function () {
 						const imgSrc = $(this).attr('src');
+						const activeApp = $(this).data('active-app'); // Get the active_app from data attribute
+
 						$('#zoomedImg').attr('src', imgSrc); // Set the image source in the modal
 						$('#imageModal').modal('show');
-		
+
+						// Update the modal title to show only the active_app
+						$('#imageModalLabel').html(`${activeApp || 'Unknown App'}`);
+
 						// Set the modal image to stretch to fit
 						$('#zoomedImg').css({
 							'max-width': '100%',
@@ -2108,6 +2138,7 @@ UserProfile = class UserProfile {
 							'object-fit': 'contain'
 						});
 					});
+			
 				});
 			return flag;
 		}
