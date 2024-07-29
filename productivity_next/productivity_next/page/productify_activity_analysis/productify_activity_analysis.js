@@ -1684,9 +1684,6 @@ UserProfile = class UserProfile {
 							margin-bottom: 0 !important;
 							padding-bottom: 0 !important;
 						}
-						.progress-bar {
-           					 width: 100%; /* Allow the progress bar to take the full height of its container */
-        }
 						
 					</style>
 				`;
@@ -1748,27 +1745,6 @@ UserProfile = class UserProfile {
         <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
     </div>
 `);
-$(document).ready(function() {
-    function adjustProgressBarHeight() {
-        var imageWidth = $(".sidebar-image").width();
-        if (imageWidth) {
-            $(".progress").css("height", imageWidth);
-        }
-    }
-
-    // Adjust progress bar height when the image is loaded
-    $(".sidebar-image").on('load', function() {
-        adjustProgressBarHeight();
-    });
-
-    // Adjust progress bar height on window resize
-    $(window).resize(function() {
-        adjustProgressBarHeight();
-    });
-
-    // Initial adjustment
-    adjustProgressBarHeight();
-});
 
 
 				var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
