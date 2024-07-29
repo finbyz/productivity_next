@@ -2035,9 +2035,14 @@ UserProfile = class UserProfile {
 		
 					$('.clickable-image').off('click').on('click', function () {
 						const imgSrc = $(this).attr('src');
+						const activeApp = $(this).data('active-app'); // Get the active_app from data attribute
+
 						$('#zoomedImg').attr('src', imgSrc); // Set the image source in the modal
 						$('#imageModal').modal('show');
-		
+
+						// Update the modal title to show only the active_app
+						$('#imageModalLabel').html(`${activeApp || 'Unknown App'}`);
+
 						// Set the modal image to stretch to fit
 						$('#zoomedImg').css({
 							'max-width': '100%',
