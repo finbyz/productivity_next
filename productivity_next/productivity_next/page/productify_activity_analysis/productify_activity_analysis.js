@@ -1684,6 +1684,9 @@ UserProfile = class UserProfile {
 							margin-bottom: 0 !important;
 							padding-bottom: 0 !important;
 						}
+						.progress-bar{
+							width: 100%;
+						}
 						
 					</style>
 				`;
@@ -1745,8 +1748,6 @@ UserProfile = class UserProfile {
         <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
     </div>
 `);
-
-
 				var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
 				myDefaultWhiteList.table = ['class'];
 				myDefaultWhiteList.tbody = [];

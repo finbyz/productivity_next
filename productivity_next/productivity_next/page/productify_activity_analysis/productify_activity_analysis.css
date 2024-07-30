@@ -28,18 +28,52 @@
     width: 100%;
     max-width: 100%;
 }
-
+.sidebar-image-wrapper{
+    width: 100%;
+}
 .sidebar-image {
-    max-width: 100%;
-    max-height: 250px;
-    height: auto;
-    object-fit: cover;
+    width: 100% !important; /* Ensure it covers the full width of the parent */
+    max-height: 250px; /* Adjust as needed */
+    height: auto; /* Maintain aspect ratio */
+    object-fit: cover; /* Ensure image covers the container */
+}
+
+@media (max-width: 480px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Full width for very small screens */
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for small to medium screens */
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for medium to large screens */
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for large screens */
+    }
+}
+
+@media (min-width: 1441px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for very large screens */
+    }
 }
 
 .form-sidebar .sidebar-image-section .sidebar-image {
     max-height: fit-content;
 }
-
+.form-sidebar .sidebar-image-section {
+    width: min(100%);
+}
 .chart-column-container {
     flex: 1;
     margin-right: 0.5rem;
