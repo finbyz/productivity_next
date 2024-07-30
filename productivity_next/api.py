@@ -388,7 +388,6 @@ def make_meetings(source_name, doctype, ref_doctype, target_doc=None):
 
     return doclist
 
-
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def organization_signup(
     domain,
@@ -410,7 +409,17 @@ def organization_signup(
     user_details.flags.ignore_permissions = True
     user_details.save()
 
-    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup"
+    productify_subscription = frappe.get_doc({
+        "doctype": "Productify Subscription",
+        "organization_name": organization_name,
+        "email": email,
+        "mobile_no": mobile_no,
+        "erpnext_url": domain,
+    })
+    productify_subscription.insert()
+    frappe.msgprint(_(f"Organization signed up successfully,{productify_subscription.name}"))
+
+    url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
 
     payload = json.dumps(
         {
@@ -435,3 +444,44 @@ def organization_signup(
         status=response.status_code,
         content_type="application/json",
     )
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def send_user_list(user_list):
+    url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.receive_user_list"
+    organization_name = frappe.db.get_single_value("Productify Subscription", "organization_name")
+    
+    if not organization_name:
+        return {"message": "Organization name is not set in Productify Subscription"}
+    productify_subscription = frappe.get_doc("Productify Subscription", organization_name)
+    
+    payload = json.dumps({
+        "users": user_list,
+        "organization_id": organization_name
+    })
+    users = json.loads(user_list)
+    productify_subscription.list_of_users = []
+    for user in users:
+        productify_subscription.append(
+            "list_of_users",
+            {
+                'employee': user.get("name"),
+                'fincall':user.get("fincall"),
+                'application_usage':user.get("application_usage"),
+                'sales_person':user.get("sales_person"),
+            },
+        )
+    productify_subscription.save(ignore_permissions=True)
+    
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    return Response(
+        response=response.text,
+        status=response.status_code,
+        content_type="application/json",
+    )
+    

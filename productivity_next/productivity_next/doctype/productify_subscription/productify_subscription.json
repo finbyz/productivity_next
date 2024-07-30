@@ -1,0 +1,120 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-07-30 15:10:52.734781",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "organization_name",
+  "email",
+  "status",
+  "fincall",
+  "application_usage",
+  "sales_person",
+  "column_break_ipqe",
+  "erpnext_url",
+  "mobile_no",
+  "valid_upto",
+  "section_break_qria",
+  "list_of_users"
+ ],
+ "fields": [
+  {
+   "fieldname": "organization_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Organization Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nActive\nExpired"
+  },
+  {
+   "default": "0",
+   "fieldname": "fincall",
+   "fieldtype": "Check",
+   "label": "Fincall"
+  },
+  {
+   "default": "0",
+   "fieldname": "application_usage",
+   "fieldtype": "Check",
+   "label": "Application Usage"
+  },
+  {
+   "default": "0",
+   "fieldname": "sales_person",
+   "fieldtype": "Check",
+   "label": "Sales Person"
+  },
+  {
+   "fieldname": "column_break_ipqe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "erpnext_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Erpnext Url",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mobile No",
+   "reqd": 1
+  },
+  {
+   "fieldname": "valid_upto",
+   "fieldtype": "Date",
+   "label": "Valid Upto",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_qria",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "list_of_users",
+   "fieldtype": "Table",
+   "label": "List of Users",
+   "options": "List of User"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-07-30 15:10:52.734781",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Subscription",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
