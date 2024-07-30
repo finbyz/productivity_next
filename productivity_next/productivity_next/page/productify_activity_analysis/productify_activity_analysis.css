@@ -7,6 +7,11 @@
     --color-chart-label: #2b2e33;
     /* Dark theme color */
 }
+.table-height{
+    max-height: 230px;
+    min-height: fit-content;
+    padding: -20px !important;
+ }
 
 
 * {
