@@ -7,8 +7,11 @@
     --color-chart-label: #2b2e33;
     /* Dark theme color */
 }
-
-
+.table-height{
+   max-height: 230px;
+   min-height: fit-content;
+   padding: -20px !important;
+}
 * {
     box-sizing: border-box;
     margin: 0;
@@ -142,7 +145,6 @@
     position: absolute;
     z-index: 1;
     bottom: 80%;
-    /* Position the tooltip above the text */
     left: 50%;
     margin-left: -50px;
     opacity: 0;
