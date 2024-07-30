@@ -222,10 +222,8 @@ UserProfile = class UserProfile {
 	
 					barchart.setOption(option);
 					barchart.getZr().on('mousewheel', function (e) {
-						e.preventDefault();
 					});
 					barchart.getZr().on('pinch', function (e) {
-						e.preventDefault();
 					});
 				}
 			});
@@ -380,7 +378,6 @@ UserProfile = class UserProfile {
 				var selected_end_date = this.selected_end_date;
 				// Add click event listener to the link after the chart is rendered
 				document.getElementById('client-calls-analysis-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent default link behavior
 					goToCallsAnalysisClient(selected_start_date, selected_end_date); // Pass dates to redirect function
 				});
 	
@@ -527,7 +524,6 @@ UserProfile = class UserProfile {
 				var selected_end_date = this.selected_end_date;
 				// Add click event listener to the link after the chart is rendered
 				document.getElementById('employee-calls-analysis-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent default link behavior
 					goToCallsAnalysisEmployee(selected_start_date, selected_end_date); // Pass dates to redirect function
 				});
 				window.addEventListener('resize', function() {

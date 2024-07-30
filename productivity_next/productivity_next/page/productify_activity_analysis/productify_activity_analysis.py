@@ -49,7 +49,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
         adjusted_start = idle_start
         adjusted_end = idle_end
 
-        for non_idle in non_idle_periods:
+        for non_idle in non_idle_periods: 
             non_idle_start = non_idle['start_time']
             non_idle_end = non_idle['end_time']
 
