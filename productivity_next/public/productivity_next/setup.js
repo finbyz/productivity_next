@@ -125,9 +125,10 @@ document.addEventListener("DOMContentLoaded", function () {
     frappe.db.get_list('Employee', {
         fields: ['employee_name', 'name', 'user_id', 'cell_number'],
         filters: {
-            'status': 'Active'
-        },
-        limit: 500000,
+            'status': 'Active',
+            'user_id': ['is', 'set'],
+            limit: 500000
+        }
     }).then((employees) => {
         let table_data = [];
         employees.forEach((employee) => {

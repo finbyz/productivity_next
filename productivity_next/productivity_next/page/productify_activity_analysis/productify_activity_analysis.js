@@ -1603,34 +1603,23 @@ container.html(`
         .progress-container {
             margin-bottom: 10px; /* Space between progress bar and table */
         }
-        .custom-table td {
-            padding: 0px !important; /* Adjust padding to reduce space */
-            margin: 0 !important; /* Remove margin */
-        }
         .custom-table {
             font-size: 14px; /* Adjust font size if needed */
         }
         .custom-table td b {
             font-weight: bold;
         }
-        .card-body {
-            padding: 10px; /* Adjust padding inside card body */
-        }
-        .card-title {
-            margin-bottom: 10px; /* Adjust margin at the bottom of the title */
-        }
         .table-container {
-            height: 230px; /* Set the height of the table container */
+            height: 220px; /* Set the height of the table container */
             overflow: hidden; /* Hide overflow to avoid scrollbars */
         }
         .table-container .table {
             height: 100%; /* Ensure the table takes full height of the container */
-            display: flex;
-            flex-direction: column;
         }
-        .table-container .table tbody {
-            overflow: hidden; /* Hide overflow in tbody */
-        }
+		.card-body{
+			padding: 0px;}
+		.right{
+			text-align: right;}
     </style>
     <div class="progress-container">
         <div class="progress">
@@ -1641,49 +1630,49 @@ container.html(`
             <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
         </div>
     </div>
-    <div class="card border-primary shadow d-none d-lg-block table-container">
+    <div class="card border-primary shadow d-none d-lg-block">
         <div class="card-body">
             <h5 class="card-title text-primary text-center">User Activity</h5>
             <table class="table table-borderless custom-table">
                 <tbody>
                     <tr>
-                        <td align="right">Call:</td>
+                        <td class = "right">Call:</td>
                         <td>-</td>
                         <td>${total_call_raw} H</td>
                     </tr>
                     <tr>
-                        <td align="right">Meeting:</td>
+                        <td class = "right">Meeting:</td>
                         <td>-</td>
                         <td>${total_meeting_raw} H</td>
                     </tr>
                     <tr>
-                        <td align="right">System:</td>
+                        <td class = "right">System:</td>
                         <td>-</td>
                         <td>${total_system_hours} H</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #E5E4E2;">
-                        <td align="right">Overlapping:</td>
+                        <td class = "right">Overlapping:</td>
                         <td>-</td>
                         <td>-${overlapping} H</td>
                     </tr>
                     <tr>
-                        <td align="right"><b>Active Time:</b></td>
+                        <td class = "right"><b>Active Time:</b></td>
                         <td>-</td>
                         <td><b>${total_active_hours} H</b></td>
                     </tr>
                     <tr>
-                        <td align="right"><b>Idle Time:</b></td>
+                        <td class = "right"><b>Idle Time:</b></td>
                         <td>-</td>
                         <td><b>${total_idle_time} H</b></td>
                     </tr>
                     ${r.total_inactive_hours > 0 ? `
                     <tr>
-                        <td align="right"><b>Inactive Time:</b></td>
+                        <td class = "right"><b>Inactive Time:</b></td>
                         <td>-</td>
                         <td><b>${total_inactive_hours} H</b></td>
                     </tr>` : ''}
                     <tr style="border-top: 3px solid">
-                        <td align="right"><b>Total Time:</b></td>
+                        <td class = "right"><b>Total Time:</b></td>
                         <td>-</td>
                         <td><b>${total_hours} H</b></td>
                     </tr>
