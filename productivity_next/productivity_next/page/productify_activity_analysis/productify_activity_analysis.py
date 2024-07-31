@@ -244,8 +244,8 @@ def overall_performance(employee=None, start_date=None, end_date=None):
 
     meetings = frappe.db.sql(f"""
         SELECT m.name AS parent, 
-            m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
-            mcr.employee, DATE(m.meeting_from) as date
+            m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,DATE(m.meeting_from) as date,
+            mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
         WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee = '{employee}'
@@ -307,7 +307,9 @@ def overall_performance(employee=None, start_date=None, end_date=None):
                 meeting['meeting_start'],
                 meeting['meeting_end'],
                 meeting['internal'],
-                meeting['client']
+                meeting['organization'],
+                meeting['party_type'],
+                meeting['meeting_arranged_by']
             ])
     for i in idle:
         base_data.append([

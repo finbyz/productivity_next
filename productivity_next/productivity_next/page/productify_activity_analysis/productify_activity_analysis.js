@@ -500,16 +500,23 @@ UserProfile = class UserProfile {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
 									} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
-										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;">Internal:</span> ${params.data[4]}<br>`;
-										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[5]}</span> <br>`;
+										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
+										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
+										if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
 									}
-									tooltipContent += `<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
-												<span style="font-weight: bold;">Date:</span> ${date}<br>
-												<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
-												<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
-												<span style="font-weight: bold;">Duration:</span> ${durationString}`;
-							
+									else{
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
+	
+									}
+								
+									tooltipContent += `
+										<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
+										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
+										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
+										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
 									tooltipContent += `</div>`;
+								
 									return tooltipContent;
 								},
 							},
