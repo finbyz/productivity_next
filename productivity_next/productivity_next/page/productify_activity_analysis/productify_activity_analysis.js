@@ -1718,7 +1718,7 @@ mobilecontainer.html(`
         }
     </style>
     <div class="d-lg-none">
-        <div class="card border-primary shadow table-container">
+        <div class="card border-primary shadow">
             <div class="card-body">
                 <h5 class="card-title text-primary text-center">User Activity</h5>
                 <table class="table table-borderless custom-table">
