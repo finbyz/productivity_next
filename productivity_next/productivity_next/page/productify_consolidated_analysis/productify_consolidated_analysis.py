@@ -191,7 +191,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
     conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
     employees_calls_data = frappe.db.sql(f"""
-    SELECT employee,
+    SELECT employee,employee_name,
            SUM(CASE WHEN calltype = 'Incoming' THEN 1 ELSE 0 END) as incoming_count,
            SUM(CASE WHEN calltype = 'Outgoing' THEN 1 ELSE 0 END) as outgoing_count,
            SUM(CASE WHEN calltype = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
@@ -259,7 +259,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
             employee_names.append(employee['employee_name'])
     
     return {
-        "labels": employee_names,
+        "labels": [entry['employee_name'] for entry in employees_calls_data if entry['employee'] in employees_with_data],
         "datasets": formatted_datasets
     }
 # Top 10 Employees Call Analysis Code Ends
