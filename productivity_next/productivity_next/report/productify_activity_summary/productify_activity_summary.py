@@ -583,7 +583,7 @@ def get_chart_data(summarized_data):
                 {"name": "Meetings Hours", "values": meetings_hours}
             ]
         },
-        "type": "bar",
+        "type": "line",
         "height": 300,
         "colors": ["#7cd6fd", "#5e64ff", "#ffa00a", "#ff5858"],
         "axisOptions": {
