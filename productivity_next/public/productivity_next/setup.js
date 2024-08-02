@@ -1,6 +1,12 @@
 frappe.require('https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js');
 
 document.addEventListener("DOMContentLoaded", function () {
+    let currentUser = frappe.session.user;
+    let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
+    if (!hasPermission) {
+        return;
+    }
+    
     let subscription;
     frappe.db.get_doc('Productify Subscription')
         .then(doc => {
