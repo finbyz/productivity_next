@@ -36,6 +36,7 @@ UserProfile = class UserProfile {
 		this.wrapper.bind("show", () => {
 			this.show();
 		});
+		this.sorting_data = {};
 	}
 
 	hide_sidebar_and_toggle() {
@@ -63,8 +64,8 @@ UserProfile = class UserProfile {
 		this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
 		this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
 		this.employee_calls_chart(); // Top 10 Employees Call Analysis
-		this.overall_performance_chart(); // Overall Performance (All Employees)
 		this.user_analysis(); // User Analysis (User Productivity Stats)
+		// this.overall_performance_chart(); // Overall Performance (All Employees)
 	}
 
 	// Refresh Button Code Starts
@@ -564,6 +565,7 @@ UserProfile = class UserProfile {
 			if (r.base_data.length === 0) {
 			} else {
 				// console.log(r);
+				
 				var _rawData = {
 					flight: {
 						dimensions: r.base_dimensions,
@@ -589,7 +591,6 @@ UserProfile = class UserProfile {
 
 				function formatTimestamp(timestamp) {
 					const date = new Date(timestamp);
-					
 					const year = date.getFullYear();
 					const month = String(date.getMonth() + 1).padStart(2, '0');
 					const day = String(date.getDate()).padStart(2, '0');
@@ -672,7 +673,33 @@ UserProfile = class UserProfile {
 					
 					return item;
 				}
-				function makeOption() {
+				console.log("data",_rawData.parkingApron.data.map(item => item[0]))
+				// Define the sortEmployeeNames function
+				function sortEmployeeNames(sorting_data, yAxisData) {
+					const employeeMap = new Map(sorting_data.map(item => [item.employeeName, item]));
+
+					return yAxisData
+						.filter(name => {
+							return Array.from(employeeMap.keys()).some(fullName => 
+								fullName.startsWith(name.split('.')[0])
+							);
+						})
+						.sort((a, b) => {
+							const fullNameA = Array.from(employeeMap.keys()).find(fullName => 
+								fullName.startsWith(a.split('.')[0])
+							);
+							const fullNameB = Array.from(employeeMap.keys()).find(fullName => 
+								fullName.startsWith(b.split('.')[0])
+							);
+
+							return sorting_data.findIndex(item => item.employeeName === fullNameA) - 
+								sorting_data.findIndex(item => item.employeeName === fullNameB);
+						});
+				}
+
+				// Define the makeOption function
+				function makeOption(sorting_data) {
+					console.log("sorting_data", sorting_data);
 					var activityLegends = [
 						{ name: 'Application', color: '#00A6E0' },
 						{ name: 'Idle', color: '#FF4001' },
@@ -683,13 +710,13 @@ UserProfile = class UserProfile {
 					];
 					var legendData = [];
 					activityLegends.forEach(function(item) {
-					legendData.push({
-						name: item.name,
-						icon: 'rect',
-						textStyle: {
-						fontSize: 12
-						}
-					});
+						legendData.push({
+							name: item.name,
+							icon: 'rect',
+							textStyle: {
+								fontSize: 12
+							}
+						});
 					});
 					var startTimeList = _rawData.flight.data.map(item => new Date(item[2]).getTime());
 					var endTimeList = _rawData.flight.data.map(item => new Date(item[3]).getTime());
@@ -703,6 +730,10 @@ UserProfile = class UserProfile {
 					// Create Date objects for the xAxis min and max
 					var fixedStartTime = new Date(minStartTime);
 					var fixedEndTime = new Date(maxEndTime);
+
+					// Sort the y-axis data
+					const sortedYAxisData = sortEmployeeNames(sorting_data, _rawData.parkingApron.data.map(item => item[0]));
+
 					return {
 						backgroundColor: 'transparent',
 						tooltip: {
@@ -740,10 +771,14 @@ UserProfile = class UserProfile {
 								} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
 									if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
 									if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
+									if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
+									tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
+								}
+								else{
+									tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
 								}
 							
 								tooltipContent += `
-									<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
 									<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
 									<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
 									<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
@@ -802,7 +837,7 @@ UserProfile = class UserProfile {
 						},
 						zIndex: 100,
 						dataZoom: [
-                            {
+							{
 								type: 'slider',
 								yAxisIndex: 0,
 								zoomLock: true,
@@ -825,7 +860,7 @@ UserProfile = class UserProfile {
 								moveOnMouseMove: true,
 								moveOnMouseWheel: true
 							}
-                          ],  
+						],  
 						grid: {
 							show: true,
 							top: 20,
@@ -854,9 +889,10 @@ UserProfile = class UserProfile {
 									}
 								}
 							},
-							data: _rawData.parkingApron.data.map(item => item[0]),
+							data: sortedYAxisData,
 							min: 0,
-							max: _rawData.parkingApron.data.length - 1,
+							max: sortedYAxisData.length - 1,
+							inverse: true
 						},
 						xAxis: {
 							type: 'time',
@@ -907,7 +943,7 @@ UserProfile = class UserProfile {
 								barGap: '5%', // Adjust gap between bars
 								barCategoryGap: '20%',
 								barWidth: 8, // Adjust bar width
-       							barMaxWidth: 20, 
+								barMaxWidth: 20, 
 							},
 							{
 								type: 'custom',
@@ -917,13 +953,24 @@ UserProfile = class UserProfile {
 									x: -1,
 									y: 0
 								},
-								data: _rawData.parkingApron.data.map(function (item, index) {
-									return [index].concat(item);
+								data: sortedYAxisData.map(function (item, index) {
+									return [index].concat([item]);
 								})
 							}
 						]
 					};
 				}
+
+				// Assuming you have a renderGanttItem function defined elsewhere
+				// function renderGanttItem(params, api) { ... }
+
+				// Assuming you have a renderAxisLabelItem function defined elsewhere
+				// function renderAxisLabelItem(params, api) { ... }
+
+				// Usage example (you would call this when you want to create/update the chart)
+				// var chart = echarts.init(document.getElementById('chartContainer'));
+				// var option = makeOption(sorting_data);
+				// chart.setOption(option);
 	
 				function renderAxisLabelItem(params, api) {
 					var yIndex = api.value(0);
@@ -936,7 +983,7 @@ UserProfile = class UserProfile {
 						style: api.style()
 					};
 				}
-					overallPerformance.setOption(makeOption());
+					overallPerformance.setOption(makeOption(this.sorting_data));
 					overallPerformance.on('click', function (params) {
 						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
@@ -958,6 +1005,26 @@ UserProfile = class UserProfile {
 										in_list_view: 1,
 										options: "Employee",
 										ignore_user_permissions: 1,
+										reqd: 1,
+									}
+								];
+								const party_fields = [
+									{
+										label: 'Contact',
+										fieldname: 'contact',
+										fieldtype: 'Link',
+										options: 'Contact',
+										in_list_view: 1,
+										get_query: function() {
+											const selectedParty = d.get_values().party;
+											const selectedPartyType = d.get_values().party_type;
+											return {
+												filters: {
+													link_doctype: selectedPartyType,
+													link_name: selectedParty
+												}
+											};
+										}
 									}
 								];
 								var fields = [
@@ -972,6 +1039,23 @@ UserProfile = class UserProfile {
 										label: "Internal Meeting",
 										fieldname: "internal_meeting",
 										fieldtype: "Check",
+										onchange: function() {
+											const companyRepField = d.fields_dict.meeting_company_representative;
+											if (this.get_value()) {
+												companyRepField.df.reqd = 1;
+												companyRepField.grid.min_rows = 2;
+											} else {
+												companyRepField.df.reqd = 0;
+												companyRepField.grid.min_rows = 0;
+											}
+											companyRepField.refresh();
+										}
+									},
+									{
+										fieldname: 'internal_meeting_note',
+										fieldtype: 'HTML',
+										options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+										depends_on: 'eval:doc.internal_meeting'
 									},
 									{
 										label: "Purpose",
@@ -996,10 +1080,26 @@ UserProfile = class UserProfile {
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
-										label: __("Party"),
-										fieldtype: 'Dynamic Link',
-										options: "party_type",
+										label: 'Party',
 										fieldname: 'party',
+										fieldtype: 'Dynamic Link',
+										options: 'party_type',
+										change: function() {
+											const selectedParty = d.get_value('party');
+											const selectedPartyType = d.get_value('party_type');
+									
+											if (selectedParty && selectedPartyType) {
+												d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+													return {
+														filters: {
+															link_doctype: selectedPartyType,
+															link_name: selectedParty
+														}
+													};
+												};
+												d.fields_dict['meeting_party_representative'].grid.refresh();
+											}
+										},
 										depends_on: 'eval:!doc.internal_meeting',
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
@@ -1008,7 +1108,8 @@ UserProfile = class UserProfile {
 										fieldname: "meeting_arranged_by",
 										fieldtype: "Link",
 										options: "User",
-										default: employeeId
+										default: employeeId,
+										reqd: 1
 									},
 									{
 										fieldtype: 'Column Break',
@@ -1017,13 +1118,15 @@ UserProfile = class UserProfile {
 										label: 'Meeting From',
 										fieldname: 'meeting_from',
 										fieldtype: 'Datetime',
-										default: startTime
+										default: startTime,
+										reqd: 1
 									},
 									{
 										label: 'Meeting To',
 										fieldname: 'meeting_to',
 										fieldtype: 'Datetime',
-										default: endTime
+										default: endTime,
+										reqd: 1
 									},
 									{
 										label: "Industry",
@@ -1043,6 +1146,25 @@ UserProfile = class UserProfile {
 										fieldtype: 'Table',
 										fields: table_fields,
 										options: 'Meeting Company Representative',
+										reqd: 1,
+										onchange: function() {
+											if (d.get_value('internal_meeting')) {
+												this.grid.min_rows = 2;
+											} else {
+												this.grid.min_rows = 0;
+											}
+										}
+									},
+									{
+										fieldtype: 'Section Break',
+									},
+									{
+										label: 'Meeting Party Representative',
+										fieldname: 'meeting_party_representative',
+										fieldtype: 'Table',
+										fields: party_fields,
+										options: 'Meeting Party Representative',
+										depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
 										label: "Discussion",
@@ -1057,6 +1179,13 @@ UserProfile = class UserProfile {
 									fields: fields,
 									primary_action_label: 'Submit',
 									primary_action(values) {
+										if (values.internal_meeting) {
+											const companyRepresentatives = values.meeting_company_representative || [];
+											if (companyRepresentatives.length < 2) {
+												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+												return;
+											}
+										}
 										frappe.call({
 											method: "productivity_next.api.add_meeting",
 											args: {
@@ -1069,7 +1198,8 @@ UserProfile = class UserProfile {
 												party_type: values.party_type || null,
 												party: values.party || null,
 												discussion: values.discussion,
-												meeting_company_representative: values.meeting_company_representative
+												meeting_company_representative: values.meeting_company_representative || null,
+												meeting_party_representative: values.meeting_party_representative || null
 											},
 											callback: (r) => {
 												if (r.message) {
@@ -1222,7 +1352,9 @@ UserProfile = class UserProfile {
 	
 		const employeeDataArray = await Promise.all(fetchPromises);
 		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
-	
+		console.log("employeeDataArray", employeeDataArray);
+		this.sorting_data = employeeDataArray;
+		this.overall_performance_chart(); 
 		let count = 1;
 		let totalHours = 0;
 		let totalIdleTime = 0;
@@ -1296,6 +1428,7 @@ UserProfile = class UserProfile {
 			</tr>`;
 	
 		container.append(wholedata);
+
 	};
 	// User Analysis (User Productivity Stats) Code Ends
 		

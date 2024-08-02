@@ -191,7 +191,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
     conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
     employees_calls_data = frappe.db.sql(f"""
-    SELECT employee,
+    SELECT employee,employee_name,
            SUM(CASE WHEN calltype = 'Incoming' THEN 1 ELSE 0 END) as incoming_count,
            SUM(CASE WHEN calltype = 'Outgoing' THEN 1 ELSE 0 END) as outgoing_count,
            SUM(CASE WHEN calltype = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
@@ -259,7 +259,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
             employee_names.append(employee['employee_name'])
     
     return {
-        "labels": employee_names,
+        "labels": [entry['employee_name'] for entry in employees_calls_data if entry['employee'] in employees_with_data],
         "datasets": formatted_datasets
     }
 # Top 10 Employees Call Analysis Code Ends
@@ -282,7 +282,7 @@ def overall_performance_chart(start_date=None, end_date=None):
     meetings = frappe.db.sql(f"""
         SELECT m.name AS parent, 
             m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
-            mcr.employee, mcr.employee_name
+            mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
         WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
@@ -344,7 +344,9 @@ def overall_performance_chart(start_date=None, end_date=None):
                 meeting['meeting_start'],
                 meeting['meeting_end'],
                 meeting['internal'],
-                meeting['client']
+                meeting['organization'],
+                meeting['party_type'],
+                meeting['meeting_arranged_by']
             ])
 
     for i in idle:

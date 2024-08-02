@@ -408,6 +408,7 @@ UserProfile = class UserProfile {
 						'External Meeting': 4,
 						'Call': 5
 					};
+					_rawData.flight.data.sort((a, b) => a[1].localeCompare(b[1]));
 	
 					function makeOption() {
 						var activityLegends = [
@@ -513,16 +514,23 @@ UserProfile = class UserProfile {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
 									} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
-										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;">Internal:</span> ${params.data[4]}<br>`;
-										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[5]}</span> <br>`;
+										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
+										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
+										if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
 									}
-									tooltipContent += `<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
-												<span style="font-weight: bold;">Date:</span> ${date}<br>
-												<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
-												<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
-												<span style="font-weight: bold;">Duration:</span> ${durationString}`;
-							
+									else{
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
+	
+									}
+								
+									tooltipContent += `
+										<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
+										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
+										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
+										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
 									tooltipContent += `</div>`;
+								
 									return tooltipContent;
 								},
 							},
@@ -540,8 +548,8 @@ UserProfile = class UserProfile {
 									width: 10,
 									right: 10,
 									top: 70,
-									startValue: 0,
-									endValue: 10,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
 									bottom: 20,
 									handleSize: 0,
 									showDetail: false
@@ -550,8 +558,8 @@ UserProfile = class UserProfile {
 									type: 'inside',
 									id: 'insideY',
 									yAxisIndex: 0,
-									startValue: 0,
-									endValue: 10,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
 									zoomOnMouseWheel: false,
 									moveOnMouseMove: true,
 									moveOnMouseWheel: true
@@ -618,6 +626,7 @@ UserProfile = class UserProfile {
 									}
 								},
 								data: uniqueDates,
+								inverse: true
 							},							
 							series: [
 								{
@@ -726,10 +735,12 @@ UserProfile = class UserProfile {
 						});
 					});
 					overallPerformance.on('click', function (params) {
-						console.log("Click event:", params.value);
+						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
+							// console.log("start",params.value[2]);
 							var startTime = params.value[2];
 							var endTime = params.value[3];
+							// console.log("hiiiiiiiiiiiiiiiiiiii",startTime, endTime);
 							var employeeName = params.value[1];
 	
 							frappe.db.get_value("Employee", {
@@ -744,7 +755,27 @@ UserProfile = class UserProfile {
 										in_list_view: 1,
 										options: "Employee",
 										ignore_user_permissions: 1,
-									},
+										reqd: 1,
+									}
+								];
+								const party_fields = [
+									{
+										label: 'Contact',
+										fieldname: 'contact',
+										fieldtype: 'Link',
+										options: 'Contact',
+										in_list_view: 1,
+										get_query: function() {
+											const selectedParty = d.get_values().party;
+											const selectedPartyType = d.get_values().party_type;
+											return {
+												filters: {
+													link_doctype: selectedPartyType,
+													link_name: selectedParty
+												}
+											};
+										}
+									}
 								];
 								var fields = [
 									{
@@ -758,6 +789,23 @@ UserProfile = class UserProfile {
 										label: "Internal Meeting",
 										fieldname: "internal_meeting",
 										fieldtype: "Check",
+										onchange: function() {
+											const companyRepField = d.fields_dict.meeting_company_representative;
+											if (this.get_value()) {
+												companyRepField.df.reqd = 1;
+												companyRepField.grid.min_rows = 2;
+											} else {
+												companyRepField.df.reqd = 0;
+												companyRepField.grid.min_rows = 0;
+											}
+											companyRepField.refresh();
+										}
+									},
+									{
+										fieldname: 'internal_meeting_note',
+										fieldtype: 'HTML',
+										options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+										depends_on: 'eval:doc.internal_meeting'
 									},
 									{
 										label: "Purpose",
@@ -782,10 +830,26 @@ UserProfile = class UserProfile {
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
-										label: __("Party"),
-										fieldtype: 'Dynamic Link',
-										options: "party_type",
+										label: 'Party',
 										fieldname: 'party',
+										fieldtype: 'Dynamic Link',
+										options: 'party_type',
+										change: function() {
+											const selectedParty = d.get_value('party');
+											const selectedPartyType = d.get_value('party_type');
+									
+											if (selectedParty && selectedPartyType) {
+												d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+													return {
+														filters: {
+															link_doctype: selectedPartyType,
+															link_name: selectedParty
+														}
+													};
+												};
+												d.fields_dict['meeting_party_representative'].grid.refresh();
+											}
+										},
 										depends_on: 'eval:!doc.internal_meeting',
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
@@ -794,7 +858,8 @@ UserProfile = class UserProfile {
 										fieldname: "meeting_arranged_by",
 										fieldtype: "Link",
 										options: "User",
-										default: employeeId
+										default: employeeId,
+										reqd: 1
 									},
 									{
 										fieldtype: 'Column Break',
@@ -803,13 +868,15 @@ UserProfile = class UserProfile {
 										label: 'Meeting From',
 										fieldname: 'meeting_from',
 										fieldtype: 'Datetime',
-										default: startTime
+										default: startTime,
+										reqd: 1
 									},
 									{
 										label: 'Meeting To',
 										fieldname: 'meeting_to',
 										fieldtype: 'Datetime',
-										default: endTime
+										default: endTime,
+										reqd: 1
 									},
 									{
 										label: "Industry",
@@ -829,6 +896,25 @@ UserProfile = class UserProfile {
 										fieldtype: 'Table',
 										fields: table_fields,
 										options: 'Meeting Company Representative',
+										reqd: 1,
+										onchange: function() {
+											if (d.get_value('internal_meeting')) {
+												this.grid.min_rows = 2;
+											} else {
+												this.grid.min_rows = 0;
+											}
+										}
+									},
+									{
+										fieldtype: 'Section Break',
+									},
+									{
+										label: 'Meeting Party Representative',
+										fieldname: 'meeting_party_representative',
+										fieldtype: 'Table',
+										fields: party_fields,
+										options: 'Meeting Party Representative',
+										depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
 										label: "Discussion",
@@ -837,11 +923,19 @@ UserProfile = class UserProfile {
 										reqd: 1
 									},
 								];
+	
 								let d = new frappe.ui.Dialog({
 									title: 'Add Meeting',
 									fields: fields,
 									primary_action_label: 'Submit',
 									primary_action(values) {
+										if (values.internal_meeting) {
+											const companyRepresentatives = values.meeting_company_representative || [];
+											if (companyRepresentatives.length < 2) {
+												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+												return;
+											}
+										}
 										frappe.call({
 											method: "productivity_next.api.add_meeting",
 											args: {
@@ -854,7 +948,8 @@ UserProfile = class UserProfile {
 												party_type: values.party_type || null,
 												party: values.party || null,
 												discussion: values.discussion,
-												meeting_company_representative: values.meeting_company_representative
+												meeting_company_representative: values.meeting_company_representative || null,
+												meeting_party_representative: values.meeting_party_representative || null
 											},
 											callback: (r) => {
 												if (r.message) {
@@ -862,13 +957,6 @@ UserProfile = class UserProfile {
 													d.hide();
 												}
 											}
-										});
-									},
-									onshow: function () {
-										var me = this;
-										this.fields_dict.meeting_company_representative.grid.wrapper.on('click', '.grid-row', function () {
-											var grid_row = $(this).closest('.grid-row');
-											var employee = grid_row.find('input[data-fieldname="employee"]').val();
 										});
 									}
 								});
@@ -879,6 +967,7 @@ UserProfile = class UserProfile {
 										}
 									};
 								};
+	
 								d.show();
 							}).catch(err => {
 								console.error("Error fetching employee details:", err);
@@ -1686,56 +1775,47 @@ UserProfile = class UserProfile {
 				<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 			</div>
 		</div>
-		<div class="card border-primary shadow d-none d-lg-block table-height" >
-			<div class="card-body">
-				<h5 class="card-title text-primary text-center">User Activity</h5>
-				<table class="table table-borderless custom-table">
-					<tbody>
-						<tr>
-							<td align="right">Call:</td>
-							<td>-</td>
-							<td>${total_call_raw} H</td>
-						</tr>
-						<tr>
-							<td align="right">Meeting:</td>
-							<td>-</td>
-							<td>${total_meeting_raw} H</td>
-						</tr>
-						<tr>
-							<td align="right">System:</td>
-							<td>-</td>
-							<td>${total_system_hours} H</td>
-						</tr>
-						<tr style="border-bottom: 1px solid #E5E4E2;">
-							<td align="right">Overlapping:</td>
-							<td>-</td>
-							<td>-${overlapping} H</td>
-						</tr>
-						<tr>
-							<td align="right"><b>Active Time:</b></td>
-							<td>-</td>
-							<td><b>${total_active_hours} H</b></td>
-						</tr>
-						<tr>
-							<td align="right"><b>Idle Time:</b></td>
-							<td>-</td>
-							<td><b>${total_idle_time} H</b></td>
-						</tr>
-						 ${r.total_inactive_hours > 0 ? `
-                    <tr>
-                        <td align="right"><b>Inactive Time:</b></td>
-                        <td>-</td>
-                        <td><b>${total_inactive_hours} H</b></td>
-                    </tr>` : ''}
-						<tr style="border-top: 3px solid">
-							<td align="right"><b>Total Time:</b></td>
-							<td>-</td>
-							<td><b>${total_hours} H</b></td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</div>
+		<div class="card border-primary shadow d-none d-lg-block table-height">
+    <div class="card-body">
+  <h5 class="card-title text-primary text-center">User Activity</h5>
+  <table class="table table-borderless custom-table">
+    <tbody>
+      <tr>
+        <td>Call:</td>
+        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>Meeting:</td>
+        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>System:</td>
+        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E5E4E2;">
+        <td>Overlapping:</td>
+        <td class="justify time-cell"><span>-${overlapping} H</span></td>
+      </tr>
+      <tr>
+        <td><b>Active Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Idle Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+      </tr>
+      ${r.total_inactive_hours > 0 ? `
+      <tr>
+        <td><b>Inactive Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+      </tr>` : ''}
+      <tr style="border-top: 3px solid">
+        <td><b>Total Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 		</div>
 	`);
 
@@ -1791,43 +1871,35 @@ UserProfile = class UserProfile {
 									<tbody>
 										<tr>
 											<td align="right">Call:</td>
-											<td>-</td>
 											<td>${total_call_raw} H</td>
 										</tr>
 										<tr>
 											<td align="right">Meeting:</td>
-											<td>-</td>
 											<td>${total_meeting_raw} H</td>
 										</tr>
 										<tr>
 											<td align="right">System:</td>
-											<td>-</td>
 											<td>${total_system_hours} H</td>
 										</tr>
 										<tr  style="border-bottom: 1px solid #E5E4E2;">
 											<td align="right">Overlapping:</td>
-											<td>-</td>
 											<td>-${overlapping} H</td>
 										</tr>
 										<tr>
 											<td align="right"><b>Active Time:</b></td>
-											<td>-</td>
 											<td><b>${total_active_hours} H</b></td>
 										</tr>
 										<tr>
 											<td align="right"><b>Idle Time:</b></td>
-											<td>-</td>
 											<td><b>${total_idle_time} H<b></td>
 										</tr>
 										 ${r.total_inactive_hours > 0 ? `
 										<tr>
 											<td align="right"><b>Inactive Time:</b></td>
-											<td>-</td>
 											<td><b>${total_inactive_hours} H</b></td>
 										</tr>` : ''}
 										 <tr style="border-top: 1px solid #E5E4E2;">
 											<td align="right"><b>Total Time:</b></td>
-											<td>-</td>
 											<td><b>${total_hours} H</b></td>
 										</tr>
 									</tbody>
