@@ -4,13 +4,16 @@ from frappe import _
 import frappe
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-
 def execute(filters=None):
     columns = get_columns()
     all_data = get_data(filters)
     data = all_data[0]
     summarized_data = all_data[1]
-    return columns, data, None, None, get_summary_data(summarized_data)
+    
+    chart = get_chart_data(summarized_data)
+    summary_data = get_summary_data(summarized_data)
+    
+    return columns, data, None, chart, summary_data
 
 def get_columns(filters=None):
     columns = [
@@ -136,6 +139,7 @@ def get_data(filters):
             date_ranges = monthly_ranges(from_date, to_date)
         else:
             frappe.throw("Invalid frequency")
+ 
         
         for start, end in date_ranges:
             current_filters = filters.copy()
@@ -509,37 +513,24 @@ def get_summary_data(summarized_data):
     totals = {
         "total_hours": 0,
         "active_hours": 0,
-        "idle_hours": 0,
-        "average_active": 0,
-        "incoming_calls": 0,
-        "incoming_hours": 0,
-        "outgoing_calls": 0,
-        "outgoing_hours": 0,
-        "missed_calls": 0,
-        "rejected_calls": 0,
-        "keyboard": 0,
-        "mouse": 0,
-        "scroll": 0,
-        "meetings": 0,
+        "calls_hours": 0,
         "meetings_hours": 0
     }
 
     # Sum up the values across all periods
     for period in summarized_data:
-        for key in totals.keys():
-            if key in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours']:
-                # Convert time string to minutes and add
-                h, m = map(int, period[key].replace('h ', ':').replace('m', '').split(':'))
-                totals[key] += h * 60 + m
-            else:
-                totals[key] += period[key]
-
-    # Calculate average for average_active
-    if len(summarized_data) > 0:
-        totals['average_active'] //= len(summarized_data)
+        for key in ['total_hours', 'active_hours', 'meetings_hours']:
+            # Convert time string to minutes and add
+            h, m = map(int, period[key].replace('h ', ':').replace('m', '').split(':'))
+            totals[key] += h * 60 + m
+        
+        # Calculate calls_hours as the sum of incoming_hours and outgoing_hours
+        incoming_h, incoming_m = map(int, period['incoming_hours'].replace('h ', ':').replace('m', '').split(':'))
+        outgoing_h, outgoing_m = map(int, period['outgoing_hours'].replace('h ', ':').replace('m', '').split(':'))
+        totals['calls_hours'] += (incoming_h + outgoing_h) * 60 + (incoming_m + outgoing_m)
 
     # Convert time totals back to string format
-    for key in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours']:
+    for key in totals.keys():
         hours, minutes = divmod(totals[key], 60)
         totals[key] = f"{hours}h {minutes}m"
 
@@ -547,78 +538,66 @@ def get_summary_data(summarized_data):
         {
             "value": totals["total_hours"],
             "label": "Total Hours",
-            "datatype": "Time"
+            "datatype": "Data"
         },
         {
             "value": totals["active_hours"],
             "label": "Active Hours",
-            "datatype": "Time",
-            "indicator": "Green"
+            "datatype": "Data",
         },
         {
-            "value": totals["idle_hours"],
-            "label": "Idle Hours",
-            "datatype": "Time",
-            "indicator": "Red"
-        },
-        {
-            "value": totals["average_active"],
-            "label": "Average Active",
-            "datatype": "Time"
-        },
-        {
-            "value": totals["incoming_calls"],
-            "label": "Incoming Calls",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["incoming_hours"],
-            "label": "Incoming Hours",
-            "datatype": "Time",
-        },
-        {
-            "value": totals["outgoing_calls"],
-            "label": "Outgoing Calls",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["outgoing_hours"],
-            "label": "Outgoing Hours",
-            "datatype": "Time",
-        },
-        {
-            "value": totals["missed_calls"],
-            "label": "Missed Calls",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["rejected_calls"],
-            "label": "Rejected Calls",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["keyboard"],
-            "label": "Keyboard",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["mouse"],
-            "label": "Mouse",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["scroll"],
-            "label": "Scroll",
-            "datatype": "Int",
-        },
-        {
-            "value": totals["meetings"],
-            "label": "Meetings",
-            "datatype": "Int",
+            "value": totals["calls_hours"],
+            "label": "Calls Hours",
+            "datatype": "Data",
         },
         {
             "value": totals["meetings_hours"],
             "label": "Meetings Hours",
-            "datatype": "Time",
+            "datatype": "Data",
         }
     ]
+
+def get_chart_data(summarized_data):
+    labels = []
+    total_hours = []
+    active_hours = []
+    calls_hours = []
+    meetings_hours = []
+
+    for period in summarized_data:
+        labels.append(f"{period['starting_date']} to {period['ending_date']}")
+        
+        # Convert time strings to float hours for better visualization
+        total_hours.append(time_str_to_float(period['total_hours']))
+        active_hours.append(time_str_to_float(period['active_hours']))
+        calls_hours.append(time_str_to_float(period['incoming_hours']) + time_str_to_float(period['outgoing_hours']))
+        meetings_hours.append(time_str_to_float(period['meetings_hours']))
+
+    return {
+        "data": {
+            "labels": labels,
+            "datasets": [
+                {"name": "Total Hours", "values": total_hours},
+                {"name": "Active Hours", "values": active_hours},
+                {"name": "Calls Hours", "values": calls_hours},
+                {"name": "Meetings Hours", "values": meetings_hours}
+            ]
+        },
+        "type": "bar",
+        "height": 300,
+        "colors": ["#7cd6fd", "#5e64ff", "#ffa00a", "#ff5858"],
+        "axisOptions": {
+            "xAxisMode": "tick",
+            "xIsSeries": 1
+        },
+        "barOptions": {
+            "spaceRatio": 0.2
+        },
+        "scrollable": True,
+        "scrollHeight": 300,
+        "scrollWidth": 1000
+    }
+
+def time_str_to_float(time_str):
+    hours, minutes = map(int, time_str.replace('h ', ':').replace('m', '').split(':'))
+    return round(hours + minutes / 60, 2)
