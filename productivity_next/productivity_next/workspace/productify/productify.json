@@ -94,7 +94,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 2,
+   "link_count": 3,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -122,8 +122,18 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Productify Activity Summary",
+   "link_count": 0,
+   "link_to": "Productify Activity Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Desktop Applications",
-   "link_count": 3,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -157,9 +167,29 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Work Summary",
+   "link_count": 0,
+   "link_to": "Productify Work Summary",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Work Intensity",
+   "link_count": 0,
+   "link_to": "Work Intensity",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2024-07-18 16:19:28.259057",
+ "modified": "2024-08-02 17:33:53.709594",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
