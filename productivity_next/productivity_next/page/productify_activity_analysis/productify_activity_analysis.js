@@ -1747,16 +1747,80 @@ UserProfile = class UserProfile {
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
 
-	// let inactiveHoursRow_ = '';
-	// if (r.total_inactive_hours > 0) {
-	// 	inactiveHoursRow_ = `
-	// 		<tr>
-	// 			<td><b>Inactive Time:</b></td>
-	// 			<td>-</td>
-	// 			<td><b>${total_inactive_hours} H</b></td>
-	// 		</tr>
-	// 	`;
-	// }
+				$(document).ready(function() {
+
+					const hovercontainer = $("#user-activity-hover");
+					hovercontainer.html(`
+						<div class="progress" style="max-width: 400px !important;" data-toggle="tooltip" data-html="true" data-placement="left" title="">
+							<div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+						</div>
+					`);
+				
+					var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
+					myDefaultWhiteList.table = ['class'];
+					myDefaultWhiteList.tbody = [];
+					myDefaultWhiteList.tr = [];
+					myDefaultWhiteList.td = [];
+				
+					// Define tooltip content function
+					function getTooltipContent() {
+						return `
+							<div>
+								<h4 class ="text-center text-white">User Activity</h4>
+								<table class='table-borderless table-tooltip table-spacing'>
+									<tbody>
+					  <tr>
+						<td>Call:</td>
+						<td class="justify time-cell"><span>${total_call_raw} H</span></td>
+					  </tr>
+					  <tr>
+						<td>Meeting:</td>
+						<td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+					  </tr>
+					  <tr>
+						<td>System:</td>
+						<td class="justify time-cell"><span>${total_system_hours} H</span></td>
+					  </tr>
+					  <tr class = "border-bottom">
+						<td>Overlapping:</td>
+						<td class="justify time-cell"><span>-${overlapping} H</span></td>
+					  </tr>
+					  <tr>
+						<td><b>Active Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+					  </tr>
+					  <tr>
+						<td><b>Idle Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+					  </tr>
+					  ${r.total_inactive_hours > 0 ? `
+					  <tr>
+						<td><b>Inactive Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+					  </tr>` : ''}
+					  <tr class = "border-top">
+						<td><b>Total Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+					  </tr>
+					</tbody>
+								</table>
+							</div>
+						`;
+					}
+				
+					$('[data-toggle="tooltip"]').tooltip({
+						container: 'body',
+						html: true,
+						whiteList: myDefaultWhiteList,
+						placement: 'left',
+						template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>',
+						title: getTooltipContent
+					});
+				});
 
 
 	const container = $("#user-activity");
@@ -1766,15 +1830,6 @@ UserProfile = class UserProfile {
             margin-bottom: 10px; /* Space between progress bar and table */
         }
     </style>
-	<div class = "progress-container">
-			<div class="progress">
-				<div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-				<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-				<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-				<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-				<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-			</div>
-		</div>
 		<div class="card border-primary shadow d-none d-lg-block table-height">
     <div class="card-body">
   <h5 class="card-title text-primary text-center">User Activity</h5>
@@ -1852,7 +1907,8 @@ UserProfile = class UserProfile {
 									font-weight: bold;
 								}
 								.card-body {
-									padding: 10px; /* Adjust padding inside card body */
+									padding: 5px;
+									padding-bottom: 1px /* Adjust padding inside card body */
 								}
 								.card-title {
 									margin-bottom: 10px; /* Adjust margin at the bottom of the title */
@@ -1866,45 +1922,45 @@ UserProfile = class UserProfile {
 					<div class="d-lg-none">
 						<div class="card border-primary shadow table-height">
 							<div class="card-body">
-								<h5 class="card-title text-primary text-center">User Activity</h5>
-								<table class="table table-borderless custom-table">
-									<tbody>
-										<tr>
-											<td align="right">Call:</td>
-											<td>${total_call_raw} H</td>
-										</tr>
-										<tr>
-											<td align="right">Meeting:</td>
-											<td>${total_meeting_raw} H</td>
-										</tr>
-										<tr>
-											<td align="right">System:</td>
-											<td>${total_system_hours} H</td>
-										</tr>
-										<tr  style="border-bottom: 1px solid #E5E4E2;">
-											<td align="right">Overlapping:</td>
-											<td>-${overlapping} H</td>
-										</tr>
-										<tr>
-											<td align="right"><b>Active Time:</b></td>
-											<td><b>${total_active_hours} H</b></td>
-										</tr>
-										<tr>
-											<td align="right"><b>Idle Time:</b></td>
-											<td><b>${total_idle_time} H<b></td>
-										</tr>
-										 ${r.total_inactive_hours > 0 ? `
-										<tr>
-											<td align="right"><b>Inactive Time:</b></td>
-											<td><b>${total_inactive_hours} H</b></td>
-										</tr>` : ''}
-										 <tr style="border-top: 1px solid #E5E4E2;">
-											<td align="right"><b>Total Time:</b></td>
-											<td><b>${total_hours} H</b></td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
+  <h5 class="card-title text-primary text-center">User Activity</h5>
+  <table class="table table-borderless custom-table">
+    <tbody>
+      <tr>
+        <td>Call:</td>
+        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>Meeting:</td>
+        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>System:</td>
+        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E5E4E2;">
+        <td>Overlapping:</td>
+        <td class="justify time-cell"><span>-${overlapping} H</span></td>
+      </tr>
+      <tr>
+        <td><b>Active Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Idle Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+      </tr>
+      ${r.total_inactive_hours > 0 ? `
+      <tr>
+        <td><b>Inactive Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+      </tr>` : ''}
+      <tr style="border-top: 3px solid">
+        <td><b>Total Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 						</div>
 					</div>`
 				)
