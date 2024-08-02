@@ -323,8 +323,13 @@ def add_meeting(
     party,
     discussion,
     meeting_company_representative,
+    meeting_party_representative
 ):
     meeting_company_representative = json.loads(meeting_company_representative)
+    if meeting_party_representative:
+        meeting_party_representative = json.loads(meeting_party_representative) 
+    else:
+        meeting_party_representative = []
     meeting = frappe.new_doc("Meeting")
     meeting.meeting_from = meeting_from
     meeting.meeting_to = meeting_to
@@ -341,6 +346,13 @@ def add_meeting(
             {
                 "employee": row.get("employee"),
                 "employee_name": row.get("employee_name"),
+            },
+        )
+    for row in meeting_party_representative:
+        meeting.append(
+            "meeting_party_representative",
+            {
+                "contact": row.get("contact"),
             },
         )
     meeting.save()
