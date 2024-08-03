@@ -91,6 +91,12 @@
 }
 
 @media (max-width: 768px) {
+    .short{
+        height: 450px;
+    }
+    .short .up{
+        margin-top: 0px;
+    }
     .container {
         padding-left: 21px;
         padding-right: 2px;
