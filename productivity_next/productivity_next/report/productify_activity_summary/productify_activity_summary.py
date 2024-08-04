@@ -228,8 +228,12 @@ def weekly_ranges(start_date, end_date):
     ranges = []
     current = start_date
     while current <= end_date:
-        week_end = min(current + timedelta(days=6), end_date)
+        # Find the next Sunday
+        week_end = current + timedelta(days=(6 - current.weekday() + 7) % 7)
+        # If the week_end is beyond the end_date, use end_date instead
+        week_end = min(week_end, end_date)
         ranges.append((current, week_end))
+        # Start the next week from the day after week_end
         current = week_end + timedelta(days=1)
     return ranges
 
