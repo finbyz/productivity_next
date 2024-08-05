@@ -1,5 +1,10 @@
 
 document.addEventListener("DOMContentLoaded", function () {
+    let currentUser = frappe.session.user;
+    let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
+    if (!hasPermission) {
+        return;
+    }
     var script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js";
     document.head.appendChild(script);
