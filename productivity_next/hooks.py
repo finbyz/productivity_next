@@ -239,4 +239,5 @@ scheduler_events = {
 
 fixtures = [
     {"dt": "Role", "filters": [["name", "=", "Productify API"]]},
+    {"dt": "Custom Field", "filters": [["module", "in", ["Productivity Next"]]]},
 ]
