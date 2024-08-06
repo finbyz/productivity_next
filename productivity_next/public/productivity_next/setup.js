@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!hasPermission) {
         return;
     }
-    
+
     let subscription;
     frappe.db.get_doc('Productify Subscription')
         .then(doc => {
@@ -49,32 +49,34 @@ document.addEventListener("DOMContentLoaded", function () {
         ],
         primary_action_label: 'Submit',
         primary_action(values) {
-            console.log(values);
-            frappe.call({
-                method: "productivity_next.api.send_user_list",
-                type: 'POST',
-                args: {
-                    user_list: values.table
-                },
-                callback: function (r) {
-                    if (r.message) {
-                        frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://productivity.finbyz.tech/files/Productify.exe'>Productify App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzfincall.productify&pcampaignid=web_share">Fincall App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
-                        party.confetti(document.body, {
-                            count: party.variation.range(200, 300),
-                        });
-                        dialog.hide();
-                        frappe.db.get_doc('Productify Subscription')
-                            .then(doc => {
-                                subscription = doc;
-                                window.subscription = doc;
-                                if (doc.docstatus === 1 && doc.list_of_users.length > 0) {
-                                    return;
+            frappe.confirm('This detail will be shared with Finbyz. Do you want to submit?', () => {
+                frappe.call({
+                    method: "productivity_next.api.send_user_list",
+                    type: 'POST',
+                    args: {
+                        user_list: values.table
+                    },
+                    callback: function (r) {
+                        if (r.message) {
+                            frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://productivity.finbyz.tech/files/Productify.exe'>Productify App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzfincall.productify&pcampaignid=web_share">Fincall App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
+                            party.confetti(document.body, {
+                                count: party.variation.range(200, 300),
+                            });
+                            dialog.hide();
+                            frappe.db.get_doc('Productify Subscription')
+                                .then(doc => {
+                                    subscription = doc;
+                                    window.subscription = doc;
+                                    if (doc.docstatus === 1 && doc.list_of_users.length > 0) {
+                                        return;
+                                    }
                                 }
-                            }
-                            )
+                                )
+                        }
                     }
-                }
+                });
             });
+
         }
 
     });
@@ -169,14 +171,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     sales_person: values.sales_person
                 },
                 callback: function (r) {
-                    if(r.status === 400){
+                    if (r.status === 400) {
                         frappe.msgprint(r.message);
                         return;
                     }
 
                     d.hide();
                     dialog.show();
-                    
+
                     frappe.db.get_doc('Productify Subscription')
                         .then(doc => {
                             subscription = doc;
