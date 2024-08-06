@@ -121,7 +121,7 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Productify Activity Summary",
    "link_count": 0,
    "link_to": "Productify Activity Summary",
@@ -189,7 +189,7 @@
    "type": "Link"
   }
  ],
- "modified": "2024-08-02 17:33:53.709594",
+ "modified": "2024-08-06 15:14:44.517196",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
