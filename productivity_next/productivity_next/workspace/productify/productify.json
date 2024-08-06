@@ -9,7 +9,7 @@
    "label": "Domain Analysis"
   }
  ],
- "content": "[{\"id\":\"kTleKoHteR\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Calls Analysis\",\"col\":12}},{\"id\":\"3eQva58f3z\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Domain Analysis\",\"col\":12}},{\"id\":\"R7fg31EHP2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Productify Pages, Logs and Reports</b></span>\",\"col\":12}},{\"id\":\"cBU3BdUehf\",\"type\":\"card\",\"data\":{\"card_name\":\"Pages\",\"col\":4}},{\"id\":\"Vw51ZmjMj2\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"ynT1x747L9\",\"type\":\"card\",\"data\":{\"card_name\":\"Desktop Applications\",\"col\":4}},{\"id\":\"YStjTUAy_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Mobile Applications\",\"col\":4}}]",
+ "content": "[{\"id\":\"kTleKoHteR\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Calls Analysis\",\"col\":12}},{\"id\":\"3eQva58f3z\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Domain Analysis\",\"col\":12}},{\"id\":\"R7fg31EHP2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Productify Pages, Logs and Reports</b></span>\",\"col\":12}},{\"id\":\"cBU3BdUehf\",\"type\":\"card\",\"data\":{\"card_name\":\"Pages\",\"col\":4}},{\"id\":\"Vw51ZmjMj2\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"ynT1x747L9\",\"type\":\"card\",\"data\":{\"card_name\":\"Desktop Applications\",\"col\":4}},{\"id\":\"YStjTUAy_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Mobile Applications\",\"col\":4}},{\"id\":\"_IY8wtCRHW\",\"type\":\"card\",\"data\":{\"card_name\":\"Productify\",\"col\":4}}]",
  "creation": "2024-05-28 16:11:12.552958",
  "custom_blocks": [],
  "docstatus": 0,
@@ -187,9 +187,28 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Subscription",
+   "link_count": 0,
+   "link_to": "Productify Subscription",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2024-08-06 15:14:44.517196",
+ "modified": "2024-08-06 19:03:52.375886",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
