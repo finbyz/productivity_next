@@ -129,14 +129,14 @@ def client_calls_chart(start_date=None, end_date=None):
     company_details = []
     others_duration = 0
 
-    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'}
+    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'} 
     for row in caller_name:
         ref_doctype = row['ref_doctype']
         total_duration = row['total_duration']
 
         if ref_doctype in main_categories:
             found = False
-            for detail in company_details:
+            for detail in company_details: 
                 if detail['name'] == ref_doctype:
                     detail['value'] += total_duration
                     found = True
@@ -201,7 +201,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
            ROUND(SUM(CASE WHEN calltype = 'Rejected' THEN duration ELSE 0 END) / 60, 2) as rejected_duration,
            ROUND(SUM(CASE WHEN calltype = 'Missed' THEN duration ELSE 0 END) / 60, 2) as missed_duration,
            COUNT(*) as total  
-    FROM `tabEmployee Fincall`
+    FROM `tabEmployee Fincall` 
     {conditions} AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees_list)})
     GROUP BY employee
     ORDER BY total DESC

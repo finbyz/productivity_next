@@ -61,11 +61,37 @@ UserProfile = class UserProfile {
 		this.setup_refresh(); // Refresh Button
 		this.setup_timespan(); // Timespan Button
 		this.main_section.empty().append(frappe.render_template("productify_consolidated_analysis"));
-		this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
-		this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
-		this.employee_calls_chart(); // Top 10 Employees Call Analysis
 		this.user_analysis(); // User Analysis (User Productivity Stats)
+
 		// this.overall_performance_chart(); // Overall Performance (All Employees)
+		// JavaScript to handle tab switching
+		const tabs = document.querySelectorAll('.nav-link');
+		const contents = document.querySelectorAll('.tab-pane');
+	
+		tabs.forEach(tab => {
+			tab.addEventListener('click', () => {
+				const target = document.querySelector(tab.getAttribute('data-bs-target'));
+				
+				// Log aria-labelledby attribute
+				console.log(target.getAttribute('aria-labelledby'));
+				
+				// Manage tab and content visibility
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				// Check aria-labelledby and execute methods if needed
+				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
+					this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
+				}
+				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
+					this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
+					this.employee_calls_chart(); // Top 10 Employees Call Analysis
+				}
+				
+				contents.forEach(content => content.classList.remove('show', 'active'));
+				target.classList.add('show', 'active');
+			});
+		});
 	}
 
 	// Refresh Button Code Starts
@@ -220,11 +246,14 @@ UserProfile = class UserProfile {
 							}
 						],
 					};
-	
+					barchart.resize();
 					barchart.setOption(option);
 					barchart.getZr().on('mousewheel', function (e) {
 					});
 					barchart.getZr().on('pinch', function (e) {
+					});
+					window.addEventListener('resize', function () {
+						barchart.resize();
 					});
 				}
 			});
