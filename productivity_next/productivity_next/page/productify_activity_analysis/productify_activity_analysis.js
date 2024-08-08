@@ -98,17 +98,44 @@ UserProfile = class UserProfile {
 		this.setup_timespan();
 		this.setup_user_search();
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
-		this.work_intensity();
 		this.overall_performance();
-		this.application_usage_time();
-		this.web_browsing_time();
-		this.top_phone_calls();
-		this.type_of_calls();
 		this.fetch_url_data();
-		this.hourly_calls_analysis();
-		this.top_document_analysis();
-		this.render_images();
+	
+		// JavaScript to handle tab switching
+		const tabs = document.querySelectorAll('.nav-link');
+		const contents = document.querySelectorAll('.tab-pane');
+	
+		tabs.forEach(tab => {
+			tab.addEventListener('click', () => {
+				const target = document.querySelector(tab.getAttribute('data-bs-target'));
+				
+				// Log aria-labelledby attribute
+				console.log(target.getAttribute('aria-labelledby'));
+				
+				// Manage tab and content visibility
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				// Check aria-labelledby and execute methods if needed
+				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
+					this.work_intensity();
+					this.application_usage_time();
+					this.web_browsing_time();
+					this.top_document_analysis();
+					this.render_images();
+				}
+				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
+					this.top_phone_calls();
+					this.type_of_calls();
+					this.hourly_calls_analysis();
+				}
+				
+				contents.forEach(content => content.classList.remove('show', 'active'));
+				target.classList.add('show', 'active');
+			});
+		});
 	}
+	
 
 	// Timespan Select Code Starts
 	setup_timespan() {
@@ -259,16 +286,11 @@ UserProfile = class UserProfile {
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		}).then((response) => {
-			// console.log("Data fetched successfully for Intensity Chart:", response);
-	
-			// Check if there's data available
 			if (response.length === 0) {
-				// console.log("No data available for the selected period.");
 				return;
 			}
 	
 			const hours = Array.from({ length: 17 }, (_, index) => `${index + 7}:00`);
-	
 			const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 			const data = [];
 	
@@ -276,33 +298,19 @@ UserProfile = class UserProfile {
 				const hour = entry[0];
 				const value = entry[1];
 				const dayOfWeek = entry[2];
-	
-				// console.log(`Processing entry: hour=${hour}, value=${value}, dayOfWeek=${dayOfWeek}`);
-	
-				const xIndex = hour - 7; // Adjust for starting hour index in hours array
+				const xIndex = hour - 7;
 				const yIndex = days.indexOf(dayOfWeek);
-	
-				// console.log(`Computed indices: xIndex=${xIndex}, yIndex=${yIndex}`);
 	
 				if (yIndex !== -1) {
 					data.push([xIndex, yIndex, value || 0]);
-				} else {
-					console.warn(`Day of week '${dayOfWeek}' not found in days array.`);
 				}
 			});
-	
-	
-			// console.log("Transformed data for heatmap:", data);
 	
 			const values = data.map(item => item[2]);
 			const minValue = Math.min(...values);
 			const maxValue = Math.max(...values);
 	
-			// console.log("Min and Max values:", minValue, maxValue);
-	
 			const heatMapDom = document.querySelector('.work-intensity');
-			// console.log("Heatmap container element:", heatMapDom);
-	
 			const heatMapChart = echarts.init(heatMapDom, null, { renderer: 'svg' });
 	
 			const option = {
@@ -360,11 +368,16 @@ UserProfile = class UserProfile {
 				}]
 			};
 	
-			// console.log("ECharts Option Object:", option);
-	
 			heatMapChart.setOption(option);
+	
+			// Store the chart instance globally
+			window.myChart = heatMapChart;
+	
+			// Add resize listener
 			window.addEventListener('resize', function () {
-				heatMapChart.resize();
+				if (window.myChart) {
+					window.myChart.resize();
+				}
 			});
 		}).catch((error) => {
 			console.error("Error fetching data:", error);
@@ -431,8 +444,14 @@ UserProfile = class UserProfile {
 						// Add inactive periods
 						var inactivePeriods = [];
 						var employeeFirstEntry = {};
-						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+						_rawData.flight.data.sort((a, b) => {
+							// First, compare by priority
+							const priorityDiff = priorityOrder[a[0]] - priorityOrder[b[0]];
+							if (priorityDiff !== 0) return priorityDiff;
+							
+							// If priority is the same, sort by date
+							return new Date(a[2]).getTime() - new Date(b[2]).getTime();
+						});
 						for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
 							var employeeName = _rawData.parkingApron.data[i];
 							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
@@ -453,13 +472,20 @@ UserProfile = class UserProfile {
 									lastEndTime = new Date(employeeActivities[j][3]).getTime();
 								}
 							}
-						}
+						}  
 						
 						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);						
+						_rawData.flight.data.sort((a, b) => {
+							// First, compare by priority
+							const priorityDiff = priorityOrder[a[0]] - priorityOrder[b[0]];
+							if (priorityDiff !== 0) return priorityDiff;
+							
+							// If priority is the same, sort by date
+							return new Date(a[2]).getTime() - new Date(b[2]).getTime();
+						});					
 						
 						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
+						console.log("Unique Dates:", uniqueDates);
 						function setFixedDate(timestamp) {
 							var date = new Date(timestamp);
 							date.setFullYear(2000, 0, 1);
@@ -508,7 +534,7 @@ UserProfile = class UserProfile {
 									if (hours > 0) durationString += hours + "h ";
 									if (minutes > 0) durationString += minutes + "m ";
 									if (seconds > 0 || durationString === "") durationString += seconds + "s";
-	
+
 									var tooltipContent = `<div style="line-height: 1.5;">`;
 									if (activityType === 'Call' && params.data[4]) {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
@@ -525,7 +551,7 @@ UserProfile = class UserProfile {
 									}
 								
 									tooltipContent += `
-										<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
+										<span style="font-weight: bold;">Date:</span> ${employeeName}<br>
 										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
 										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
 										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
@@ -538,7 +564,7 @@ UserProfile = class UserProfile {
 							toolbox: {
 								left: 20,
 								top: 0,
-								itemSize: 20
+								itemSize: 20 
 							}, 
 							dataZoom: [
 								{
@@ -626,7 +652,6 @@ UserProfile = class UserProfile {
 									}
 								},
 								data: uniqueDates,
-								inverse: true
 							},							
 							series: [
 								{
@@ -929,13 +954,21 @@ UserProfile = class UserProfile {
 									fields: fields,
 									primary_action_label: 'Submit',
 									primary_action(values) {
+										// Disable the button and change its text
+										this.disable_primary_action();
+										this.set_title('Submitting...');
+								
 										if (values.internal_meeting) {
 											const companyRepresentatives = values.meeting_company_representative || [];
 											if (companyRepresentatives.length < 2) {
 												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+												// Re-enable the button if validation fails
+												this.enable_primary_action();
+												this.set_title('Submit');
 												return;
 											}
 										}
+								
 										frappe.call({
 											method: "productivity_next.api.add_meeting",
 											args: {
@@ -953,13 +986,40 @@ UserProfile = class UserProfile {
 											},
 											callback: (r) => {
 												if (r.message) {
-													frappe.msgprint("Meeting added successfully");
-													d.hide();
+													frappe.msgprint({
+														title: __('Success'),
+														indicator: 'green',
+														message: __('Meeting added successfully')
+													});
+													this.hide();
+												} else {
+													// If there's no message, assume it's an error
+													frappe.msgprint({
+														title: __('Error'),
+														indicator: 'red',
+														message: __('Failed to add meeting. Please try again.')
+													});
+													// Re-enable the submit button
+													this.enable_primary_action();
+													this.set_title('Submit');
 												}
+											},
+											error: (r) => {
+												// Handle any errors that occur during the call
+												frappe.msgprint({
+													title: __('Error'),
+													indicator: 'red',
+													message: __('An error occurred while adding the meeting. Please try again.')
+												});
+												// Re-enable the submit button
+												this.enable_primary_action();
+												this.set_title('Submit');
 											}
 										});
 									}
 								});
+								
+								// Set up the purpose field filter
 								d.fields_dict.purpose.get_query = function () {
 									return {
 										filters: {
@@ -967,7 +1027,8 @@ UserProfile = class UserProfile {
 										}
 									};
 								};
-	
+								
+								// Show the dialog
 								d.show();
 							}).catch(err => {
 								console.error("Error fetching employee details:", err);
@@ -1105,120 +1166,83 @@ UserProfile = class UserProfile {
 
 	// Web Browsing Time Chart Code Starts
 	web_browsing_time() {
-		let data;
-		if (this.selected_employee !== null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-
-		// Fetch the data and render the pie chart using ECharts
+		let data = this.selected_employee || this.user_id;
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.web_browsing_time", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
 			})
-			.then((r) => {
-				if (r.length === 0) {
-					// console.log("No data available to plot the chart.");
-					return;
-				}
-
+			.then(r => {
+				if (r.length === 0) return;
+	
 				const chartDom = document.getElementById('web-browsing-time');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
 				}
-
-				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
-
-				// Example function to get current theme's label color
-				const getCurrentThemeLabelColor = () => {
-					// Replace this with your actual theme color retrieval logic
-					// This is just a placeholder
-					return {
-						labelColor: '#FFFFFF', // Default to black
-						backgroundColor: 'rgba(0,0,0,0)' // Default to transparent
-					};
-				};
-
-				const themeColors = getCurrentThemeLabelColor();
-
+	
+				// Destroy existing chart instance if it exists
+				let myChart = echarts.getInstanceByDom(chartDom);
+				if (!myChart) {
+					myChart = echarts.init(chartDom, null, { renderer: 'svg' });
+				}
+	
 				const option = {
 					tooltip: {
-					  trigger: 'item',
-					  formatter: function(params) {
-						// Calculate hours and minutes
-						let totalHours = params.value;
-						let hours = Math.floor(totalHours); // Get the whole number of hours
-						let minutes = Math.round((totalHours - hours) * 60); // Convert the fraction to minutes and round it
-					
-						// Return formatted string with colon between hours and minutes
-						return `${params.name} : ${hours}:${minutes < 10 ? '0' + minutes : minutes} Hours`;
-					}
-					
+						trigger: 'item',
+						formatter: params => {
+							let totalHours = params.value;
+							let hours = Math.floor(totalHours);
+							let minutes = Math.round((totalHours - hours) * 60);
+							return `${params.name} : ${hours}:${minutes < 10 ? '0' + minutes : minutes} Hours`;
+						}
 					},
 					legend: {
-					  orient: 'horizontal',
-					  left: 10, // Adjust left position in pixels or adjust as needed
+						orient: 'horizontal',
+						left: 10
 					},
-					series: [
-					  {
+					series: [{
 						name: 'Access From',
 						type: 'pie',
 						radius: '55%',
 						top: '20%',
 						center: ['50%', '50%'],
-						label: {  // Add this property to control labels
-							show: false  // Set show to false to hide labels
-						  },
-						  labelLine: {  // Add this property to control label lines
-							show: false  // Set show to false to hide label lines
-						  },
+						label: {
+							show: false
+						},
+						labelLine: {
+							show: false
+						},
 						data: r,
 						emphasis: {
-						  itemStyle: {
-							shadowBlur: 10,
-							shadowOffsetX: 0,
-							shadowColor: 'rgba(0, 0, 0, 0.5)'
-						  }
+							itemStyle: {
+								shadowBlur: 10,
+								shadowOffsetX: 0,
+								shadowColor: 'rgba(0, 0, 0, 0.5)'
+							}
 						}
-					  }
-					],
-					color: [
-						'#FF6384', // Red
-						'#36A2EB', // Blue
-						'#FFCE56', // Yellow
-						'#4BC0C0', // Cyan
-						'#9966FF', // Lavender
-						'#FF9966', // Orange
-						'#66CCCC', // Light Blue
-						'#6699FF', // Light Blue
-						'#FF6666', // Light Red
-						'#FFCC66'  // Light Yellow
-					],
+					}],
+					color: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9966', '#66CCCC', '#6699FF', '#FF6666', '#FFCC66'],
 					textStyle: {
-						color: themeColors.labelColor
+						color: '#FFFFFF'
 					},
-					backgroundColor: themeColors.backgroundColor
+					backgroundColor: 'rgba(0,0,0,0)'
 				};
-
-				// Set dynamic width and height for the chart
-				myChart.resize();
-
+	
 				myChart.setOption(option);
-
+				myChart.resize(); // Resize to fit the container
+	
+				// Re-add resize listener to ensure chart resizes with window
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-
-				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
 	}
+	
 	// Web Browsing Time Chart Code Ends
 	
 	// Top phone calls chart code starts
@@ -1273,7 +1297,7 @@ UserProfile = class UserProfile {
 						},
 						
 						position: ['50%', '50%'],
-					},
+					}, 
 					series: [
 						{
 							name: 'Caller Origin',

@@ -408,27 +408,25 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
 
     caller_name = frappe.db.sql(f"""
     SELECT 
-        CASE 
-            WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
-            ELSE 'Others'
-        END AS customname,
-        COALESCE(
-            (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
-            COALESCE(contact, client, customer_no)
-        ) AS identifier,
-        link_to AS ref_doctype, 
-        ROUND(SUM(duration)/60, 2) AS total_duration,
-        COUNT(*) AS call_count
-    FROM `tabEmployee Fincall`
-    WHERE date >= '{start_date}' 
-        AND date <= '{end_date}'
-        AND employee = '{user}' 
-    GROUP BY COALESCE(contact, client, customer_no), link_name
+    CASE 
+        WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
+        ELSE 'Others'
+    END AS customname,
+    COALESCE(
+        (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
+        COALESCE(ef.contact, ef.client, ef.customer_no)
+    ) AS identifier,
+    ef.link_to AS ref_doctype, 
+    ROUND(SUM(ef.duration)/60, 2) AS total_duration,
+    COUNT(*) AS call_count
+    FROM `tabEmployee Fincall` ef
+    WHERE ef.date >= '{start_date}' 
+        AND ef.date <= '{end_date}'
+        AND ef.employee = '{user}' 
+    GROUP BY COALESCE(ef.contact, ef.client, ef.customer_no), ef.link_name
+    HAVING SUM(ef.duration) > 60
     ORDER BY total_duration DESC
-    LIMIT 10
 """, as_dict=True)
-
-
 
     caller_details = []
     company_details = []
