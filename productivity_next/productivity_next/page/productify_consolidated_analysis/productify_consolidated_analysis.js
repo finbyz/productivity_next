@@ -73,7 +73,7 @@ UserProfile = class UserProfile {
 				const target = document.querySelector(tab.getAttribute('data-bs-target'));
 				
 				// Log aria-labelledby attribute
-				console.log(target.getAttribute('aria-labelledby'));
+				// console.log(target.getAttribute('aria-labelledby'));
 				
 				// Manage tab and content visibility
 				tabs.forEach(t => t.classList.remove('active'));
@@ -702,33 +702,40 @@ UserProfile = class UserProfile {
 					
 					return item;
 				}
-				console.log("data",_rawData.parkingApron.data.map(item => item[0]))
+				// console.log("data",_rawData.parkingApron.data.map(item => item[0]))
 				// Define the sortEmployeeNames function
 				function sortEmployeeNames(sorting_data, yAxisData) {
 					const employeeMap = new Map(sorting_data.map(item => [item.employeeName, item]));
-
-					return yAxisData
-						.filter(name => {
-							return Array.from(employeeMap.keys()).some(fullName => 
-								fullName.startsWith(name.split('.')[0])
-							);
-						})
-						.sort((a, b) => {
-							const fullNameA = Array.from(employeeMap.keys()).find(fullName => 
-								fullName.startsWith(a.split('.')[0])
-							);
-							const fullNameB = Array.from(employeeMap.keys()).find(fullName => 
-								fullName.startsWith(b.split('.')[0])
-							);
-
-							return sorting_data.findIndex(item => item.employeeName === fullNameA) - 
-								sorting_data.findIndex(item => item.employeeName === fullNameB);
+				
+					console.log("Employee Map:", Array.from(employeeMap.keys()));
+					console.log("yAxisData:", yAxisData);
+				
+					const matchedData = yAxisData.map(name => {
+						const match = Array.from(employeeMap.keys()).find(fullName => {
+							const [firstName, ...rest] = fullName.split(' ');
+							const lastNameInitial = rest.length > 0 ? rest[rest.length - 1][0] : '';
+							const namePattern = `${firstName} ${lastNameInitial ? lastNameInitial+'.' : ''}`;
+							const isMatch = name.startsWith(namePattern);
+							console.log(`Comparing ${name} with ${namePattern}: ${isMatch}`);
+							return isMatch;
 						});
+						return { name, fullName: match };
+					}).filter(item => item.fullName !== undefined);
+				
+					// console.log("Matched Data:", matchedData);
+				
+					const sortedData = matchedData.sort((a, b) => {
+						return sorting_data.findIndex(item => item.employeeName === a.fullName) - 
+							   sorting_data.findIndex(item => item.employeeName === b.fullName);
+					}).map(item => item.name);
+				
+					// console.log("Sorted Data:", sortedData);
+					return sortedData;
 				}
 
 				// Define the makeOption function
 				function makeOption(sorting_data) {
-					console.log("sorting_data", sorting_data);
+					// console.log("sorting_data", sorting_data);
 					var activityLegends = [
 						{ name: 'Application', color: '#00A6E0' },
 						{ name: 'Idle', color: '#FF4001' },
@@ -761,8 +768,9 @@ UserProfile = class UserProfile {
 					var fixedEndTime = new Date(maxEndTime);
 
 					// Sort the y-axis data
+					console.log("yAxisData", _rawData.parkingApron.data.map(item => item[0]));
 					const sortedYAxisData = sortEmployeeNames(sorting_data, _rawData.parkingApron.data.map(item => item[0]));
-
+					// console.log("sortedYAxisData", sortedYAxisData);
 					return {
 						backgroundColor: 'transparent',
 						tooltip: {
@@ -1279,7 +1287,7 @@ UserProfile = class UserProfile {
 						overallChartLegends.each(function() {
 							let li = $(this);
 							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
-							console.log(li.attr('data-value'));
+							// console.log(li.attr('data-value'));
 						});
 
 						overallPerformance.setOption({
@@ -1288,7 +1296,7 @@ UserProfile = class UserProfile {
 							}
 						});
 
-						console.log(legends);
+						// console.log(legends);
 
 					}
 					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
@@ -1381,7 +1389,7 @@ UserProfile = class UserProfile {
 	
 		const employeeDataArray = await Promise.all(fetchPromises);
 		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
-		console.log("employeeDataArray", employeeDataArray);
+		// console.log("employeeDataArray", employeeDataArray);
 		this.sorting_data = employeeDataArray;
 		this.overall_performance_chart(); 
 		let count = 1;
