@@ -32,7 +32,6 @@
   "turnover",
   "employees",
   "column_break_17",
-  "industry",
   "business_specifics",
   "participants",
   "meeting_company_representative",
@@ -223,13 +222,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "industry",
-   "fieldtype": "Link",
-   "label": "Industry",
-   "mandatory_depends_on": "eval:doc.internal_meeting == 0",
-   "options": "Industry Type"
-  },
-  {
    "fieldname": "business_specifics",
    "fieldtype": "Small Text",
    "label": "Business Specifics"
@@ -372,7 +364,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-07-12 13:41:43.161561",
+ "modified": "2024-08-09 14:40:06.789810",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
