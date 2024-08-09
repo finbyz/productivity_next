@@ -19,5 +19,6 @@ class ScreenScreenshotLog(Document):
 				frappe.db.set_value("File", name, "attached_to_name", self.name, update_modified=False)
 
 
-def on_doc_update(self):
+def on_doctype_update():
 	frappe.db.add_unique("Screen Screenshot Log", ["employee", "time"])
+	frappe.db.add_index("Screen Screenshot Log",["employee","time"])

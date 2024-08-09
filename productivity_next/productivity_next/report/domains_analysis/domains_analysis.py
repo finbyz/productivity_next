@@ -156,8 +156,7 @@ def get_chart_data(filters):
     data = frappe.db.sql("""
         SELECT domain, date, count(*) as domain_count
         FROM `tabApplication Usage log`
-		where domain is not null and domain != ''
-        and date between %(from_date)s and %(to_date)s
+		where date between %(from_date)s and %(to_date)s and domain is not null and domain != ''
         GROUP BY domain
 		ORDER BY domain_count desc
 		Limit 10

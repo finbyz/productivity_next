@@ -36,6 +36,7 @@ UserProfile = class UserProfile {
 		this.wrapper.bind("show", () => {
 			this.show();
 		});
+		this.sorting_data = {};
 	}
 
 	hide_sidebar_and_toggle() {
@@ -60,11 +61,37 @@ UserProfile = class UserProfile {
 		this.setup_refresh(); // Refresh Button
 		this.setup_timespan(); // Timespan Button
 		this.main_section.empty().append(frappe.render_template("productify_consolidated_analysis"));
-		this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
-		this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
-		this.employee_calls_chart(); // Top 10 Employees Call Analysis
-		this.overall_performance_chart(); // Overall Performance (All Employees)
 		this.user_analysis(); // User Analysis (User Productivity Stats)
+
+		// this.overall_performance_chart(); // Overall Performance (All Employees)
+		// JavaScript to handle tab switching
+		const tabs = document.querySelectorAll('.nav-link');
+		const contents = document.querySelectorAll('.tab-pane');
+	
+		tabs.forEach(tab => {
+			tab.addEventListener('click', () => {
+				const target = document.querySelector(tab.getAttribute('data-bs-target'));
+				
+				// Log aria-labelledby attribute
+				console.log(target.getAttribute('aria-labelledby'));
+				
+				// Manage tab and content visibility
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				// Check aria-labelledby and execute methods if needed
+				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
+					this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
+				}
+				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
+					this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
+					this.employee_calls_chart(); // Top 10 Employees Call Analysis
+				}
+				
+				contents.forEach(content => content.classList.remove('show', 'active'));
+				target.classList.add('show', 'active');
+			});
+		});
 	}
 
 	// Refresh Button Code Starts
@@ -126,7 +153,6 @@ UserProfile = class UserProfile {
 
 	// All Employees Page Title Code
 	make_user_profile() {
-		this.user = frappe.user_info(this.user_id);
 		if (!this.selected_employee) {
 			this.page.set_title("All Employees" + " ( FROM " + this.selected_start_date + " TO " + this.selected_end_date + " )");
 		} else {
@@ -220,13 +246,14 @@ UserProfile = class UserProfile {
 							}
 						],
 					};
-	
+					barchart.resize();
 					barchart.setOption(option);
 					barchart.getZr().on('mousewheel', function (e) {
-						e.preventDefault();
 					});
 					barchart.getZr().on('pinch', function (e) {
-						e.preventDefault();
+					});
+					window.addEventListener('resize', function () {
+						barchart.resize();
 					});
 				}
 			});
@@ -250,8 +277,10 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
+				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
-					return;
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
 				}
 	
 				const chartDom = document.getElementById('client-calls-chart');
@@ -379,7 +408,6 @@ UserProfile = class UserProfile {
 				var selected_end_date = this.selected_end_date;
 				// Add click event listener to the link after the chart is rendered
 				document.getElementById('client-calls-analysis-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent default link behavior
 					goToCallsAnalysisClient(selected_start_date, selected_end_date); // Pass dates to redirect function
 				});
 	
@@ -425,11 +453,13 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
-				
-				if (r.labels.length === 0 || r.datasets.length === 0) {
+				const containerElement = document.getElementById('employee-calls');
+				if (r.datasets.length === 0) {
+					console.log("No data found for employee calls");
+					if (containerElement) containerElement.style.display = 'none';
 					return;
 				}
-				
+				else{
 				let seriesData = [];
 				r.datasets.forEach(dataset => {
 					const counts = dataset.counts.map(count => parseInt(count)); 
@@ -524,12 +554,12 @@ UserProfile = class UserProfile {
 				var selected_end_date = this.selected_end_date;
 				// Add click event listener to the link after the chart is rendered
 				document.getElementById('employee-calls-analysis-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent default link behavior
 					goToCallsAnalysisEmployee(selected_start_date, selected_end_date); // Pass dates to redirect function
 				});
 				window.addEventListener('resize', function() {
 					myChart.resize();
 				});
+				}
 			})
 			.catch((error) => {
 				console.error("Error fetching chart data:", error);
@@ -564,6 +594,7 @@ UserProfile = class UserProfile {
 			if (r.base_data.length === 0) {
 			} else {
 				// console.log(r);
+				
 				var _rawData = {
 					flight: {
 						dimensions: r.base_dimensions,
@@ -589,7 +620,6 @@ UserProfile = class UserProfile {
 
 				function formatTimestamp(timestamp) {
 					const date = new Date(timestamp);
-					
 					const year = date.getFullYear();
 					const month = String(date.getMonth() + 1).padStart(2, '0');
 					const day = String(date.getDate()).padStart(2, '0');
@@ -672,7 +702,33 @@ UserProfile = class UserProfile {
 					
 					return item;
 				}
-				function makeOption() {
+				console.log("data",_rawData.parkingApron.data.map(item => item[0]))
+				// Define the sortEmployeeNames function
+				function sortEmployeeNames(sorting_data, yAxisData) {
+					const employeeMap = new Map(sorting_data.map(item => [item.employeeName, item]));
+
+					return yAxisData
+						.filter(name => {
+							return Array.from(employeeMap.keys()).some(fullName => 
+								fullName.startsWith(name.split('.')[0])
+							);
+						})
+						.sort((a, b) => {
+							const fullNameA = Array.from(employeeMap.keys()).find(fullName => 
+								fullName.startsWith(a.split('.')[0])
+							);
+							const fullNameB = Array.from(employeeMap.keys()).find(fullName => 
+								fullName.startsWith(b.split('.')[0])
+							);
+
+							return sorting_data.findIndex(item => item.employeeName === fullNameA) - 
+								sorting_data.findIndex(item => item.employeeName === fullNameB);
+						});
+				}
+
+				// Define the makeOption function
+				function makeOption(sorting_data) {
+					console.log("sorting_data", sorting_data);
 					var activityLegends = [
 						{ name: 'Application', color: '#00A6E0' },
 						{ name: 'Idle', color: '#FF4001' },
@@ -683,13 +739,13 @@ UserProfile = class UserProfile {
 					];
 					var legendData = [];
 					activityLegends.forEach(function(item) {
-					legendData.push({
-						name: item.name,
-						icon: 'rect',
-						textStyle: {
-						fontSize: 12
-						}
-					});
+						legendData.push({
+							name: item.name,
+							icon: 'rect',
+							textStyle: {
+								fontSize: 12
+							}
+						});
 					});
 					var startTimeList = _rawData.flight.data.map(item => new Date(item[2]).getTime());
 					var endTimeList = _rawData.flight.data.map(item => new Date(item[3]).getTime());
@@ -703,6 +759,10 @@ UserProfile = class UserProfile {
 					// Create Date objects for the xAxis min and max
 					var fixedStartTime = new Date(minStartTime);
 					var fixedEndTime = new Date(maxEndTime);
+
+					// Sort the y-axis data
+					const sortedYAxisData = sortEmployeeNames(sorting_data, _rawData.parkingApron.data.map(item => item[0]));
+
 					return {
 						backgroundColor: 'transparent',
 						tooltip: {
@@ -740,10 +800,14 @@ UserProfile = class UserProfile {
 								} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
 									if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
 									if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
+									if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
+									tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
+								}
+								else{
+									tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
 								}
 							
 								tooltipContent += `
-									<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
 									<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
 									<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
 									<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
@@ -761,6 +825,14 @@ UserProfile = class UserProfile {
 						},
 						legend: {
 							show: true,
+							selected: {
+								'Application': true,
+								'Idle': true,
+								'Call': true,
+								'Internal Meeting': true,
+								'External Meeting': true,
+								'Inactive': true
+							},
 							data: legendData,
 							orient: 'horizontal',
 							top: 80,
@@ -794,52 +866,30 @@ UserProfile = class UserProfile {
 						},
 						zIndex: 100,
 						dataZoom: [
-                            {
-                                type: 'slider',
-                                xAxisIndex: 0,
-                                filterMode: 'weakFilter',
-                                height: 20,
-                                bottom: 0,
-                                start: 0,  // Adjust start to cover the full range
-                                end: 200,  // Adjust end to cover the full range
-                                handleIcon: 'path://M10.7,11.9H9.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4h1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-                                handleSize: '80%',
-                                showDetail: false
-                            },
-                            {
-                                type: 'inside',
-                                id: 'insideX',
-                                xAxisIndex: 0,
-                                filterMode: 'weakFilter',
-                                start: 50,
-                                end: 200,
-                                zoomOnMouseWheel: false,
-                                moveOnMouseMove: true
-                            },
-                            {
-                              type: 'slider',
-                              yAxisIndex: 0,
-                              zoomLock: true,
-                              width: 10,
-                              right: 10,
-                              top: 70,
-                              bottom: 20,
-                              start: 50,
-                              end: 80,
-                              handleSize: 0,
-                              showDetail: false
-                            },
-                            {
-                              type: 'inside',
-                              id: 'insideY',
-                              yAxisIndex: 0,
-                              start: 95,
-                              end: 500,
-                              zoomOnMouseWheel: false,
-                              moveOnMouseMove: true,
-                              moveOnMouseWheel: true
-                            }
-                          ],  
+							{
+								type: 'slider',
+								yAxisIndex: 0,
+								zoomLock: true,
+								width: 10,
+								right: 10,
+								top: 70,
+								startValue: 0,
+								endValue: 10,
+								bottom: 20,
+								handleSize: 0,
+								showDetail: false
+							},
+							{
+								type: 'inside',
+								id: 'insideY',
+								yAxisIndex: 0,
+								startValue: 0,
+								endValue: 10,
+								zoomOnMouseWheel: false,
+								moveOnMouseMove: true,
+								moveOnMouseWheel: true
+							}
+						],  
 						grid: {
 							show: true,
 							top: 20,
@@ -868,9 +918,10 @@ UserProfile = class UserProfile {
 									}
 								}
 							},
-							data: _rawData.parkingApron.data.map(item => item[0]),
+							data: sortedYAxisData,
 							min: 0,
-							max: _rawData.parkingApron.data.length - 1
+							max: sortedYAxisData.length - 1,
+							inverse: true
 						},
 						xAxis: {
 							type: 'time',
@@ -921,7 +972,7 @@ UserProfile = class UserProfile {
 								barGap: '5%', // Adjust gap between bars
 								barCategoryGap: '20%',
 								barWidth: 8, // Adjust bar width
-       							barMaxWidth: 20, 
+								barMaxWidth: 20, 
 							},
 							{
 								type: 'custom',
@@ -931,13 +982,24 @@ UserProfile = class UserProfile {
 									x: -1,
 									y: 0
 								},
-								data: _rawData.parkingApron.data.map(function (item, index) {
-									return [index].concat(item);
+								data: sortedYAxisData.map(function (item, index) {
+									return [index].concat([item]);
 								})
 							}
 						]
 					};
 				}
+
+				// Assuming you have a renderGanttItem function defined elsewhere
+				// function renderGanttItem(params, api) { ... }
+
+				// Assuming you have a renderAxisLabelItem function defined elsewhere
+				// function renderAxisLabelItem(params, api) { ... }
+
+				// Usage example (you would call this when you want to create/update the chart)
+				// var chart = echarts.init(document.getElementById('chartContainer'));
+				// var option = makeOption(sorting_data);
+				// chart.setOption(option);
 	
 				function renderAxisLabelItem(params, api) {
 					var yIndex = api.value(0);
@@ -950,7 +1012,7 @@ UserProfile = class UserProfile {
 						style: api.style()
 					};
 				}
-					overallPerformance.setOption(makeOption());
+					overallPerformance.setOption(makeOption(this.sorting_data));
 					overallPerformance.on('click', function (params) {
 						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
@@ -972,6 +1034,26 @@ UserProfile = class UserProfile {
 										in_list_view: 1,
 										options: "Employee",
 										ignore_user_permissions: 1,
+										reqd: 1,
+									}
+								];
+								const party_fields = [
+									{
+										label: 'Contact',
+										fieldname: 'contact',
+										fieldtype: 'Link',
+										options: 'Contact',
+										in_list_view: 1,
+										get_query: function() {
+											const selectedParty = d.get_values().party;
+											const selectedPartyType = d.get_values().party_type;
+											return {
+												filters: {
+													link_doctype: selectedPartyType,
+													link_name: selectedParty
+												}
+											};
+										}
 									}
 								];
 								var fields = [
@@ -986,6 +1068,23 @@ UserProfile = class UserProfile {
 										label: "Internal Meeting",
 										fieldname: "internal_meeting",
 										fieldtype: "Check",
+										onchange: function() {
+											const companyRepField = d.fields_dict.meeting_company_representative;
+											if (this.get_value()) {
+												companyRepField.df.reqd = 1;
+												companyRepField.grid.min_rows = 2;
+											} else {
+												companyRepField.df.reqd = 0;
+												companyRepField.grid.min_rows = 0;
+											}
+											companyRepField.refresh();
+										}
+									},
+									{
+										fieldname: 'internal_meeting_note',
+										fieldtype: 'HTML',
+										options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+										depends_on: 'eval:doc.internal_meeting'
 									},
 									{
 										label: "Purpose",
@@ -1010,10 +1109,26 @@ UserProfile = class UserProfile {
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
-										label: __("Party"),
-										fieldtype: 'Dynamic Link',
-										options: "party_type",
+										label: 'Party',
 										fieldname: 'party',
+										fieldtype: 'Dynamic Link',
+										options: 'party_type',
+										change: function() {
+											const selectedParty = d.get_value('party');
+											const selectedPartyType = d.get_value('party_type');
+									
+											if (selectedParty && selectedPartyType) {
+												d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+													return {
+														filters: {
+															link_doctype: selectedPartyType,
+															link_name: selectedParty
+														}
+													};
+												};
+												d.fields_dict['meeting_party_representative'].grid.refresh();
+											}
+										},
 										depends_on: 'eval:!doc.internal_meeting',
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
@@ -1022,7 +1137,8 @@ UserProfile = class UserProfile {
 										fieldname: "meeting_arranged_by",
 										fieldtype: "Link",
 										options: "User",
-										default: employeeId
+										default: employeeId,
+										reqd: 1
 									},
 									{
 										fieldtype: 'Column Break',
@@ -1031,22 +1147,24 @@ UserProfile = class UserProfile {
 										label: 'Meeting From',
 										fieldname: 'meeting_from',
 										fieldtype: 'Datetime',
-										default: startTime
+										default: startTime,
+										reqd: 1
 									},
 									{
 										label: 'Meeting To',
 										fieldname: 'meeting_to',
 										fieldtype: 'Datetime',
-										default: endTime
+										default: endTime,
+										reqd: 1
 									},
-									{
-										label: "Industry",
-										fieldname: "industry",
-										fieldtype: "Link",
-										options: "Industry Type",
-										depends_on: 'eval:!doc.internal_meeting',
-										mandatory_depends_on: 'eval:!doc.internal_meeting',
-									},
+									// {
+									// 	label: "Industry",
+									// 	fieldname: "industry",
+									// 	fieldtype: "Link",
+									// 	options: "Industry Type",
+									// 	depends_on: 'eval:!doc.internal_meeting',
+									// 	mandatory_depends_on: 'eval:!doc.internal_meeting',
+									// },
 									{
 										fieldtype: 'Section Break',
 									},
@@ -1057,6 +1175,25 @@ UserProfile = class UserProfile {
 										fieldtype: 'Table',
 										fields: table_fields,
 										options: 'Meeting Company Representative',
+										reqd: 1,
+										onchange: function() {
+											if (d.get_value('internal_meeting')) {
+												this.grid.min_rows = 2;
+											} else {
+												this.grid.min_rows = 0;
+											}
+										}
+									},
+									{
+										fieldtype: 'Section Break',
+									},
+									{
+										label: 'Meeting Party Representative',
+										fieldname: 'meeting_party_representative',
+										fieldtype: 'Table',
+										fields: party_fields,
+										options: 'Meeting Party Representative',
+										depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
 										label: "Discussion",
@@ -1071,6 +1208,13 @@ UserProfile = class UserProfile {
 									fields: fields,
 									primary_action_label: 'Submit',
 									primary_action(values) {
+										if (values.internal_meeting) {
+											const companyRepresentatives = values.meeting_company_representative || [];
+											if (companyRepresentatives.length < 2) {
+												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+												return;
+											}
+										}
 										frappe.call({
 											method: "productivity_next.api.add_meeting",
 											args: {
@@ -1079,11 +1223,12 @@ UserProfile = class UserProfile {
 												meeting_arranged_by: values.meeting_arranged_by,
 												internal_meeting: values.internal_meeting,
 												purpose: values.purpose,
-												industry: values.industry || null,
+												// industry: values.industry || null,
 												party_type: values.party_type || null,
 												party: values.party || null,
 												discussion: values.discussion,
-												meeting_company_representative: values.meeting_company_representative
+												meeting_company_representative: values.meeting_company_representative || null,
+												meeting_party_representative: values.meeting_party_representative || null
 											},
 											callback: (r) => {
 												if (r.message) {
@@ -1107,6 +1252,56 @@ UserProfile = class UserProfile {
 								console.error("Error fetching employee details:", err);
 							});
 						}
+					});
+					function updateChart() {
+						let legends = overallPerformance.getOption().legend[0].selected
+						legends = Object.keys(legends).filter(legend => legends[legend]);
+						var filteredData = _rawData.flight.data.filter(item => {
+							var activityType = item[0];
+							return legends.includes(activityType);
+						});
+
+						overallPerformance.setOption({
+							series: [{
+								id: 'flightData',
+								data: filteredData
+							}]
+						});
+					}
+					$('#overallChartLegends li').each(function() {
+						let li = $(this);
+						$(li).attr('selected', 'true');
+					});
+					function updateLegend() {
+						let overallChartLegends = $('#overallChartLegends li');
+						let legends = {};
+
+						overallChartLegends.each(function() {
+							let li = $(this);
+							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+							console.log(li.attr('data-value'));
+						});
+
+						overallPerformance.setOption({
+							legend: {
+								selected: legends
+							}
+						});
+
+						console.log(legends);
+
+					}
+					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+					$.each(overallChartLegends, function(index, li) {
+						$(li).on('click', function() {
+							if ($(li).attr('selected')) {
+								$(li).removeAttr('selected');
+							} else {
+								$(li).attr('selected', 'true');
+							}
+							updateLegend();
+							updateChart();
+						});
 					});
 				}
 			});
@@ -1186,7 +1381,9 @@ UserProfile = class UserProfile {
 	
 		const employeeDataArray = await Promise.all(fetchPromises);
 		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
-	
+		console.log("employeeDataArray", employeeDataArray);
+		this.sorting_data = employeeDataArray;
+		this.overall_performance_chart(); 
 		let count = 1;
 		let totalHours = 0;
 		let totalIdleTime = 0;
@@ -1260,6 +1457,7 @@ UserProfile = class UserProfile {
 			</tr>`;
 	
 		container.append(wholedata);
+
 	};
 	// User Analysis (User Productivity Stats) Code Ends
 		

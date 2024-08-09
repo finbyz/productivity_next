@@ -39,6 +39,7 @@ class ApplicationUsagelog(Document):
             "slack.exe": "Slack",
             "zoom.exe": "Zoom",
             "WINWORD.EXE": "Word",
+            "mintty.exe": "Git Bash",
         }
         application_names_lower = {
             key.lower(): value for key, value in application_names.items()
@@ -60,6 +61,4 @@ class ApplicationUsagelog(Document):
 
 def on_doctype_update():
     frappe.db.add_unique("Application Usage log", ["employee", "from_time", "to_time"])
-    frappe.db.add_index("Application Usage log", ["employee", "date", "domain"])
-    frappe.db.add_index("Application Usage log", ["application_name", "date"])
-    frappe.db.add_index("Application Usage log", ["domain", "date"])
+    frappe.db.add_index("Application Usage log", ["date", "employee", "domain"])

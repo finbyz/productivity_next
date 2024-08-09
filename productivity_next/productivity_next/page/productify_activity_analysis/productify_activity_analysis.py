@@ -13,21 +13,20 @@ from dateutil.parser import parse
 # Sidebar Activity Data code starts
 @frappe.whitelist()
 def get_activity_chart_data(user,start_date=None, end_date=None):
-    start_date_,end_date_ = set_dates(start_date, end_date)
-    start_date, end_date = set_dates(start_date, end_date)
-
+    if user == "Administrator":
+        return {}
     # Fetch idle time logs
     idle_time_data = frappe.db.sql(f"""
         SELECT from_time as start_time, to_time as end_time
         FROM `tabEmployee Idle Time`
-        WHERE employee = '{user}' AND from_time > '{start_date_}' AND to_time < '{end_date_}'
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{user}'
     """, as_dict=True)
 
     # Fetch fincall time logs
     fincall_time_data = frappe.db.sql(f"""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
         FROM `tabEmployee Fincall`
-        WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}' AND (calltype != 'Missed' AND calltype != 'Rejected')
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{user}' AND (calltype != 'Missed' AND calltype != 'Rejected')
     """, as_dict=True)
 
     # Fetch meeting time logs
@@ -35,8 +34,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
         SELECT meeting_from as start_time, meeting_to as end_time
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.docstatus = 1 AND mcr.employee = '{user}'
-        AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'
+        WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}'
     """, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)
@@ -51,7 +49,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
         adjusted_start = idle_start
         adjusted_end = idle_end
 
-        for non_idle in non_idle_periods:
+        for non_idle in non_idle_periods: 
             non_idle_start = non_idle['start_time']
             non_idle_end = non_idle['end_time']
 
@@ -75,14 +73,15 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
         SELECT 
             SUM(duration) AS total_duration
         FROM `tabEmployee Fincall`
-        WHERE employee = '{user}' AND call_datetime > '{start_date_}' AND call_datetime < '{end_date_}'
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}'
     """, as_dict=True)
+
     total_meeting_data = frappe.db.sql(f"""
         SELECT 
             SUM(TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from))) AS total_duration  
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE mcr.employee = '{user}' and m.docstatus = 1 and m.meeting_from >= '{start_date_}' and m.meeting_to <= '{end_date_}'
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 AND mcr.employee = '{user}' 
     """, as_dict=True)
 
     list_data = []
@@ -90,17 +89,17 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
         SELECT m.meeting_from as start_time, m.meeting_to as end_time
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE mcr.employee ='{user}' and m.docstatus = 1 and m.meeting_from >= '{start_date_}' and m.meeting_to <= '{end_date_}'
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee ='{user}' 
     """, as_dict=True)
     calls_total_data = frappe.db.sql(f"""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
         FROM `tabEmployee Fincall`
-        WHERE employee = '{user}' and call_datetime >= '{start_date_}' and call_datetime <= '{end_date_}' and (calltype != 'Missed' and calltype != 'Rejected')
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and (calltype != 'Missed' and calltype != 'Rejected')
     """, as_dict=True)
     application_total_data = frappe.db.sql(f"""
         SELECT from_time as start_time, to_time as end_time
         FROM `tabApplication Usage log`
-        WHERE employee = '{user}' and date >= '{start_date}' and date <= '{end_date}'
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}'
     """, as_dict=True)
 
     list_data.append(meeting_total_data)
@@ -152,13 +151,13 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
     total_application_hours = frappe.db.sql(f"""
         select sum(duration) as total_duration
         from `tabApplication Usage log`
-        where employee = '{user}' and date >= '{start_date}' and date <= '{end_date}' 
+        where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}'
         """, as_dict=True)
 
     total_idle_hours = frappe.db.sql(f"""
         select sum(duration) as total_duration
         from `tabEmployee Idle Time`
-        where employee = '{user}' and from_time >= '{start_date}' and to_time <= '{end_date}' 
+        where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}'
         """, as_dict=True)
     total_application_duration = total_application_hours[0].total_duration if total_application_hours and total_application_hours[0].total_duration is not None else 0
     total_idle_duration = total_idle_hours[0].total_duration if total_idle_hours and total_idle_hours[0].total_duration is not None else 0
@@ -183,8 +182,6 @@ def work_intensity(user=None, start_date=None, end_date=None):
     if not user:
         return []
 
-    start_date_, end_date_ = set_dates(start_date, end_date)
-
     intensity_data = frappe.db.sql(f"""
         SELECT 
             HOUR(time) as hour, 
@@ -193,9 +190,9 @@ def work_intensity(user=None, start_date=None, end_date=None):
             SUM(mouse_clicks) as total_mouse_clicks,
             SUM(mouse_scrolls) as total_mouse_scrolls
         FROM `tabWork Intensity`
-        WHERE employee = '{user}' 
-            AND time >= '{start_date_}' 
-            AND time <= '{end_date_}'
+        WHERE employee = '{user}'
+            AND time >= '{start_date} 00:00:00'      
+            AND time <= '{end_date} 23:59:59' 
             AND HOUR(time) BETWEEN 7 AND 23
         GROUP BY hour, day_of_week
     """, as_dict=True)
@@ -241,17 +238,17 @@ def overall_performance(employee=None, start_date=None, end_date=None):
             call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
             employee, date,COALESCE(contact, client, customer_no) as caller, calltype
         FROM `tabEmployee Fincall`
-        WHERE employee ='{employee}' and call_datetime >= '{start_date} 00:00:00' and call_datetime <= '{end_date} 23:59:59'
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee ='{employee}'
         ORDER BY date
     """, as_dict=True)
 
     meetings = frappe.db.sql(f"""
-        SELECT m.name AS parent, 
-            m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
-            mcr.employee, DATE(m.meeting_from) as date
+         SELECT m.name AS parent, 
+            m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,DATE(m.meeting_from) as date,
+            mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
-        WHERE mcr.employee = '{employee}' and m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee = '{employee}'
         ORDER BY date(m.meeting_from)
     """, as_dict=True)
 
@@ -260,7 +257,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
             from_time AS idle_start, to_time AS idle_end,
             employee, date(from_time) as date
         FROM `tabEmployee Idle Time`
-        WHERE employee = '{employee}' and from_time >= '{start_date} 00:00:00' and to_time <= '{end_date} 23:59:59'
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}'
         ORDER BY DATE(from_time)
     """, as_dict=True)
 
@@ -270,7 +267,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
             dwsp.employee, dwsp.date
         FROM `tabProductify Work Summary` AS dwsp
         JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
-        WHERE dwsp.employee = '{employee}' and dwsp.date between '{start_date}' and '{end_date}'
+        WHERE dwsp.date between '{start_date}' and '{end_date}' and dwsp.employee = '{employee}'
         ORDER BY dwsp.date
     """, as_dict=True)
 
@@ -310,7 +307,9 @@ def overall_performance(employee=None, start_date=None, end_date=None):
                 meeting['meeting_start'],
                 meeting['meeting_end'],
                 meeting['internal'],
-                meeting['client']
+                meeting['organization'],
+                meeting['party_type'],
+                meeting['meeting_arranged_by']
             ])
     for i in idle:
         base_data.append([
@@ -344,7 +343,7 @@ def application_usage_time(user=None, start_date=None, end_date=None):
             LEFT(application_name, 25) AS application_name, 
             SUM(duration) AS total_duration
         FROM `tabApplication Usage log`
-        WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{user}'
         GROUP BY LEFT(application_name, 25)
         ORDER BY total_duration DESC
         LIMIT 10
@@ -377,11 +376,10 @@ def web_browsing_time(user = None,start_date=None,end_date=None):
             "labels": [],
             "values": []
         }
-    start_date_,end_date_ = set_dates(start_date, end_date)
     domain_data = frappe.db.sql(f"""
         SELECT domain, round(SUM(duration)/3600,2) as total_duration
         FROM `tabApplication Usage log`
-        Where employee = '{user}' and from_time >= '{start_date_}' and to_time <= '{end_date_}' and domain != '' and domain is not null
+        Where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and domain != '' and domain is not null
         GROUP BY domain
         ORDER BY total_duration DESC
         LIMIT 10
@@ -408,31 +406,27 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
             "company_details": []
         }
 
-    start_date_, end_date_ = set_dates(start_date, end_date)
-
     caller_name = frappe.db.sql(f"""
     SELECT 
-        CASE 
-            WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
-            ELSE 'Others'
-        END AS customname,
-        COALESCE(
-            (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
-            COALESCE(contact, client, customer_no)
-        ) AS identifier,
-        link_to AS ref_doctype, 
-        ROUND(SUM(duration)/60, 2) AS total_duration,
-        COUNT(*) AS call_count
-    FROM `tabEmployee Fincall`
-    WHERE employee = '{user}' 
-        AND call_datetime >= '{start_date_}' 
-        AND call_datetime <= '{end_date_}'
-    GROUP BY COALESCE(contact, client, customer_no), link_name
+    CASE 
+        WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
+        ELSE 'Others'
+    END AS customname,
+    COALESCE(
+        (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
+        COALESCE(ef.contact, ef.client, ef.customer_no)
+    ) AS identifier,
+    ef.link_to AS ref_doctype, 
+    ROUND(SUM(ef.duration)/60, 2) AS total_duration,
+    COUNT(*) AS call_count
+    FROM `tabEmployee Fincall` ef
+    WHERE ef.date >= '{start_date}' 
+        AND ef.date <= '{end_date}'
+        AND ef.employee = '{user}' 
+    GROUP BY COALESCE(ef.contact, ef.client, ef.customer_no), ef.link_name
+    HAVING SUM(ef.duration) > 60
     ORDER BY total_duration DESC
-    LIMIT 10
 """, as_dict=True)
-
-
 
     caller_details = []
     company_details = []
@@ -482,8 +476,6 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
         })
         customNames.append(app['customname'])
         count += 1
-    
-
 
     return {
         "caller_details": caller_details,
@@ -500,13 +492,12 @@ def type_of_calls(user = None,start_date=None,end_date=None):
             "labels": [],
             "values": []
         }
-    start_date_,end_date_ = set_dates(start_date, end_date)
     internal_fincall_data = frappe.db.sql(f"""
         SELECT 
             COUNT(*) AS fincall_count,
             round(SUM(duration)/60,2) as total_duration
         FROM `tabEmployee Fincall`
-        Where employee = '{user}' and call_datetime >= '{start_date_}' and call_datetime <= '{end_date_}' and (link_to = 'Company' and link_to is not null)
+        Where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and (link_to = 'Company' and link_to is not null)
     """, as_dict=True)
 
     external_fincall_data = frappe.db.sql(f"""
@@ -514,7 +505,7 @@ def type_of_calls(user = None,start_date=None,end_date=None):
             COUNT(*) AS fincall_count,
             round(SUM(duration)/60,2) as total_duration
         FROM `tabEmployee Fincall`
-        Where employee = '{user}' and call_datetime >= '{start_date_}' and call_datetime <= '{end_date_}' and (link_to != 'Company' or link_to is null)
+        Where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and (link_to != 'Company' or link_to is null)
     """, as_dict=True)
     data = []
     data.append({
@@ -532,17 +523,12 @@ def type_of_calls(user = None,start_date=None,end_date=None):
 @frappe.whitelist()
 def fetch_url_data(user,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
-    start_date_,end_date_ = set_dates(start_date, end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
     if ignore_doctype_str:
         ignore_condition = f"AND ref_doctype NOT IN ({ignore_doctype_str})"
     else:
         ignore_condition = ""
-    start_date, end_date = set_dates(start_date, end_date)
-
-    conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
-    conditions_2 = f"AND mcr.employee = '{user}' AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
 
     fincall_data = frappe.db.sql(f"""
         SELECT 
@@ -550,7 +536,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
             COUNT(*) AS fincall_count,
             COALESCE(SUM(duration), 0) AS total_duration
         FROM `tabEmployee Fincall`
-        {conditions} and (link_to != 'Company' or link_to is null)
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}' and (link_to != 'Company' or link_to is null)
         GROUP BY calltype
     """, as_dict=True)
 
@@ -581,7 +567,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
             COUNT(*) AS fincall_count,
             COALESCE(SUM(duration), 0) AS total_duration
         FROM `tabEmployee Fincall`
-        {conditions} and link_to = 'Company' and link_to is not null
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}' and link_to = 'Company' and link_to is not null
         GROUP BY calltype
     """, as_dict=True)
 
@@ -610,7 +596,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
     application_usage_days = frappe.db.sql(f"""
         SELECT DISTINCT DATE(`date`) AS date 
         FROM `tabApplication Usage log`
-        {conditions};
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}';
     """, as_dict=True, pluck='date')
 
     # Fetch meeting usage days
@@ -619,12 +605,12 @@ def fetch_url_data(user,start_date=None, end_date=None):
         FROM `tabMeeting` AS m 
         JOIN `tabMeeting Company Representative` AS mcr 
         ON m.name = mcr.parent 
-        {conditions_2}
+        WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}'
     """, as_dict=True, pluck='date')
 
     total_days = len(set(application_usage_days + meeting_usage_days)) or 1
 
-    sql_query = f"""
+    meetings_external_employee = frappe.db.sql(f"""
     SELECT 
         SUM(CASE 
                 WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
@@ -632,28 +618,23 @@ def fetch_url_data(user,start_date=None, end_date=None):
             END) AS total_meeting_duration,
         COUNT(DISTINCT m.name) as meeting_count
     FROM `tabMeeting` as m
-    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
-    and m.docstatus = 1 and internal_meeting = 0
-    {conditions_2}
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE m.meeting_from >= '{start_date} 00:00:00' 
+    AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}' and m.internal_meeting = 0
     GROUP BY mcr.employee
-    """
-    meetings_external_employee = frappe.db.sql(sql_query, (user,), as_dict=True)
-    sql_query = f"""
-    SELECT 
-        SUM(CASE 
-                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
-                ELSE 0 
-            END) AS total_meeting_duration,
-        COUNT(DISTINCT m.name) as meeting_count
-    FROM `tabMeeting` as m
-    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent WHERE mcr.employee = %s
-    and m.docstatus = 1 and internal_meeting = 1
-    {conditions_2}
-    GROUP BY mcr.employee
-    """
+    """, as_dict=True)
 
-    # Executing the query
-    meetings_internal_employee = frappe.db.sql(sql_query, (user,), as_dict=True)
+    meetings_internal_employee = frappe.db.sql(f"""
+    SELECT 
+        SUM(CASE 
+                WHEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) > 0 THEN TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))
+                ELSE 0 
+            END) AS total_meeting_duration,
+        COUNT(DISTINCT m.name) as meeting_count
+    FROM `tabMeeting` as m
+    JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent 
+    WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}' and m.internal_meeting = 1
+    GROUP BY mcr.employee
+    """, as_dict=True)
 
     # Documents Accessed
     total_unique_doc = frappe.db.sql(f"""
@@ -666,14 +647,14 @@ def fetch_url_data(user,start_date=None, end_date=None):
     # Application Usage Log Count, Top 10 Doc's Used Cards
     total_counts = frappe.db.sql(f"""
         SELECT
-            (SELECT COUNT(DISTINCT application_name) FROM `tabApplication Usage log`{conditions})  AS application_usage,
+            (SELECT COUNT(DISTINCT application_name) FROM `tabApplication Usage log` WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}')  AS application_usage,
             (SELECT COUNT(*) FROM `tabVersion` {version_conditions_str} {ignore_condition})  AS version_count
         """, as_dict=1)[0]
 
     domain_data = frappe.db.sql(f"""
         SELECT domain, SUM(duration) as total_duration, application_name,count(domain) as count
         FROM `tabApplication Usage log`
-        Where employee = '{user}' and from_time >= '{start_date_}' and to_time <= '{end_date_}' and domain != '' and domain is not null
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}' and domain != '' and domain is not null
         GROUP BY domain
         ORDER BY total_duration DESC
         LIMIT 10
@@ -724,16 +705,13 @@ def fetch_url_data(user,start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_url_brief_data(url_data,user,start_date=None, end_date=None):
-    start_date_,end_date_ = set_dates(start_date, end_date)
-    conditions = f"WHERE employee = '{user}' AND from_time >= '{start_date_}' AND to_time <= '{end_date_}'"
-    query = f"""
+    data_query = frappe.db.sql(f"""
         SELECT url, SUM(duration) AS duration, COUNT(url) as count, application_title
         FROM `tabApplication Usage log` 
-        {conditions} and domain = '{url_data}'
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}' and domain = '{url_data}'
         GROUP BY url
         ORDER BY SUM(duration) DESC
-        """
-    data_query = frappe.db.sql(query, as_dict=True)
+        """, as_dict=True)
     return {
         "data":data_query
     }
@@ -747,7 +725,7 @@ def hourly_calls_analysis(user, start_date=None, end_date=None):
     data = frappe.db.sql(f"""
         select sum(duration) as total_count, calltype, hour(call_datetime) as hour
         FROM `tabEmployee Fincall`
-        WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}' and (calltype = 'Incoming' or calltype = 'Outgoing')
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}' and (calltype = 'Incoming' or calltype = 'Outgoing')
         group by HOUR(call_datetime), calltype
         """, as_dict=1)
     
@@ -824,9 +802,7 @@ def top_document_analysis(user, start_date=None, end_date=None):
 # User Activity Images Code Starts
 @frappe.whitelist()
 def user_activity_images(user, start_date=None, end_date=None, offset=0):
-    # start_date, end_date = set_dates(start_date, end_date)
-
-    data = frappe.get_all("Screen Screenshot Log", filters={"employee": user, "time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time"])
+    data = frappe.get_all("Screen Screenshot Log", filters={"employee": user,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
     for i in data:
         i["time_"] = frappe.format(i["time"], "Datetime")
     return data
@@ -835,39 +811,11 @@ def user_activity_images(user, start_date=None, end_date=None, offset=0):
 # Conditions to be applied to get data from versions table code starts 
 @frappe.whitelist() 
 def version_conditions(user,start_date=None, end_date=None):
-    start_date,end_date= set_dates(start_date, end_date)
     if user != "Administrator":
         email = frappe.db.get_value("Employee", user, "company_email")
-        condition = f"WHERE owner = '{email}' AND creation >= '{start_date}' AND creation <= '{end_date}'"
+        condition = f"WHERE modified_by = '{email}' and creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59'"
     else:
-        condition = f"WHERE creation >= '{start_date}' AND creation <= '{end_date}'"
+        condition = f"WHERE creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59'"
 
     return condition
 # Conditions to be applied to get data from versions table code ends
-
-
-# Convert start date from 2024-07-17 to 2024-07-17 00:00:00 and end date from 2024-07-17 to 2024-07-17 23:59:59 code starts
-def set_dates(start_date=None, end_date=None):
-    """
-    Determine start and end dates for a range, formatted with specific time stamps.
-    Args:
-    - start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to 365 days ago.
-    - end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to today.
-
-    Returns:
-    - tuple: A tuple containing formatted start and end dates as strings.
-    """
-    now = frappe.utils.now_datetime()
-    
-    if start_date is None:
-        start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d 00:00:00')
-    else:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d 00:00:00')
-    
-    if end_date is None:
-        end_date = now.strftime('%Y-%m-%d 23:59:59')
-    else:
-        end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d 23:59:59')
-
-    return start_date, end_date
-# Convert start date from 2024-07-17 to 2024-07-17 00:00:00 and end date from 2024-07-17 to 2024-07-17 23:59:59 code ends

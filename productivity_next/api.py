@@ -1,7 +1,7 @@
 import json
 import frappe
 from frappe.auth import LoginManager
-from productivity_next.utils.auth import get_bearer_token
+from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
@@ -26,14 +26,29 @@ def login(username, password, purpose):
     login_manager.authenticate(username, password)
     frappe.session.user = username
 
-    token = get_bearer_token(username, expires_in_days=1, purpose=purpose)
+    token = get_bearer_token(username, expires_in_days=7, purpose=purpose)
 
     return {
         "status": True,
         "access_token": token["access_token"],
+        "refresh_token": token["refresh_token"],
         "expiration_time": token["expiration_time"],
+        "employee": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name"),
+        "full_name": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "employee_name"),
     }
 
+@frappe.whitelist(allow_guest=False)
+def update_token(refresh_token, purpose):
+    access_token = update_expiry_time(frappe.session.user, refresh_token, expires_in_days=7, purpose=purpose)
+
+    return {
+        "status": True,
+        "access_token": access_token,
+        "refresh_token": frappe.db.get_value("OAuth Bearer Token", access_token, "refresh_token"),
+        "expiration_time": frappe.db.get_value("OAuth Bearer Token", access_token, "expiration_time"),
+        "employee": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name"),
+        "full_name": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "employee_name"),
+    }
 
 @frappe.whitelist()
 def set_application_checkin_checkout(
@@ -318,20 +333,25 @@ def add_meeting(
     meeting_arranged_by,
     internal_meeting,
     purpose,
-    industry,
+    # industry,
     party_type,
     party,
     discussion,
     meeting_company_representative,
+    meeting_party_representative,
 ):
     meeting_company_representative = json.loads(meeting_company_representative)
+    if meeting_party_representative:
+        meeting_party_representative = json.loads(meeting_party_representative)
+    else:
+        meeting_party_representative = []
     meeting = frappe.new_doc("Meeting")
     meeting.meeting_from = meeting_from
     meeting.meeting_to = meeting_to
     meeting.meeting_arranged_by = meeting_arranged_by
     meeting.internal_meeting = internal_meeting
     meeting.purpose = purpose
-    meeting.industry = industry if industry else None
+    # meeting.industry = industry if industry else None
     meeting.party_type = party_type if party_type else None
     meeting.party = party if party else None
     meeting.discussion = discussion
@@ -341,6 +361,13 @@ def add_meeting(
             {
                 "employee": row.get("employee"),
                 "employee_name": row.get("employee_name"),
+            },
+        )
+    for row in meeting_party_representative:
+        meeting.append(
+            "meeting_party_representative",
+            {
+                "contact": row.get("contact"),
             },
         )
     meeting.save()
@@ -396,7 +423,11 @@ def organization_signup(
     contact_person,
     email,
     mobile_no,
-    subscription_plan="",
+    fincall=False,
+    application_usage=False,
+    sales_person=False,
+    project=False,
+    issue=False,
 ):
     """
     API_PATH: /api/method/productivity_next.api.organization_signup
@@ -410,6 +441,20 @@ def organization_signup(
     user_details.flags.ignore_permissions = True
     user_details.save()
 
+    productify_subscription = frappe.get_doc(
+        {
+            "doctype": "Productify Subscription",
+            "organization_name": organization_name,
+            "email": email,
+            "mobile_no": mobile_no,
+            "erpnext_url": domain,
+        }
+    )
+    productify_subscription.insert()
+    frappe.msgprint(
+        _(f"Organization signed up successfully,{productify_subscription.name}")
+    )
+
     url = "http://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup"
 
     payload = json.dumps(
@@ -419,7 +464,11 @@ def organization_signup(
             "contact_person": contact_person,
             "email": email,
             "mobile_no": mobile_no,
-            "subscription_plan": subscription_plan,
+            "fincall": fincall,
+            "application_usage": application_usage,
+            "sales_person": sales_person,
+            "project": project,
+            "issue": issue,
             "api_key": user_details.api_key,
             "api_secret": api_secret,
         }
@@ -435,3 +484,58 @@ def organization_signup(
         status=response.status_code,
         content_type="application/json",
     )
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def send_user_list(user_list):
+    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.receive_user_list"
+    organization_name = frappe.db.get_single_value(
+        "Productify Subscription", "organization_name"
+    )
+
+    if not organization_name:
+        return {"message": "Organization name is not set in Productify Subscription"}
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription", organization_name
+    )
+
+    payload = json.dumps({"users": user_list, "organization_id": organization_name})
+    users = json.loads(user_list)
+    productify_subscription.list_of_users = []
+    for user in users:
+        productify_subscription.append(
+            "list_of_users",
+            {
+                "employee": user.get("name"),
+                "fincall": user.get("fincall"),
+                "application_usage": user.get("application_usage"),
+                "sales_person": user.get("sales_person"),
+            },
+        )
+    productify_subscription.save(ignore_permissions=True)
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    return Response(
+        response=response.text,
+        status=response.status_code,
+        content_type="application/json",
+    )
+
+
+@frappe.whitelist(methods=["GET"])
+def get_active_projects():
+    """
+    API_PATH: /api/method/productivity_next.api.get_active_projects
+    """
+    subcription = frappe.get_doc("Productify Subscription")
+    if subcription.project_tracking and subcription.issue_tracking:
+        projects = frappe.get_all(
+            "Project", filters={"status": "Open"}, fields=["name", "project_name"]
+        )
+        return projects
+    return []

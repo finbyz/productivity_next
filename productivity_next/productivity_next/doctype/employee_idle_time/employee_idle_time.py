@@ -10,5 +10,6 @@ class EmployeeIdleTime(Document):
 	def validate(self):
 		self.duration = time_diff_in_seconds(self.to_time, self.from_time)
 
-def on_doc_update(self):
+def on_doctype_update():
 	frappe.db.add_unique("Employee Idle Time", ["employee", "from_time", "to_time"])
+	frappe.db.add_index("Employee Idle Time",["date","employee"])	

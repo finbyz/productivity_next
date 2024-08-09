@@ -10,3 +10,4 @@ class WorkIntensity(Document):
 
 def on_doctype_update():
     frappe.db.add_unique("Work Intensity", ["employee", "time"])
+    frappe.db.add_index("Work Intensity",["employee","time"])

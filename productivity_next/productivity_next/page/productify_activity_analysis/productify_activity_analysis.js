@@ -98,17 +98,44 @@ UserProfile = class UserProfile {
 		this.setup_timespan();
 		this.setup_user_search();
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
-		this.work_intensity();
 		this.overall_performance();
-		this.application_usage_time();
-		this.web_browsing_time();
-		this.top_phone_calls();
-		this.type_of_calls();
 		this.fetch_url_data();
-		this.hourly_calls_analysis();
-		this.top_document_analysis();
-		this.render_images();
+	
+		// JavaScript to handle tab switching
+		const tabs = document.querySelectorAll('.nav-link');
+		const contents = document.querySelectorAll('.tab-pane');
+	
+		tabs.forEach(tab => {
+			tab.addEventListener('click', () => {
+				const target = document.querySelector(tab.getAttribute('data-bs-target'));
+				
+				// Log aria-labelledby attribute
+				console.log(target.getAttribute('aria-labelledby'));
+				
+				// Manage tab and content visibility
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				// Check aria-labelledby and execute methods if needed
+				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
+					this.work_intensity();
+					this.application_usage_time();
+					this.web_browsing_time();
+					this.top_document_analysis();
+					this.render_images();
+				}
+				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
+					this.top_phone_calls();
+					this.type_of_calls();
+					this.hourly_calls_analysis();
+				}
+				
+				contents.forEach(content => content.classList.remove('show', 'active'));
+				target.classList.add('show', 'active');
+			});
+		});
 	}
+	
 
 	// Timespan Select Code Starts
 	setup_timespan() {
@@ -149,6 +176,9 @@ UserProfile = class UserProfile {
 				const urlParams = new URLSearchParams(window.location.search);
 				this.selected_start_date = urlParams.get('start_date');
 				this.selected_end_date = urlParams.get('end_date');
+				if (urlParams.get('employee')) {
+					this.selected_employee = urlParams.get('employee');
+				}
 				this.make_user_profile();
 			},
 		});
@@ -193,7 +223,7 @@ UserProfile = class UserProfile {
 			this.finish_user_profile_setup();
 		}
 	}
-	// Employee Name And Date Title Code Ends
+	// Employee Name And Date Title Code End
 
 	// Change Employee Button Code Starts
 	setup_user_search() {
@@ -256,16 +286,11 @@ UserProfile = class UserProfile {
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		}).then((response) => {
-			// console.log("Data fetched successfully for Intensity Chart:", response);
-	
-			// Check if there's data available
 			if (response.length === 0) {
-				// console.log("No data available for the selected period.");
 				return;
 			}
 	
 			const hours = Array.from({ length: 17 }, (_, index) => `${index + 7}:00`);
-	
 			const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 			const data = [];
 	
@@ -273,33 +298,19 @@ UserProfile = class UserProfile {
 				const hour = entry[0];
 				const value = entry[1];
 				const dayOfWeek = entry[2];
-	
-				// console.log(`Processing entry: hour=${hour}, value=${value}, dayOfWeek=${dayOfWeek}`);
-	
-				const xIndex = hour - 7; // Adjust for starting hour index in hours array
+				const xIndex = hour - 7;
 				const yIndex = days.indexOf(dayOfWeek);
-	
-				// console.log(`Computed indices: xIndex=${xIndex}, yIndex=${yIndex}`);
 	
 				if (yIndex !== -1) {
 					data.push([xIndex, yIndex, value || 0]);
-				} else {
-					console.warn(`Day of week '${dayOfWeek}' not found in days array.`);
 				}
 			});
-	
-	
-			// console.log("Transformed data for heatmap:", data);
 	
 			const values = data.map(item => item[2]);
 			const minValue = Math.min(...values);
 			const maxValue = Math.max(...values);
 	
-			// console.log("Min and Max values:", minValue, maxValue);
-	
 			const heatMapDom = document.querySelector('.work-intensity');
-			// console.log("Heatmap container element:", heatMapDom);
-	
 			const heatMapChart = echarts.init(heatMapDom, null, { renderer: 'svg' });
 	
 			const option = {
@@ -357,11 +368,16 @@ UserProfile = class UserProfile {
 				}]
 			};
 	
-			// console.log("ECharts Option Object:", option);
-	
 			heatMapChart.setOption(option);
+	
+			// Store the chart instance globally
+			window.myChart = heatMapChart;
+	
+			// Add resize listener
 			window.addEventListener('resize', function () {
-				heatMapChart.resize();
+				if (window.myChart) {
+					window.myChart.resize();
+				}
 			});
 		}).catch((error) => {
 			console.error("Error fetching data:", error);
@@ -433,7 +449,7 @@ UserProfile = class UserProfile {
 							var employeeName = _rawData.parkingApron.data[i];
 							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
 							employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
-						
+
 							if (employeeActivities.length > 0) {
 								employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
 								var lastEndTime = new Date(employeeActivities[0][3]).getTime();
@@ -450,11 +466,15 @@ UserProfile = class UserProfile {
 								}
 							}
 						}
-						
+
 						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
 						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);						
-						
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);	
+						_rawData.flight.data = _rawData.flight.data.map(item => {
+							let date = new Date(item[1]);
+							let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+							return [item[0], formattedDate, ...item.slice(2)];
+						});						
 						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
 						function setFixedDate(timestamp) {
 							var date = new Date(timestamp);
@@ -475,6 +495,16 @@ UserProfile = class UserProfile {
 	
 						return {
 							backgroundColor: 'transparent',
+							legend: {
+								selected: {
+									'Application': true,
+									'Idle': true,
+									'Call': true,
+									'Internal Meeting': true,
+									'External Meeting': true,
+									'Inactive': true
+								},
+							},
 							tooltip: {
 								formatter: function(params) {
 									var activityType = params.data[0];
@@ -494,22 +524,29 @@ UserProfile = class UserProfile {
 									if (hours > 0) durationString += hours + "h ";
 									if (minutes > 0) durationString += minutes + "m ";
 									if (seconds > 0 || durationString === "") durationString += seconds + "s";
-	
+
 									var tooltipContent = `<div style="line-height: 1.5;">`;
 									if (activityType === 'Call' && params.data[4]) {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
 									} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
-										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;">Internal:</span> ${params.data[4]}<br>`;
-										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[5]}</span> <br>`;
+										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
+										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
+										if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
 									}
-									tooltipContent += `<span style="font-weight: bold;">Activity:</span> ${activityType}<br>
-												<span style="font-weight: bold;">Date:</span> ${date}<br>
-												<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
-												<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
-												<span style="font-weight: bold;">Duration:</span> ${durationString}`;
-							
+									else{
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
+	
+									}
+								
+									tooltipContent += `
+										<span style="font-weight: bold;">Date:</span> ${date}<br>
+										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
+										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
+										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
 									tooltipContent += `</div>`;
+								
 									return tooltipContent;
 								},
 							},
@@ -517,7 +554,7 @@ UserProfile = class UserProfile {
 							toolbox: {
 								left: 20,
 								top: 0,
-								itemSize: 20
+								itemSize: 20 
 							}, 
 							dataZoom: [
 								{
@@ -527,8 +564,8 @@ UserProfile = class UserProfile {
 									width: 10,
 									right: 10,
 									top: 70,
-									start: 95,
-									end: 100,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
 									bottom: 20,
 									handleSize: 0,
 									showDetail: false
@@ -537,8 +574,8 @@ UserProfile = class UserProfile {
 									type: 'inside',
 									id: 'insideY',
 									yAxisIndex: 0,
-									start: 95,
-									end: 100,  // Show fewer rows at a time
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
 									zoomOnMouseWheel: false,
 									moveOnMouseMove: true,
 									moveOnMouseWheel: true
@@ -593,14 +630,14 @@ UserProfile = class UserProfile {
 								axisLabel: { 
 									show: true,
 									align: 'right',
-									margin: 10,   // Adjust margin between axis labels and bars
+									margin: 10,
 									formatter: function(value) {
 										return '{a|' + value + '}';
 									},
 									rich: {
 										a: {
 											align: 'right',
-											width: 80,
+											width: 100, // Increased width to accommodate the new date format
 										}
 									}
 								},
@@ -661,13 +698,64 @@ UserProfile = class UserProfile {
 							]
 						};
 					}
-	
 					overallPerformance.setOption(makeOption());
+					function updateChart() {
+						let legends = overallPerformance.getOption().legend[0].selected
+						legends = Object.keys(legends).filter(legend => legends[legend]);
+						var filteredData = _rawData.flight.data.filter(item => {
+							var activityType = item[0];
+							return legends.includes(activityType);
+						});
+
+						overallPerformance.setOption({
+							series: [{
+								id: 'flightData',
+								data: filteredData
+							}]
+						});
+					}
+					$('#overallChartLegends li').each(function() {
+						let li = $(this);
+						$(li).attr('selected', 'true');
+					});
+					function updateLegend() {
+						let overallChartLegends = $('#overallChartLegends li');
+						let legends = {};
+
+						overallChartLegends.each(function() {
+							let li = $(this);
+							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+							console.log(li.attr('data-value'));
+						});
+
+						overallPerformance.setOption({
+							legend: {
+								selected: legends
+							}
+						});
+
+						console.log(legends);
+
+					}
+					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+					$.each(overallChartLegends, function(index, li) {
+						$(li).on('click', function() {
+							if ($(li).attr('selected')) {
+								$(li).removeAttr('selected');
+							} else {
+								$(li).attr('selected', 'true');
+							}
+							updateLegend();
+							updateChart();
+						});
+					});
 					overallPerformance.on('click', function (params) {
-						console.log("Click event:", params.value);
+						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
+							// console.log("start",params.value[2]);
 							var startTime = params.value[2];
 							var endTime = params.value[3];
+							// console.log("hiiiiiiiiiiiiiiiiiiii",startTime, endTime);
 							var employeeName = params.value[1];
 	
 							frappe.db.get_value("Employee", {
@@ -682,7 +770,27 @@ UserProfile = class UserProfile {
 										in_list_view: 1,
 										options: "Employee",
 										ignore_user_permissions: 1,
-									},
+										reqd: 1,
+									}
+								];
+								const party_fields = [
+									{
+										label: 'Contact',
+										fieldname: 'contact',
+										fieldtype: 'Link',
+										options: 'Contact',
+										in_list_view: 1,
+										get_query: function() {
+											const selectedParty = d.get_values().party;
+											const selectedPartyType = d.get_values().party_type;
+											return {
+												filters: {
+													link_doctype: selectedPartyType,
+													link_name: selectedParty
+												}
+											};
+										}
+									}
 								];
 								var fields = [
 									{
@@ -696,6 +804,23 @@ UserProfile = class UserProfile {
 										label: "Internal Meeting",
 										fieldname: "internal_meeting",
 										fieldtype: "Check",
+										onchange: function() {
+											const companyRepField = d.fields_dict.meeting_company_representative;
+											if (this.get_value()) {
+												companyRepField.df.reqd = 1;
+												companyRepField.grid.min_rows = 2;
+											} else {
+												companyRepField.df.reqd = 0;
+												companyRepField.grid.min_rows = 0;
+											}
+											companyRepField.refresh();
+										}
+									},
+									{
+										fieldname: 'internal_meeting_note',
+										fieldtype: 'HTML',
+										options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+										depends_on: 'eval:doc.internal_meeting'
 									},
 									{
 										label: "Purpose",
@@ -720,10 +845,26 @@ UserProfile = class UserProfile {
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
-										label: __("Party"),
-										fieldtype: 'Dynamic Link',
-										options: "party_type",
+										label: 'Party',
 										fieldname: 'party',
+										fieldtype: 'Dynamic Link',
+										options: 'party_type',
+										change: function() {
+											const selectedParty = d.get_value('party');
+											const selectedPartyType = d.get_value('party_type');
+									
+											if (selectedParty && selectedPartyType) {
+												d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+													return {
+														filters: {
+															link_doctype: selectedPartyType,
+															link_name: selectedParty
+														}
+													};
+												};
+												d.fields_dict['meeting_party_representative'].grid.refresh();
+											}
+										},
 										depends_on: 'eval:!doc.internal_meeting',
 										mandatory_depends_on: 'eval:!doc.internal_meeting',
 									},
@@ -732,7 +873,8 @@ UserProfile = class UserProfile {
 										fieldname: "meeting_arranged_by",
 										fieldtype: "Link",
 										options: "User",
-										default: employeeId
+										default: employeeId,
+										reqd: 1
 									},
 									{
 										fieldtype: 'Column Break',
@@ -741,22 +883,24 @@ UserProfile = class UserProfile {
 										label: 'Meeting From',
 										fieldname: 'meeting_from',
 										fieldtype: 'Datetime',
-										default: startTime
+										default: startTime,
+										reqd: 1
 									},
 									{
 										label: 'Meeting To',
 										fieldname: 'meeting_to',
 										fieldtype: 'Datetime',
-										default: endTime
+										default: endTime,
+										reqd: 1
 									},
-									{
-										label: "Industry",
-										fieldname: "industry",
-										fieldtype: "Link",
-										options: "Industry Type",
-										depends_on: 'eval:!doc.internal_meeting',
-										mandatory_depends_on: 'eval:!doc.internal_meeting',
-									},
+									// {
+									// 	label: "Industry",
+									// 	fieldname: "industry",
+									// 	fieldtype: "Link",
+									// 	options: "Industry Type",
+									// 	depends_on: 'eval:!doc.internal_meeting',
+									// 	mandatory_depends_on: 'eval:!doc.internal_meeting',
+									// },
 									{
 										fieldtype: 'Section Break',
 									},
@@ -767,6 +911,25 @@ UserProfile = class UserProfile {
 										fieldtype: 'Table',
 										fields: table_fields,
 										options: 'Meeting Company Representative',
+										reqd: 1,
+										onchange: function() {
+											if (d.get_value('internal_meeting')) {
+												this.grid.min_rows = 2;
+											} else {
+												this.grid.min_rows = 0;
+											}
+										}
+									},
+									{
+										fieldtype: 'Section Break',
+									},
+									{
+										label: 'Meeting Party Representative',
+										fieldname: 'meeting_party_representative',
+										fieldtype: 'Table',
+										fields: party_fields,
+										options: 'Meeting Party Representative',
+										depends_on: 'eval:!doc.internal_meeting',
 									},
 									{
 										label: "Discussion",
@@ -781,6 +944,21 @@ UserProfile = class UserProfile {
 									fields: fields,
 									primary_action_label: 'Submit',
 									primary_action(values) {
+										// Disable the button and change its text
+										this.disable_primary_action();
+										this.set_title('Submitting...');
+								
+										if (values.internal_meeting) {
+											const companyRepresentatives = values.meeting_company_representative || [];
+											if (companyRepresentatives.length < 2) {
+												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+												// Re-enable the button if validation fails
+												this.enable_primary_action();
+												this.set_title('Submit');
+												return;
+											}
+										}
+								
 										frappe.call({
 											method: "productivity_next.api.add_meeting",
 											args: {
@@ -789,28 +967,49 @@ UserProfile = class UserProfile {
 												meeting_arranged_by: values.meeting_arranged_by,
 												internal_meeting: values.internal_meeting,
 												purpose: values.purpose,
-												industry: values.industry || null,
+												// industry: values.industry || null,
 												party_type: values.party_type || null,
 												party: values.party || null,
 												discussion: values.discussion,
-												meeting_company_representative: values.meeting_company_representative
+												meeting_company_representative: values.meeting_company_representative || null,
+												meeting_party_representative: values.meeting_party_representative || null
 											},
 											callback: (r) => {
 												if (r.message) {
-													frappe.msgprint("Meeting added successfully");
-													d.hide();
+													frappe.msgprint({
+														title: __('Success'),
+														indicator: 'green',
+														message: __('Meeting added successfully')
+													});
+													this.hide();
+												} else {
+													// If there's no message, assume it's an error
+													frappe.msgprint({
+														title: __('Error'),
+														indicator: 'red',
+														message: __('Failed to add meeting. Please try again.')
+													});
+													// Re-enable the submit button
+													this.enable_primary_action();
+													this.set_title('Submit');
 												}
+											},
+											error: (r) => {
+												// Handle any errors that occur during the call
+												frappe.msgprint({
+													title: __('Error'),
+													indicator: 'red',
+													message: __('An error occurred while adding the meeting. Please try again.')
+												});
+												// Re-enable the submit button
+												this.enable_primary_action();
+												this.set_title('Submit');
 											}
-										});
-									},
-									onshow: function () {
-										var me = this;
-										this.fields_dict.meeting_company_representative.grid.wrapper.on('click', '.grid-row', function () {
-											var grid_row = $(this).closest('.grid-row');
-											var employee = grid_row.find('input[data-fieldname="employee"]').val();
 										});
 									}
 								});
+								
+								// Set up the purpose field filter
 								d.fields_dict.purpose.get_query = function () {
 									return {
 										filters: {
@@ -818,6 +1017,8 @@ UserProfile = class UserProfile {
 										}
 									};
 								};
+								
+								// Show the dialog
 								d.show();
 							}).catch(err => {
 								console.error("Error fetching employee details:", err);
@@ -955,120 +1156,83 @@ UserProfile = class UserProfile {
 
 	// Web Browsing Time Chart Code Starts
 	web_browsing_time() {
-		let data;
-		if (this.selected_employee !== null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-
-		// Fetch the data and render the pie chart using ECharts
+		let data = this.selected_employee || this.user_id;
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.web_browsing_time", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
 			})
-			.then((r) => {
-				if (r.length === 0) {
-					// console.log("No data available to plot the chart.");
-					return;
-				}
-
+			.then(r => {
+				if (r.length === 0) return;
+	
 				const chartDom = document.getElementById('web-browsing-time');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
 				}
-
-				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
-
-				// Example function to get current theme's label color
-				const getCurrentThemeLabelColor = () => {
-					// Replace this with your actual theme color retrieval logic
-					// This is just a placeholder
-					return {
-						labelColor: '#FFFFFF', // Default to black
-						backgroundColor: 'rgba(0,0,0,0)' // Default to transparent
-					};
-				};
-
-				const themeColors = getCurrentThemeLabelColor();
-
+	
+				// Destroy existing chart instance if it exists
+				let myChart = echarts.getInstanceByDom(chartDom);
+				if (!myChart) {
+					myChart = echarts.init(chartDom, null, { renderer: 'svg' });
+				}
+	
 				const option = {
 					tooltip: {
-					  trigger: 'item',
-					  formatter: function(params) {
-						// Calculate hours and minutes
-						let totalHours = params.value;
-						let hours = Math.floor(totalHours); // Get the whole number of hours
-						let minutes = Math.round((totalHours - hours) * 60); // Convert the fraction to minutes and round it
-					
-						// Return formatted string with colon between hours and minutes
-						return `${params.name} : ${hours}:${minutes < 10 ? '0' + minutes : minutes} Hours`;
-					}
-					
+						trigger: 'item',
+						formatter: params => {
+							let totalHours = params.value;
+							let hours = Math.floor(totalHours);
+							let minutes = Math.round((totalHours - hours) * 60);
+							return `${params.name} : ${hours}:${minutes < 10 ? '0' + minutes : minutes} Hours`;
+						}
 					},
 					legend: {
-					  orient: 'horizontal',
-					  left: 10, // Adjust left position in pixels or adjust as needed
+						orient: 'horizontal',
+						left: 10
 					},
-					series: [
-					  {
+					series: [{
 						name: 'Access From',
 						type: 'pie',
 						radius: '55%',
 						top: '20%',
 						center: ['50%', '50%'],
-						label: {  // Add this property to control labels
-							show: false  // Set show to false to hide labels
-						  },
-						  labelLine: {  // Add this property to control label lines
-							show: false  // Set show to false to hide label lines
-						  },
+						label: {
+							show: false
+						},
+						labelLine: {
+							show: false
+						},
 						data: r,
 						emphasis: {
-						  itemStyle: {
-							shadowBlur: 10,
-							shadowOffsetX: 0,
-							shadowColor: 'rgba(0, 0, 0, 0.5)'
-						  }
+							itemStyle: {
+								shadowBlur: 10,
+								shadowOffsetX: 0,
+								shadowColor: 'rgba(0, 0, 0, 0.5)'
+							}
 						}
-					  }
-					],
-					color: [
-						'#FF6384', // Red
-						'#36A2EB', // Blue
-						'#FFCE56', // Yellow
-						'#4BC0C0', // Cyan
-						'#9966FF', // Lavender
-						'#FF9966', // Orange
-						'#66CCCC', // Light Blue
-						'#6699FF', // Light Blue
-						'#FF6666', // Light Red
-						'#FFCC66'  // Light Yellow
-					],
+					}],
+					color: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9966', '#66CCCC', '#6699FF', '#FF6666', '#FFCC66'],
 					textStyle: {
-						color: themeColors.labelColor
+						color: '#FFFFFF'
 					},
-					backgroundColor: themeColors.backgroundColor
+					backgroundColor: 'rgba(0,0,0,0)'
 				};
-
-				// Set dynamic width and height for the chart
-				myChart.resize();
-
+	
 				myChart.setOption(option);
-
+				myChart.resize(); // Resize to fit the container
+	
+				// Re-add resize listener to ensure chart resizes with window
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-
-				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
 	}
+	
 	// Web Browsing Time Chart Code Ends
 	
 	// Top phone calls chart code starts
@@ -1087,9 +1251,10 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
+				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
-					// console.log("No data available to plot the chart.");
-					return;
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
 				}
 	
 				const chartDom = document.getElementById('top-phone-calls');
@@ -1122,7 +1287,7 @@ UserProfile = class UserProfile {
 						},
 						
 						position: ['50%', '50%'],
-					},
+					}, 
 					series: [
 						{
 							name: 'Caller Origin',
@@ -1404,7 +1569,7 @@ UserProfile = class UserProfile {
 			<div class="row mt-3">
 				<div class="col-md-12">
 					<div class="custom-card">
-						<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 Site's Used</h4>
+						<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 Sites Used</h4>
 						<div class="table-responsive">
 						<table class="table">
 							<thead>
@@ -1595,163 +1760,221 @@ UserProfile = class UserProfile {
 				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
-				let inactiveHoursRow = '';
-				let inactiveHoursRow_ = '';
-				if (r.total_inactive_hours > 0) {
-					inactiveHoursRow = `
-						<tr class='text-white'>
-							<td><b>Inactive Time:</b></td>
-							<td>-</td>
-							<td><b>${total_inactive_hours} H</b></td>
-						</tr>
-					`;
-				}
-				if (r.total_inactive_hours > 0) {
-					inactiveHoursRow_ = `
-						<tr class='text-dark'>
-							<td><b>Inactive Time:</b></td>
-							<td>-</td>
-							<td><b>${total_inactive_hours} H</b></td>
-						</tr>
-					`;
-				}
-				const container = $("#user-activity");
-				const customStyles = `
-					<style>
-						.tight-table tr {
-							margin-bottom: 0 !important;
-							padding-bottom: 0 !important;
-						}
-					</style>
-				`;
-				container.html(`
-					 ${customStyles}
-    		<div class="progress" style="max-width: 400px !important;" 
-				data-toggle="tooltip" 
-				title="
-			</div>
-            <div>
-                <b class='heading-custom'>User Activity</b>
-                <table class='table-borderless table-tooltip table-spacing'>
-                    <tbody>
-                        <tr class='text-white'>
+
+				$(document).ready(function() {
+
+					const hovercontainer = $("#user-activity-hover");
+					hovercontainer.html(`
+						<div class="progress" style="max-width: 400px !important;" data-toggle="tooltip" data-html="true" data-placement="left" title="">
+							<div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+						</div>
+					`);
+				
+					var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
+					myDefaultWhiteList.table = ['class'];
+					myDefaultWhiteList.tbody = [];
+					myDefaultWhiteList.tr = [];
+					myDefaultWhiteList.td = [];
+				
+					// Define tooltip content function
+					function getTooltipContent() {
+						return `
+							<div>
+								<h4 class ="text-center text-white">User Activity</h4>
+								<table class='table-borderless table-tooltip table-spacing'>
+									<tbody>
+					  <tr>
 						<td>Call:</td>
-						<td>-</td>
-						<td>${total_call_raw} H</td>
-                        </tr>
-                        <tr class='text-white'>
+						<td class="justify time-cell"><span>${total_call_raw} H</span></td>
+					  </tr>
+					  <tr>
 						<td>Meeting:</td>
-						<td>-</td>
-						<td>${total_meeting_raw} H</td>
-                        </tr>
-                        <tr class='text-white'>
+						<td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+					  </tr>
+					  <tr>
 						<td>System:</td>
-						<td>-</td>
-						<td>${total_system_hours} H</td>
-                        </tr>
-                        <tr class='text-white border-bottom'>
-                            <td>Overlapping:</td>
-                            <td>-</td>
-                            <td>-${overlapping} H</td>
-                        </tr>
-						<tr class='text-white'>
-                            <td><b>Active Time:</b></td>
-                            <td>-</td>
-                            <td><b>${total_active_hours} H</b></td>
-                        </tr>
-                        <tr class='text-white'>
-                            <td><b>Idle Time:</b></td>
-                            <td>-</td>
-                            <td><b>${total_idle_time} H</b></td>
-                        </tr>
-                        ${inactiveHoursRow}
-						<tr class='text-white border-top'>
-                            <td><b>Total Time:</b></td>
-                            <td>-</td>
-                            <td><b>${total_hours} H</b></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>"
-         data-html="true"
-         data-placement="left">
-        <div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-        <div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-    </div>
-`);
-
-
-				var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
-				myDefaultWhiteList.table = ['class'];
-				myDefaultWhiteList.tbody = [];
-				myDefaultWhiteList.tr = [];
-				myDefaultWhiteList.td = [];
-
-				$('[data-toggle="tooltip"]').tooltip({
-					container: 'body',
-					html: true,
-					whiteList: myDefaultWhiteList,
-					title: function () { return '<u>text1</u><table class="table text-light"><tr><td>text2</td></tr></table>'; }
+						<td class="justify time-cell"><span>${total_system_hours} H</span></td>
+					  </tr>
+					  <tr class = "border-bottom">
+						<td>Overlapping:</td>
+						<td class="justify time-cell"><span>-${overlapping} H</span></td>
+					  </tr>
+					  <tr>
+						<td><b>Active Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+					  </tr>
+					  <tr>
+						<td><b>Idle Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+					  </tr>
+					  ${r.total_inactive_hours > 0 ? `
+					  <tr>
+						<td><b>Inactive Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+					  </tr>` : ''}
+					  <tr class = "border-top">
+						<td><b>Total Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+					  </tr>
+					</tbody>
+								</table>
+							</div>
+						`;
+					}
+				
+					$('[data-toggle="tooltip"]').tooltip({
+						container: 'body',
+						html: true,
+						whiteList: myDefaultWhiteList,
+						placement: 'left',
+						template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>',
+						title: getTooltipContent
+					});
 				});
 
+
+	const container = $("#user-activity");
+	container.html(`
+		 <style>
+        .progress-container {
+            margin-bottom: 10px; /* Space between progress bar and table */
+        }
+    </style>
+		<div class="card border-primary shadow d-none d-lg-block table-height">
+    <div class="card-body">
+  <h5 class="card-title text-primary text-center">User Activity</h5>
+  <table class="table table-borderless custom-table">
+    <tbody>
+      <tr>
+        <td>Call:</td>
+        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>Meeting:</td>
+        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>System:</td>
+        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E5E4E2;">
+        <td>Overlapping:</td>
+        <td class="justify time-cell"><span>-${overlapping} H</span></td>
+      </tr>
+      <tr>
+        <td><b>Active Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Idle Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+      </tr>
+      ${r.total_inactive_hours > 0 ? `
+      <tr>
+        <td><b>Inactive Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+      </tr>` : ''}
+      <tr style="border-top: 3px solid">
+        <td><b>Total Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+		</div>
+	`);
+
+			var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
+			myDefaultWhiteList.table = ['class'];
+			myDefaultWhiteList.tbody = [];
+			myDefaultWhiteList.tr = [];
+			myDefaultWhiteList.td = [];
+
+			$('[data-toggle="tooltip"]').tooltip({
+				container: 'body',
+				html: true,
+				whiteList: myDefaultWhiteList,
+				title: function () { return '<u>text1</u><table class="table text-light"><tr><td>text2</td></tr></table>'; }
+			});
 
 				// Enable tooltips with custom class
 				$('[data-toggle="tooltip"]').tooltip({
 					html: true,
 					container: 'body',
 					placement: 'left', // Set tooltip placement to left
-					template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>'
+					template: '<div class="tooltip-custom" style="max-width: 350px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>'
 				});
+				const styles = `
+							<style>
+								.custom-table td {
+									padding: 0px !important; /* Adjust padding to reduce space */
+									margin: 0 !important; /* Remove margin */
+								}
+								.custom-table {
+									font-size: 14px; /* Adjust font size if needed */
+								}
+								.custom-table td b {
+									font-weight: bold;
+								}
+								.card-body {
+									padding: 5px;
+									padding-bottom: 1px /* Adjust padding inside card body */
+								}
+								.card-title {
+									margin-bottom: 10px; /* Adjust margin at the bottom of the title */
+								}
+							</style>
+						
+`;
 				const mobilecontainer = $("#user-activity-mobile");
 				mobilecontainer.html(`
+					${styles}
 					<div class="d-lg-none">
-						<div class="card border-primary shadow">
+						<div class="card border-primary shadow table-height">
 							<div class="card-body">
-								<h5 class="card-title text-primary border-bottom pb-2 text-center">User Activity</h5>
-								<table class="table table-borderless">
-									<tbody>
-										<tr>
-											<td align="right">Call:</td>
-											<td>-</td>
-											<td>${total_call_raw} H</td>
-										</tr>
-										<tr>
-											<td align="right">Meeting:</td>
-											<td>-</td>
-											<td>${total_meeting_raw} H</td>
-										</tr>
-										<tr>
-											<td align="right">System:</td>
-											<td>-</td>
-											<td>${total_system_hours} H</td>
-										</tr>
-										<tr  style="border-bottom: 1px solid #E5E4E2;">
-											<td align="right">Overlapping:</td>
-											<td>-</td>
-											<td>-${overlapping} H</td>
-										</tr>
-										<tr>
-											<td align="right"><b>Active Time:</b></td>
-											<td>-</td>
-											<td><b>${total_active_hours} H</b></td>
-										</tr>
-										<tr>
-											<td align="right"><b>Idle Time:</b></td>
-											<td>-</td>
-											<td><b>${total_idle_time} H<b></td>
-										</tr>
-										 ${inactiveHoursRow_}
-										 <tr style="border-top: 1px solid #E5E4E2;">
-											<td align="right"><b>Total Time:</b></td>
-											<td>-</td>
-											<td><b>${total_hours} H</b></td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
+  <h5 class="card-title text-primary text-center">User Activity</h5>
+  <table class="table table-borderless custom-table">
+    <tbody>
+      <tr>
+        <td>Call:</td>
+        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>Meeting:</td>
+        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>System:</td>
+        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E5E4E2;">
+        <td>Overlapping:</td>
+        <td class="justify time-cell"><span>-${overlapping} H</span></td>
+      </tr>
+      <tr>
+        <td><b>Active Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Idle Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+      </tr>
+      ${r.total_inactive_hours > 0 ? `
+      <tr>
+        <td><b>Inactive Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+      </tr>` : ''}
+      <tr style="border-top: 3px solid">
+        <td><b>Total Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 						</div>
 					</div>`
 				)
@@ -1774,8 +1997,11 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
+				const containerElement = document.getElementById("hourly-calls");
 				if (r.labels.length === 0) {
-				} else {
+					if (containerElement) containerElement.style.display = 'none';
+                	return;
+				}else {
 					let chartDom = document.querySelector('.hourly-calls-analysis')
 					let chart = echarts.init(chartDom, null, {
 						renderer: 'svg',
@@ -1999,7 +2225,7 @@ UserProfile = class UserProfile {
 									const imgElement = `
 								<div class="col-md-3">
 								<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
-									<img src="${image.screenshot}" title="${image.time_}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
+									<img src="${image.screenshot}" title="${image.time_}" data-active-app="${image.active_app}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
 								</div>
 								<p style="text-align: center;"><b>${slotTimeString}</b></p>
 								</div>`;
@@ -2031,9 +2257,14 @@ UserProfile = class UserProfile {
 		
 					$('.clickable-image').off('click').on('click', function () {
 						const imgSrc = $(this).attr('src');
+						const activeApp = $(this).data('active-app'); // Get the active_app from data attribute
+
 						$('#zoomedImg').attr('src', imgSrc); // Set the image source in the modal
 						$('#imageModal').modal('show');
-		
+
+						// Update the modal title to show only the active_app
+						$('#imageModalLabel').html(`${activeApp || 'Unknown App'}`);
+
 						// Set the modal image to stretch to fit
 						$('#zoomedImg').css({
 							'max-width': '100%',
@@ -2043,6 +2274,7 @@ UserProfile = class UserProfile {
 							'object-fit': 'contain'
 						});
 					});
+			
 				});
 			return flag;
 		}

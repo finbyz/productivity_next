@@ -49,7 +49,8 @@ frappe.ui.form.on("Employee Fincall", {
                             console.error("Error fetching document:", err);
                         });
                     }
-				}
+				},
+                mandatory_depends_on: 'eval:doc.update_existing_client'
             },
             {fieldtype: 'Section Break'},
             {

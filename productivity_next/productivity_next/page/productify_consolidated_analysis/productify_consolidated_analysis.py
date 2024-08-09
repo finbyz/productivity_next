@@ -54,7 +54,7 @@ def get_employees_overall_performance(end_date):
 @frappe.whitelist() 
 def version_conditions(start_date=None, end_date=None):
     start_date, end_date = set_dates(start_date, end_date)
-    condition = f"WHERE creation >= '{start_date}' AND creation <= '{end_date}'"
+    condition = f"AND creation >= '{start_date}' AND creation <= '{end_date}'"
     return condition
 # Conditions to be applied to get data from versions table code ends
 
@@ -83,8 +83,9 @@ def document_analysis_chart(start_date=None, end_date=None):
     documents_modified = frappe.db.sql(f"""
             SELECT COUNT(DISTINCT docname) AS activity_count,ref_doctype
             FROM `tabVersion`
+            WHERE modified_by IN ({','.join(f"'{employee['user_id']}'" for employee in employees)})
             {version_conditions_str}
-            {ignore_condition} and modified_by IN ({','.join(f"'{employee['user_id']}'" for employee in employees)})
+            {ignore_condition} 
             GROUP BY ref_doctype
             ORDER BY activity_count DESC
         """, as_dict=1)
@@ -96,12 +97,12 @@ def document_analysis_chart(start_date=None, end_date=None):
 # Document Analysis (Numbers Of Document Modified) Code Ends
 
 # Top 10 Clients Call Analysis (In Minutes) Code Starts
+
 @frappe.whitelist()
 def client_calls_chart(start_date=None, end_date=None):
     employees = get_employees()
     if not employees:
         return {}
-    start_date_, end_date_ = set_dates(start_date, end_date)
     caller_name = frappe.db.sql(f"""
     SELECT 
         CASE 
@@ -116,8 +117,8 @@ def client_calls_chart(start_date=None, end_date=None):
         ROUND(SUM(duration)/60, 2) AS total_duration,
         COUNT(*) AS call_count
     FROM `tabEmployee Fincall`
-    WHERE call_datetime >= '{start_date_}' 
-        AND call_datetime <= '{end_date_}'
+    WHERE date >= '{start_date}' 
+        AND date <= '{end_date}'
         AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
     GROUP BY link_name
     ORDER BY total_duration DESC
@@ -128,14 +129,14 @@ def client_calls_chart(start_date=None, end_date=None):
     company_details = []
     others_duration = 0
 
-    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'}
+    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'} 
     for row in caller_name:
         ref_doctype = row['ref_doctype']
         total_duration = row['total_duration']
 
         if ref_doctype in main_categories:
             found = False
-            for detail in company_details:
+            for detail in company_details: 
                 if detail['name'] == ref_doctype:
                     detail['value'] += total_duration
                     found = True
@@ -184,16 +185,13 @@ def client_calls_chart(start_date=None, end_date=None):
 # Top 10 Employees Call Analysis Code Starts
 @frappe.whitelist()
 def employee_calls_chart(user, start_date=None, end_date=None):
-    employees = get_employees()
-    if not employees:
+    employees_list = get_employees()
+    if not employees_list:
         return {}
-    if user != "Administrator":
-        conditions = f"WHERE employee = '{user}' AND date >= '{start_date}' AND date <= '{end_date}'"
-    else:
-        conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
+    conditions = f"WHERE date >= '{start_date}' AND date <= '{end_date}'"
     
-    emoyees_calls_data = frappe.db.sql(f"""
-    SELECT employee,
+    employees_calls_data = frappe.db.sql(f"""
+    SELECT employee,employee_name,
            SUM(CASE WHEN calltype = 'Incoming' THEN 1 ELSE 0 END) as incoming_count,
            SUM(CASE WHEN calltype = 'Outgoing' THEN 1 ELSE 0 END) as outgoing_count,
            SUM(CASE WHEN calltype = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
@@ -203,53 +201,65 @@ def employee_calls_chart(user, start_date=None, end_date=None):
            ROUND(SUM(CASE WHEN calltype = 'Rejected' THEN duration ELSE 0 END) / 60, 2) as rejected_duration,
            ROUND(SUM(CASE WHEN calltype = 'Missed' THEN duration ELSE 0 END) / 60, 2) as missed_duration,
            COUNT(*) as total  
-    FROM `tabEmployee Fincall`
-    {conditions} AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+    FROM `tabEmployee Fincall` 
+    {conditions} AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees_list)})
     GROUP BY employee
     ORDER BY total DESC
     LIMIT 10
     """, as_dict=1)
-    employees = sorted(set(entry['employee'] for entry in emoyees_calls_data))
+
+    # Filter out employees with no data
+    employees_with_data = [entry['employee'] for entry in employees_calls_data if any(entry[f'{calltype}_count'] for calltype in ['incoming', 'outgoing', 'rejected', 'missed'])]
     
     datasets = {
-        'Incoming': [0] * len(employees),
-        'Outgoing': [0] * len(employees),
-        'Missed': [0] * len(employees),
-        'Rejected': [0] * len(employees),
-        'Incoming Duration': [0] * len(employees),
-        'Outgoing Duration': [0] * len(employees),
-        'Missed Duration': [0] * len(employees),
-        'Rejected Duration': [0] * len(employees)
+        'Incoming': [],
+        'Outgoing': [],
+        'Missed': [],
+        'Rejected': [],
+        'Incoming Duration': [],
+        'Outgoing Duration': [],
+        'Missed Duration': [],
+        'Rejected Duration': []
     }
     
-    employee_index = {employee: idx for idx, employee in enumerate(employees)}
-    for entry in emoyees_calls_data:
-        employee = entry['employee']
-        index = employee_index[employee]
-        datasets['Incoming'][index] = entry['incoming_count']
-        datasets['Outgoing'][index] = entry['outgoing_count']
-        datasets['Missed'][index] = entry['missed_count']
-        datasets['Rejected'][index] = entry['rejected_count']
-        datasets['Incoming Duration'][index] = entry['incoming_duration']
-        datasets['Outgoing Duration'][index] = entry['outgoing_duration']
-        datasets['Missed Duration'][index] = entry['missed_duration']
-        datasets['Rejected Duration'][index] = entry['rejected_duration']
+    for entry in employees_calls_data:
+        if entry['employee'] in employees_with_data:
+            datasets['Incoming'].append(entry['incoming_count'])
+            datasets['Outgoing'].append(entry['outgoing_count'])
+            datasets['Missed'].append(entry['missed_count'])
+            datasets['Rejected'].append(entry['rejected_count'])
+            datasets['Incoming Duration'].append(entry['incoming_duration'])
+            datasets['Outgoing Duration'].append(entry['outgoing_duration'])
+            datasets['Missed Duration'].append(entry['missed_duration'])
+            datasets['Rejected Duration'].append(entry['rejected_duration'])
     
     formatted_datasets = []
+    all_zero = True
+
     for calltype in ['Incoming', 'Outgoing', 'Missed', 'Rejected']:
+        counts = datasets[calltype]
+        durations = datasets[f"{calltype} Duration"]
+        
+        if any(count != 0 for count in counts):
+            all_zero = False
+        
         formatted_datasets.append({
             "name": calltype,
-            "counts": datasets[calltype],
-            "durations": datasets[f"{calltype} Duration"]
+            "counts": counts,
+            "durations": durations
         })
+
+    if all_zero:
+        formatted_datasets = []
     
+    # Get employee names only for employees with data
     employee_names = []
-    for employee in employees:
-        name = frappe.db.get_value("Employee", employee, "employee_name")
-        employee_names.append(name)
+    for employee in employees_list:
+        if employee['name'] in employees_with_data:
+            employee_names.append(employee['employee_name'])
     
     return {
-        "labels": employee_names,
+        "labels": [entry['employee_name'] for entry in employees_calls_data if entry['employee'] in employees_with_data],
         "datasets": formatted_datasets
     }
 # Top 10 Employees Call Analysis Code Ends
@@ -272,7 +282,7 @@ def overall_performance_chart(start_date=None, end_date=None):
     meetings = frappe.db.sql(f"""
         SELECT m.name AS parent, 
             m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
-            mcr.employee, mcr.employee_name
+            mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
         WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
@@ -284,7 +294,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             from_time AS idle_start, to_time AS idle_end,
             employee, employee_name
         FROM `tabEmployee Idle Time`
-        WHERE from_time >= '{end_date} 00:00:00' and to_time <= '{end_date} 23:59:59' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -334,7 +344,9 @@ def overall_performance_chart(start_date=None, end_date=None):
                 meeting['meeting_start'],
                 meeting['meeting_end'],
                 meeting['internal'],
-                meeting['client']
+                meeting['organization'],
+                meeting['party_type'],
+                meeting['meeting_arranged_by']
             ])
 
     for i in idle:
@@ -346,7 +358,6 @@ def overall_performance_chart(start_date=None, end_date=None):
         ])
     base_data = sorted(base_data, key=lambda x: x[2])
     data = []
-    employees = frappe.get_list("Productify Work Summary", filters={"date":end_date}, fields=["employee", "employee_name"])
     for i in employees:
         data.append([
             i['employee_name'].split()[0] + " " + i['employee_name'].split()[-1][0] + "." if i['employee_name'] else "",
@@ -368,24 +379,23 @@ def user_analysis_data(start_date=None, end_date=None):
     if not employees:
         return {}
     start_date_, end_date_ = set_dates(start_date, end_date)
-    conditions_2 = f"AND m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}'"
-
     list_data = []
     meeting_total_data = frappe.db.sql(f"""
         SELECT m.meeting_from as start_time, m.meeting_to as end_time, mcr.employee
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.docstatus = 1 and m.meeting_from >= '{start_date_}' and m.meeting_to <= '{end_date_}' and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE m.meeting_from >= '{start_date_}' and m.meeting_to <= '{end_date_}' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
     """, as_dict=True)
     calls_total_data = frappe.db.sql(f"""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time, employee
         FROM `tabEmployee Fincall`
-        WHERE call_datetime >= '{start_date_}' and call_datetime <= '{end_date_}' and (calltype != 'Missed' and calltype != 'Rejected') and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)}) and (calltype != 'Missed' and calltype != 'Rejected')
     """, as_dict=True)
     application_total_data = frappe.db.sql(f"""
-        SELECT from_time as start_time, to_time as end_time, employee
+        SELECT from_time AS start_time, to_time AS end_time, employee as employee
         FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE date >= '{start_date}' and date <= '{end_date}' AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        ORDER BY employee
     """, as_dict=True)
 
     list_data.append(meeting_total_data)
@@ -394,7 +404,7 @@ def user_analysis_data(start_date=None, end_date=None):
 
     if list_data:
         # Flatten the list of intervals
-        flat_intervals = [interval for sublist in list_data for interval in sublist]
+        flat_intervals = [interval.copy() for sublist in list_data for interval in sublist]
 
         # Sort intervals by employee and start time
         flat_intervals.sort(key=lambda x: (x['employee'], x['start_time']))
@@ -447,7 +457,7 @@ def user_analysis_data(start_date=None, end_date=None):
             SELECT DATE(m.meeting_from) AS date, mcr.employee
             FROM `tabMeeting` AS m 
             JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent 
-            WHERE m.docstatus = 1 AND m.meeting_from >= DATE('{start_date}') AND m.meeting_to <= DATE('{end_date}')
+            WHERE m.meeting_from >= DATE('{start_date}') AND m.meeting_to <= DATE('{end_date}') AND m.docstatus = 1
             UNION
             SELECT DATE(`date`) AS date, employee
             FROM `tabApplication Usage log`
@@ -464,27 +474,11 @@ def user_analysis_data(start_date=None, end_date=None):
     idle_time_data = frappe.db.sql(f"""
         SELECT employee, from_time as start_time, to_time as end_time
         FROM `tabEmployee Idle Time`
-        WHERE to_time > '{start_date_}' AND from_time < '{end_date_}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
-    """, as_dict=True)
-
-    # Fetch fincall time logs for all employees
-    fincall_time_data = frappe.db.sql(f"""
-        SELECT employee, call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
-        FROM `tabEmployee Fincall`
-        WHERE call_datetime > '{start_date_}' AND ADDTIME(call_datetime, SEC_TO_TIME(duration)) < '{end_date_}'
-        AND (calltype != 'Missed' AND calltype != 'Rejected') and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
-    """, as_dict=True)
-
-    # Fetch meeting time logs for all employees
-    meeting_time_data = frappe.db.sql(f"""
-        SELECT mcr.employee, meeting_from as start_time, meeting_to as end_time
-        FROM `tabMeeting` as m
-        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.meeting_from >= '{start_date_}' AND m.meeting_to <= '{end_date_}' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
     """, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)
-    non_idle_periods = fincall_time_data + meeting_time_data
+    non_idle_periods = calls_total_data + meeting_total_data
 
     # Organize non-idle periods by employee
     non_idle_by_employee = {}
@@ -571,7 +565,6 @@ def user_analysis_data(start_date=None, end_date=None):
         elif calltype == 'Rejected':
             employee_fincall_data[employee]['rejected_fincall_count'] = count
     
-    conditions_2 = f"AND m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59'"
     # Fetch external meeting data for all employees
     sql_query_external = f"""
         SELECT 
@@ -583,8 +576,7 @@ def user_analysis_data(start_date=None, end_date=None):
             COUNT(DISTINCT m.name) AS meeting_count
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent
-        WHERE m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
-        {conditions_2}
+        WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         GROUP BY mcr.employee
     """
     meetings_external_employee_raw = frappe.db.sql(sql_query_external, as_dict=True)
@@ -599,7 +591,7 @@ def user_analysis_data(start_date=None, end_date=None):
             COALESCE(SUM(mouse_clicks), 0) AS total_mouse_clicks,
             COALESCE(SUM(mouse_scrolls), 0) AS total_scroll
         FROM `tabWork Intensity`
-        WHERE time >= '{start_date_}' AND time <= '{end_date_}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE employee IN ({','.join(f"'{employee['name']}'" for employee in employees)}) and time >= '{start_date_}' AND time <= '{end_date_}'
         GROUP BY employee
     """, as_dict=True)
     
