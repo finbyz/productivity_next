@@ -814,14 +814,14 @@ UserProfile = class UserProfile {
 										default: endTime,
 										reqd: 1
 									},
-									{
-										label: "Industry",
-										fieldname: "industry",
-										fieldtype: "Link",
-										options: "Industry Type",
-										depends_on: 'eval:!doc.internal_meeting',
-										mandatory_depends_on: 'eval:!doc.internal_meeting',
-									},
+									// {
+									// 	label: "Industry",
+									// 	fieldname: "industry",
+									// 	fieldtype: "Link",
+									// 	options: "Industry Type",
+									// 	depends_on: 'eval:!doc.internal_meeting',
+									// 	mandatory_depends_on: 'eval:!doc.internal_meeting',
+									// },
 									{
 										fieldtype: 'Section Break',
 									},
@@ -880,7 +880,7 @@ UserProfile = class UserProfile {
 												meeting_arranged_by: values.meeting_arranged_by,
 												internal_meeting: values.internal_meeting,
 												purpose: values.purpose,
-												industry: values.industry || null,
+												// industry: values.industry || null,
 												party_type: values.party_type || null,
 												party: values.party || null,
 												discussion: values.discussion,

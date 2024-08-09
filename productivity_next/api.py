@@ -318,7 +318,7 @@ def add_meeting(
     meeting_arranged_by,
     internal_meeting,
     purpose,
-    industry,
+    # industry,
     party_type,
     party,
     discussion,
@@ -336,7 +336,7 @@ def add_meeting(
     meeting.meeting_arranged_by = meeting_arranged_by
     meeting.internal_meeting = internal_meeting
     meeting.purpose = purpose
-    meeting.industry = industry if industry else None
+    # meeting.industry = industry if industry else None
     meeting.party_type = party_type if party_type else None
     meeting.party = party if party else None
     meeting.discussion = discussion
