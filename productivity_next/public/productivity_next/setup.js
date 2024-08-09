@@ -1,11 +1,11 @@
 frappe.require('https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js');
 
 document.addEventListener("DOMContentLoaded", function () {
-    let currentUser = frappe.session.user;
-    let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
-    if (!hasPermission) {
-        return;
-    }
+    // let currentUser = frappe.session.user;
+    // let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
+    // if (!hasPermission) {
+    //     return;
+    // }
 
     let subscription;
     frappe.db.get_doc('Productify Subscription')
@@ -44,6 +44,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     { fieldname: 'fincall', fieldtype: 'Check', in_list_view: 1, label: 'Fin Call' },
                     { fieldname: 'application_usage', fieldtype: 'Check', in_list_view: 1, label: 'Application Usage' },
                     { fieldname: 'sales_person', fieldtype: 'Check', in_list_view: 1, label: 'Sales Person' },
+                    { fieldname: 'project', fieldtype: 'Check', in_list_view: 1, label: 'Project Tracking' },
+                    { fieldname: 'issue', fieldtype: 'Check', in_list_view: 1, label: 'Issue Tracking' },
                 ],
             },
         ],
@@ -166,9 +168,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     contact_person: values.contact_person,
                     email: values.email_id,
                     mobile_no: values.mobile_no,
-                    subscription_plan: "Prime",
                     application: values.application_sub,
-                    sales_person: values.sales_person
+                    fincall: values.fincall ? 1 : 0,
+                    application_usage: values.application_usage ? 1 : 0,
+                    sales_person: values.sales_person ? 1 : 0,
+                    project: values.project ? 1 : 0,
+                    issue: values.issue ? 1 : 0,
                 },
                 callback: function (r) {
                     if (r.status === 400) {

@@ -14,7 +14,7 @@ on_session_creation = "productivity_next.session.on_session_creation"
 app_include_js = [
     "https://cdn.plot.ly/plotly-latest.min.js",
     "https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js",
-    "assets/productivity_next/productivity_next/setup.js",
+    # "assets/productivity_next/productivity_next/setup.js",
 ]
 # setup_wizard_requires = "assets/productivity_next/setup.js"
 # include js, css files in header of desk.html

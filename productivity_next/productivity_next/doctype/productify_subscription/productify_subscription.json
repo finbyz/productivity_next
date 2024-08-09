@@ -11,6 +11,8 @@
   "fincall",
   "application_usage",
   "sales_person",
+  "project_tracking",
+  "issue_tracking",
   "column_break_ipqe",
   "erpnext_url",
   "mobile_no",
@@ -91,12 +93,26 @@
    "fieldtype": "Select",
    "label": "Status",
    "options": "\nActive\nExpired"
+  },
+  {
+   "default": "0",
+   "depends_on": "project_tracking",
+   "fieldname": "project_tracking",
+   "fieldtype": "Check",
+   "label": "Project Tracking"
+  },
+  {
+   "default": "0",
+   "depends_on": "project_tracking",
+   "fieldname": "issue_tracking",
+   "fieldtype": "Check",
+   "label": "Issue Tracking"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-07-20 14:44:31.322469",
+ "modified": "2024-08-02 17:41:08.775269",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",
