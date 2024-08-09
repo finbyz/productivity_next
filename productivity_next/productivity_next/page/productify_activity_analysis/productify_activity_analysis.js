@@ -421,7 +421,6 @@ UserProfile = class UserProfile {
 						'External Meeting': 4,
 						'Call': 5
 					};
-					_rawData.flight.data.sort((a, b) => a[1].localeCompare(b[1]));
 	
 					function makeOption() {
 						var activityLegends = [
@@ -444,19 +443,13 @@ UserProfile = class UserProfile {
 						// Add inactive periods
 						var inactivePeriods = [];
 						var employeeFirstEntry = {};
-						_rawData.flight.data.sort((a, b) => {
-							// First, compare by priority
-							const priorityDiff = priorityOrder[a[0]] - priorityOrder[b[0]];
-							if (priorityDiff !== 0) return priorityDiff;
-							
-							// If priority is the same, sort by date
-							return new Date(a[2]).getTime() - new Date(b[2]).getTime();
-						});
+						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
 						for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
 							var employeeName = _rawData.parkingApron.data[i];
 							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
 							employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
-						
+
 							if (employeeActivities.length > 0) {
 								employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
 								var lastEndTime = new Date(employeeActivities[0][3]).getTime();
@@ -472,20 +465,17 @@ UserProfile = class UserProfile {
 									lastEndTime = new Date(employeeActivities[j][3]).getTime();
 								}
 							}
-						}  
-						
+						}
+
 						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-						_rawData.flight.data.sort((a, b) => {
-							// First, compare by priority
-							const priorityDiff = priorityOrder[a[0]] - priorityOrder[b[0]];
-							if (priorityDiff !== 0) return priorityDiff;
-							
-							// If priority is the same, sort by date
-							return new Date(a[2]).getTime() - new Date(b[2]).getTime();
-						});					
-						
+						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);	
+						_rawData.flight.data = _rawData.flight.data.map(item => {
+							let date = new Date(item[1]);
+							let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+							return [item[0], formattedDate, ...item.slice(2)];
+						});						
 						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
-						console.log("Unique Dates:", uniqueDates);
 						function setFixedDate(timestamp) {
 							var date = new Date(timestamp);
 							date.setFullYear(2000, 0, 1);
@@ -551,7 +541,7 @@ UserProfile = class UserProfile {
 									}
 								
 									tooltipContent += `
-										<span style="font-weight: bold;">Date:</span> ${employeeName}<br>
+										<span style="font-weight: bold;">Date:</span> ${date}<br>
 										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
 										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
 										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
@@ -640,14 +630,14 @@ UserProfile = class UserProfile {
 								axisLabel: { 
 									show: true,
 									align: 'right',
-									margin: 10,   // Adjust margin between axis labels and bars
+									margin: 10,
 									formatter: function(value) {
 										return '{a|' + value + '}';
 									},
 									rich: {
 										a: {
 											align: 'right',
-											width: 80,
+											width: 100, // Increased width to accommodate the new date format
 										}
 									}
 								},
@@ -903,14 +893,14 @@ UserProfile = class UserProfile {
 										default: endTime,
 										reqd: 1
 									},
-									{
-										label: "Industry",
-										fieldname: "industry",
-										fieldtype: "Link",
-										options: "Industry Type",
-										depends_on: 'eval:!doc.internal_meeting',
-										mandatory_depends_on: 'eval:!doc.internal_meeting',
-									},
+									// {
+									// 	label: "Industry",
+									// 	fieldname: "industry",
+									// 	fieldtype: "Link",
+									// 	options: "Industry Type",
+									// 	depends_on: 'eval:!doc.internal_meeting',
+									// 	mandatory_depends_on: 'eval:!doc.internal_meeting',
+									// },
 									{
 										fieldtype: 'Section Break',
 									},
@@ -977,7 +967,7 @@ UserProfile = class UserProfile {
 												meeting_arranged_by: values.meeting_arranged_by,
 												internal_meeting: values.internal_meeting,
 												purpose: values.purpose,
-												industry: values.industry || null,
+												// industry: values.industry || null,
 												party_type: values.party_type || null,
 												party: values.party || null,
 												discussion: values.discussion,
