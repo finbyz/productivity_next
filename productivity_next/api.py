@@ -33,22 +33,38 @@ def login(username, password, purpose):
         "access_token": token["access_token"],
         "refresh_token": token["refresh_token"],
         "expiration_time": token["expiration_time"],
-        "employee": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name"),
-        "full_name": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "employee_name"),
+        "employee": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "name"
+        ),
+        "full_name": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "employee_name"
+        ),
     }
+
 
 @frappe.whitelist(allow_guest=False)
 def update_token(refresh_token, purpose):
-    access_token = update_expiry_time(frappe.session.user, refresh_token, expires_in_days=7, purpose=purpose)
+    access_token = update_expiry_time(
+        frappe.session.user, refresh_token, expires_in_days=7, purpose=purpose
+    )
 
     return {
         "status": True,
         "access_token": access_token,
-        "refresh_token": frappe.db.get_value("OAuth Bearer Token", access_token, "refresh_token"),
-        "expiration_time": frappe.db.get_value("OAuth Bearer Token", access_token, "expiration_time"),
-        "employee": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name"),
-        "full_name": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "employee_name"),
+        "refresh_token": frappe.db.get_value(
+            "OAuth Bearer Token", access_token, "refresh_token"
+        ),
+        "expiration_time": frappe.db.get_value(
+            "OAuth Bearer Token", access_token, "expiration_time"
+        ),
+        "employee": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "name"
+        ),
+        "full_name": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "employee_name"
+        ),
     }
+
 
 @frappe.whitelist()
 def set_application_checkin_checkout(
@@ -539,3 +555,184 @@ def get_active_projects():
         )
         return projects
     return []
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_employee_last_callTime(employee=None):
+    if not employee:
+        return {"message": "Something went wrong"}
+
+    last_call_data = frappe.db.sql(
+        f"""
+    select employee,employee_name,call_datetime
+    from `tabEmployee Fincall`
+    where employee = '{employee}'
+    order by call_datetime desc
+    limit 1
+    """,
+        as_dict=True,
+    )
+
+    return {
+        "employee": last_call_data[0].employee,
+        "employee_name": last_call_data[0].employee_name,
+        "call_datetime": last_call_data[0].call_datetime,
+    }
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_employee_fincall(employee, employee_mobile, customer_no, date, call_datetime):
+    if (
+        not employee
+        or not employee_mobile
+        or not customer_no
+        or not date
+        or not call_datetime
+    ):
+        return "Something went wrong"
+
+    employee_fincall = frappe.db.sql(
+        f"""
+    SELECT name, link_to, contact, link_name, calltype, fincall_log_ref, spoke_about
+    FROM `tabEmployee Fincall`
+    WHERE date = '{date}' AND employee = '{employee}' AND employee_mobile = '{employee_mobile}' AND customer_no = '{customer_no}' AND call_datetime = '{call_datetime}'
+    """,
+        as_dict=True,
+    )
+
+    if not employee_fincall:
+        return {"message": "No Fincall found"}
+
+    return {
+        "employee_fincall": employee_fincall[0].name,
+        "link_name": employee_fincall[0].link_name,
+        "link_to": employee_fincall[0].link_to,
+        "contact": employee_fincall[0].contact,
+        "calltype": employee_fincall[0].calltype,
+        "fincall_log_ref": employee_fincall[0].fincall_log_ref,
+        "spoke_about": employee_fincall[0].spoke_about,
+    }
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+def create_fincall(
+    employee,
+    employee_mobile,
+    customer_no,
+    call_datetime,
+    calltype,
+    duration,
+    employee_fincall_generated,
+    contact_created,
+    note=None,
+    raw_log=None,
+    client=None,
+):
+    fincall = frappe.new_doc("Fincall Log")
+    fincall.employee = employee
+    fincall.employee_mobile = employee_mobile
+    fincall.customer_no = customer_no
+    fincall.call_datetime = call_datetime
+    fincall.calltype = calltype
+    fincall.duration = duration
+    fincall.employee_fincall_generated = employee_fincall_generated
+    fincall.contact_created = contact_created
+    fincall.note = note if note else None
+    fincall.raw_log = raw_log if raw_log else None
+    fincall.client = client if client else None
+    fincall.save(ignore_permissions=True)
+
+    employee_details = frappe.db.get_value(
+        "Employee",
+        fincall.employee,
+        ["name", "employee_name"],
+        as_dict=True,
+    )
+
+    if fincall.customer_no[0] == "0":
+        fincall.customer_no = "+91" + fincall.customer_no[1:]
+    elif fincall.customer_no[0] != "+" and fincall.customer_no[0] != "0":
+        fincall.customer_no = "+91" + fincall.customer_no
+
+    ec_doc = frappe.new_doc("Employee Fincall")
+    ec_doc.employee = employee_details["name"]
+    ec_doc.employee_name = employee_details["employee_name"]
+    ec_doc.employee_mobile = fincall.employee_mobile
+    ec_doc.client = fincall.client if fincall.client else None
+    ec_doc.customer_no = fincall.customer_no
+    ec_doc.call_datetime = fincall.call_datetime
+    ec_doc.duration = fincall.duration
+    ec_doc.date = get_datetime(fincall.call_datetime).date()
+    ec_doc.calltype = fincall.calltype
+    ec_doc.fincall_log_ref = fincall.name
+    contact_query = f"""
+        SELECT 
+            c.name, 
+            dl.link_doctype, 
+            dl.link_name 
+        FROM 
+            `tabContact` AS c 
+        JOIN 
+            `tabContact Phone` AS cp 
+            ON cp.parent = c.name 
+        JOIN 
+            `tabDynamic Link` AS dl 
+            ON dl.parent = c.name 
+        WHERE 
+            LENGTH(cp.phone) >= 10 
+            AND (cp.phone = '{fincall.customer_no}' 
+            OR cp.phone LIKE '%{fincall.customer_no}' 
+            OR '{fincall.customer_no}' LIKE CONCAT("%", cp.phone))
+        ORDER BY 
+            CASE dl.link_doctype
+                WHEN 'Customer' THEN 1
+                WHEN 'Lead' THEN 2
+                ELSE 3
+            END,
+            c.modified DESC
+        LIMIT 1;
+    """
+
+    contact_details = frappe.db.sql(contact_query, as_dict=True)
+    if (
+        contact_details
+        and contact_details[0].get("link_doctype", "")
+        and contact_details[0].get("link_name", "")
+    ):
+        contact = contact_details[0]
+        ec_doc.link_to = contact.get("link_doctype", "")
+        ec_doc.contact = contact.get("name", None)
+        ec_doc.link_name = contact.get("link_name", "")
+
+    ec_doc.flags.ignore_permissions = True
+    ec_doc.save()
+
+    # Update flag indicating that employee fincall is generated
+    fincall.db_set("employee_fincall_generated", 1)
+
+    return {
+        "employee_fincall": ec_doc.name,
+        "employee": ec_doc.employee,
+        "employee_name": ec_doc.employee_name,
+        "link_to": ec_doc.link_to or None,
+        "contact": ec_doc.contact or None,
+        "link_name": ec_doc.link_name or None,
+        "fincall_log_ref": ec_doc.fincall_log_ref,
+        "spoke_about": ec_doc.spoke_about or None,
+    }
+
+
+@frappe.whitelist(allow_guest=False, methods=["GET"])
+def is_stop_disabled():
+    """
+    API_PATH: /api/method/productivity_next.api.is_stop_disabled"""
+    subscription = frappe.get_doc("Productify Subscription")
+    current_user = frappe.db.get_value(
+        "Employee", filters={"user_id": frappe.session.user}, fieldname="name"
+    )
+
+    user = next(
+        filter(lambda user: user.employee == current_user, subscription.list_of_users),
+        None,
+    )
+    return user.get('disable_stop_button',False)

@@ -6,26 +6,28 @@
  "engine": "InnoDB",
  "field_order": [
   "organization_name",
-  "email",
   "status",
+  "valid_upto",
   "fincall",
   "application_usage",
   "sales_person",
   "project_tracking",
   "issue_tracking",
   "column_break_ipqe",
-  "erpnext_url",
+  "site_url",
+  "email",
+  "name1",
   "mobile_no",
-  "valid_upto",
   "section_break_qria",
   "list_of_users"
  ],
  "fields": [
   {
    "fieldname": "organization_name",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Organization Name",
+   "options": "Company",
    "reqd": 1
   },
   {
@@ -56,14 +58,6 @@
   {
    "fieldname": "column_break_ipqe",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "erpnext_url",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Erpnext Url",
-   "read_only": 1,
-   "reqd": 1
   },
   {
    "fieldname": "mobile_no",
@@ -107,12 +101,25 @@
    "fieldname": "issue_tracking",
    "fieldtype": "Check",
    "label": "Issue Tracking"
+  },
+  {
+   "fieldname": "site_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Site Url",
+   "read_only": 1
+  },
+  {
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-02 17:41:08.775269",
+ "modified": "2024-08-12 17:55:34.709431",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",
