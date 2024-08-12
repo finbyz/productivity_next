@@ -958,7 +958,7 @@ UserProfile = class UserProfile {
 							min: fixedStartTime,
 							max: fixedEndTime,
 						},
-						series: [
+						series: [									
 							{
 								id: 'flightData',
 								type: 'custom',

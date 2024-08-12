@@ -1020,9 +1020,21 @@ UserProfile = class UserProfile {
 								
 								// Show the dialog
 								d.show();
+								// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
+								
 							}).catch(err => {
 								console.error("Error fetching employee details:", err);
 							});
+
+							function goToActivitySummaryReport(employee,start_date, end_date) {
+								var baseUrl = window.location.origin;
+								var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+								window.open(activityAnalysisUrl, '_blank');
+							}
 						}
 					});
 				}
@@ -1221,6 +1233,11 @@ UserProfile = class UserProfile {
 				};
 	
 				myChart.setOption(option);
+				// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('domain-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToDomainAnalysis(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
 				myChart.resize(); // Resize to fit the container
 	
 				// Re-add resize listener to ensure chart resizes with window
@@ -1231,6 +1248,12 @@ UserProfile = class UserProfile {
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
+		// Function to redirect to Calls Analysis page with selected dates
+		function goToDomainAnalysis(employee,start_date, end_date) {
+			var baseUrl = window.location.origin;
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Domains Analysis?group_by_domain=1&employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	}
 	
 	// Web Browsing Time Chart Code Ends
@@ -1243,7 +1266,7 @@ UserProfile = class UserProfile {
 		} else {
 			data = this.user_id;
 		}
-	
+
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.top_phone_calls", {
 				user: data,
@@ -1254,40 +1277,34 @@ UserProfile = class UserProfile {
 				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
 					if (containerElement) containerElement.style.display = 'none';
-                	return;
+					return;
 				}
-	
+
 				const chartDom = document.getElementById('top-phone-calls');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
 				}
-	
+
 				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
 				let customNames = r.customNames;
 				const option = {
 					tooltip: {
 						trigger: 'item',
-						// formatter: '{a} <br/>{b}: {c} Minutes ({d}%)',
 						formatter: function(params) {
 							let totalMinutes = params.value;
-							let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
-							let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
-						
-							// Format seconds to always display 2 digits
+							let minutes = Math.floor(totalMinutes);
+							let seconds = Math.round((totalMinutes - minutes) * 60);
 							let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
-						
+
 							if (params.seriesName === 'Caller Origin' || params.seriesName === 'Caller Details') {
-								// For specific series, show only label, minutes and seconds, and percentage
 								return `${params.marker} ${params.name}: ${minutes}:${formattedSeconds} Min`;
 							} else {
-								// For other series, show series name, label, minutes and seconds, and percentage
 								return `${params.seriesName} <br/>${params.marker} ${params.name}: ${minutes}:${formattedSeconds} Min`;
 							}
 						},
-						
 						position: ['50%', '50%'],
-					}, 
+					},
 					series: [
 						{
 							name: 'Caller Origin',
@@ -1297,24 +1314,16 @@ UserProfile = class UserProfile {
 							label: {
 								position: 'inner',
 								fontSize: 14,
-								width: 200, 
-								
+								width: 200,
 							},
 							labelLine: {
 								show: true
 							},
 							data: r.company_details,
 							color: [
-								'#FF6384', // Red
-								'#36A2EB', // Blue
-								'#FFCE56', // Yellow
-								'#4BC0C0', // Cyan
-								'#9966FF', // Lavender
-								'#FF9966', // Orange
-								'#66CCCC', // Light Blue
-								'#6699FF', // Light Blue
-								'#FF6666', // Light Red
-								'#FFCC66'  // Light Yellow
+								'#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+								'#9966FF', '#FF9966', '#66CCCC', '#6699FF',
+								'#FF6666', '#FFCC66'
 							]
 						},
 						{
@@ -1325,19 +1334,14 @@ UserProfile = class UserProfile {
 								length: 30,
 								show: true
 							},
-							
 							label: {
 								formatter: function(params) {
 									let totalMinutes = params.value;
-									let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
-									let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
-								
-									// Format seconds to always display 2 digits
+									let minutes = Math.floor(totalMinutes);
+									let seconds = Math.round((totalMinutes - minutes) * 60);
 									let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
-								
-									let customIndex = params.data.customIndex || 0; // Default to index 0 if customIndex is not provided
+									let customIndex = params.data.customIndex || 0;
 									let customName = customNames[customIndex];
-								
 									return `{a|${customName}}{abg|}\n{hr|}\n  {b|${params.name}：}${minutes}:${formattedSeconds} Min`;
 								},
 								maxWidth: 200,
@@ -1349,65 +1353,70 @@ UserProfile = class UserProfile {
 								show: true,
 								rich: {
 									a: {
-									  color: '#6E7079',
-									  lineHeight: 22,
-									  align: 'center'
+										color: '#6E7079',
+										lineHeight: 22,
+										align: 'center'
 									},
 									hr: {
-									  borderColor: '#8C8D8E',
-									  width: '100%',
-									  borderWidth: 1,
-									  height: 0
+										borderColor: '#8C8D8E',
+										width: '100%',
+										borderWidth: 1,
+										height: 0
 									},
 									b: {
-									  color: '#4C5058',
-									  fontSize: 14,
-									  fontWeight: 'bold',
-									  lineHeight: 33
+										color: '#4C5058',
+										fontSize: 14,
+										fontWeight: 'bold',
+										lineHeight: 33
 									},
 									per: {
-									  color: '#fff',
-									  backgroundColor: '#4C5058',
-									  padding: [3, 4],
-									  borderRadius: 4
+										color: '#fff',
+										backgroundColor: '#4C5058',
+										padding: [3, 4],
+										borderRadius: 4
 									}
-								  },
-								  
+								},
 							},
 							data: r.caller_details,
 							color: [
-								'#FF6384', // Red
-								'#36A2EB', // Blue
-								'#FFCE56', // Yellow
-								'#4BC0C0', // Cyan
-								'#9966FF', // Lavender
-								'#FF9966', // Orange
-								'#66CCCC', // Light Blue
-								'#6699FF', // Light Blue
-								'#FF6666', // Light Red
-								'#FFCC66'  // Light Yellow
+								'#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+								'#9966FF', '#FF9966', '#66CCCC', '#6699FF',
+								'#FF6666', '#FFCC66'
 							]
 						}
 					],
 				};
-				
-	
+
 				// Set dynamic width and height for the chart
 				myChart.resize();
-	
+
 				myChart.setOption(option);
-	
+
+				// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('calls-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToCallsAnalysis(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
+
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-	
+
 				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
+
+		// Function to redirect to Calls Analysis page with selected dates
+		function goToCallsAnalysis(employee,start_date, end_date) {
+			var baseUrl = window.location.origin;
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Calls Analysis?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	}
 	// Top phone calls chart code ends
+
 	
 	// Type of calls chart code starts
 	type_of_calls() {
