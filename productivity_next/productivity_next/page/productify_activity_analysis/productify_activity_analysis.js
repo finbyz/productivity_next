@@ -1019,26 +1019,26 @@ UserProfile = class UserProfile {
 								};
 								
 								// Show the dialog
-								d.show();
-								// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
-				document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent the default action of the link
-					goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
-				}.bind(this)); // Bind `this` context for access to instance properties
-								
+								d.show();								
 							}).catch(err => {
 								console.error("Error fetching employee details:", err);
 							});
-
-							function goToActivitySummaryReport(employee,start_date, end_date) {
-								var baseUrl = window.location.origin;
-								var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
-								window.open(activityAnalysisUrl, '_blank');
-							}
 						}
 					});
 				}
 			});
+			document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
+				console.log("Activity Summary Report Link Clicked");
+				event.preventDefault();
+				goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date);
+			}.bind(this));
+
+			function goToActivitySummaryReport(employee,start_date, end_date) {
+				console.log("Employee:", employee);
+				var baseUrl = window.location.origin;
+				var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+				window.open(activityAnalysisUrl, '_blank');
+			}
 	}
 	// Overall Performance Chart Code Ends
 
