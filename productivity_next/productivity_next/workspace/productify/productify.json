@@ -93,45 +93,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Reports",
-   "link_count": 3,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Calls Analysis",
-   "link_count": 0,
-   "link_to": "Calls Analysis",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Domains Analysis",
-   "link_count": 0,
-   "link_to": "Domains Analysis",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Productify Activity Summary",
-   "link_count": 0,
-   "link_to": "Productify Activity Summary",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Desktop Applications",
    "link_count": 5,
    "link_type": "DocType",
@@ -206,9 +167,58 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Calls Analysis",
+   "link_count": 0,
+   "link_to": "Calls Analysis",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Domains Analysis",
+   "link_count": 0,
+   "link_to": "Domains Analysis",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Productify Activity Summary",
+   "link_count": 0,
+   "link_to": "Productify Activity Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Application Analysis",
+   "link_count": 0,
+   "link_to": "Application Analysis",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2024-08-06 19:03:52.375886",
+ "modified": "2024-08-13 16:05:20.306433",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",

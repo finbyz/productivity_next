@@ -7,13 +7,13 @@ frappe.query_reports["Domains Analysis"] = {
 			"fieldname": "from_date",
 			"label": __("From Date"),
 			"fieldtype": "Date",
-			"default": frappe.datetime.add_days(frappe.datetime.get_today(), -7)
+			"default": frappe.datetime.add_days(frappe.datetime.get_today(), -1)
 		},
 		{
 			"fieldname": "to_date",
 			"label": __("To Date"),
 			"fieldtype": "Date",
-			"default": frappe.datetime.get_today()
+			"default": frappe.datetime.add_days(frappe.datetime.get_today(), -1)
 		},
 		{
 			"fieldname": "employee",

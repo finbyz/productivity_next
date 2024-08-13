@@ -125,23 +125,31 @@ def get_data(filters):
             "application_name as application",
             "url",
         ],
+        "order_by": "employee asc ,duration desc", 
     }
     if filters.employee:
         kwargs["filters"]["employee"] = filters.employee
 
-    if filters.group_by_domain:
+    elif filters.group_by_domain:
         kwargs["group_by"] = "domain"
         kwargs["fields"].remove("from_time")
         kwargs["fields"].remove("to_time")
         kwargs["fields"].remove("duration")
         kwargs["fields"].append("sum(duration) as duration")
+        kwargs["order_by"] = "sum(duration) desc"
 
-    if filters.group_by_employee_and_domain:
+
+    elif filters.group_by_employee_and_domain:
         kwargs["group_by"] = "employee, domain"
         kwargs["fields"].remove("from_time")
         kwargs["fields"].remove("to_time")
         kwargs["fields"].remove("duration")
         kwargs["fields"].append("sum(duration) as duration")
+        kwargs["order_by"] = "employee asc, sum(duration) desc"
+
+    else:
+        kwargs["order_by"] = "employee asc, from_time desc"
+
 
     data = frappe.get_list(
         "Application Usage log",

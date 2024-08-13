@@ -96,7 +96,6 @@ class Meeting(Document):
 			target_lead = frappe.get_doc("Lead", self.party)
 			target_lead.status = "Meeting Done"
 			target_lead.turnover = self.turnover
-			target_lead.industry = self.industry
 			target_lead.business_specifics = self.business_specifics
 			target_lead.contact_by = self.contact_by
 			target_lead.contact_date = self.contact_date

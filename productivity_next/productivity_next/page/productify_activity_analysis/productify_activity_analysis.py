@@ -329,6 +329,39 @@ def overall_performance(employee=None, start_date=None, end_date=None):
     }
 # Overall Performance Code Ends
 
+# Overall Performance Code Starts
+@frappe.whitelist()
+def overall_performance_time(employee=None, date=None, hour=None):
+    if not employee:
+        return {
+            "labels": [],
+            "values": []
+        }
+    applications = frappe.db.sql(f"""
+        SELECT application_name AS name, from_time AS application_start, to_time AS application_end, date
+        FROM `tabApplication Usage log`
+        WHERE date = '{date}' and employee = '{employee}' and application_name != '' and application_name is not null and HOUR(from_time) = {hour}
+    """, as_dict=True)
+
+    base_data = []
+    for app in applications:
+        base_data.append([
+            app['name'],
+            app['date'],
+            app['application_start'],
+            app['application_end'],
+        ])
+    base_data = sorted(base_data, key=lambda x: x[2])
+    data = list(set([item[1] for item in base_data]))
+
+    return{
+        "base_dimensions":['Activity', 'Employee', 'Start Time', 'End Time'],
+        "dimensions":['Employee', 'Employee Name'],
+        "base_data":base_data,
+        "data":data
+    }
+# Overall Performance Code Ends
+
 # Applications Used Code Starts
 @frappe.whitelist()
 def application_usage_time(user=None, start_date=None, end_date=None):

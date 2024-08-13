@@ -123,6 +123,7 @@ UserProfile = class UserProfile {
 					this.web_browsing_time();
 					this.top_document_analysis();
 					this.render_images();
+					// this.overall_performance_timely();
 				}
 				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
 					this.top_phone_calls();
@@ -1042,6 +1043,327 @@ UserProfile = class UserProfile {
 	}
 	// Overall Performance Chart Code Ends
 
+	// Overall Performance Chart Code Starts
+	overall_performance_timely(date,hour) {
+		console.log("Overall Performance Chart",date, hour);
+		// console.log("Overall Performance Chart", this.activeTimeData);
+		let overallPerformanceDom = document.querySelector(`#performance-chart-${date}-${hour}`);
+		if (!overallPerformanceDom) {
+			console.error('Chart container not found:', `#performance-chart-${date}-${hour}`);
+		}
+		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
+		window.addEventListener('resize', overallPerformance.resize);
+		frappe
+			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.overall_performance_time", {
+				employee: this.selected_employee,
+				date: date,
+				hour: hour   
+			})
+			.then((r) => {
+				// console.log("Overall Performance Data:", r);
+				if (r.base_data.length === 0) {
+					// Handle no data scenario if needed
+				} else {
+					var _rawData = {
+						flight: {
+							dimensions: r.base_dimensions,
+							data: r.base_data
+						},
+						parkingApron: {
+							dimensions: r.dimensions,
+							data: r.data
+						}
+					};
+	
+					var priorityOrder = {
+						'Inactive': 0,
+						'Application': 1,
+					};
+	
+					function makeOption() {
+						function convertDateTime(dateTimeString) {
+							const date = new Date(dateTimeString);
+							return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
+						}
+						
+						function padZero(num) {
+							return num < 10 ? `0${num}` : num;
+						}
+					
+						// Add inactive periods
+						var inactivePeriods = [];
+						var employeeFirstEntry = {};
+						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+						for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
+							var employeeName = _rawData.parkingApron.data[i];
+							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
+							employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
+					
+							if (employeeActivities.length > 0) {
+								employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
+								var lastEndTime = new Date(employeeActivities[0][3]).getTime();
+						
+								for (var j = 1; j < employeeActivities.length; j++) {
+									var startTime = new Date(employeeActivities[j][2]).getTime();
+									if (startTime > lastEndTime) {
+										var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
+										var endTimeString = convertDateTime(new Date(startTime).toISOString());
+										
+										inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+									}
+									lastEndTime = new Date(employeeActivities[j][3]).getTime();
+								}
+							}
+						}
+					
+						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);    
+						_rawData.flight.data = _rawData.flight.data.map(item => {
+							let date = new Date(item[1]);
+							let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+							return [item[0], formattedDate, ...item.slice(2)];
+						});                        
+						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
+					
+						function setFixedDate(timestamp) {
+							var date = new Date(timestamp);
+							date.setFullYear(2000, 0, 1);
+							return date.getTime();
+						}
+						var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
+						var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
+						var minStartTime = Math.min(...startTimeList);
+						console.log("Min Start Time:", minStartTime);
+						var maxEndTime = Math.max(...endTimeList);
+						console.log("Max End Time:", maxEndTime);
+					
+						var fixedStartTime = new Date(minStartTime);
+						var fixedEndTime = new Date(maxEndTime);
+					
+						return {
+							backgroundColor: 'transparent',
+							legend: {
+								selected: {
+									'Application': true,
+									'Inactive': true
+								},
+							},
+							tooltip: {
+								formatter: function(params) {
+									var activityType = params.data[0];
+									var date = params.data[1];
+									var startTime_ = new Date(params.data[2]);
+									var endTime_ = new Date(params.data[3]);
+									var startTimeString = startTime_.toLocaleTimeString();
+									var endTimeString = endTime_.toLocaleTimeString();
+					
+									var durationMs = endTime_ - startTime_;
+									var durationSeconds = Math.floor(durationMs / 1000);
+									var hours = Math.floor(durationSeconds / 3600);
+									var minutes = Math.floor((durationSeconds % 3600) / 60);
+									var seconds = durationSeconds % 60;
+					
+									var durationString = "";
+									if (hours > 0) durationString += hours + "h ";
+									if (minutes > 0) durationString += minutes + "m ";
+									if (seconds > 0 || durationString === "") durationString += seconds + "s";
+					
+									var tooltipContent = `<div style="line-height: 1.5;">`;
+							
+									tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
+					
+									tooltipContent += `
+										<span style="font-weight: bold;">Date:</span> ${date}<br>
+										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
+										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
+										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
+									tooltipContent += `</div>`;
+								
+									return tooltipContent;
+								},
+							},
+							animation: false,
+							toolbox: {
+								left: 20,
+								top: 0,
+								itemSize: 20 
+							}, 
+							dataZoom: [
+								{
+									type: 'slider',
+									yAxisIndex: 0,
+									zoomLock: true,
+									width: 10,
+									right: 10,
+									top: 70,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
+									bottom: 20,
+									handleSize: 0,
+									showDetail: false
+								},
+								{
+									type: 'inside',
+									id: 'insideY',
+									yAxisIndex: 0,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
+									zoomOnMouseWheel: false,
+									moveOnMouseMove: true,
+									moveOnMouseWheel: true
+								}
+							],                    
+							grid: {
+								show: false,
+								top: 20,
+								bottom: 5,
+								left: 120,
+								right: 20,
+								backgroundColor: 'transparent',
+								borderWidth: 0
+							},                            
+							xAxis: {
+								type: 'time',
+								position: 'top',
+								min: fixedStartTime,
+								max: fixedEndTime,
+								splitLine: {
+									lineStyle: {
+										color: ['#E9EDFF']
+									}
+								},
+								axisLine: { show: false },
+								axisTick: {
+									lineStyle: {
+										color: '#929ABA'
+									}
+								},
+								axisLabel: {
+									show: false // Hides labels on x-axis
+								}
+							},
+							yAxis: {
+								type: 'category',
+								axisTick: { show: false },
+								splitLine: { show: false },
+								axisLine: { show: false },
+								axisLabel: { 
+									show: true // Hides labels on y-axis
+								},
+								data: uniqueDates,
+							},                            
+							series: [
+								{
+									id: 'flightData',
+									type: 'custom',
+									renderItem: function (params, api) {
+										var dateIndex = api.value(1);
+										var xValue = new Date(api.value(2));
+										var xEndValue = new Date(api.value(3));
+										xValue.setFullYear(2000, 0, 1);
+										xEndValue.setFullYear(2000, 0, 1);
+										
+										var yValue = api.coord([0, dateIndex])[1];
+										var activityType = api.value(0);
+									
+										// Generate a random color if activity type is not 'Inactive'
+										var color;
+										if (activityType === 'Application') {
+											color = '#4BC0C0';
+										} else if (activityType === 'Inactive') {
+											color = '#E9EAEC';
+										} else {
+											// Generate a random color
+											color = '#4BC0C0';
+										}
+									
+										var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);  // Adjust bar height
+								
+										var item = {
+											type: 'rect',
+											shape: {
+												x: api.coord([xValue, yValue])[0],
+												y: yValue - barHeight / 2,
+												width: api.size([xEndValue - xValue, 0])[0],
+												height: barHeight,
+											},
+											style: api.style({
+												fill: color,  // Add 50% opacity
+												stroke: 'rgba(0,0,0,0.2)'
+											})
+										};
+								
+										return item;
+									},
+									dimensions: _rawData.flight.dimensions,
+									encode: {
+										x: [2, 3],
+										y: 1,
+									},
+									data: _rawData.flight.data
+								}
+							]
+						};
+					}
+					
+					overallPerformance.setOption(makeOption());
+					function updateChart() {
+						let legends = overallPerformance.getOption().legend[0].selected
+						legends = Object.keys(legends).filter(legend => legends[legend]);
+						var filteredData = _rawData.flight.data.filter(item => {
+							var activityType = item[0];
+							return legends.includes(activityType);
+						});
+
+						overallPerformance.setOption({
+							series: [{
+								id: 'flightData',
+								data: filteredData
+							}]
+						});
+					}
+					$('#overallChartLegends li').each(function() {
+						let li = $(this);
+						$(li).attr('selected', 'true');
+					});
+					function updateLegend() {
+						let overallChartLegends = $('#overallChartLegends li');
+						let legends = {};
+
+						overallChartLegends.each(function() {
+							let li = $(this);
+							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+							console.log(li.attr('data-value'));
+						});
+
+						overallPerformance.setOption({
+							legend: {
+								selected: legends
+							}
+						});
+
+						console.log(legends);
+
+					}
+					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+					$.each(overallChartLegends, function(index, li) {
+						$(li).on('click', function() {
+							if ($(li).attr('selected')) {
+								$(li).removeAttr('selected');
+							} else {
+								$(li).attr('selected', 'true');
+							}
+							updateLegend();
+							updateChart();
+						});
+					});
+				}
+			});
+	}
+	// Overall Performance Chart Code Ends
+
 	// Application Used Chart Code Starts
 	application_usage_time() {
 		let data = this.selected_employee;
@@ -1153,16 +1475,27 @@ UserProfile = class UserProfile {
 				myChart.resize();
 
 				myChart.setOption(option);
-
+				// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('application-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToApplicationAnalysis(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
+				myChart.resize(); // Resize to fit the container
+	
+				// Re-add resize listener to ensure chart resizes with window
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-
-				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
+		// Function to redirect to Application Analysis page with selected dates
+		function goToApplicationAnalysis(employee,start_date, end_date) {
+			var baseUrl = window.location.origin;
+			var applicationAnalysisUrl = baseUrl + "/app/query-report/Application Analysis?group_by_application_name=1&employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+			window.open(applicationAnalysisUrl, '_blank');
+		}
 	}
 	// Application Used Chart Code Ends
 
@@ -1557,7 +1890,7 @@ UserProfile = class UserProfile {
 		function getBaseURL() {
 			return window.location.origin + '/app/';
 		}
-
+	
 		let employee_data;
 		let start_date_ = this.selected_start_date;
 		let end_date_ = this.selected_end_date;
@@ -1566,7 +1899,7 @@ UserProfile = class UserProfile {
 		} else {
 			employee_data = this.user_id;
 		}
-
+	
 		const baseUrl = getBaseURL();
 		const container = this.main_section.find("#url-data");
 		container.empty();
@@ -1590,7 +1923,7 @@ UserProfile = class UserProfile {
 								</tr>
 							</thead>
 							<tbody>`;
-
+	
 		data.url_full_data.forEach(app => {
 			wholedata += `
 				<tr>
@@ -1600,7 +1933,7 @@ UserProfile = class UserProfile {
 					<td style="color:#FF4001">${this.convertSecondsToTime_(app.total_duration)} H</td>
 				</tr>`;
 		});
-
+	
 		wholedata += `
 							</tbody>
 						</table>
@@ -1612,7 +1945,7 @@ UserProfile = class UserProfile {
 			$(document).on('click', '.url-link', function (e) {
 				e.preventDefault();
 				let clickedLink = $(this); // Store reference to clicked link
-
+	
 				// AJAX call to Python function
 				frappe.call({
 					method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_url_brief_data",
@@ -1627,15 +1960,13 @@ UserProfile = class UserProfile {
 						if (r.message) {
 							let data = r.message.data;
 							render_url_brief_data(data);
-							$('#urlModal').modal('show'); // Show the modal after data is loaded
 						} else {
-							$('#urlModal').find('.modal-body').html('No data available for this URL.');
-							$('#urlModal').modal('show'); // Show the modal even if no data is available
+							render_url_brief_data([]); // Empty data to handle no data case
 						}
 					}
 				});
 			});
-
+	
 			function render_url_brief_data(data) {
 				function convertSecondsToTime_(seconds) {
 					const hours = Math.floor(seconds / 3600);
@@ -1643,7 +1974,7 @@ UserProfile = class UserProfile {
 					const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
 					return `${hours}:${formattedMinutes}`;
 				}
-			
+	
 				let displayContent = `
 				<style>
 					.url-table {
@@ -1674,27 +2005,49 @@ UserProfile = class UserProfile {
 								</tr>
 							</thead>
 							<tbody>`;
-			
-				data.forEach(app => {
-					displayContent += `
-					<tr>
-						<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
-						<td title="${app.url}"><a href="${app.url}" target="_blank"><span style="color:#00A6E0;"><b>${app.url}</b></span></a></td>
-						<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
-						<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
-					</tr>`;
-				});
-			
+	
+				if (data.length === 0) {
+					displayContent += `<tr><td colspan="4" class="text-center">No data available for this URL.</td></tr>`;
+				} else {
+					data.forEach(app => {
+						displayContent += `
+						<tr>
+							<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
+							<td title="${app.url}"><a href="${app.url}" target="_blank"><span style="color:#00A6E0;"><b>${app.url}</b></span></a></td>
+							<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
+							<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
+						</tr>`;
+					});
+				}
+	
 				displayContent += `
 							</tbody>
 						</table>
 					</div>
 				</div>`;
-			
-				$('#urlModal').find('.modal-body').html(displayContent);
-			}
+	
+				let dialog = new frappe.ui.Dialog({
+					title: 'URL Information',
+					fields: [
+						{
+							fieldtype: 'HTML',
+							label: '',
+							fieldname: 'url_content',
+							options: displayContent
+						}
+					],
+					size: 'extra-large',
+					primary_action_label: 'Close',
+					primary_action: function() {
+						dialog.hide();
+					},
+				});
+				
+				dialog.show();
+			}				
 		});
-	};
+	}
+	
 	// URL DATA Code Ends
 
 	// Sidebar Activity Data code starts
@@ -2162,224 +2515,212 @@ UserProfile = class UserProfile {
 	
 	// User Activity Images code starts
 	async render_images() {
-		let startDatetime = new Date(this.selected_start_date + " 00:00:00"); // Replace with your start datetime
-		let endDatetime = new Date(this.selected_end_date + " 23:59:59"); // Replace with your end datetime
-		let data = null;
-		if (this.selected_employee != null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-
+		let startDatetime = new Date(this.selected_start_date + " 00:00:00");
+		let endDatetime = new Date(this.selected_end_date + " 23:59:59");
+		let data = this.selected_employee ? this.selected_employee : this.user_id;
+	
 		let lastPrintedDate = null;
 		let lastPrintedHour = null;
-		let slotTimeString = null;
-
+	
 		const imageContainer = this.main_section.find(".recent-activity-list");
 		const debounce = (func, delay) => {
 			let debounceTimer;
 			return function () {
-				const context = this;
-				const args = arguments;
 				clearTimeout(debounceTimer);
-				debounceTimer = setTimeout(() => func.apply(context, args), delay);
+				debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
 			};
 		};
-
-		async function loadImages(user, start_time, end_time) {
+		function formatDate(date) {
+			return date.toISOString().split('T')[0];
+		}
+	
+		const loadImages = async (user, start_time, end_time) => {
 			let flag = 0;
 			await frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.user_activity_images", {
 				user: user,
 				start_date: start_time,
 				end_date: end_time,
-			})
-				.then((imagedata) => {
-					if (imagedata.length > 0) {
-						flag = 1;
+			}).then((imagedata) => {
+				if (imagedata.length > 0) {
+					flag = 1;
+				}
+				imagedata.reverse();
+				let slotImages = {};
+				imagedata.forEach((image) => {
+					const imageDateTime = new Date(image.time);
+					const hour = imageDateTime.getHours();
+					const date = imageDateTime.toDateString();
+					const slot = Math.floor(imageDateTime.getMinutes() / 5);
+					this.formattedDate_ = formatDate(imageDateTime);
+					if (!slotImages[date]) {
+						slotImages[date] = {};
 					}
-					imagedata.reverse();
-					let slotImages = {};
-					imagedata.forEach((image) => {
-						const imageDateTime = new Date(image.time);
-						const hour = imageDateTime.getHours();
-						const date = imageDateTime.toDateString();
-						const slot = Math.floor(imageDateTime.getMinutes() / 5);
-						if (!slotImages[date]) {
-							slotImages[date] = {};
-						}
-						if (!slotImages[date][hour]) {
-							slotImages[date][hour] = new Array(12).fill(null);
-						}
-						slotImages[date][hour][slot] = image;
-					});
-					Object.keys(slotImages).reverse().forEach(date => {
-						Object.keys(slotImages[date]).reverse().forEach(hour => {
-							if (lastPrintedDate !== date || lastPrintedHour !== hour) {
-								const hourHeader = `<div class="col-md-12"><h5><b>${date} ${hour}:00:00</b></h5></div>
-							
-                        <div class="frappe-card chart-column-container col-md-12">
-                            <div class="title-area">
-                                <a id="activity-summary-report-link"  href="#" target="_blank">
-                                <h4 class="card-title">Activity Summary</h4>
-                            </a>
-                            </div>
-                            <div style="display: flex; justify-content: center;">
-                                <ul class="row list-unstyled" style="display: flex; padding: 0; list-style: none;" id="overallChartLegends">
-                                    <li data-value="Inactive" class="row align-center" style="margin-right: 20px;"><span style="background-color: #E9EAEC; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Inactive</li>
-                                    <li data-value="Application" class="row align-center" style="margin-right: 20px;"><span style="background-color: #4BC0C0; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Application</li>
-                                    <li data-value="Idle" class="row align-center" style="margin-right: 20px;"><span style="background-color: #FF6666; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Idle</li>
-                                    <li data-value="Internal Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #9966FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Internal Meeting</li>
-                                    <li data-value="External Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #6699FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>External Meeting</li>
-                                    <li data-value="Call" class="row align-center"><span style="background-color: #FFCC66; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Call</li>
-                                </ul>
-                            </div>
-                            <div class="overall-performance" style="width: 100%; min-height: 450px; max-height: 650px;">
-                                <!-- Overall Performance Chart Container -->
-                            </div>
-                        </div>
-                <br>
-								`;
-								imageContainer.append(hourHeader);
-								lastPrintedDate = date;
-								lastPrintedHour = hour;
-							}
-
-							for (let slot = 11; slot >= 0; slot--) {
-								const image = slotImages[date][hour][slot];
-								const slotTime = new Date(date);
-								slotTime.setHours(hour);
-								slotTime.setMinutes(slot * 5);
-								const slotTimeString = slotTime.toLocaleTimeString('en-US', {
-									hour12: false
-								});
-
-								if (image) {
-									const imgElement = `
-									<div class="mt-2">
-								<div class="col-md-3">
-								<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
-									<img src="${image.screenshot}" title="${image.time_}" data-active-app="${image.active_app}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
-								</div>
-								<p style="text-align: center;"><b>${slotTimeString}</b></p>
-								</div></div>`;
-									imageContainer.append(imgElement);
-								} else {
-									const gapMessage = `
-								<div class="col-md-3">
-								<div style="width: 100%; height: 160px; background-color: #dddddd; display: flex; justify-content: center; align-items: center;">
-									<span style="font-weight: bold;">Not Active</span>
-								</div>
-								<p style="text-align: center;"><b>${slotTimeString}</b></p>
-								</div>
-								`;
-									imageContainer.append(gapMessage);
-								}
-
-							}
-						});
-					});
-					function setImageHeight() {
-						const windowHeight = window.innerHeight;
-						const imageHeight = windowHeight * 0.2;
-						const images = document.querySelectorAll('.clickable-image');
-						images.forEach(img => {
-							img.style.height = `${imageHeight}px`;
-						});
+					if (!slotImages[date][hour]) {
+						slotImages[date][hour] = new Array(12).fill(null);
 					}
-					setImageHeight();
-					window.addEventListener('resize', setImageHeight);
-		
-					$('.clickable-image').off('click').on('click', function () {
-						const imgSrc = $(this).attr('src');
-						const activeApp = $(this).data('active-app'); // Get the active_app from data attribute
-
-						$('#zoomedImg').attr('src', imgSrc); // Set the image source in the modal
-						$('#imageModal').modal('show');
-
-						// Update the modal title to show only the active_app
-						$('#imageModalLabel').html(`${activeApp || 'Unknown App'}`);
-
-						// Set the modal image to stretch to fit
-						$('#zoomedImg').css({
-							'max-width': '100%',
-							'max-height': '100%',
-							'width': 'auto',
-							'height': 'auto',
-							'object-fit': 'contain'
-						});
-					});
-			
+					slotImages[date][hour][slot] = image;
 				});
+	
+				Object.keys(slotImages).reverse().forEach(date => {
+					Object.keys(slotImages[date]).reverse().forEach(hour => {
+						if (lastPrintedDate !== date || lastPrintedHour !== hour) {
+							console.log("hiii performance-chart-",this.formattedDate_,hour);
+							const hourHeader = `<div class="col-md-12"><h5><b>${date} ${hour}:00:00</b></h5></div><br><div class="col-md-12">
+							<div class="overall-performance-timely" id="performance-chart-${this.formattedDate_}-${hour}" style="min-height: 50px; max-height: 50px;">
+								<!-- Overall Performance Chart Container -->
+							</div>
+							</div>`;
+							imageContainer.append(hourHeader);
+							lastPrintedDate = date;
+							lastPrintedHour = hour;
+	
+							// Call the function to display chart for this hour
+							this.overall_performance_timely(this.formattedDate_,hour);
+						}
+	
+						for (let slot = 11; slot >= 0; slot--) {
+							const image = slotImages[date][hour][slot];
+							const slotTime = new Date(date);
+							slotTime.setHours(hour);
+							slotTime.setMinutes(slot * 5);
+							const slotTimeString = slotTime.toLocaleTimeString('en-US', {
+								hour12: false
+							});
+	
+							if (image) {
+								const imgElement = `
+									<div class="col-md-3">
+										<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
+											<img src="${image.screenshot}" title="${image.time_}" data-active-app="${image.active_app}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
+										</div>
+										<p style="text-align: center;"><b>${slotTimeString}</b></p>
+									</div>`;
+								imageContainer.append(imgElement);
+							} else {
+								const gapMessage = `
+									<div class="col-md-3">
+										<div style="width: 100%; height: 160px; background-color: #dddddd; display: flex; justify-content: center; align-items: center;">
+											<span style="font-weight: bold;">Not Active</span>
+										</div>
+										<p style="text-align: center;"><b>${slotTimeString}</b></p>
+									</div>`;
+								imageContainer.append(gapMessage);
+							}
+						}
+					});
+				});
+	
+				function setImageHeight() {
+					const windowHeight = window.innerHeight;
+					const imageHeight = windowHeight * 0.2;
+					const images = document.querySelectorAll('.clickable-image');
+					images.forEach(img => {
+						img.style.height = `${imageHeight}px`;
+					});
+				}
+				setImageHeight();
+				window.addEventListener('resize', setImageHeight);
+	
+				$('.clickable-image').off('click').on('click', function () {
+					const imgSrc = $(this).attr('src');
+					const activeApp = $(this).data('active-app');
+	
+					showImageDialog(imgSrc, activeApp);
+				});
+	
+			});
 			return flag;
+		};
+	
+		function showImageDialog(imgSrc, activeApp) {
+			// Create and show the Frappe dialog
+			let dialog = new frappe.ui.Dialog({
+				title: activeApp || 'Unknown App', // Set the title dynamically
+				fields: [
+					{
+						fieldtype: 'HTML',
+						label: '',
+						fieldname: 'image_content',
+						options: `
+							<div class="frappe-card custom-card">
+								<div class="modal-body">
+									<img id="zoomedImg" src="${imgSrc}" class="img-fluid" style="width: 100%; height: auto; object-fit: contain;">
+								</div>
+							</div>`
+					}
+				],
+				size: 'extra-large', // Adjust the size as needed
+				primary_action_label: 'Close',
+				primary_action: function () {
+					dialog.hide();
+				}
+			});
+	
+			dialog.show();
 		}
-
-		// let ct = new Date();
-
-		// if (endDatetime > new Date()){
-		// 	endDatetime = ct;
-		// }
-
-		// Loop through hours from start to end datetime
+	
 		let currentDatetime = endDatetime;
 		let start_time = new Date(currentDatetime);
 		let end_time = new Date(currentDatetime);
-
+	
 		imageContainer.empty();
-
+	
 		end_time = new Date(currentDatetime);
 		currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 		currentDatetime.setHours(currentDatetime.getHours() - 1);
 		start_time = new Date(currentDatetime);
-
+	
 		if (start_time < startDatetime) {
 			return;
-		}
-		else {
+		} else {
 			let flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
-
+	
 			while ((flag == 0) && (start_time > startDatetime)) {
 				end_time = new Date(currentDatetime);
 				currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 				currentDatetime.setHours(currentDatetime.getHours() - 1);
 				start_time = new Date(currentDatetime);
-
+	
 				flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
 			}
 		}
-
+	
 		if (currentDatetime > startDatetime) {
 			const handleScroll = debounce(async () => {
 				const scrollHeight = $(document).height();
 				const scrollPosition = $(window).height() + $(window).scrollTop();
 				const scrollThreshold = 400;
-
+	
 				if (scrollPosition >= scrollHeight - scrollThreshold) {
 					end_time = new Date(currentDatetime);
 					currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 					currentDatetime.setHours(currentDatetime.getHours() - 1);
 					start_time = new Date(currentDatetime);
-
+	
 					if (start_time < startDatetime) {
 						return;
-					}
-					else {
+					} else {
 						let flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
-
+	
 						while ((flag == 0) && (start_time > startDatetime)) {
 							end_time = new Date(currentDatetime);
 							currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 							currentDatetime.setHours(currentDatetime.getHours() - 1);
 							start_time = new Date(currentDatetime);
-
+	
 							flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
 						}
 					}
 				}
 			}, 100);
-
+	
 			$(window).on('scroll', handleScroll);
 		}
+	
+		// this.overall_performance_timely(); // If this is to be called at the end of all operations, ensure it is properly implemented
 	}
+	
+	
 	// User Activity Images code ends
 	
 	// Convert seconds to time for example 3600 seconds to 1 hours 0 minutes code starts
