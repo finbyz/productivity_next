@@ -2215,7 +2215,30 @@ UserProfile = class UserProfile {
 					Object.keys(slotImages).reverse().forEach(date => {
 						Object.keys(slotImages[date]).reverse().forEach(hour => {
 							if (lastPrintedDate !== date || lastPrintedHour !== hour) {
-								const hourHeader = `<div class="col-md-12"><h5><b>${date} ${hour}:00:00</b></h5></div>`;
+								const hourHeader = `<div class="col-md-12"><h5><b>${date} ${hour}:00:00</b></h5></div>
+							
+                        <div class="frappe-card chart-column-container col-md-12">
+                            <div class="title-area">
+                                <a id="activity-summary-report-link"  href="#" target="_blank">
+                                <h4 class="card-title">Activity Summary</h4>
+                            </a>
+                            </div>
+                            <div style="display: flex; justify-content: center;">
+                                <ul class="row list-unstyled" style="display: flex; padding: 0; list-style: none;" id="overallChartLegends">
+                                    <li data-value="Inactive" class="row align-center" style="margin-right: 20px;"><span style="background-color: #E9EAEC; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Inactive</li>
+                                    <li data-value="Application" class="row align-center" style="margin-right: 20px;"><span style="background-color: #4BC0C0; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Application</li>
+                                    <li data-value="Idle" class="row align-center" style="margin-right: 20px;"><span style="background-color: #FF6666; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Idle</li>
+                                    <li data-value="Internal Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #9966FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Internal Meeting</li>
+                                    <li data-value="External Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #6699FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>External Meeting</li>
+                                    <li data-value="Call" class="row align-center"><span style="background-color: #FFCC66; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Call</li>
+                                </ul>
+                            </div>
+                            <div class="overall-performance" style="width: 100%; min-height: 450px; max-height: 650px;">
+                                <!-- Overall Performance Chart Container -->
+                            </div>
+                        </div>
+                <br>
+								`;
 								imageContainer.append(hourHeader);
 								lastPrintedDate = date;
 								lastPrintedHour = hour;
@@ -2232,12 +2255,13 @@ UserProfile = class UserProfile {
 
 								if (image) {
 									const imgElement = `
+									<div class="mt-2">
 								<div class="col-md-3">
 								<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
 									<img src="${image.screenshot}" title="${image.time_}" data-active-app="${image.active_app}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
 								</div>
 								<p style="text-align: center;"><b>${slotTimeString}</b></p>
-								</div>`;
+								</div></div>`;
 									imageContainer.append(imgElement);
 								} else {
 									const gapMessage = `
@@ -2246,7 +2270,8 @@ UserProfile = class UserProfile {
 									<span style="font-weight: bold;">Not Active</span>
 								</div>
 								<p style="text-align: center;"><b>${slotTimeString}</b></p>
-								</div>`;
+								</div>
+								`;
 									imageContainer.append(gapMessage);
 								}
 

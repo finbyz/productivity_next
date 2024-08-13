@@ -192,3 +192,6 @@ def enqueue_create_contact(
     contact_doc_resave.flags.ignore_permissions = True
     contact_doc_resave.save()
     frappe.msgprint("Contact has been created.")
+
+def on_doctype_update():
+    frappe.db.add_unique("Employee Fincall", ["date", "employee", "call_datetime","customer_no"])
