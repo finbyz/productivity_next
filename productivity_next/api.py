@@ -736,3 +736,46 @@ def is_stop_disabled():
         None,
     )
     return user.get('disable_stop_button',False)
+
+from datetime import timedelta, datetime
+import frappe
+@frappe.whitelist()
+def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours):
+    from_date = datetime.strptime(from_date, '%Y-%m-%d')
+    to_date = datetime.strptime(to_date, '%Y-%m-%d')
+    date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+
+    holidays = frappe.db.sql("""
+        SELECT holiday_date 
+        FROM `tabHoliday` 
+        WHERE holiday_date BETWEEN %s AND %s
+    """, (from_date, to_date), as_dict=True)
+    holiday_dates = set(holiday.holiday_date for holiday in holidays)
+
+    leaves = frappe.db.sql("""
+        SELECT from_date, to_date, half_day
+        FROM `tabLeave Application`
+        WHERE employee = %s
+        AND status = 'Approved'
+        AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
+    """, (employee, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
+
+    total_working_hours = 0
+    for date in date_range:
+        current_date = date.date()
+
+        if current_date in holiday_dates:
+            continue
+
+        day_hours = daily_working_hours
+        for leave in leaves:
+            if leave.from_date <= current_date <= leave.to_date:
+                if leave.half_day:
+                    day_hours *= 0.5
+                else:
+                    day_hours = 0
+                break
+
+        total_working_hours += day_hours
+
+    return total_working_hours

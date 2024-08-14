@@ -329,27 +329,75 @@ def overall_performance(employee=None, start_date=None, end_date=None):
     }
 # Overall Performance Code Ends
 
-# Overall Performance Code Starts
+# Overall Performance timely Code Starts
 @frappe.whitelist()
-def overall_performance_time(employee=None, date=None, hour=None):
+def overall_performance_timely(employee=None, date=None, hour=None):
     if not employee:
         return {
             "labels": [],
             "values": []
         }
     applications = frappe.db.sql(f"""
-        SELECT application_name AS name, from_time AS application_start, to_time AS application_end, date
-        FROM `tabApplication Usage log`
-        WHERE date = '{date}' and employee = '{employee}' and application_name != '' and application_name is not null and HOUR(from_time) = {hour}
+    SELECT 
+        application_name AS name, 
+        from_time AS application_start, 
+        to_time AS application_end, 
+        date, 
+        LEFT(application_title, 80) AS application_title, 
+        LEFT(url, 80) AS url, 
+        project, 
+        issue, 
+        task,
+        process_name
+    FROM `tabApplication Usage log`
+    WHERE date = '{date}' 
+      AND employee = '{employee}' 
+      AND application_name != '' 
+      AND application_name IS NOT NULL 
+      AND HOUR(from_time) = {hour}
+    """, as_dict=True)
+
+
+    idle = frappe.db.sql(f"""
+        SELECT from_time AS idle_start, to_time AS idle_end, date
+        FROM `tabEmployee Idle Time`
+        WHERE date = '{date}' and employee = '{employee}' and HOUR(from_time) = {hour}
     """, as_dict=True)
 
     base_data = []
     for app in applications:
+        if app.process_name in ["chrome.exe","firefox.exe","msedge.exe","opera.exe","iexplore.exe","brave.exe","safari.exe","vivaldi.exe","chromium.exe","microsoftedge.exe"]:
+            base_data.append([
+                "Browser",
+                app['date'],
+                app['application_start'],
+                app['application_end'],
+                app['application_title'].split(" - ")[0] if app['application_title'] else None,
+                app['url'] if app['url'] else None,
+                app['project'] if app['project'] else None,
+                app['issue'] if app['issue'] else None,
+                app['task'] if app['task'] else None,
+                app['name']
+            ])
+        else:
+            base_data.append([
+                "Application",
+                app['date'],
+                app['application_start'],
+                app['application_end'],
+                app['application_title'].split(" - ")[0] if app['application_title'] else None,
+                app['url'] if app['url'] else None,
+                app['project'] if app['project'] else None,
+                app['issue'] if app['issue'] else None,
+                app['task'] if app['task'] else None,
+                app['name']         
+            ])
+    for app in idle:
         base_data.append([
-            app['name'],
+            "Idle",
             app['date'],
-            app['application_start'],
-            app['application_end'],
+            app['idle_start'],
+            app['idle_end'],
         ])
     base_data = sorted(base_data, key=lambda x: x[2])
     data = list(set([item[1] for item in base_data]))
@@ -360,7 +408,7 @@ def overall_performance_time(employee=None, date=None, hour=None):
         "base_data":base_data,
         "data":data
     }
-# Overall Performance Code Ends
+# Overall Performance Timely Code Ends
 
 # Applications Used Code Starts
 @frappe.whitelist()

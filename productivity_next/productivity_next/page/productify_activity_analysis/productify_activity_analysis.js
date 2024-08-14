@@ -1044,324 +1044,361 @@ UserProfile = class UserProfile {
 	// Overall Performance Chart Code Ends
 
 	// Overall Performance Chart Code Starts
-	overall_performance_timely(date,hour) {
-		console.log("Overall Performance Chart",date, hour);
-		// console.log("Overall Performance Chart", this.activeTimeData);
+	overall_performance_timely(date, hour) {
+		console.log("Overall Performance Chart", date, hour);
+	
 		let overallPerformanceDom = document.querySelector(`#performance-chart-${date}-${hour}`);
 		if (!overallPerformanceDom) {
 			console.error('Chart container not found:', `#performance-chart-${date}-${hour}`);
 		}
 		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
 		window.addEventListener('resize', overallPerformance.resize);
-		frappe
-			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.overall_performance_time", {
-				employee: this.selected_employee,
-				date: date,
-				hour: hour   
-			})
-			.then((r) => {
-				// console.log("Overall Performance Data:", r);
-				if (r.base_data.length === 0) {
-					// Handle no data scenario if needed
-				} else {
-					var _rawData = {
-						flight: {
-							dimensions: r.base_dimensions,
-							data: r.base_data
-						},
-						parkingApron: {
-							dimensions: r.dimensions,
-							data: r.data
-						}
-					};
 	
-					var priorityOrder = {
-						'Inactive': 0,
-						'Application': 1,
-					};
+		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.overall_performance_timely", {
+			employee: this.selected_employee,
+			date: date,
+			hour: hour
+		}).then((r) => {
+			if (r.base_data.length === 0) {
+				// Handle no data scenario if needed
+			} else {
+				var _rawData = {
+					flight: {
+						dimensions: r.base_dimensions,
+						data: r.base_data
+					},
+					parkingApron: {
+						dimensions: r.dimensions,
+						data: r.data
+					}
+				};
 	
-					function makeOption() {
-						function convertDateTime(dateTimeString) {
-							const date = new Date(dateTimeString);
-							return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
-						}
-						
-						function padZero(num) {
-							return num < 10 ? `0${num}` : num;
-						}
-					
-						// Add inactive periods
-						var inactivePeriods = [];
-						var employeeFirstEntry = {};
-						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-						for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
-							var employeeName = _rawData.parkingApron.data[i];
-							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
-							employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
-					
-							if (employeeActivities.length > 0) {
-								employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
-								var lastEndTime = new Date(employeeActivities[0][3]).getTime();
-						
-								for (var j = 1; j < employeeActivities.length; j++) {
-									var startTime = new Date(employeeActivities[j][2]).getTime();
-									if (startTime > lastEndTime) {
-										var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
-										var endTimeString = convertDateTime(new Date(startTime).toISOString());
-										
-										inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
-									}
-									lastEndTime = new Date(employeeActivities[j][3]).getTime();
+				var priorityOrder = {
+					'Inactive': 0,
+					'Application': 1,
+					'Idle': 2,
+				};
+	
+				function makeOption() {
+					function convertDateTime(dateTimeString) {
+						const date = new Date(dateTimeString);
+						return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
+					}
+	
+					function padZero(num) {
+						return num < 10 ? `0${num}` : num;
+					}
+	
+					var inactivePeriods = [];
+					var employeeFirstEntry = {};
+					_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+					_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+					for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
+						var employeeName = _rawData.parkingApron.data[i];
+						var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
+						employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
+	
+						if (employeeActivities.length > 0) {
+							employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
+							var lastEndTime = new Date(employeeActivities[0][3]).getTime();
+	
+							for (var j = 1; j < employeeActivities.length; j++) {
+								var startTime = new Date(employeeActivities[j][2]).getTime();
+								if (startTime > lastEndTime) {
+									var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
+									var endTimeString = convertDateTime(new Date(startTime).toISOString());
+	
+									inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
 								}
+								lastEndTime = new Date(employeeActivities[j][3]).getTime();
 							}
 						}
-					
-						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);    
-						_rawData.flight.data = _rawData.flight.data.map(item => {
-							let date = new Date(item[1]);
-							let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
-							return [item[0], formattedDate, ...item.slice(2)];
-						});                        
-						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
-					
-						function setFixedDate(timestamp) {
-							var date = new Date(timestamp);
-							date.setFullYear(2000, 0, 1);
-							return date.getTime();
-						}
-						var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
-						var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
-						var minStartTime = Math.min(...startTimeList);
-						console.log("Min Start Time:", minStartTime);
-						var maxEndTime = Math.max(...endTimeList);
-						console.log("Max End Time:", maxEndTime);
-					
-						var fixedStartTime = new Date(minStartTime);
-						var fixedEndTime = new Date(maxEndTime);
-					
-						return {
-							backgroundColor: 'transparent',
-							legend: {
-								selected: {
-									'Application': true,
-									'Inactive': true
-								},
-							},
-							tooltip: {
-								formatter: function(params) {
-									var activityType = params.data[0];
-									var date = params.data[1];
-									var startTime_ = new Date(params.data[2]);
-									var endTime_ = new Date(params.data[3]);
-									var startTimeString = startTime_.toLocaleTimeString();
-									var endTimeString = endTime_.toLocaleTimeString();
-					
-									var durationMs = endTime_ - startTime_;
-									var durationSeconds = Math.floor(durationMs / 1000);
-									var hours = Math.floor(durationSeconds / 3600);
-									var minutes = Math.floor((durationSeconds % 3600) / 60);
-									var seconds = durationSeconds % 60;
-					
-									var durationString = "";
-									if (hours > 0) durationString += hours + "h ";
-									if (minutes > 0) durationString += minutes + "m ";
-									if (seconds > 0 || durationString === "") durationString += seconds + "s";
-					
-									var tooltipContent = `<div style="line-height: 1.5;">`;
-							
-									tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
-					
-									tooltipContent += `
-										<span style="font-weight: bold;">Date:</span> ${date}<br>
-										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
-										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
-										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
-									tooltipContent += `</div>`;
-								
-									return tooltipContent;
-								},
-							},
-							animation: false,
-							toolbox: {
-								left: 20,
-								top: 0,
-								itemSize: 20 
-							}, 
-							dataZoom: [
-								{
-									type: 'slider',
-									yAxisIndex: 0,
-									zoomLock: true,
-									width: 10,
-									right: 10,
-									top: 70,
-									startValue: _rawData.flight.data.length,
-									endValue: _rawData.flight.data.length - 10,
-									bottom: 20,
-									handleSize: 0,
-									showDetail: false
-								},
-								{
-									type: 'inside',
-									id: 'insideY',
-									yAxisIndex: 0,
-									startValue: _rawData.flight.data.length,
-									endValue: _rawData.flight.data.length - 10,
-									zoomOnMouseWheel: false,
-									moveOnMouseMove: true,
-									moveOnMouseWheel: true
-								}
-							],                    
-							grid: {
-								show: false,
-								top: 20,
-								bottom: 5,
-								left: 120,
-								right: 20,
-								backgroundColor: 'transparent',
-								borderWidth: 0
-							},                            
-							xAxis: {
-								type: 'time',
-								position: 'top',
-								min: fixedStartTime,
-								max: fixedEndTime,
-								splitLine: {
-									lineStyle: {
-										color: ['#E9EDFF']
-									}
-								},
-								axisLine: { show: false },
-								axisTick: {
-									lineStyle: {
-										color: '#929ABA'
-									}
-								},
-								axisLabel: {
-									show: false // Hides labels on x-axis
-								}
-							},
-							yAxis: {
-								type: 'category',
-								axisTick: { show: false },
-								splitLine: { show: false },
-								axisLine: { show: false },
-								axisLabel: { 
-									show: true // Hides labels on y-axis
-								},
-								data: uniqueDates,
-							},                            
-							series: [
-								{
-									id: 'flightData',
-									type: 'custom',
-									renderItem: function (params, api) {
-										var dateIndex = api.value(1);
-										var xValue = new Date(api.value(2));
-										var xEndValue = new Date(api.value(3));
-										xValue.setFullYear(2000, 0, 1);
-										xEndValue.setFullYear(2000, 0, 1);
-										
-										var yValue = api.coord([0, dateIndex])[1];
-										var activityType = api.value(0);
-									
-										// Generate a random color if activity type is not 'Inactive'
-										var color;
-										if (activityType === 'Application') {
-											color = '#4BC0C0';
-										} else if (activityType === 'Inactive') {
-											color = '#E9EAEC';
-										} else {
-											// Generate a random color
-											color = '#4BC0C0';
-										}
-									
-										var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);  // Adjust bar height
-								
-										var item = {
-											type: 'rect',
-											shape: {
-												x: api.coord([xValue, yValue])[0],
-												y: yValue - barHeight / 2,
-												width: api.size([xEndValue - xValue, 0])[0],
-												height: barHeight,
-											},
-											style: api.style({
-												fill: color,  // Add 50% opacity
-												stroke: 'rgba(0,0,0,0.2)'
-											})
-										};
-								
-										return item;
-									},
-									dimensions: _rawData.flight.dimensions,
-									encode: {
-										x: [2, 3],
-										y: 1,
-									},
-									data: _rawData.flight.data
-								}
-							]
-						};
 					}
-					
-					overallPerformance.setOption(makeOption());
-					function updateChart() {
-						let legends = overallPerformance.getOption().legend[0].selected
-						legends = Object.keys(legends).filter(legend => legends[legend]);
-						var filteredData = _rawData.flight.data.filter(item => {
-							var activityType = item[0];
-							return legends.includes(activityType);
-						});
-
-						overallPerformance.setOption({
-							series: [{
-								id: 'flightData',
-								data: filteredData
-							}]
-						});
-					}
-					$('#overallChartLegends li').each(function() {
-						let li = $(this);
-						$(li).attr('selected', 'true');
+	
+					_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+					_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+					_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+					_rawData.flight.data = _rawData.flight.data.map(item => {
+						let date = new Date(item[1]);
+						let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+						return [item[0], formattedDate, ...item.slice(2)];
 					});
-					function updateLegend() {
-						let overallChartLegends = $('#overallChartLegends li');
-						let legends = {};
-
-						overallChartLegends.each(function() {
-							let li = $(this);
-							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
-							console.log(li.attr('data-value'));
-						});
-
-						overallPerformance.setOption({
-							legend: {
-								selected: legends
-							}
-						});
-
-						console.log(legends);
-
+					var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
+	
+					function setFixedDate(timestamp) {
+						var date = new Date(timestamp);
+						date.setFullYear(2000, 0, 1);
+						return date.getTime();
 					}
-					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
-					$.each(overallChartLegends, function(index, li) {
-						$(li).on('click', function() {
-							if ($(li).attr('selected')) {
-								$(li).removeAttr('selected');
-							} else {
-								$(li).attr('selected', 'true');
+					var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
+					var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
+					var minStartTime = Math.min(...startTimeList);
+					var maxEndTime = Math.max(...endTimeList);
+	
+					var fixedStartTime = new Date(minStartTime);
+					var fixedEndTime = new Date(maxEndTime);
+	
+					let startHour = new Date(fixedStartTime);
+					startHour.setMinutes(0);
+					startHour.setSeconds(0);
+					let endHour = new Date(fixedStartTime);
+					endHour.setHours(endHour.getHours() + 1);
+					endHour.setMinutes(0);
+					endHour.setSeconds(0);
+					function formatTimeToHHMM(date) {
+						return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+					}
+					
+					return {
+						backgroundColor: 'transparent',
+
+						tooltip: {
+							formatter: function(params) {
+								var activityType = params.data[0];
+								var date = params.data[1];
+								var startTime_ = new Date(params.data[2]);
+								var endTime_ = new Date(params.data[3]);
+								console.log(startTime_, endTime_);
+								var startTimeString = formatTimeToHHMM(startTime_);
+								var endTimeString = formatTimeToHHMM(endTime_);
+	
+								var durationMs = endTime_ - startTime_;
+								var durationSeconds = Math.floor(durationMs / 1000);
+								var hours = Math.floor(durationSeconds / 3600);
+								var minutes = Math.floor((durationSeconds % 3600) / 60);
+								var seconds = durationSeconds % 60;
+	
+								var durationString = "";
+								if (hours > 0) durationString += hours + "h ";
+								if (minutes > 0) durationString += minutes + "m ";
+								if (seconds > 0 || durationString === "") durationString += seconds + "s";
+	
+								var tooltipContent = `
+								<div class="custom-tooltip">
+									<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+										<tr>
+											<th colspan="2" style="padding: 0px 10px; text-align: center; border-bottom: 1px solid #ddd;">${durationString}</th>
+										</tr>
+										<tr>
+											<td style="padding: 0px 10px; text-align: left;">${startTimeString}</td>
+											<td style="padding: 0px 10px; text-align: right;">${endTimeString}</td>
+										</tr>
+									`;
+
+									if (activityType === "Application" || activityType === "Browser") {
+										if (params.data[4]) {
+											tooltipContent += `
+												<tr>
+													<td colspan="2" style="padding: 0x 10px; text-align: left; border-top: 1px solid #ddd;">${params.data[4]}</td>
+												</tr>`;
+										}
+										if (activityType) {
+											tooltipContent += `
+												<tr>
+													<td colspan="2" style="padding: 0px 10px; text-align: right;">${params.data[9]}</td>
+												</tr>`;
+										}
+										if (params.data[5]) {
+											tooltipContent += `
+												<tr>
+													<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+												</tr>`;
+										}
+										if (params.data[6]) {
+											tooltipContent += `
+												<tr>
+													<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
+												</tr>`;
+										}
+										if (params.data[7] && params.data[8]) {
+											tooltipContent += `
+												<tr>
+													<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
+													<td style="padding: 0px 10px; text-align: right;">${params.data[8]}</td>
+												</tr>`;
+										}
+									} else {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: right; border-top: 1px solid #ddd;">${activityType}</td>
+											</tr>`;
+									}
+
+									tooltipContent += `</table></div>`;
+
+								
+								return tooltipContent;
+							},
+							confine: true,  // Ensures the tooltip stays within the chart container
+							textStyle: {
+								fontSize: 15,
+							},
+							padding: [10, 15],
+						},
+						animation: false,
+						toolbox: {
+							left: 20,
+							top: 0,
+							itemSize: 20 
+						},
+						grid: {
+							show: false,
+							top: 20,
+							bottom: 5,
+							left: 120,
+							right: 20,
+							backgroundColor: 'transparent',
+							borderWidth: 0
+						},
+						xAxis: {
+							type: 'time',
+							position: 'top',
+							min: startHour,
+							max: endHour,
+							splitLine: {
+								lineStyle: {
+									color: ['#E9EDFF']
+								}
+							},
+							axisLine: { show: false },
+							axisTick: {
+								lineStyle: {
+									color: '#929ABA'
+								}
+							},
+							axisLabel: {
+								show: true,
+								formatter: function (value) {
+									let date = new Date(value);
+									return `${date.getHours()}:${padZero(date.getMinutes())}`;
+								}
 							}
-							updateLegend();
-							updateChart();
-						});
+						},
+						yAxis: {
+							type: 'category',
+							axisTick: { show: false },
+							splitLine: { show: false },
+							axisLine: { show: false },
+							axisLabel: { 
+								show: false
+							},
+							data: uniqueDates,
+						},
+						series: [
+							{
+								id: 'flightData',
+								type: 'custom',
+								renderItem: function (params, api) {
+									var dateIndex = api.value(1);
+									var xValue = new Date(api.value(2));
+									var xEndValue = new Date(api.value(3));
+									xValue.setFullYear(2000, 0, 1);
+									xEndValue.setFullYear(2000, 0, 1);
+	
+									var yValue = api.coord([0, dateIndex])[1];
+									var activityType = api.value(0);
+	
+									var color;
+									if (activityType === 'Application') {
+										color = '#4BC0C0';
+									} else if (activityType === 'Inactive') {
+										color = '#E9EAEC';
+									} else if (activityType === 'Idle') {
+										color = '#FF6666';
+									} else if (activityType === 'Browser') {
+										color = '#9966FF';
+									} else {
+										color = '#4BC0C0';
+									}
+	
+									var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);
+	
+									var item = {
+										type: 'rect',
+										shape: {
+											x: api.coord([xValue, yValue])[0],
+											y: yValue - barHeight / 2,
+											width: api.size([xEndValue - xValue, 0])[0],
+											height: barHeight,
+										},
+										style: api.style({
+											fill: color,
+											stroke: 'rgba(0,0,0,0.2)'
+										})
+									};
+	
+									return item;
+								},
+								dimensions: _rawData.flight.dimensions,
+								encode: {
+									x: [2, 3],
+									y: 1,
+								},
+								data: _rawData.flight.data
+							}
+						]
+					};
+				}
+	
+				overallPerformance.setOption(makeOption());
+	
+				function updateChart() {
+					let legends = overallPerformance.getOption().legend[0].selected;
+					legends = Object.keys(legends).filter(legend => legends[legend]);
+					var filteredData = _rawData.flight.data.filter(item => {
+						var activityType = item[0];
+						return legends.includes(activityType);
+					});
+	
+					overallPerformance.setOption({
+						series: [{
+							id: 'flightData',
+							data: filteredData
+						}]
 					});
 				}
-			});
+	
+				$('#overallChartLegends li').each(function() {
+					let li = $(this);
+					$(li).attr('selected', 'true');
+				});
+	
+				function updateLegend() {
+					let overallChartLegends = $('#overallChartLegends li');
+					let legends = {};
+	
+					overallChartLegends.each(function() {
+						let li = $(this);
+						legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+						console.log(li.attr('data-value'));
+					});
+	
+					overallPerformance.setOption({
+						legend: {
+							selected: legends
+						}
+					});
+	
+					console.log(legends);
+				}
+	
+				let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+				$.each(overallChartLegends, function(index, li) {
+					$(li).on('click', function() {
+						if ($(li).attr('selected')) {
+							$(li).removeAttr('selected');
+						} else {
+							$(li).attr('selected', 'true');
+						}
+						updateLegend();
+						updateChart();
+					});
+				});
+			}
+		});
 	}
+	
+	
 	// Overall Performance Chart Code Ends
 
 	// Application Used Chart Code Starts
@@ -2565,7 +2602,7 @@ UserProfile = class UserProfile {
 					Object.keys(slotImages[date]).reverse().forEach(hour => {
 						if (lastPrintedDate !== date || lastPrintedHour !== hour) {
 							console.log("hiii performance-chart-",this.formattedDate_,hour);
-							const hourHeader = `<div class="col-md-12"><h5><b>${date} ${hour}:00:00</b></h5></div><br><div class="col-md-12">
+							const hourHeader = `<div class="col-md-1"><h5><b>${date} ${hour}:00</b></h5></div><br><div class="col-md-11">
 							<div class="overall-performance-timely" id="performance-chart-${this.formattedDate_}-${hour}" style="min-height: 50px; max-height: 50px;">
 								<!-- Overall Performance Chart Container -->
 							</div>
@@ -2583,9 +2620,7 @@ UserProfile = class UserProfile {
 							const slotTime = new Date(date);
 							slotTime.setHours(hour);
 							slotTime.setMinutes(slot * 5);
-							const slotTimeString = slotTime.toLocaleTimeString('en-US', {
-								hour12: false
-							});
+							const slotTimeString = slotTime.toLocaleTimeString('en-US',{ hour: '2-digit', minute: '2-digit', hour12: false });
 	
 							if (image) {
 								const imgElement = `
