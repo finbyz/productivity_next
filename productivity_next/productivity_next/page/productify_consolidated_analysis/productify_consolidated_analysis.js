@@ -707,8 +707,8 @@ UserProfile = class UserProfile {
 				function sortEmployeeNames(sorting_data, yAxisData) {
 					const employeeMap = new Map(sorting_data.map(item => [item.employeeName, item]));
 				
-					console.log("Employee Map:", Array.from(employeeMap.keys()));
-					console.log("yAxisData:", yAxisData);
+					// console.log("Employee Map:", Array.from(employeeMap.keys()));
+					// console.log("yAxisData:", yAxisData);
 				
 					const matchedData = yAxisData.map(name => {
 						const match = Array.from(employeeMap.keys()).find(fullName => {
@@ -716,7 +716,7 @@ UserProfile = class UserProfile {
 							const lastNameInitial = rest.length > 0 ? rest[rest.length - 1][0] : '';
 							const namePattern = `${firstName} ${lastNameInitial ? lastNameInitial+'.' : ''}`;
 							const isMatch = name.startsWith(namePattern);
-							console.log(`Comparing ${name} with ${namePattern}: ${isMatch}`);
+							// console.log(`Comparing ${name} with ${namePattern}: ${isMatch}`);
 							return isMatch;
 						});
 						return { name, fullName: match };
@@ -768,7 +768,7 @@ UserProfile = class UserProfile {
 					var fixedEndTime = new Date(maxEndTime);
 
 					// Sort the y-axis data
-					console.log("yAxisData", _rawData.parkingApron.data.map(item => item[0]));
+					// console.log("yAxisData", _rawData.parkingApron.data.map(item => item[0]));
 					const sortedYAxisData = sortEmployeeNames(sorting_data, _rawData.parkingApron.data.map(item => item[0]));
 					// console.log("sortedYAxisData", sortedYAxisData);
 					return {
@@ -1314,12 +1314,12 @@ UserProfile = class UserProfile {
 				}
 			});
 			document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
-				console.log("Activity Summary Report Link Clicked");
+				// console.log("Activity Summary Report Link Clicked");
 				event.preventDefault();
 				goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date);
 			}.bind(this));
 			function goToActivitySummaryReport(employee,start_date, end_date) {
-				console.log("Employee:", employee);
+				// console.log("Employee:", employee);
 				var baseUrl = window.location.origin;
 				var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?from_date=" + start_date + "&to_date=" + end_date;
 				window.open(activityAnalysisUrl, '_blank');
@@ -1394,12 +1394,17 @@ UserProfile = class UserProfile {
 				meetingDuration: meetingEmployeeData.duration || 0,
 				keystroke: data.work_intensity_data[employee]?.total_keystrokes || 0,
 				clicks: data.work_intensity_data[employee]?.total_mouse_clicks || 0,
-				scrolls: data.work_intensity_data[employee]?.total_scroll || 0
+				scrolls: data.work_intensity_data[employee]?.total_scroll || 0,
+				score: data.productivity_score[employee] || 0
 			};
 		});
 	
 		const employeeDataArray = await Promise.all(fetchPromises);
-		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
+		employeeDataArray.sort((a, b) => {
+			const scoreA = ((((a.totalHours/3600) - (a.totalIdleTime/3600))/a.score)*100);
+			const scoreB = ((((b.totalHours/3600) - (b.totalIdleTime/3600))/b.score)*100);
+			return scoreB - scoreA; // For descending order
+		});
 		// console.log("employeeDataArray", employeeDataArray);
 		this.sorting_data = employeeDataArray;
 		this.overall_performance_chart(); 
@@ -1422,16 +1427,16 @@ UserProfile = class UserProfile {
 		employeeDataArray.forEach(app => {
 			const employeeUrl = `${baseUrl}Productify Activity Analysis?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
 			const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(app.employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
-			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
+			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;	
 			wholedata += `
 				<tr>
 					<td align="left">
 						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
 					</td>
+					<td align="center" style="color:#6420AA;"><b>${parseFloat((((app.totalHours/3600) - (app.totalIdleTime/3600))/app.score)*100).toFixed(2)}</b></td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.totalHours) - (app.totalIdleTime))}</td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalIdleTime)}</td>
-					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.totalHours) / app.totalDays) - ((app.totalIdleTime) / app.totalDays))}</td>
 					<td align="center" ><a href="${employeeFincallUrl}&calltype=Incoming" style="color:#62BA46;" target="_blank">${app.incomingFincallCount} (${this.convertSecondsToTime_(app.totalIncomingDuration)} H)</a></td>
 					<td align="center" ><a href="${employeeFincallUrl}&calltype=Outgoing" style="color:#62BA46;" target="_blank">${app.outgoingFincallCount} (${this.convertSecondsToTime_(app.totalOutgoingDuration)} H)</a></td>
 					<td align="center" ><a href="${employeeFincallUrl}&calltype=Missed" style="color:#62BA46;" target="_blank">${app.missedFincallCount}</a></td>
@@ -1460,10 +1465,10 @@ UserProfile = class UserProfile {
 		wholedata += `
 			<tr>
 				<td align="left"><strong>Total</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong></strong></td>
 				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours)}</strong></td>
 				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours - totalIdleTime)}</strong></td>
 				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalIdleTime)}</strong></td>
-				<td align="center" style="color:#00A6E0;"><strong></strong></td>
 				<td align="center" style="color:#62BA46;"><strong>${totalIncomingFincallCount} (${this.convertSecondsToTime_(totalIncomingDuration)} H)</strong></td>
 				<td align="center" style="color:#62BA46;"><strong>${totalOutgoingFincallCount} (${this.convertSecondsToTime_(totalOutgoingDuration)} H)</strong></td>
 				<td align="center" style="color:#62BA46;"><strong>${totalMissedFincallCount}</strong></td>
