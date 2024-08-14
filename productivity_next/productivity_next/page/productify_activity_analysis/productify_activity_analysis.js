@@ -1919,6 +1919,7 @@ UserProfile = class UserProfile {
 						});
 					});
 					this.activity_data();
+					console.log("score", this.numberCardData.score);
 				}
 			}
 		});
@@ -2133,6 +2134,7 @@ UserProfile = class UserProfile {
 			.catch((err) => {
 				console.error("Error fetching user image:", err);
 			});
+			console.log("scor0e", this.score2);
 
 		this.setup_user_profile_links();
 	}
@@ -2159,7 +2161,7 @@ UserProfile = class UserProfile {
 				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
-
+				this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
 				$(document).ready(function() {
 
 					const hovercontainer = $("#user-activity-hover");
@@ -2284,8 +2286,15 @@ UserProfile = class UserProfile {
     </tbody>
   </table>
 </div>
-		</div>
+		</div><br><br>
 	`);
+	container.append(`
+		<div class="score-container" style="text-align: center;">
+        <span style="padding-top:10px;font-size: 18px;">
+            Productivity Score : 
+            <span style="font-size: 22px;"><b>${this.score2} </b></span>
+        </span>
+    </div>`);
 
 			var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
 			myDefaultWhiteList.table = ['class'];

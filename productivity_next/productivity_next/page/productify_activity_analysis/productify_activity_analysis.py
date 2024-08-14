@@ -7,6 +7,8 @@ from frappe.utils import add_months,getdate
 from collections import defaultdict
 from frappe import _
 import json
+from productivity_next.api import calculate_total_working_hours
+
 
 from dateutil.parser import parse
 
@@ -758,6 +760,8 @@ def fetch_url_data(user,start_date=None, end_date=None):
             "count": i['count'],
         })
 
+    score = calculate_total_working_hours(user, start_date, end_date, 8)
+
 
     return {
         "application_usage": total_counts['application_usage'],
@@ -782,6 +786,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
         "total_meeting_duration_external": meetings_external_employee[0].total_meeting_duration if meetings_external_employee else 0,
         "total_meeting_count_external": meetings_external_employee[0].meeting_count if meetings_external_employee else 0,
         "url_full_data": result_list[:10],
+        "score": score
     }
 
 @frappe.whitelist()
