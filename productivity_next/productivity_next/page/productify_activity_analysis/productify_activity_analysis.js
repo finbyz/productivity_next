@@ -110,7 +110,7 @@ UserProfile = class UserProfile {
 				const target = document.querySelector(tab.getAttribute('data-bs-target'));
 				
 				// Log aria-labelledby attribute
-				console.log(target.getAttribute('aria-labelledby'));
+				// console.log(target.getAttribute('aria-labelledby'));
 				
 				// Manage tab and content visibility
 				tabs.forEach(t => t.classList.remove('active'));
@@ -726,7 +726,7 @@ UserProfile = class UserProfile {
 						overallChartLegends.each(function() {
 							let li = $(this);
 							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
-							console.log(li.attr('data-value'));
+							// console.log(li.attr('data-value'));
 						});
 
 						overallPerformance.setOption({
@@ -735,7 +735,7 @@ UserProfile = class UserProfile {
 							}
 						});
 
-						console.log(legends);
+						// console.log(legends);
 
 					}
 					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
@@ -1029,13 +1029,13 @@ UserProfile = class UserProfile {
 				}
 			});
 			document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
-				console.log("Activity Summary Report Link Clicked");
+				// console.log("Activity Summary Report Link Clicked");
 				event.preventDefault();
 				goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date);
 			}.bind(this));
 
 			function goToActivitySummaryReport(employee,start_date, end_date) {
-				console.log("Employee:", employee);
+				// console.log("Employee:", employee);
 				var baseUrl = window.location.origin;
 				var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
 				window.open(activityAnalysisUrl, '_blank');
@@ -1043,9 +1043,9 @@ UserProfile = class UserProfile {
 	}
 	// Overall Performance Chart Code Ends
 
-	// Overall Performance Chart Code Starts
+	// Overall Performance Timely Chart Code Starts
 	overall_performance_timely(date, hour) {
-		console.log("Overall Performance Chart", date, hour);
+		// console.log("Overall Performance Chart", date, hour);
 	
 		let overallPerformanceDom = document.querySelector(`#performance-chart-${date}-${hour}`);
 		if (!overallPerformanceDom) {
@@ -1089,40 +1089,45 @@ UserProfile = class UserProfile {
 						return num < 10 ? `0${num}` : num;
 					}
 	
-					var inactivePeriods = [];
-					var employeeFirstEntry = {};
-					_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-					_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-					for (var i = 0; i < _rawData.parkingApron.data.length; i++) {
-						var employeeName = _rawData.parkingApron.data[i];
-						var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
-						employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
-	
-						if (employeeActivities.length > 0) {
-							employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
-							var lastEndTime = new Date(employeeActivities[0][3]).getTime();
-	
-							for (var j = 1; j < employeeActivities.length; j++) {
-								var startTime = new Date(employeeActivities[j][2]).getTime();
-								if (startTime > lastEndTime) {
-									var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
-									var endTimeString = convertDateTime(new Date(startTime).toISOString());
-	
-									inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
-								}
-								lastEndTime = new Date(employeeActivities[j][3]).getTime();
-							}
-						}
-					}
-	
-					_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-					_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-					_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-					_rawData.flight.data = _rawData.flight.data.map(item => {
-						let date = new Date(item[1]);
-						let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
-						return [item[0], formattedDate, ...item.slice(2)];
-					});
+					// Define the inactive periods array
+var inactivePeriods = [];
+// Define a map to track the end time of the last activity for each employee
+var employeeLastEndTime = {};
+// Sort the flight data by date and then by priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+// Iterate over each activity in the flight data
+for (var i = 0; i < _rawData.flight.data.length; i++) {
+    var activity = _rawData.flight.data[i];
+    var employeeName = activity[1];
+    var startTime = new Date(activity[2]).getTime();
+    var endTime = new Date(activity[3]).getTime(); // Assuming end time is at index 3
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        employeeLastEndTime[employeeName] = startTime; // Set to the start time of the first activity
+    }
+    // Calculate inactive period if there is a gap between the last activity and the current start time
+    if (startTime > employeeLastEndTime[employeeName]) {
+        var lastEndTime = employeeLastEndTime[employeeName];
+        var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
+        var endTimeString = convertDateTime(new Date(startTime).toISOString());       
+        inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+    }
+    // Update the last end time to the end time of the current activity
+    employeeLastEndTime[employeeName] = endTime;
+}
+// Combine flight data with inactive periods
+_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+// Sort combined data by date and priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+// Format the date for each entry
+_rawData.flight.data = _rawData.flight.data.map(item => {
+    let date = new Date(item[2]);
+    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+    return [item[0], formattedDate, ...item.slice(2)];
+});
+
 					var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
 	
 					function setFixedDate(timestamp) {
@@ -1158,7 +1163,7 @@ UserProfile = class UserProfile {
 								var date = params.data[1];
 								var startTime_ = new Date(params.data[2]);
 								var endTime_ = new Date(params.data[3]);
-								console.log(startTime_, endTime_);
+								// console.log(startTime_, endTime_);
 								var startTimeString = formatTimeToHHMM(startTime_);
 								var endTimeString = formatTimeToHHMM(endTime_);
 	
@@ -1174,58 +1179,56 @@ UserProfile = class UserProfile {
 								if (seconds > 0 || durationString === "") durationString += seconds + "s";
 	
 								var tooltipContent = `
-								<div class="custom-tooltip">
-									<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
-										<tr>
-											<th colspan="2" style="padding: 0px 10px; text-align: center; border-bottom: 1px solid #ddd;">${durationString}</th>
-										</tr>
-										<tr>
-											<td style="padding: 0px 10px; text-align: left;">${startTimeString}</td>
-											<td style="padding: 0px 10px; text-align: right;">${endTimeString}</td>
-										</tr>
-									`;
+									<div class="custom-tooltip">
+										<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+											<tr>
+												<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+												<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+											</tr>
+								`;
 
-									if (activityType === "Application" || activityType === "Browser") {
-										if (params.data[4]) {
-											tooltipContent += `
-												<tr>
-													<td colspan="2" style="padding: 0x 10px; text-align: left; border-top: 1px solid #ddd;">${params.data[4]}</td>
-												</tr>`;
-										}
-										if (activityType) {
-											tooltipContent += `
-												<tr>
-													<td colspan="2" style="padding: 0px 10px; text-align: right;">${params.data[9]}</td>
-												</tr>`;
-										}
-										if (params.data[5]) {
-											tooltipContent += `
-												<tr>
-													<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
-												</tr>`;
-										}
-										if (params.data[6]) {
-											tooltipContent += `
-												<tr>
-													<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
-												</tr>`;
-										}
-										if (params.data[7] && params.data[8]) {
-											tooltipContent += `
-												<tr>
-													<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
-													<td style="padding: 0px 10px; text-align: right;">${params.data[8]}</td>
-												</tr>`;
-										}
-									} else {
+								if (activityType === "Application" || activityType === "Browser") {
+									if (params.data[4]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: right; border-top: 1px solid #ddd;">${activityType}</td>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
 											</tr>`;
 									}
+									if (activityType) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[9]}</td>
+											</tr>`;
+									}
+									if (params.data[5]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+											</tr>`;
+									}
+									if (params.data[6]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
+											</tr>`;
+									}
+									if (params.data[7] && params.data[8]) {
+										tooltipContent += `
+											<tr>
+												<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
+												<td style="padding: 0px 10px; text-align: left;">${params.data[8]}</td>
+											</tr>`;
+									}
+								} else {
+									tooltipContent += `
+										<tr>
+											<td colspan="2" style="padding: 0px 10px; text-align: left;">${activityType}</td>
+										</tr>`;
+								}
 
-									tooltipContent += `</table></div>`;
-
+								tooltipContent += `
+										</table>
+									</div>`;
 								
 								return tooltipContent;
 							},
@@ -1306,7 +1309,7 @@ UserProfile = class UserProfile {
 									} else if (activityType === 'Idle') {
 										color = '#FF6666';
 									} else if (activityType === 'Browser') {
-										color = '#9966FF';
+										color = '#2c5278';
 									} else {
 										color = '#4BC0C0';
 									}
@@ -1370,7 +1373,7 @@ UserProfile = class UserProfile {
 					overallChartLegends.each(function() {
 						let li = $(this);
 						legends[li.attr('data-value')] = li.attr('selected') ? true : false;
-						console.log(li.attr('data-value'));
+						// console.log(li.attr('data-value'));
 					});
 	
 					overallPerformance.setOption({
@@ -1379,7 +1382,7 @@ UserProfile = class UserProfile {
 						}
 					});
 	
-					console.log(legends);
+					// console.log(legends);
 				}
 	
 				let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
@@ -1397,9 +1400,7 @@ UserProfile = class UserProfile {
 			}
 		});
 	}
-	
-	
-	// Overall Performance Chart Code Ends
+	// Overall Performance Timely Chart Code Ends
 
 	// Application Used Chart Code Starts
 	application_usage_time() {
@@ -1919,7 +1920,7 @@ UserProfile = class UserProfile {
 						});
 					});
 					this.activity_data();
-					console.log("score", this.numberCardData.score);
+					// console.log("score", this.numberCardData.score);
 				}
 			}
 		});
@@ -2134,7 +2135,7 @@ UserProfile = class UserProfile {
 			.catch((err) => {
 				console.error("Error fetching user image:", err);
 			});
-			console.log("scor0e", this.score2);
+			// console.log("scor0e", this.score2);
 
 		this.setup_user_profile_links();
 	}
@@ -2610,7 +2611,7 @@ UserProfile = class UserProfile {
 				Object.keys(slotImages).reverse().forEach(date => {
 					Object.keys(slotImages[date]).reverse().forEach(hour => {
 						if (lastPrintedDate !== date || lastPrintedHour !== hour) {
-							console.log("hiii performance-chart-",this.formattedDate_,hour);
+							// console.log("hiii performance-chart-",this.formattedDate_,hour);
 							const hourHeader = `<div class="col-md-1"><h5><b>${date} ${hour}:00</b></h5></div><br><div class="col-md-11">
 							<div class="overall-performance-timely" id="performance-chart-${this.formattedDate_}-${hour}" style="min-height: 50px; max-height: 50px;">
 								<!-- Overall Performance Chart Container -->
