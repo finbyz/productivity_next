@@ -1127,6 +1127,169 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
     let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
     return [item[0], formattedDate, ...item.slice(2)];
 });
+// Function to get the start of the hour for a given date
+function getStartOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+}
+
+// Function to get the end of the hour for a given date
+function getEndOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
+}
+
+// Define the inactive periods array
+var inactivePeriods = [];
+
+// Define a map to track the last end time of each employee
+var employeeLastEndTime = {};
+
+// Sort the flight data by date and then by priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Iterate over each activity in the flight data
+for (var i = 0; i < _rawData.flight.data.length; i++) {
+    var activity = _rawData.flight.data[i];
+    var employeeName = activity[1];
+    var startTime = new Date(activity[2]);
+    var endTime = new Date(activity[3]); // Assuming end time is at index 3
+
+    var hourStart = getStartOfHour(startTime);
+    var hourEnd = getEndOfHour(startTime);
+
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        employeeLastEndTime[employeeName] = hourStart;
+    }
+
+    // Calculate inactive periods for the previous hour if there's a gap
+    if (employeeLastEndTime[employeeName] < hourStart) {
+        if (employeeLastEndTime[employeeName] < hourEnd) {
+            var inactiveStart = employeeLastEndTime[employeeName];
+            var inactiveEnd = Math.min(hourEnd, startTime);
+            if (inactiveStart < inactiveEnd) {
+                var startTimeString = convertDateTime(new Date(inactiveStart).toISOString());
+                var endTimeString = convertDateTime(new Date(inactiveEnd).toISOString());
+                inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+            }
+        }
+        // Update last end time to the end of the current activity
+        employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
+    } else {
+        // Update last end time to the end of the current activity
+        employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
+    }
+}
+
+// Handle inactive periods after the last activity of each employee for the day
+for (const employee in employeeLastEndTime) {
+    var lastEnd = employeeLastEndTime[employee];
+    var nextHourStart = getStartOfHour(new Date(lastEnd)).getTime() + 3600000; // Start of next hour
+    var endOfDay = new Date(lastEnd).setHours(23, 59, 59, 999);
+
+    if (nextHourStart < endOfDay) {
+        var startTimeString = convertDateTime(new Date(lastEnd).toISOString());
+        var endTimeString = convertDateTime(new Date(nextHourStart).toISOString());
+        inactivePeriods.push(['Inactive', employee, startTimeString, endTimeString]);
+    }
+}
+
+// Combine flight data with inactive periods
+_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+
+// Sort combined data by date and priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Format the date for each entry
+_rawData.flight.data = _rawData.flight.data.map(item => {
+    let date = new Date(item[2]);
+    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+    return [item[0], formattedDate, ...item.slice(2)];
+});
+// Function to get the start of the hour for a given date
+function getStartOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+}
+
+// Function to get the end of the hour for a given date
+function getEndOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
+}
+
+// Define the inactive periods array
+var inactivePeriods = [];
+
+// Define a map to track the last end time of each employee
+var employeeLastEndTime = {};
+
+// Sort the flight data by date and then by priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Iterate over each activity in the flight data
+for (var i = 0; i < _rawData.flight.data.length; i++) {
+    var activity = _rawData.flight.data[i];
+    var employeeName = activity[1];
+    var startTime = new Date(activity[2]);
+    var endTime = new Date(activity[3]); // Assuming end time is at index 3
+
+    var hourStart = getStartOfHour(startTime);
+    var hourEnd = getEndOfHour(startTime);
+
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        // Initialize to the start of the day or the first hour boundary
+        employeeLastEndTime[employeeName] = hourStart;
+    }
+
+    // Handle inactive period from the end of the last activity to the start of the current activity
+    if (employeeLastEndTime[employeeName] < startTime) {
+        var inactiveStart = employeeLastEndTime[employeeName];
+        var inactiveEnd = startTime;
+        if (inactiveStart < inactiveEnd) {
+            var startTimeString = convertDateTime(new Date(inactiveStart).toISOString());
+            var endTimeString = convertDateTime(new Date(inactiveEnd).toISOString());
+            inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+        }
+    }
+
+    // Update last end time to the end of the current activity
+    employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
+
+    // Move the last end time to the end of the hour if needed
+    if (endTime > hourEnd) {
+        employeeLastEndTime[employeeName] = hourEnd;
+    }
+}
+
+// Handle inactive periods at the end of the day for each employee
+for (const employee in employeeLastEndTime) {
+    var lastEnd = employeeLastEndTime[employee];
+    var endOfDay = new Date(lastEnd).setHours(23, 59, 59, 999);
+
+    // Add inactive periods from the end of the last recorded activity until the end of the day
+    if (lastEnd < endOfDay) {
+        var startTimeString = convertDateTime(new Date(lastEnd).toISOString());
+        var endTimeString = convertDateTime(new Date(endOfDay).toISOString());
+        inactivePeriods.push(['Inactive', employee, startTimeString, endTimeString]);
+    }
+}
+
+// Combine flight data with inactive periods
+_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+
+// Sort combined data by date and priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Format the date for each entry
+_rawData.flight.data = _rawData.flight.data.map(item => {
+    let date = new Date(item[2]);
+    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+    return [item[0], formattedDate, ...item.slice(2)];
+});
+
 
 					var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
 	
