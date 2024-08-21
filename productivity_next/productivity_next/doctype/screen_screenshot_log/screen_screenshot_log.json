@@ -16,7 +16,10 @@
   "ip_address",
   "column_break_btv1x",
   "time",
-  "screenshot"
+  "screenshot",
+  "issue",
+  "task",
+  "project"
  ],
  "fields": [
   {
@@ -80,11 +83,29 @@
    "label": "Time",
    "read_only": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
   }
  ],
  "image_field": "screenshot",
  "links": [],
- "modified": "2024-07-15 12:29:21.953098",
+ "modified": "2024-08-21 12:21:58.992867",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",

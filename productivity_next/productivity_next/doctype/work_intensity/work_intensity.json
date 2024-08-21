@@ -8,6 +8,9 @@
   "naming_series",
   "employee",
   "employee_name",
+  "issue",
+  "task",
+  "project",
   "column_break_nchj",
   "time",
   "key_strokes",
@@ -80,10 +83,28 @@
    "fieldname": "employee_name",
    "fieldtype": "Data",
    "label": "Employee Name"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
   }
  ],
  "links": [],
- "modified": "2024-08-02 15:11:13.310137",
+ "modified": "2024-08-21 12:23:08.829356",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",

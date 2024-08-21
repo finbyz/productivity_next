@@ -11,14 +11,16 @@
   "fincall",
   "application_usage",
   "sales_person",
-  "project_tracking",
-  "issue_tracking",
+  "project",
+  "issue",
+  "task",
   "column_break_ipqe",
   "site_url",
   "email",
   "name1",
   "mobile_no",
   "section_break_qria",
+  "get_users",
   "list_of_users"
  ],
  "fields": [
@@ -89,20 +91,6 @@
    "options": "\nActive\nExpired"
   },
   {
-   "default": "0",
-   "depends_on": "project_tracking",
-   "fieldname": "project_tracking",
-   "fieldtype": "Check",
-   "label": "Project Tracking"
-  },
-  {
-   "default": "0",
-   "depends_on": "project_tracking",
-   "fieldname": "issue_tracking",
-   "fieldtype": "Check",
-   "label": "Issue Tracking"
-  },
-  {
    "fieldname": "site_url",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -114,12 +102,37 @@
    "fieldtype": "Data",
    "label": "Name",
    "reqd": 1
+  },
+  {
+   "fieldname": "get_users",
+   "fieldtype": "Button",
+   "label": "Get Users"
+  },
+  {
+   "default": "0",
+   "fieldname": "project",
+   "fieldtype": "Check",
+   "label": "Project"
+  },
+  {
+   "default": "0",
+   "depends_on": "project",
+   "fieldname": "issue",
+   "fieldtype": "Check",
+   "label": "Issue"
+  },
+  {
+   "default": "0",
+   "depends_on": "issue",
+   "fieldname": "task",
+   "fieldtype": "Check",
+   "label": "Task"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-12 17:55:34.709431",
+ "modified": "2024-08-21 12:19:51.907843",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

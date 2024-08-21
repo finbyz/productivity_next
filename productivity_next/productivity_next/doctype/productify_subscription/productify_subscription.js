@@ -11,7 +11,7 @@ frappe.ui.form.on("Productify Subscription", {
             frappe.db.get_value('User', { 'name': frappe.session.user }, 'mobile_no').then((value) => {
                 frm.set_value('mobile_no', value.mobile_no);
             });
-
+            
             if (frm.doc.list_of_users.length === 0) {
                 frappe.db.get_list('Employee', {
                     fields: ['name'],
@@ -33,5 +33,49 @@ frappe.ui.form.on("Productify Subscription", {
                 });
             }
         }
+    },
+    issue(frm) {
+        if (frm.doc.project) {
+            frm.toggle_display('issue', true);
+        }
+        else {
+            frm.toggle_display('issue', false);
+        }
+    },
+    task(frm) {
+        if (frm.doc.task && frm.doc.issue) {
+            frm.toggle_display('task', true);
+        }
+        else {
+            frm.toggle_display('task', false);
+        }
+    },
+    get_users(frm) {
+        frappe.db.get_list('Employee', {
+            fields: ['name', 'user_id', 'first_name',"middle_name","last_name"],
+            filters: {
+                'status': 'Active'
+            },
+            order_by: 'name'
+        }).then((employees) => {
+            let table_data = [];
+            employees.forEach((employee) => {
+                if (frm.doc.list_of_users.find((user) => user.employee === employee.name)) {
+                    return;
+                }
+                full_name = frappe.utils.comma_sep([employee.first_name, employee.middle_name, employee.last_name],sep=' ');
+                full_name = full_name.replace(/,/g, '');
+                console.log(full_name)
+                table_data.push({
+                    'employee': employee.name,
+                    'fincall': 1,
+                    'application_usage': 1,
+                    'sales_person': 1,
+                    'user_id': employee.user_id,
+                    "employee_name": full_name,
+                }); 
+            });
+            frm.set_value('list_of_users', [...frm.doc.list_of_users, ...table_data]);
+        });
     },
 });
