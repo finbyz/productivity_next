@@ -457,7 +457,7 @@ def organization_signup(
     user_details.flags.ignore_permissions = True
     user_details.save()
 
-    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup"
+    url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
 
     payload = json.dumps(
         {
@@ -513,7 +513,7 @@ def organization_signup(
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def send_user_list(user_list):
-    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.receive_user_list"
+    url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.receive_user_list"
     organization_name = frappe.db.get_single_value(
         "Productify Subscription", "organization_name"
     )

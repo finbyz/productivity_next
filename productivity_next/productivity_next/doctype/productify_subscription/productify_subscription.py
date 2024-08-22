@@ -34,7 +34,7 @@ class ProductifySubscription(Document):
             if row.application_usage
         ]
         return requests.put(
-            f"http://productivity.finbyz.com/api/resource/Productivity Application Organization/{self.organization_name}",
+            f"https://productivity.finbyz.tech/api/resource/Productivity Application Organization/{self.organization_name}",
             json={
                 "list_of_users": list_of_users,
             },
@@ -47,7 +47,7 @@ class ProductifySubscription(Document):
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
         return requests.put(
-            f"http://productivity.finbyz.com/api/resource/Productivity Application Organization/{self.organization_name}",
+            f"https://productivity.finbyz.tech/api/resource/Productivity Application Organization/{self.organization_name}",
             json={
                 "project_subscription": self.project,
                 "issue_subscription": self.issue,
