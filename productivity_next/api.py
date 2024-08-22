@@ -457,20 +457,6 @@ def organization_signup(
     user_details.flags.ignore_permissions = True
     user_details.save()
 
-    productify_subscription = frappe.get_doc(
-        {
-            "doctype": "Productify Subscription",
-            "organization_name": organization_name,
-            "email": email,
-            "mobile_no": mobile_no,
-            "erpnext_url": domain,
-        }
-    )
-    productify_subscription.insert()
-    frappe.msgprint(
-        _(f"Organization signed up successfully,{productify_subscription.name}")
-    )
-
     url = "http://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup"
 
     payload = json.dumps(
@@ -494,6 +480,29 @@ def organization_signup(
     }
 
     response = requests.request("POST", url, headers=headers, data=payload)
+    if response.status_code != 200:
+        return Response(
+            response=response.text,
+            status=response.status_code,
+            content_type="application/json",
+        )
+    resp_data = response.json()
+    productify_subscription = frappe.get_doc(
+        {
+            "doctype": "Productify Subscription",
+            "organization_name": organization_name,
+            "email": email,
+            "mobile_no": mobile_no,
+            "erpnext_url": domain,
+            "api_key": resp_data.get("api_key"),
+            "api_secret": resp_data.get("api_secret"),
+            "name1": contact_person,
+        }
+    )
+    productify_subscription.insert()
+    frappe.msgprint(
+        _(f"Organization signed up successfully,{productify_subscription.name}")
+    )
 
     return Response(
         response=response.text,
@@ -532,6 +541,7 @@ def send_user_list(user_list):
 
     headers = {
         "Content-Type": "application/json",
+        "Authorization": f"token {productify_subscription.api_key}:{productify_subscription.get_password('api_secret')}",
     }
 
     response = requests.request("POST", url, headers=headers, data=payload)
@@ -768,6 +778,11 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
             continue
 
         day_hours = daily_working_hours
+
+        # Check if it's a Saturday (weekday 5)
+        if date.weekday() == 5:
+            day_hours *= 0.5
+
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
                 if leave.half_day:

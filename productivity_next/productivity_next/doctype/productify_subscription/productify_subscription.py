@@ -8,60 +8,53 @@ import json
 
 
 class ProductifySubscription(Document):
-	def validate(self):
-		if not self.site_url:
-			self.site_url = frappe.utils.get_url()
-		
-		frappe.enqueue(self.update_application_usage_log, enqueue_after_commit=True)
-		frappe.enqueue(self.update_fincall_log, enqueue_after_commit=True)
 
-		
-	def update_application_usage_log(self):
-		if self.application_usage:
-			url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
+    def validate(self):
+        if not self.site_url:
+            self.site_url = frappe.utils.get_url()
 
-			list_of_users = [{
-				"employee_id": row.employee,
-				"email": row.user_id,
-				"full_name": row.employee_name,
-				"status": row.status,
-			} for row in self.list_of_users if row.application_usage]
+        frappe.enqueue(self.update_list_of_users, enqueue_after_commit=True)
+        frappe.enqueue(self.update_subscription, enqueue_after_commit=True)
 
-			data = {
-				"domain": self.site_url,
-				"organization_name": self.organization_name,
-				"contact_person_name": self.name,
-				"contact_person_email": self.email,
-				"contact_person_phone": self.mobile_no,
-				"list_of_users": list_of_users,
-				"plan": "Application Usage",
-			}
+    def update_list_of_users(self):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
+        }
+        list_of_users = [
+            {
+                "employee_id": row.employee,
+                "email": row.user_id,
+                "full_name": row.employee_name,
+                "status": row.status,
+                "fincall": row.fincall,
+                "application_usage": row.application_usage,
+            }
+            for row in self.list_of_users
+            if row.application_usage
+        ]
+        return requests.put(
+            f"http://productivity.finbyz.com/api/resource/Productivity Application Organization/{self.organization_name}",
+            json={
+                "list_of_users": list_of_users,
+            },
+            headers=headers,
+        )
 
-			response = requests.post(url, json=data)
-
-			return response.json()
-	
-	def update_fincall_log(self):
-		if self.fincall:
-			url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
-
-			list_of_users = [{
-				"employee_id": row.employee,
-				"email": row.user_id,
-				"full_name": row.employee_name,
-				"status": row.status,
-			} for row in self.list_of_users if row.fincall]
-
-			data = {
-				"domain": self.site_url,
-				"organization_name": self.organization_name,
-				"contact_person_name": self.name,
-				"contact_person_email": self.email,
-				"contact_person_phone": self.mobile_no,
-				"list_of_users": list_of_users,
-				"plan": "Call Usage",
-			}
-
-			response = requests.post(url, json=data)
-
-			return response.json()
+    def update_subscription(self):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
+        }
+        return requests.put(
+            f"http://productivity.finbyz.com/api/resource/Productivity Application Organization/{self.organization_name}",
+            json={
+                "project_subscription": self.project,
+                "issue_subscription": self.issue,
+                "task_subscription": self.task,
+                "sales_person_subscription": self.sales_person,
+                "application_usage_subscription": self.application_usage,
+                "fincall_subscription": self.fincall,
+            },
+            headers=headers,
+        )
