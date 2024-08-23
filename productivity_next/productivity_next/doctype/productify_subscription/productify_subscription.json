@@ -12,8 +12,8 @@
   "application_usage",
   "sales_person",
   "project",
-  "issue",
   "task",
+  "issue",
   "column_break_ipqe",
   "site_url",
   "email",
@@ -118,12 +118,14 @@
   },
   {
    "default": "0",
+   "depends_on": "eval:doc.task==1",
    "fieldname": "issue",
    "fieldtype": "Check",
    "label": "Issue"
   },
   {
    "default": "0",
+   "depends_on": "eval:doc.project == 1",
    "fieldname": "task",
    "fieldtype": "Check",
    "label": "Task"
@@ -142,7 +144,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-22 14:55:41.862834",
+ "modified": "2024-08-23 16:42:54.569774",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",
