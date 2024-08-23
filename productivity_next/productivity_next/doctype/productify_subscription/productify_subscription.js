@@ -37,25 +37,26 @@ frappe.ui.form.on("Productify Subscription", {
         frm.trigger('task');
     },
     project(frm) {
-        frm.trigger('issue');
-    },
-    issue(frm) {
-        if (frm.doc.project) {
-            frm.toggle_display('issue', true);
-        }
-        else {
-            frm.toggle_display('issue', false);
-            frm.set_value('issue', 0);
-        }
         frm.trigger('task');
     },
+   
     task(frm) {
-        if (frm.doc.project && frm.doc.issue) {
+        if (frm.doc.project) {
             frm.toggle_display('task', true);
         }
         else {
             frm.toggle_display('task', false);
             frm.set_value('task', 0);
+        }
+        frm.trigger('issue');
+    },
+    issue(frm) {
+        if (frm.doc.project && frm.doc.task) {
+            frm.toggle_display('issue', true);
+        }
+        else {
+            frm.toggle_display('issue', false);
+            frm.set_value('issue', 0);
         }
     },
     get_users(frm) {
