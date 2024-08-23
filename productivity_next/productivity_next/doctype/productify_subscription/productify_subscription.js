@@ -3,6 +3,13 @@
 
 frappe.ui.form.on("Productify Subscription", {
     refresh(frm) {
+        frm.set_query('employee', 'list_of_users', function (doc, cdt, cdn) {
+            return {
+                filters: {
+                    'status': 'Active'
+                }
+            }
+        });
         if (frm.doc.__islocal) {
             frm.set_value('email', frappe.session.user_email);
             frm.set_value('erpnext_url', window.location.origin);
@@ -36,6 +43,7 @@ frappe.ui.form.on("Productify Subscription", {
         frm.trigger('issue');
         frm.trigger('task');
     },
+    
     project(frm) {
         frm.trigger('task');
     },

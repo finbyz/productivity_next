@@ -12,10 +12,14 @@ class ProductifySubscription(Document):
     def validate(self):
         if not self.site_url:
             self.site_url = frappe.utils.get_url()
-
+        self.remove_duplicate_users()
         frappe.enqueue(self.update_list_of_users, enqueue_after_commit=True)
         frappe.enqueue(self.update_subscription, enqueue_after_commit=True)
 
+    def remove_duplicate_users(self):
+        users = set()
+        self.list_of_users = [ row for row in self.list_of_users if row.user_id not in users and not users.add(row.user_id) ]
+    
     def update_list_of_users(self):
         headers = {
             "Content-Type": "application/json",
