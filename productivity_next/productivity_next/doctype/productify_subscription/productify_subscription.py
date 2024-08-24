@@ -126,6 +126,8 @@ class ProductifySubscription(Document):
         resp = requests.get(
             f"{URL}", headers=headers
         )
+        frappe.msgprint(f"Response: {resp.text}")
+        frappe.msgprint(f"Status Code: {resp.status_code}")
         if resp.status_code == 200:
             data = resp.json()["data"]
             valid_upto = data.get("valid_upto")
