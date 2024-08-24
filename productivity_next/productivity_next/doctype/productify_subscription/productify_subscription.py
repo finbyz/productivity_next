@@ -7,20 +7,23 @@ import requests
 import json
 
 
+BASE_URL = "https://productivity.finbyz.tech"
+CALL_LOG_URL = f"{BASE_URL}/api/resource/Productivity Call log Organization"
+APPLICATION_ORG_URL = f"{BASE_URL}/api/resource/Productivity Application Organization"
 class ProductifySubscription(Document):
-
     def validate(self):
         if not self.site_url:
             self.site_url = frappe.utils.get_url()
         self.remove_duplicate_users()
-        frappe.enqueue(self.update_list_of_users, enqueue_after_commit=True)
         frappe.enqueue(self.update_subscription, enqueue_after_commit=True)
+        frappe.enqueue(self.update_application_list_of_users, enqueue_after_commit=True)
+        frappe.enqueue(self.update_fincall_list_of_users, enqueue_after_commit=True)
 
     def remove_duplicate_users(self):
         users = set()
         self.list_of_users = [ row for row in self.list_of_users if row.user_id not in users and not users.add(row.user_id) ]
     
-    def update_list_of_users(self):
+    def update_application_list_of_users(self):
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
@@ -35,10 +38,33 @@ class ProductifySubscription(Document):
                 "application_usage": row.application_usage,
             }
             for row in self.list_of_users
-            if row.application_usage
+        ]
+        requests.put(
+            f"{APPLICATION_ORG_URL}/{self.organization_name}",
+            json={
+                "list_of_users": list_of_users,
+            },
+            headers=headers,
+        )
+    
+    def update_fincall_list_of_users(self):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
+        }
+        list_of_users = [
+            {
+                "employee_id": row.employee,
+                "email": row.user_id,
+                "full_name": row.employee_name,
+                "status": row.status,
+                "fincall": row.fincall,
+                "application_usage": row.application_usage,
+            }
+            for row in self.list_of_users
         ]
         return requests.put(
-            f"https://productivity.finbyz.tech/api/resource/Productivity Application Organization/{self.organization_name}",
+            f"{CALL_LOG_URL}/{self.organization_name}",
             json={
                 "list_of_users": list_of_users,
             },
@@ -51,7 +77,7 @@ class ProductifySubscription(Document):
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
         return requests.put(
-            f"https://productivity.finbyz.tech/api/resource/Productivity Application Organization/{self.organization_name}",
+            f"{APPLICATION_ORG_URL}/{self.organization_name}",
             json={
                 "project_subscription": self.project,
                 "issue_subscription": self.issue,
