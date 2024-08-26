@@ -1,6 +1,7 @@
 frappe.require('https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js');
 
 document.addEventListener("DOMContentLoaded", function () {
+    console.log('Setup Script Loaded');
     // let currentUser = frappe.session.user;
     // let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
     // if (!hasPermission) {
@@ -16,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
         }
-        )
+    )
 
     let data = {
         'domain': window.origin || '',

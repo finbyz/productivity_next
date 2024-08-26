@@ -39,7 +39,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Email",
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "default": "0",
@@ -68,7 +69,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Mobile No",
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "fieldname": "valid_upto",
@@ -103,7 +105,8 @@
    "fieldname": "name1",
    "fieldtype": "Data",
    "label": "Name",
-   "reqd": 1
+   "reqd": 1,
+   "set_only_once": 1
   },
   {
    "fieldname": "get_users",
@@ -118,14 +121,12 @@
   },
   {
    "default": "0",
-   "depends_on": "eval:doc.task==1",
    "fieldname": "issue",
    "fieldtype": "Check",
    "label": "Issue"
   },
   {
    "default": "0",
-   "depends_on": "eval:doc.project == 1",
    "fieldname": "task",
    "fieldtype": "Check",
    "label": "Task"
@@ -133,18 +134,20 @@
   {
    "fieldname": "api_key",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Api key"
   },
   {
    "fieldname": "api_secret",
    "fieldtype": "Password",
+   "hidden": 1,
    "label": "Api Secret"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-23 16:42:54.569774",
+ "modified": "2024-08-24 21:59:53.040055",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

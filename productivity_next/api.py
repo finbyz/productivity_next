@@ -448,14 +448,6 @@ def organization_signup(
     """
     API_PATH: /api/method/productivity_next.api.organization_signup
     """
-    user_details = frappe.get_doc("User", frappe.session.user)
-    api_secret = frappe.generate_hash(length=15)
-    if not user_details.api_key:
-        api_key = frappe.generate_hash(length=15)
-        user_details.api_key = api_key
-    user_details.api_secret = api_secret
-    user_details.flags.ignore_permissions = True
-    user_details.save()
 
     url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
 
@@ -471,8 +463,6 @@ def organization_signup(
             "sales_person": sales_person,
             "project": project,
             "issue": issue,
-            "api_key": user_details.api_key,
-            "api_secret": api_secret,
         }
     )
     headers = {
@@ -509,7 +499,6 @@ def organization_signup(
         status=response.status_code,
         content_type="application/json",
     )
-
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def send_user_list(user_list):
