@@ -21,6 +21,8 @@
   "mobile_no",
   "api_key",
   "api_secret",
+  "application_organization_name",
+  "call_organization_name",
   "section_break_qria",
   "get_users",
   "list_of_users"
@@ -142,12 +144,24 @@
    "fieldtype": "Password",
    "hidden": 1,
    "label": "Api Secret"
+  },
+  {
+   "fieldname": "application_organization_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Application Organization Name"
+  },
+  {
+   "fieldname": "call_organization_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Call Organization Name"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-24 21:59:53.040055",
+ "modified": "2024-08-26 12:11:34.055940",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

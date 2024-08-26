@@ -487,6 +487,8 @@ def organization_signup(
             "api_key": resp_data.get("api_key"),
             "api_secret": resp_data.get("api_secret"),
             "name1": contact_person,
+            "application_organization_name": resp_data.get("application_organization_name"),
+            "call_organization_name": resp_data.get("call_organization_name"),
         }
     )
     productify_subscription.insert()

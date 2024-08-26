@@ -30,7 +30,7 @@ class ProductifySubscription(Document):
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
-        resp = requests.get(f"{CALL_LOG_URL}/{self.organization_name}", headers=headers)
+        resp = requests.get(f"{CALL_LOG_URL}/{self.call_organization_name}", headers=headers)
         if resp.status_code == 200:
             resp = resp.json()["data"]
             no_users = resp.get("no_of_users",10)
@@ -44,7 +44,7 @@ class ProductifySubscription(Document):
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
-        resp = requests.get(f'{APPLICATION_ORG_URL}/{self.organization_name}?fields=["no_of_users"]', headers=headers)
+        resp = requests.get(f'{APPLICATION_ORG_URL}/{self.application_organization_name}?fields=["no_of_users"]', headers=headers)
         if resp.status_code == 200:
             resp = resp.json()["data"]
             no_users = resp.get("no_of_users",10)
@@ -79,7 +79,7 @@ class ProductifySubscription(Document):
             for row in self.list_of_users
         ]
         requests.put(
-            f"{APPLICATION_ORG_URL}/{self.organization_name}",
+            f"{APPLICATION_ORG_URL}/{self.application_organization_name}",
             json={
                 "list_of_users": list_of_users,
             },
@@ -104,7 +104,7 @@ class ProductifySubscription(Document):
             if row.fincall
         ]
         return requests.put(
-            f"{CALL_LOG_URL}/{self.organization_name}",
+            f"{CALL_LOG_URL}/{self.call_organization_name}",
             json={
                 "list_of_users": list_of_users,
             },
@@ -112,13 +112,13 @@ class ProductifySubscription(Document):
         )
 
     def is_subscription_expired(self,type:str=None):
-        URL = f"{APPLICATION_ORG_URL}/{self.organization_name}"
+        URL = f"{APPLICATION_ORG_URL}/{self.application_organization_name}"
         if type == "fincall":
-            URL = f"{CALL_LOG_URL}/{self.organization_name}"
+            URL = f"{CALL_LOG_URL}/{self.application_organization_name}"
         elif type == "application":
-            URL = f"{APPLICATION_ORG_URL}/{self.organization_name}"
+            URL = f"{APPLICATION_ORG_URL}/{self.application_organization_name}"
         else:
-            URL = f"{APPLICATION_ORG_URL}/{self.organization_name}"
+            URL = f"{APPLICATION_ORG_URL}/{self.application_organization_name}"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
@@ -138,7 +138,7 @@ class ProductifySubscription(Document):
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
         return requests.put(
-            f"{APPLICATION_ORG_URL}/{self.organization_name}",
+            f"{APPLICATION_ORG_URL}/{self.application_organization_name}",
             json={
                 "project_subscription": self.project,
                 "issue_subscription": self.issue,
