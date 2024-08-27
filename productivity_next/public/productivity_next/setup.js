@@ -1,13 +1,17 @@
 frappe.require('https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js');
 
 document.addEventListener("DOMContentLoaded", function () {
-    console.log('Setup Script Loaded');
-    // let currentUser = frappe.session.user;
-    // let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
-    // if (!hasPermission) {
-    //     return;
-    // }
-
+    function hasrole(rl) {
+		if (typeof rl == "string") rl = [rl];
+		for (var i in rl) {
+			if ((frappe.boot ? frappe.boot.user.roles : ["Guest"]).indexOf(rl[i]) != -1)
+				return true;
+		}
+	}
+    if (!hasrole('System Manager')) {
+        console.log('User is not System Manager');
+        return;
+    }
     let subscription;
     frappe.db.get_doc('Productify Subscription')
         .then(doc => {
