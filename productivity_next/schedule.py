@@ -1,6 +1,6 @@
 import frappe
-from frappe.utils import nowdate, get_datetime, format_datetime,add_to_date, today, date_diff
-
+from frappe.utils import nowdate, get_datetime, format_time, format_duration
+from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
 from .api import (
     set_application_checkin_checkout,
@@ -645,3 +645,179 @@ def create_productify_work_summary_today():
                 })
             PWS.save()
             # print(PWS.name)
+
+
+def get_employee_data(start_date, end_date):
+    userdata = user_analysis_data(start_date, end_date)  # Fetch data with provided dates
+
+    # Debug: Print the structure and content of userdata
+    print("Userdata fetched:", userdata)
+
+    # Initializing the data dictionary
+    data = {
+        "total_hours_per_employee": {},
+        "total_idle_time": {},
+        "employee_fincall_data": {},
+        "meeting_employee_data": {},
+        "total_days": {},
+        "work_intensity_data": {}
+    }
+
+    # Fetching employees with non-empty user_id
+    employees = frappe.get_all("Employee", filters={"name": "HR-EMP-00011"}, fields=["name", "employee_name", "user_id"])
+    
+    # Debug: Print employees fetched
+    print("Employees fetched:", employees)
+
+    for employee in employees:
+        employee_name = employee.employee_name
+        employee_id = employee.name  # Use employee ID instead of user_id
+
+        # Debug: Print current employee details
+        print("Processing employee:", employee_name, "with employee_id:", employee_id)
+
+        # Initialize data structures for the employee
+        data["total_hours_per_employee"][employee_name] = {
+            "total_hours": 0,
+            "active_hours": 0,
+            "idle_hours": 0,
+            "average_active_hours": 0,
+            "incoming_calls": 0,
+            "outgoing_calls": 0,
+            "missed_calls": 0,
+            "rejected_calls": 0,
+            "keystrokes": 0,
+            "mouse_clicks": 0,
+            "scrolls": 0,
+            "meetings": 0,
+            "meeting_duration": 0
+        }
+        data["total_idle_time"][employee_name] = 0
+        data["employee_fincall_data"][employee_name] = {
+            "incoming_fincall_count": 0,
+            "outgoing_fincall_count": 0,
+            "missed_fincall_count": 0,
+            "rejected_fincall_count": 0,
+            "total_incoming_duration": 0,
+            "total_outgoing_duration": 0,
+        }
+        data["meeting_employee_data"][employee_name] = {"count": 0, "duration": 0}
+        data["total_days"][employee_name] = 1
+        data["work_intensity_data"][employee_name] = {
+            "total_keystrokes": 0,
+            "total_mouse_clicks": 0,
+            "total_scroll": 0,
+        }
+
+        # Update data with values from userdata
+        if employee_id in userdata.get("total_hours_per_employee", {}):
+            data["total_hours_per_employee"][employee_name].update({
+                "total_hours": userdata.get("total_hours_per_employee", {}).get(employee_id, 0)
+            })
+
+        if employee_id in userdata.get("total_idle_time", {}):
+            data["total_idle_time"][employee_name] = userdata.get("total_idle_time", {}).get(employee_id, 0)
+
+        if employee_id in userdata.get("employee_fincall_data", {}):
+            data["employee_fincall_data"][employee_name].update(userdata.get("employee_fincall_data", {}).get(employee_id, {}))
+
+        if employee_id in userdata.get("meeting_employee_data", {}):
+            data["meeting_employee_data"][employee_name].update(userdata.get("meeting_employee_data", {}).get(employee_id, {}))
+
+        if employee_id in userdata.get("total_days", {}):
+            data["total_days"][employee_name] = userdata.get("total_days", {}).get(employee_id, 1)
+
+        if employee_id in userdata.get("work_intensity_data", {}):
+            data["work_intensity_data"][employee_name].update(userdata.get("work_intensity_data", {}).get(employee_id, {}))
+
+    return employees, data
+
+
+def generate_html_table(data, employees, start_date, end_date):
+    base_url = frappe.utils.get_url()
+    table_rows = ""
+    count = 1
+
+    for employee in employees:
+        employee_name = employee.employee_name
+        employee_data = data["total_hours_per_employee"].get(employee_name, {})
+
+        employee_url = f"{base_url}/app/Productify Activity Analysis?start_date={start_date}&end_date={end_date}&employee={employee.name}"
+        employee_meeting_url = f"{base_url}/app/meeting?employee={employee.name}&meeting_from=[\"Between\",[\"{start_date}\",\"{end_date}\"]]&docstatus=1"
+        employee_fincall_url = f"{base_url}/app/employee-fincall?employee={employee.name}&date=[\"Between\",[\"{start_date}\",\"{end_date}\"]]"
+        
+        table_rows += f"""
+            <tr>
+                <td align="left">
+                    <a href="{employee_url}" target="_blank">{count}. {employee_name}</a>
+                </td>
+                <td align="center" style="color:#00A6E0;">{format_duration(employee_data.get('total_hours', 0))}</td>
+                <td align="center" style="color:#00A6E0;">{format_duration(employee_data.get('total_hours', 0) - employee_data.get('idle_hours', 0))}</td>
+                <td align="center" style="color:#00A6E0;">{format_duration(employee_data.get('idle_hours', 0))}</td>
+                <td align="center" style="color:#00A6E0;">{format_duration((employee_data.get('total_hours', 0) / data['total_days'][employee_name]) - (employee_data.get('idle_hours', 0) / data['total_days'][employee_name]))}</td>
+                <td align="center"><a href="{employee_fincall_url}&calltype=Incoming" style="color:#62BA46;" target="_blank">{employee_data.get('incoming_calls', 0)} ({format_duration(data['employee_fincall_data'][employee_name].get('total_incoming_duration', 0))} H)</a></td>
+                <td align="center"><a href="{employee_fincall_url}&calltype=Outgoing" style="color:#62BA46;" target="_blank">{employee_data.get('outgoing_calls', 0)} ({format_duration(data['employee_fincall_data'][employee_name].get('total_outgoing_duration', 0))} H)</a></td>
+                <td align="center"><a href="{employee_fincall_url}&calltype=Missed" style="color:#62BA46;" target="_blank">{employee_data.get('missed_calls', 0)}</a></td>
+                <td align="center"><a href="{employee_fincall_url}&calltype=Rejected" style="color:#62BA46;" target="_blank">{employee_data.get('rejected_calls', 0)}</a></td>
+                <td align="center" style="color:#FF4001;">{employee_data.get('keystrokes', 0)}</td>
+                <td align="center" style="color:#FF4001;">{employee_data.get('mouse_clicks', 0)}</td>
+                <td align="center" style="color:#FF4001;">{employee_data.get('scrolls', 0)}</td>
+                <td align="center"><a href="{employee_meeting_url}" style="color:#6420AA;" target="_blank">{employee_data.get('meetings', 0)}</a></td>
+                <td align="center"><a href="{employee_meeting_url}" style="color:#6420AA;" target="_blank">{format_duration(employee_data.get('meeting_duration', 0))}</a></td>
+            </tr>
+        """
+        count += 1
+
+    html_table = f"""
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Employee Name</th>
+                <th>Total Hours</th>
+                <th>Active Hours</th>
+                <th>Idle Hours</th>
+                <th>Average Active Hours</th>
+                <th>Incoming Calls</th>
+                <th>Outgoing Calls</th>
+                <th>Missed Calls</th>
+                <th>Rejected Calls</th>
+                <th>Keystrokes</th>
+                <th>Mouse Clicks</th>
+                <th>Scrolls</th>
+                <th>Meetings</th>
+                <th>Meeting Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            {table_rows}
+        </tbody>
+    </table>
+    """
+    return html_table
+
+def send_email(user_email, user_name, html_table):
+    try:
+        frappe.sendmail(
+            recipients=[user_email],
+            subject="Weekly Activity Report",
+            message=f"""
+            <p>Dear {user_name},</p>
+            <p>Please find your weekly activity report below:</p>
+            {html_table}
+            """,
+        )
+    except Exception as e:
+        frappe.log_error(f"Failed to send email to {user_email}: {e}", "Email Sending Error")
+
+def send_weekly_report():
+    start_date = "2024-07-10"  # replace with dynamic date logic
+    end_date = "2024-07-10"  # replace with dynamic date logic
+    employees, data = get_employee_data(start_date, end_date)
+    html_table = generate_html_table(data, employees, start_date, end_date)
+               
+    for employee in employees:
+        send_email(employee.user_id, employee.employee_name, html_table)
+        return data
+    
+
+

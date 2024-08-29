@@ -25,7 +25,7 @@ def get_oath_client():
     return client
 
 
-def get_bearer_token(user, expires_in_days=1, purpose=None, date=None):
+def get_bearer_token(user, expires_in_days=7, purpose=None, date=None):
     if "Productify API" not in frappe.get_roles() and user != frappe.session.user:
         frappe.throw(_("You are not allowed to access this resource"), frappe.PermissionError)
 
@@ -33,7 +33,7 @@ def get_bearer_token(user, expires_in_days=1, purpose=None, date=None):
         date = get_datetime()
     else:
         date = get_datetime(date)
-    
+
     expiration_time = date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=max(cint(expires_in_days), 1))
 
     client = get_oath_client()
@@ -78,3 +78,20 @@ def get_bearer_token(user, expires_in_days=1, purpose=None, date=None):
     frappe.flags.jwt = id_token_encoded
 
     return token
+
+
+def update_expiry_time(user, refresh_token, expires_in_days=7, purpose=None, date=None):
+    if not date:
+        date = get_datetime()
+    else:
+        date = get_datetime(date)
+
+    expiration_time = date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=max(cint(expires_in_days), 1))
+    outh_bearer_token_name = frappe.db.get_value("OAuth Bearer Token", filters={"refresh_token": refresh_token, "purpose": purpose, "user": user}, fieldname="name")
+    
+    if outh_bearer_token_name:
+       frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name, "expiration_time", expiration_time)
+       frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name, "expires_in", (expiration_time - get_datetime()).total_seconds())
+       frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name, "refresh_token", random_token_generator(None))
+
+    return outh_bearer_token_name

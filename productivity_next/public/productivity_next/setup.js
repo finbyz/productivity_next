@@ -1,13 +1,17 @@
+frappe.require('assets/productivity_next/productivity_next/party.min.js');
 
 document.addEventListener("DOMContentLoaded", function () {
-    let currentUser = frappe.session.user;
-    let hasPermission = frappe.user.has_role(currentUser, 'System Manager');
-    if (!hasPermission) {
+    function hasrole(rl) {
+		if (typeof rl == "string") rl = [rl];
+		for (var i in rl) {
+			if ((frappe.boot ? frappe.boot.user.roles : ["Guest"]).indexOf(rl[i]) != -1)
+				return true;
+		}
+	}
+    if (!hasrole('System Manager')) {
+        console.log('User is not System Manager');
         return;
     }
-    var script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js";
-    document.head.appendChild(script);
     let subscription;
     frappe.db.get_doc('Productify Subscription')
         .then(doc => {
@@ -17,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
         }
-        )
+    )
 
     let data = {
         'domain': window.origin || '',
@@ -45,37 +49,41 @@ document.addEventListener("DOMContentLoaded", function () {
                     { fieldname: 'fincall', fieldtype: 'Check', in_list_view: 1, label: 'Fin Call' },
                     { fieldname: 'application_usage', fieldtype: 'Check', in_list_view: 1, label: 'Application Usage' },
                     { fieldname: 'sales_person', fieldtype: 'Check', in_list_view: 1, label: 'Sales Person' },
+                    { fieldname: 'project', fieldtype: 'Check', in_list_view: 1, label: 'Project Tracking' },
+                    { fieldname: 'issue', fieldtype: 'Check', in_list_view: 1, label: 'Issue Tracking' },
                 ],
             },
         ],
         primary_action_label: 'Submit',
         primary_action(values) {
-            console.log(values);
-            frappe.call({
-                method: "productivity_next.api.send_user_list",
-                type: 'POST',
-                args: {
-                    user_list: values.table
-                },
-                callback: function (r) {
-                    if (r.message) {
-                        frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://productivity.finbyz.tech/files/Productify.exe'>Productify App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzfincall.productify&pcampaignid=web_share">Fincall App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
-                        party.confetti(document.body, {
-                            count: party.variation.range(200, 300),
-                        });
-                        dialog.hide();
-                        frappe.db.get_doc('Productify Subscription')
-                            .then(doc => {
-                                subscription = doc;
-                                window.subscription = doc;
-                                if (doc.docstatus === 1 && doc.list_of_users.length > 0) {
-                                    return;
+            frappe.confirm('This detail will be shared with Finbyz. Do you want to submit?', () => {
+                frappe.call({
+                    method: "productivity_next.api.send_user_list",
+                    type: 'POST',
+                    args: {
+                        user_list: values.table
+                    },
+                    callback: function (r) {
+                        if (r.message) {
+                            frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://productivity.finbyz.tech/files/Productify.exe'>Productify App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzfincall.productify&pcampaignid=web_share">Fincall App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
+                            party.confetti(document.body, {
+                                count: party.variation.range(200, 300),
+                            });
+                            dialog.hide();
+                            frappe.db.get_doc('Productify Subscription')
+                                .then(doc => {
+                                    subscription = doc;
+                                    window.subscription = doc;
+                                    if (doc.docstatus === 1 && doc.list_of_users.length > 0) {
+                                        return;
+                                    }
                                 }
-                            }
-                            )
+                                )
+                        }
                     }
-                }
+                });
             });
+
         }
 
     });
@@ -91,7 +99,8 @@ document.addEventListener("DOMContentLoaded", function () {
         {
             label: 'Organization Name',
             fieldname: 'organization_name',
-            fieldtype: 'Data',
+            fieldtype: 'Link',
+            options: 'Company',
             reqd: 1,
             default: data.organization_name
         },
@@ -131,9 +140,9 @@ document.addEventListener("DOMContentLoaded", function () {
         fields: ['employee_name', 'name', 'user_id', 'cell_number'],
         filters: {
             'status': 'Active',
-            'user_id': ['is', 'set'],
-            limit: 500000
-        }
+            'user_id': ['is', 'set']
+        },
+        limit: 500000
     }).then((employees) => {
         let table_data = [];
         employees.forEach((employee) => {
@@ -165,19 +174,22 @@ document.addEventListener("DOMContentLoaded", function () {
                     contact_person: values.contact_person,
                     email: values.email_id,
                     mobile_no: values.mobile_no,
-                    subscription_plan: "Prime",
                     application: values.application_sub,
-                    sales_person: values.sales_person
+                    fincall: values.fincall ? 1 : 0,
+                    application_usage: values.application_usage ? 1 : 0,
+                    sales_person: values.sales_person ? 1 : 0,
+                    project: values.project ? 1 : 0,
+                    issue: values.issue ? 1 : 0,
                 },
                 callback: function (r) {
-                    if(r.status === 400){
+                    if (r.status === 400) {
                         frappe.msgprint(r.message);
                         return;
                     }
 
                     d.hide();
                     dialog.show();
-                    
+
                     frappe.db.get_doc('Productify Subscription')
                         .then(doc => {
                             subscription = doc;

@@ -14,7 +14,7 @@ on_session_creation = "productivity_next.session.on_session_creation"
 app_include_js = [
     "https://cdn.plot.ly/plotly-latest.min.js",
     "https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js",
-    # "assets/productivity_next/productivity_next/setup.js",
+    "assets/productivity_next/productivity_next/setup.js",
 ]
 # setup_wizard_requires = "assets/productivity_next/setup.js"
 # include js, css files in header of desk.html
@@ -130,7 +130,7 @@ doctype_js = {"Lead": "public/js/doctype_js/lead.js",
 doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
-    }
+    },
 }
 
 # Scheduled Tasks
@@ -147,8 +147,12 @@ scheduler_events = {
     ],
     "cron":{
 		"0 1 * * *": [
-			"productivity_next.schedule.create_productify_work_summary"
-		]
+			"productivity_next.schedule.create_productify_work_summary",
+        ], 
+        # "5 4 * * sun" :[
+        #     "productivity_next.schedule.send_weekly_report",
+        # ]
+		
 	},
 }
 # 	"all": [
@@ -239,5 +243,4 @@ scheduler_events = {
 
 fixtures = [
     {"dt": "Role", "filters": [["name", "=", "Productify API"]]},
-    {"dt": "Custom Field", "filters": [["module", "in", ["Productivity Next"]]]},
 ]
