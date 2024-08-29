@@ -14,13 +14,13 @@ APPLICATION_ORG_URL = f"{BASE_URL}/api/resource/Productivity Application Organiz
 
 class ProductifySubscription(Document):
     def validate(self):
-        # if self.is_subscription_expired(type="application"):
-        #     frappe.throw("Your Subscription is expired")
-        # if not self.site_url:
-        #     self.site_url = frappe.utils.get_url()
+        if self.is_subscription_expired(type="application"):
+            frappe.throw("Your Subscription is expired")
+        if not self.site_url:
+            self.site_url = frappe.utils.get_url()
         self.remove_duplicate_users()
-        # self.validate_fincall()
-        # self.validate_application_usage()
+        self.validate_fincall()
+        self.validate_application_usage()
         frappe.enqueue(self.update_subscription, enqueue_after_commit=True)
         frappe.enqueue(self.update_application_list_of_users, enqueue_after_commit=True)
         frappe.enqueue(self.update_fincall_list_of_users, enqueue_after_commit=True)
