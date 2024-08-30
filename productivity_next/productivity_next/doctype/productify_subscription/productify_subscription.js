@@ -71,7 +71,8 @@ frappe.ui.form.on("Productify Subscription", {
         frappe.db.get_list('Employee', {
             fields: ['name', 'user_id', 'first_name',"middle_name","last_name"],
             filters: {
-                'status': 'Active'
+                'status': 'Active',
+                "user_id": ["is", "set"]
             },
             order_by: 'name'
         }).then((employees) => {
@@ -80,7 +81,7 @@ frappe.ui.form.on("Productify Subscription", {
                 if (frm.doc.list_of_users.find((user) => user.employee === employee.name)) {
                     return;
                 }
-                full_name = frappe.utils.comma_sep([employee.first_name, employee.middle_name, employee.last_name],sep=' ');
+                full_name = frappe.utils.comma_sep([employee.first_name, employee.middle_name, employee.last_name]);
                 full_name = full_name.replace(/,/g, '');
                 console.log(full_name)
                 table_data.push({
