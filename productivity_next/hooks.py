@@ -149,6 +149,9 @@ scheduler_events = {
 		"0 1 * * *": [
 			"productivity_next.schedule.create_productify_work_summary",
         ], 
+        "0 0 * * *": [
+            "productivity_next.schedule.submit_timesheet_created_by_productify",
+        ],
         # "5 4 * * sun" :[
         #     "productivity_next.schedule.send_weekly_report",
         # ]
