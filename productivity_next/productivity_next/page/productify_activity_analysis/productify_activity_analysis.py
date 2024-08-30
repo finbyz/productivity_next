@@ -3,7 +3,7 @@ from datetime import datetime,time,timedelta
 import frappe
 from frappe import utils
 from frappe.utils import now
-from frappe.utils import add_months,getdate,validate_csrf_token
+from frappe.utils import add_months,getdate
 from collections import defaultdict
 from frappe import _
 import json
