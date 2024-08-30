@@ -1,0 +1,814 @@
+commit 8e77252619295445bd870f5f33e1510f25c2d8a1
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Aug 21 12:39:50 2024 +0530
+
+    checkbox toggle logic change -MT
+
+commit a37a8f8048ea5602c3eca79cb7017acfbc23020d
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Aug 21 12:24:08 2024 +0530
+
+    subscription fields added -MT
+
+commit f633c8f1b2f11619c5d6833f891a8a5590c10ee4
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 20 18:39:30 2024 +0530
+
+    PAGE CHANGES MD
+
+commit aa4aa23a6c510f6bda6007a551e60e13a14b476f
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 20 18:28:20 2024 +0530
+
+    PAGE MINOR CHANGES MD
+
+commit e5bf9ba1132b0c5a530f7627177aad9b3eeb36e0
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Aug 14 19:05:40 2024 +0530
+
+    PRODUCTIVITY SCORE MD
+
+commit d4671ddb6c8cdcb45b706b4e1993719450b0dcd0
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Aug 14 18:08:58 2024 +0530
+
+    PRODUCTIVITY SCORE MD
+
+commit c590bbc1ef6c08f5fa624e5defeb2b8acc940a97
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Aug 14 17:36:04 2024 +0530
+
+    CHART CHANGES MD
+
+commit 1b2f2bdc333c665b0f7dfc8aa6b0f34bbd85b3e1
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 13 18:32:29 2024 +0530
+
+    SCREEN SHOTS TIMING MD
+
+commit 4ccef5c4d60f9749016c18d114d98c20d9deeb25
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 13 17:53:19 2024 +0530
+
+    Application Analysis Report
+
+commit 68dfeebb67cc2a977a42c9de855bd4e84700cd81
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 13 11:20:42 2024 +0530
+
+    MAJOR CHANGES MD
+
+commit a70529719da6c97b378107c1e805cfa149164a43
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Aug 12 18:47:21 2024 +0530
+
+    STEALTH MODE API ADDED -MT
+
+commit c21f8c01b41149f734a7f84c80ae827278d14bf4
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Aug 12 15:49:09 2024 +0530
+
+    TABS CHANGES MD
+
+commit 093d5905bd22452b331386c03b0f86ff816cf3e5
+Merge: c3eeabe 1d3dc6e
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Aug 12 15:16:50 2024 +0530
+
+    Merge branch 'version-15' of https://github.com/finbyz/productivity_next into version-15
+
+commit c3eeabee3cd48d3ee20f0b2925c7a9eda6586e4d
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Aug 12 15:16:39 2024 +0530
+
+    PAGE RESTRUCTURES MD
+
+commit 1d3dc6e31562f92faf5252a11dc427008e3c589d
+Author: finbyz <info@finbyz.com>
+Date:   Fri Aug 9 13:28:48 2024 +0000
+
+    OVERALL CHART MD
+
+commit 4582644f284b63172b4d6f8c43a3c1882f1aa71f
+Merge: 450b6ad 3b1e885
+Author: finbyz <info@finbyz.com>
+Date:   Fri Aug 9 12:24:35 2024 +0000
+
+    Merge branch 'version-15' of https://github.com/finbyz/productivity_next into version-15
+
+commit 3b1e885ec8afd4e8492432e988ea20f33e0d8fae
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 9 13:58:59 2024 +0530
+
+    auth changes - AS
+
+commit 9ffc0534071f45d874fdab9a19cde89851f1087b
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 9 12:48:07 2024 +0530
+
+    Extra space removed below the chart
+
+commit a43b87356e0f76484e9548163d4ca54cf219acde
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Aug 8 18:39:11 2024 +0530
+
+    CONSOLIDATED MD
+
+commit 924225466a6cdf6b26931246463be4459b6e51b5
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Aug 8 18:35:18 2024 +0530
+
+    ACTIVITY ANALYSIS PAGE MD
+
+commit e3c8dc24de8b04e936b96fe8b4ec292f43e9a2ce
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 6 19:05:08 2024 +0530
+
+    Productify Subscription added in productify workspace
+
+commit 0292f280fad6de79a1eb903459d559c6755a0bbb
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 6 19:02:19 2024 +0530
+
+    Productify Subcription added in card link -MT
+
+commit 96b5c299b1ed75a199773ee58a939c033c98d759
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Aug 6 18:19:36 2024 +0530
+
+    ADD CONFIRM MESSAGE SETUP.JS -MT
+
+commit 32ea15a147d6f2461d4578317d6e2ee14277a924
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Aug 5 11:21:44 2024 +0530
+
+    PURPOSE FIELD MD
+
+commit ec79dc7e2a5a45d3dbfc844a01a644a65334cb60
+Author: finbyz <info@finbyz.tech>
+Date:   Sun Aug 4 13:58:05 2024 +0530
+
+    REPORT CHANGES MD
+
+commit 7d5e29b253d945fcb764a40ba6efedb1ae6db7bf
+Author: finbyz <info@finbyz.tech>
+Date:   Sat Aug 3 13:17:34 2024 +0530
+
+    Changes in chart
+
+commit 35c0c2e7ea5dff2ef32d68c1be63a9cda62844f5
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 18:45:14 2024 +0530
+
+    REPORT CHANGES MD
+
+commit 67fa4ccdc513dc04ccb8722cb0a83e2fc580f3ca
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 18:40:12 2024 +0530
+
+    REPORT CHANGES MD
+
+commit 60256cc6844f9492c26aaaa394681f513f6a9440
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 17:34:29 2024 +0530
+
+    PRODUCTIFY ACTIVITY SUMMARY REPORT MD
+
+commit c5923abd497fdb9d05e74164c1b249f8d307a7e2
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 15:58:43 2024 +0530
+
+    SCHEDULER MT
+
+commit e9b4d0ba54516ae73a23d80c982bada1dc310de5
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 15:47:58 2024 +0530
+
+    Changes on sidebar hover
+
+commit f6c4be41c949ca1bec4353cf72364d5ff025b355
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 15:14:40 2024 +0530
+
+    WORK INTENSITY MD
+
+commit befd43d88911c3e5c4daa91fd2d0528f34345ed3
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 14:55:10 2024 +0530
+
+    HOOKS COMMENTED MD
+
+commit 3b060d9709c6034ebb1c904a66759a057e6439c1
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Aug 2 11:44:31 2024 +0530
+
+    PAGE CHANGES MD
+
+commit 9d6bd9a13f7d45e745b7033cb6a2c92113f7b689
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 30 17:30:07 2024 +0530
+
+    select user where user_id is set setup.js - MT
+
+commit f6ef2b81544409b672d2bf907ca8c24ad899df4e
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 30 17:10:55 2024 +0530
+
+    SETUP CHANGES MT
+
+commit 471b31f516795ec15a2ba284dbf3a330fe2477c1
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 30 15:18:40 2024 +0530
+
+    Changes in active idle time table in sidebar
+
+commit aad473dab90697e9043fbdfc8602d362873ca6c3
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 30 10:48:09 2024 +0530
+
+    MINOR CHANGES MD
+
+commit 46ec1a60878d00ec02a50f61d851176e1b6bd62b
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 30 10:01:06 2024 +0530
+
+    Changes done for user's profile
+
+commit d4f6f6f1c6a393fd068ecbbb69bf9c2d305727c9
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 29 15:44:56 2024 +0530
+
+    .copy ISSUE FOR TIME IN CONSOLIDATED MD
+
+commit 752fb06b57829d73d54ba8b6297e39d04603127b
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 29 12:56:03 2024 +0530
+
+    Changes
+
+commit 2d2acb3d01b0a52775e2bf95f9600ff2f4c63596
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 29 12:08:29 2024 +0530
+
+    TITLE IN SCREENSHOT AND UPDATE CONTAXCT MD
+
+commit f41a10ffad3109ee150e15f0a9660ff4fe386263
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 26 18:23:03 2024 +0530
+
+    MINTTY ADDED IN APPLICATION NAMES MD
+
+commit 845a3350f3dfe7d252a5d14ddffb38556fa261ae
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 26 18:06:33 2024 +0530
+
+    PATHCHES REMOVED MD
+
+commit a2f703309723bd8e077af99c5b7d27084fdbb798
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 26 09:59:13 2024 +0530
+
+    LEGENDS CHANGES MD
+
+commit ed4ff39e838b1de42ffbdbfcf7ec40fdbae1e909
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 25 14:35:36 2024 +0530
+
+    INDEXES MD
+
+commit af84bb68b52f9955758c85e567b570ab6b7d5df0
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 25 13:56:35 2024 +0530
+
+    CALLLS CHART MD
+
+commit a5390b1bda1fc37624e45c1d73f4abfc920ce5f4
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 25 13:30:00 2024 +0530
+
+    FINAL TOUCHUPS MD
+
+commit 485387f2bf22bc89a3f725df82bcf36a46723dd2
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 25 12:53:10 2024 +0530
+
+    SCHEDULER MD
+
+commit cb9f52fa9422692a34c5b76127be15e56d54ca43
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 25 12:04:37 2024 +0530
+
+    SCHEDULER MEETING AND ACTIVE MD
+
+commit 17eab0860538f6b1619972ddcf91086d2934a0e3
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 24 16:10:19 2024 +0530
+
+    IDLE TIME IN OVERALL CHART MD
+
+commit 0f0c38ef32ebf7abd9c031140aac21a0cbff6b12
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 24 10:56:08 2024 +0530
+
+    INDEX MD
+
+commit 4a82c4bcef9a42bd312d0e469dd8402eb252e292
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 24 10:11:27 2024 +0530
+
+    MINOR CHANGES ON INDEXES MD
+
+commit 450b6add770508845618c2c4053066417694e78f
+Author: finbyz <info@finbyz.com>
+Date:   Tue Jul 23 12:39:21 2024 +0000
+
+    DUPLICATE LOGS MD
+
+commit 590e4f029fef1d065637f6c311354059aaddf66b
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 23 17:24:57 2024 +0530
+
+    PAGE ON INDEXES MD
+
+commit cc1cbd74225c5bf24a2e2cf4d403f5e140bfcabf
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 23 17:19:26 2024 +0530
+
+    PAGE ON INDEXES MD
+
+commit 2dd79cbacd0d2edf3ca8364eaf2bd54498f1b34d
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 23 15:25:10 2024 +0530
+
+    CONSOLIDATED QUERIES ON INDEXES MD
+
+commit 6aa23298c70c919f73753b7abb47f060304307b6
+Author: finbyz <info@finbyz.com>
+Date:   Tue Jul 23 05:02:50 2024 +0000
+
+    SCHEDULER CHANGE MD
+
+commit a475465ec4ade5cc78348a5352d4d69188f91d4f
+Author: finbyz <info@finbyz.com>
+Date:   Mon Jul 22 13:32:49 2024 +0000
+
+    DATE ON CONSOLIDATED CHART MD
+
+commit 3b3f2374d927387dc78fec77610298c5fe8c4593
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 22 18:54:02 2024 +0530
+
+    INACTIVE TIME MEETING ISSUE MD
+
+commit 55cef7af003568c611b47c48a2bc60539f828dbc
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 22 08:06:30 2024 +0530
+
+    OVERALL CHART ACTIVITY ANALYSIS MD
+
+commit e8ef9aeb19f4be35e8c1de5b3f1dfbb11e480684
+Author: finbyz <info@finbyz.com>
+Date:   Mon Jul 22 02:29:41 2024 +0000
+
+    OVERALL PERFORMANCE CHART CORRECTED IN CONSOLIDATED MD
+
+commit 9c04e6463def6841a508e57c9ec7b5d12a6e6e41
+Author: finbyz <info@finbyz.tech>
+Date:   Sat Jul 20 12:33:18 2024 +0530
+
+    Changed title of overall performance to activity summary
+
+commit 9309e272789c8cf1a9f70dbb0cb5c4a277c58f72
+Merge: e449a0b 88e74bb
+Author: finbyz <info@finbyz.tech>
+Date:   Sat Jul 20 12:29:49 2024 +0530
+
+    Merge branch 'version-15' of https://github.com/finbyz/productivity_next into version-15
+
+commit e449a0b817b1481d0907f8f5a5fca9d15dfc5cd6
+Author: finbyz <info@finbyz.tech>
+Date:   Sat Jul 20 12:15:36 2024 +0530
+
+    Changes
+
+commit 88e74bb45c336c485c6b967fc22e780996e72fab
+Author: finbyz <info@finbyz.com>
+Date:   Fri Jul 19 10:53:19 2024 +0000
+
+    UPDATE QUERY MD
+
+commit 04c19db6362fa07e636bdf5fc0bef973f0529641
+Author: finbyz <info@finbyz.com>
+Date:   Fri Jul 19 07:54:43 2024 +0000
+
+    CONSOLIDATED WHERE EMPLOYEE NOT THERE MD
+
+commit 45f646bf70a822662959aa18b34d11fc48849757
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 19 13:09:51 2024 +0530
+
+    PATCHES CORRECTION
+
+commit 59d0a4da123397c481cf0bb174458d940c52edc7
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 19 12:34:42 2024 +0530
+
+    MEETING MD
+
+commit 3947868dd24b3ed830e089bd4713f201450dd807
+Merge: d626e2e 6211015
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 19 11:17:28 2024 +0530
+
+    Merge branch 'version-15' of https://github.com/finbyz/productivity_next into version-15
+
+commit d626e2e6bb108c8113ef060f34d28f612b98ee9d
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 19 11:17:13 2024 +0530
+
+    TODAY SCHEDULER CHANGE MD
+
+commit 621101536f54acff8f7f57519da2954aa9b80e34
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 19 10:40:19 2024 +0530
+
+    Added Role Permission In Fixtures - AS
+
+commit 1f61823f835e223b2f38ca3ef91d2252d710497a
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 19 10:34:22 2024 +0530
+
+    Productify Role Update - AS
+
+commit a31f898694dbd354caf441854ea9bfa1461c35ae
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 18:19:21 2024 +0530
+
+    Final Update
+
+commit e50a04722bcf7f9b69600dce0b5ebd0136702b3e
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 17:38:38 2024 +0530
+
+    SCHEDULER CHANGE MD
+
+commit 849a50649665e8efe41d7fa1e3cd74de15a08c68
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 17:03:48 2024 +0530
+
+    OVERALL CHART EXTRA DATA MD
+
+commit 9ac0dfcea0043afdeb7de096db67ab063b98f8d5
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 16:31:02 2024 +0530
+
+    WORKSPACE MD
+
+commit ef796f5180768a59532d9cfce261965a59dd8613
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 16:22:30 2024 +0530
+
+    WORKSPACE MD
+
+commit 1b3a508c9cd308475c8af3602d17413b40c39fc0
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 16:11:55 2024 +0530
+
+    SCHEDULER CHANGED MD
+
+commit 2e07d71c72f59fd9fc98c3ebad64df3afbb6a13c
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 16:07:19 2024 +0530
+
+    PAGE PERMISSIONS MD
+
+commit 61102d425361bce959997a6f502587734acfd329
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 15:39:53 2024 +0530
+
+    PAGE LEGENDS MT
+
+commit 6430c7dd6428aa2a57d953f20b55ab59f2125159
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 15:31:08 2024 +0530
+
+    MINOR CHANGES MD
+
+commit 77e7909cecc8ed8120aebdf6b5d81f7e23e66dc8
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 15:15:54 2024 +0530
+
+    EMPLOYEE BASED CONSOLIDATED MD
+
+commit f5f602937ce453506b584b4350dfbe3cd31eaa52
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 15:15:03 2024 +0530
+
+    EMPLOYEE BASED CONSOLIDATED MD
+
+commit ddae1b0340059b12e3e56edb99368f229270d536
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 13:48:05 2024 +0530
+
+    SCHEDULER AND WORKSPACE MD
+
+commit 0e99c112060fa8bcf7cf849554b96e32aeb8cda5
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 12:58:25 2024 +0530
+
+    CUSTOM FIELD AND PAGE CHANGES MD
+
+commit 46166b1542bd3a86f087737cfc6275e5e2bc91ad
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 18 09:50:35 2024 +0530
+
+    Link Error Solved - AS
+
+commit 6030e33f50bcae6bc5a25080863590c6fc641a7a
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 17 18:26:43 2024 +0530
+
+    SCHEDULER CRON JOBS MD
+
+commit 8dce1f52fe9893e8d7cbb364947fd3971c426846
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 17 18:16:56 2024 +0530
+
+    PRODUCTIFY ACTIVITY ANALYSIS CODE RESTRUCTURE MD
+
+commit c5b3373fa45d6faaac175d9bb01f9804f0d439ea
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 17 16:18:53 2024 +0530
+
+    CONSOLIDATED CODE RESTRUCTURE MD
+
+commit c48f580b309f7da36dd309936d1e83fadc2809f7
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 17 15:02:02 2024 +0530
+
+    CONSOLIDATED CHART MD
+
+commit 2a630ca3df6a43798560bae2185811a6a835c667
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 17 11:36:15 2024 +0530
+
+    URL BRIEF RESOLVED MD
+
+commit 7598797c676e08f800f6bcbd4199229e1db8b38b
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 17 10:18:54 2024 +0530
+
+    PAGES NAME CHANGED MD
+
+commit 08ef4c89c4d3080bd48174ce5900198ed57c82ee
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 15 17:18:18 2024 +0530
+
+    Field Changes
+
+commit 5581031d3ac203c0a9566c35f62f17e8af0bb269
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 12 10:04:17 2024 +0530
+
+    DWSP TO PWS MD
+
+commit 8e4c29e2a1a561805708936b06220553c99d8443
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 12 09:40:36 2024 +0530
+
+    Remove Negative Active Time - AS
+
+commit 393cca5d3af380c76040407404cd5a178da78118
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jul 12 08:26:53 2024 +0530
+
+    Changed Current URL to text - AS
+
+commit 3770b9c8062445e64bfc4b538d457f6fb1ba6801
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 18:28:31 2024 +0530
+
+    OVERALL CHART MD
+
+commit 62f0a76d1e1be45c98ce60882508f9bf63962fa4
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 18:06:06 2024 +0530
+
+    CALL ANALYSIS REPORT COMPETE - MT
+
+commit 99a7f42abe52ae071bf40d00fd8e5af10624e4f2
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 12:47:19 2024 +0530
+
+    EMPLOYEE PERMISSION DWSP MD
+
+commit 6444394bcc6eecfdcd4b1b63f798731573869da0
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 12:00:50 2024 +0530
+
+    Get Total Time Change - AS
+
+commit 76fd700611bea0e6beee834cc191ae803c7e1c0d
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 11:06:58 2024 +0530
+
+    Get Total Time Change - AS
+
+commit 7d6550f6299893a968e5437f865bf008d4ae41cb
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 10:38:21 2024 +0530
+
+    PATCHES FOR DUPLICATES MD
+
+commit 9789af3f7039c4c0bdb4cfe91ad810c56dfb443e
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 11 09:54:51 2024 +0530
+
+    EXTRA IDLE TIME LOGS MD
+
+commit 96ffc7281d57700e0be6043d1189161998333a48
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 9 14:40:56 2024 +0530
+
+    OUTGOING FILTER MD
+
+commit 50959f623293e90d3bab28cfb7627e52fa94a683
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jul 9 13:37:44 2024 +0530
+
+    Added Changes for Employee Idle Time - AS
+
+commit a9d9af6d7852b5b2d54a07863f492000f628017c
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 8 10:04:59 2024 +0530
+
+    DWSP DOCTYPE CONFIGURATIONS MD
+
+commit 27b170efd4464af2eaaf2d9509568a53880decbf
+Author: finbyz <info@finbyz.tech>
+Date:   Sun Jul 7 13:23:35 2024 +0530
+
+    PRODUCTIFY WORK SUMMARY MD
+
+commit 1d22d72c53361640dee982e82ab04879e28177e7
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 4 17:28:37 2024 +0530
+
+    adding url condition duration should be not less than 10 sec --anubhav
+
+commit 573b06f05d6c856616a7a9f37359f449cb09fb19
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jul 4 09:18:00 2024 +0530
+
+    code for remove duplicate entry in url log --anubhav
+
+commit 133c259f9007b8bc12f9729f9e9737de0596117c
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 3 17:15:54 2024 +0530
+
+    CHANGE COMMENT TYPE TO INFO,CREATION TO CALL DATETIME
+
+commit e2492d1da2829ae9b9b2ba79ebc1ae8a21aed524
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 3 16:51:59 2024 +0530
+
+    Echarts Library MD
+
+commit 953d8313353179e46697314dad0559f71a97b005
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jul 3 11:36:06 2024 +0530
+
+    Url Split Error Solved
+
+commit 37cb146dad83a8ab9c17ceff99cf1aca471a765d
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jul 1 12:10:58 2024 +0530
+
+    pWRITE PATCHE TO DELETE COMMENT,FIX BROKEN IMAGES LINK - MT
+
+commit c2d15e8f3b743e2686a0aa949e4c876fe28292df
+Merge: 74cafea fee08ff
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jun 28 09:24:06 2024 +0530
+
+    Merge branch 'version-15' of https://github.com/finbyz/productivity_next into version-15
+
+commit 74cafea1565b6a6602dde2e345e897f665297e5f
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jun 28 09:23:21 2024 +0530
+
+    adding changes in url access log make url field to small text and in work intesity add scroll count --anubhav
+
+commit fee08ff7ed8bad7e4f8519b5dcbc2b0b0bffdace
+Author: Ubuntu <info@finbyz.tech>
+Date:   Fri Jun 28 01:45:56 2024 +0000
+
+    Changes in comments hook
+
+commit 323f039e030d558cf8546953aaaccde9a5f0b3b6
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jun 27 11:09:15 2024 +0530
+
+    COMMENTS FN LN CHECK MD
+
+commit f4157c4bc41c3ba873af4bdedb5cb82fcb36cf0e
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jun 27 11:06:11 2024 +0530
+
+    COMMENTS DONE MT,MD
+
+commit f2a47c9c869107ae5b39a5cc51ff77a3d90d3754
+Author: finbyz <info@finbyz.tech>
+Date:   Thu Jun 27 09:45:36 2024 +0530
+
+    CONSOLIDATED PAGE AND NOTIFICATION ISSUE MD
+
+commit 08e4c6a4d9be8beee19db2c960c412c366aec635
+Author: Ubuntu <info@finbyz.tech>
+Date:   Wed Jun 26 13:18:37 2024 +0000
+
+    Corrected fincall comment issue
+
+commit b4e8f1806baab15e86b128bbdead7f151ecf0e7f
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jun 26 18:29:53 2024 +0530
+
+    remove comment_on_employee_fincall
+
+commit 9fcc173d02bdaee25c026c39424eb6a93424e846
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jun 26 18:07:27 2024 +0530
+
+    merge schedule_comments and comment_on_employee_fincall - MT
+
+commit e4a4fb207053c1f8c07523ef3c9c6d42de082ed7
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jun 26 13:48:06 2024 +0530
+
+    ERROR RESOLVED MD
+
+commit 361e1af45f685ee246e248208782590451615aeb
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jun 26 13:44:38 2024 +0530
+
+    ERROR RESOLVED MD
+
+commit 5805676714794fbadf93619881c7974c17581e1a
+Author: finbyz <info@finbyz.tech>
+Date:   Wed Jun 26 13:02:22 2024 +0530
+
+    FINAL PAGE LOOK MD
+
+commit e0b6f54202bb72539591037947d12262866b5863
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jun 25 14:08:41 2024 +0530
+
+    Optimize schedule_comments - MT
+
+commit 3efa9e43a89e8ae1c98753de22c5a30e6079b231
+Author: finbyz <info@finbyz.tech>
+Date:   Tue Jun 25 09:49:17 2024 +0530
+
+    add comment & spoke about fields - MT
+
+commit 3c128af240839351d1cecbc7f75e7528e840fde0
+Author: finbyz <info@finbyz.tech>
+Date:   Mon Jun 24 18:04:05 2024 +0530
+
+    Employee Fincall - MT
+
+commit 91894eadd6311a43fe57d2b6ec4d5ac038a0fa8b
+Author: finbyz <info@finbyz.tech>
+Date:   Sat Jun 22 18:56:00 2024 +0530
+
+    PATCH FIELD ADDITION MD
+
+commit 9c9417962c9d76e4d64dbdea6b7b6933e66878cf
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jun 21 13:10:07 2024 +0530
+
+    CONTACT CHECKING LOGIC MODIFIED MD
+
+commit 3bb3aa2efe07bac996d286dd300b199284e0d0af
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jun 21 11:57:30 2024 +0530
+
+    CONTACT MODIFIED DESC MD
+
+commit c043f0c07be5392a26b6df0670ecdaf4422129df
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jun 21 11:44:32 2024 +0530
+
+    CONTACT ISSUE RESOLVED MD
+
+commit 55051865291910b8f077d9a50a887b8e0e86e9f9
+Author: finbyz <info@finbyz.tech>
+Date:   Fri Jun 21 09:52:51 2024 +0530
+
+    Customer on 1st Priority and Empty Client Removed
+
+commit 8d32e073ef827bbd28da3fa990b4f50ea994d71f
+Author: FinByz <info@finbyz.tech>
+Date:   Wed Jun 19 18:17:00 2024 +0530
+
+    WORKSPACE CHANGES AND IDLE TIME DOCTYPE REMOVED MD
