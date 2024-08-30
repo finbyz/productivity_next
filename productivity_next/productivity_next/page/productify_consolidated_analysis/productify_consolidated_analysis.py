@@ -3,6 +3,7 @@ from datetime import datetime,timedelta
 from frappe.utils import now
 from collections import defaultdict
 from frappe.utils import now_datetime
+from productivity_next.api import calculate_total_working_hours
 
 # Convert start date from 2024-07-17 to 2024-07-17 00:00:00 and end date from 2024-07-17 to 2024-07-17 23:59:59 code starts
 def set_dates(start_date=None, end_date=None):
@@ -129,14 +130,14 @@ def client_calls_chart(start_date=None, end_date=None):
     company_details = []
     others_duration = 0
 
-    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'}
+    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'} 
     for row in caller_name:
         ref_doctype = row['ref_doctype']
         total_duration = row['total_duration']
 
         if ref_doctype in main_categories:
             found = False
-            for detail in company_details:
+            for detail in company_details: 
                 if detail['name'] == ref_doctype:
                     detail['value'] += total_duration
                     found = True
@@ -201,7 +202,7 @@ def employee_calls_chart(user, start_date=None, end_date=None):
            ROUND(SUM(CASE WHEN calltype = 'Rejected' THEN duration ELSE 0 END) / 60, 2) as rejected_duration,
            ROUND(SUM(CASE WHEN calltype = 'Missed' THEN duration ELSE 0 END) / 60, 2) as missed_duration,
            COUNT(*) as total  
-    FROM `tabEmployee Fincall`
+    FROM `tabEmployee Fincall` 
     {conditions} AND employee IN ({','.join(f"'{employee['name']}'" for employee in employees_list)})
     GROUP BY employee
     ORDER BY total DESC
@@ -338,7 +339,7 @@ def overall_performance_chart(start_date=None, end_date=None):
                 meeting['client']
             ])
         else:
-           base_data.append([
+            base_data.append([
                 "External Meeting",
                 meeting['employee_name'].split()[0] + " " + meeting['employee_name'].split()[-1][0] + "." if meeting['employee_name'] else "",
                 meeting['meeting_start'],
@@ -602,7 +603,13 @@ def user_analysis_data(start_date=None, end_date=None):
             'total_keystrokes': item['total_keystrokes'],
             'total_mouse_clicks': item['total_mouse_clicks'],
             'total_scroll': item['total_scroll']
-        }                            
+        }
+    
+    productivity_score = {}
+
+    for employee in employees:
+        score = calculate_total_working_hours(employee['name'], start_date, end_date, 8)
+        productivity_score[employee['name']] = score
     
     return {
         "total_days": total_days,
@@ -610,6 +617,7 @@ def user_analysis_data(start_date=None, end_date=None):
         "total_idle_time": total_idle_time,
         "employee_fincall_data": employee_fincall_data,
         "meeting_employee_data": meetings_external_employee,
-        "work_intensity_data": work_intensity_data
+        "work_intensity_data": work_intensity_data,
+        "productivity_score": productivity_score
     }
 # User Analysis (User Productivity Stats) Code Ends

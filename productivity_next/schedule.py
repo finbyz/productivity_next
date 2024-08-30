@@ -1,5 +1,6 @@
 import frappe
 from frappe.utils import nowdate, get_datetime, format_time, format_duration
+import frappe.utils
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
 from .api import (
@@ -821,3 +822,19 @@ def send_weekly_report():
     
 
 
+
+def submit_timesheet_created_by_productify():
+    if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
+        frappe.throw("Custom Field 'is_created_by_productify' not found")
+    yeasterday = get_datetime() - timedelta(days=1)
+    timesheets = frappe.get_all(
+        "Timesheet",
+        filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">", yeasterday)},
+        fields=["name"],
+    )
+
+    for timesheet in timesheets:
+        doc = frappe.get_doc("Timesheet", timesheet.name)
+        doc.submit()
+        frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
+        frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")

@@ -7,6 +7,12 @@
     --color-chart-label: #2b2e33;
     /* Dark theme color */
 }
+.table-height{
+   max-height: 100%;
+   min-height: fit-content;
+   padding: 0 !important; /* changed from -20px to 0 */
+   border-collapse: collapse;
+}
 .time-cell span {
     float: right;
 }
@@ -37,13 +43,16 @@
     width: 100%;
     max-width: 100%;
 }
-
-.sidebar-image {
-    max-width: 100%;
-    max-height: 250px;
-    height: auto;
-    object-fit: cover;
+.sidebar-image-wrapper{
+    width: 100%;
 }
+.sidebar-image {
+    width: 100% !important; /* Ensure it covers the full width of the parent */
+    max-height: 250px; /* Adjust as needed */
+    height: auto; /* Maintain aspect ratio */
+    object-fit: cover; /* Ensure image covers the container */
+}
+
 @media (max-width: 480px) {
     .progress, .sidebar-image {
         width: 100%; /* Full width for very small screens */
@@ -80,7 +89,6 @@
 .form-sidebar .sidebar-image-section {
     width: min(100%);
 }
-
 .chart-column-container {
     flex: 1;
     margin-right: 0.5rem;
@@ -155,7 +163,6 @@
     position: absolute;
     z-index: 1;
     bottom: 80%;
-    /* Position the tooltip above the text */
     left: 50%;
     margin-left: -50px;
     opacity: 0;
@@ -276,4 +283,9 @@ path[paint-order="stroke"] {
 .overall-performance-chart {
     width: 100%;
     min-height: 100%;
+}
+
+
+#overallChartLegends > li:not([selected='selected']) {
+    opacity: 0.5;
 }

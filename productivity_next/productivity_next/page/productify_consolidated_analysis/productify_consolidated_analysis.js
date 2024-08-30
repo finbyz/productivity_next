@@ -61,10 +61,37 @@ UserProfile = class UserProfile {
 		this.setup_refresh(); // Refresh Button
 		this.setup_timespan(); // Timespan Button
 		this.main_section.empty().append(frappe.render_template("productify_consolidated_analysis"));
-		this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
-		this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
-		this.employee_calls_chart(); // Top 10 Employees Call Analysis
 		this.user_analysis(); // User Analysis (User Productivity Stats)
+
+		// this.overall_performance_chart(); // Overall Performance (All Employees)
+		// JavaScript to handle tab switching
+		const tabs = document.querySelectorAll('.nav-link');
+		const contents = document.querySelectorAll('.tab-pane');
+	
+		tabs.forEach(tab => {
+			tab.addEventListener('click', () => {
+				const target = document.querySelector(tab.getAttribute('data-bs-target'));
+				
+				// Log aria-labelledby attribute
+				// console.log(target.getAttribute('aria-labelledby'));
+				
+				// Manage tab and content visibility
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				// Check aria-labelledby and execute methods if needed
+				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
+					this.document_analysis_chart(); // Document Analysis (Numbers Of Document Modified)
+				}
+				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
+					this.client_calls_chart(); // Top 10 Clients Call Analysis (In Minutes)
+					this.employee_calls_chart(); // Top 10 Employees Call Analysis
+				}
+				
+				contents.forEach(content => content.classList.remove('show', 'active'));
+				target.classList.add('show', 'active');
+			});
+		});
 	}
 
 	// Refresh Button Code Starts
@@ -219,13 +246,14 @@ UserProfile = class UserProfile {
 							}
 						],
 					};
-	
+					barchart.resize();
 					barchart.setOption(option);
 					barchart.getZr().on('mousewheel', function (e) {
-						// e.preventDefault();
 					});
 					barchart.getZr().on('pinch', function (e) {
-						// e.preventDefault();
+					});
+					window.addEventListener('resize', function () {
+						barchart.resize();
 					});
 				}
 			});
@@ -254,7 +282,6 @@ UserProfile = class UserProfile {
 					if (containerElement) containerElement.style.display = 'none';
                 	return;
 				}
-	
 	
 				const chartDom = document.getElementById('client-calls-chart');
 				if (!chartDom) {
@@ -381,7 +408,6 @@ UserProfile = class UserProfile {
 				var selected_end_date = this.selected_end_date;
 				// Add click event listener to the link after the chart is rendered
 				document.getElementById('client-calls-analysis-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent default link behavior
 					goToCallsAnalysisClient(selected_start_date, selected_end_date); // Pass dates to redirect function
 				});
 	
@@ -427,14 +453,13 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
-				
 				const containerElement = document.getElementById('employee-calls');
 				if (r.datasets.length === 0) {
 					console.log("No data found for employee calls");
 					if (containerElement) containerElement.style.display = 'none';
 					return;
 				}
-				
+				else{
 				let seriesData = [];
 				r.datasets.forEach(dataset => {
 					const counts = dataset.counts.map(count => parseInt(count)); 
@@ -529,12 +554,12 @@ UserProfile = class UserProfile {
 				var selected_end_date = this.selected_end_date;
 				// Add click event listener to the link after the chart is rendered
 				document.getElementById('employee-calls-analysis-link').addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent default link behavior
 					goToCallsAnalysisEmployee(selected_start_date, selected_end_date); // Pass dates to redirect function
 				});
 				window.addEventListener('resize', function() {
 					myChart.resize();
 				});
+				}
 			})
 			.catch((error) => {
 				console.error("Error fetching chart data:", error);
@@ -677,33 +702,40 @@ UserProfile = class UserProfile {
 					
 					return item;
 				}
-				console.log("data",_rawData.parkingApron.data.map(item => item[0]))
+				// console.log("data",_rawData.parkingApron.data.map(item => item[0]))
 				// Define the sortEmployeeNames function
 				function sortEmployeeNames(sorting_data, yAxisData) {
 					const employeeMap = new Map(sorting_data.map(item => [item.employeeName, item]));
-
-					return yAxisData
-						.filter(name => {
-							return Array.from(employeeMap.keys()).some(fullName => 
-								fullName.startsWith(name.split('.')[0])
-							);
-						})
-						.sort((a, b) => {
-							const fullNameA = Array.from(employeeMap.keys()).find(fullName => 
-								fullName.startsWith(a.split('.')[0])
-							);
-							const fullNameB = Array.from(employeeMap.keys()).find(fullName => 
-								fullName.startsWith(b.split('.')[0])
-							);
-
-							return sorting_data.findIndex(item => item.employeeName === fullNameA) - 
-								sorting_data.findIndex(item => item.employeeName === fullNameB);
+				
+					// console.log("Employee Map:", Array.from(employeeMap.keys()));
+					// console.log("yAxisData:", yAxisData);
+				
+					const matchedData = yAxisData.map(name => {
+						const match = Array.from(employeeMap.keys()).find(fullName => {
+							const [firstName, ...rest] = fullName.split(' ');
+							const lastNameInitial = rest.length > 0 ? rest[rest.length - 1][0] : '';
+							const namePattern = `${firstName} ${lastNameInitial ? lastNameInitial+'.' : ''}`;
+							const isMatch = name.startsWith(namePattern);
+							// console.log(`Comparing ${name} with ${namePattern}: ${isMatch}`);
+							return isMatch;
 						});
+						return { name, fullName: match };
+					}).filter(item => item.fullName !== undefined);
+				
+					// console.log("Matched Data:", matchedData);
+				
+					const sortedData = matchedData.sort((a, b) => {
+						return sorting_data.findIndex(item => item.employeeName === a.fullName) - 
+							   sorting_data.findIndex(item => item.employeeName === b.fullName);
+					}).map(item => item.name);
+				
+					// console.log("Sorted Data:", sortedData);
+					return sortedData;
 				}
 
 				// Define the makeOption function
 				function makeOption(sorting_data) {
-					console.log("sorting_data", sorting_data);
+					// console.log("sorting_data", sorting_data);
 					var activityLegends = [
 						{ name: 'Application', color: '#00A6E0' },
 						{ name: 'Idle', color: '#FF4001' },
@@ -736,8 +768,9 @@ UserProfile = class UserProfile {
 					var fixedEndTime = new Date(maxEndTime);
 
 					// Sort the y-axis data
+					// console.log("yAxisData", _rawData.parkingApron.data.map(item => item[0]));
 					const sortedYAxisData = sortEmployeeNames(sorting_data, _rawData.parkingApron.data.map(item => item[0]));
-
+					// console.log("sortedYAxisData", sortedYAxisData);
 					return {
 						backgroundColor: 'transparent',
 						tooltip: {
@@ -933,7 +966,7 @@ UserProfile = class UserProfile {
 							min: fixedStartTime,
 							max: fixedEndTime,
 						},
-						series: [
+						series: [									
 							{
 								id: 'flightData',
 								type: 'custom',
@@ -1254,7 +1287,7 @@ UserProfile = class UserProfile {
 						overallChartLegends.each(function() {
 							let li = $(this);
 							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
-							console.log(li.attr('data-value'));
+							// console.log(li.attr('data-value'));
 						});
 
 						overallPerformance.setOption({
@@ -1263,7 +1296,7 @@ UserProfile = class UserProfile {
 							}
 						});
 
-						console.log(legends);
+						// console.log(legends);
 
 					}
 					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
@@ -1280,8 +1313,20 @@ UserProfile = class UserProfile {
 					});
 				}
 			});
+			document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
+				// console.log("Activity Summary Report Link Clicked");
+				event.preventDefault();
+				goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date);
+			}.bind(this));
+			function goToActivitySummaryReport(employee,start_date, end_date) {
+				// console.log("Employee:", employee);
+				var baseUrl = window.location.origin;
+				var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?from_date=" + start_date + "&to_date=" + end_date;
+				window.open(activityAnalysisUrl, '_blank');
+			}
 	}
 	// Overall Performance (All Employees) Code Ends
+	
 		
 	// User Analysis (User Productivity Stats) Code Starts
 	user_analysis() {
@@ -1349,14 +1394,20 @@ UserProfile = class UserProfile {
 				meetingDuration: meetingEmployeeData.duration || 0,
 				keystroke: data.work_intensity_data[employee]?.total_keystrokes || 0,
 				clicks: data.work_intensity_data[employee]?.total_mouse_clicks || 0,
-				scrolls: data.work_intensity_data[employee]?.total_scroll || 0
+				scrolls: data.work_intensity_data[employee]?.total_scroll || 0,
+				score: data.productivity_score[employee] || 0
 			};
 		});
 	
 		const employeeDataArray = await Promise.all(fetchPromises);
-		employeeDataArray.sort((a, b) => calculateActiveTime(b.totalHours, b.totalIdleTime) - calculateActiveTime(a.totalHours, a.totalIdleTime));
+		employeeDataArray.sort((a, b) => {
+			const scoreA = ((((a.totalHours/3600) - (a.totalIdleTime/3600))/a.score)*100);
+			const scoreB = ((((b.totalHours/3600) - (b.totalIdleTime/3600))/b.score)*100);
+			return scoreB - scoreA; // For descending order
+		});
+		// console.log("employeeDataArray", employeeDataArray);
 		this.sorting_data = employeeDataArray;
-		this.overall_performance_chart(); // Overall Performance (All Employees)
+		this.overall_performance_chart(); 
 		let count = 1;
 		let totalHours = 0;
 		let totalIdleTime = 0;
@@ -1374,18 +1425,18 @@ UserProfile = class UserProfile {
 		this.start_date_ = this.selected_start_date;
 		this.end_date_ = this.selected_end_date;
 		employeeDataArray.forEach(app => {
-			const employeeUrl = `${baseUrl}Productify Activity Analysis?employee=${encodeURIComponent(app.employee)}&start_date=${encodeURIComponent(this.start_date_)}&end_date=${encodeURIComponent(this.end_date_)}`;
+			const employeeUrl = `${baseUrl}Productify Activity Analysis?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
 			const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(app.employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
-			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;
+			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;	
 			wholedata += `
 				<tr>
 					<td align="left">
 						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
 					</td>
+					<td align="center" style="color:#6420AA;"><b>${parseFloat((((app.totalHours/3600) - (app.totalIdleTime/3600))/app.score)*100).toFixed(2)}</b></td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.totalHours) - (app.totalIdleTime))}</td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalIdleTime)}</td>
-					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(((app.totalHours) / app.totalDays) - ((app.totalIdleTime) / app.totalDays))}</td>
 					<td align="center" ><a href="${employeeFincallUrl}&calltype=Incoming" style="color:#62BA46;" target="_blank">${app.incomingFincallCount} (${this.convertSecondsToTime_(app.totalIncomingDuration)} H)</a></td>
 					<td align="center" ><a href="${employeeFincallUrl}&calltype=Outgoing" style="color:#62BA46;" target="_blank">${app.outgoingFincallCount} (${this.convertSecondsToTime_(app.totalOutgoingDuration)} H)</a></td>
 					<td align="center" ><a href="${employeeFincallUrl}&calltype=Missed" style="color:#62BA46;" target="_blank">${app.missedFincallCount}</a></td>
@@ -1414,10 +1465,10 @@ UserProfile = class UserProfile {
 		wholedata += `
 			<tr>
 				<td align="left"><strong>Total</strong></td>
+				<td align="center" style="color:#00A6E0;"><strong></strong></td>
 				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours)}</strong></td>
 				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalHours - totalIdleTime)}</strong></td>
 				<td align="center" style="color:#00A6E0;"><strong>${this.convertSecondsToTime_(totalIdleTime)}</strong></td>
-				<td align="center" style="color:#00A6E0;"><strong></strong></td>
 				<td align="center" style="color:#62BA46;"><strong>${totalIncomingFincallCount} (${this.convertSecondsToTime_(totalIncomingDuration)} H)</strong></td>
 				<td align="center" style="color:#62BA46;"><strong>${totalOutgoingFincallCount} (${this.convertSecondsToTime_(totalOutgoingDuration)} H)</strong></td>
 				<td align="center" style="color:#62BA46;"><strong>${totalMissedFincallCount}</strong></td>
@@ -1430,6 +1481,7 @@ UserProfile = class UserProfile {
 			</tr>`;
 	
 		container.append(wholedata);
+
 	};
 	// User Analysis (User Productivity Stats) Code Ends
 		

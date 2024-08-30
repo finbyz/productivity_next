@@ -491,7 +491,7 @@ def organization_signup(
             "call_organization_name": resp_data.get("call_organization_name"),
         }
     )
-    productify_subscription.save(ignore_permissions=True)
+    productify_subscription.insert()
     frappe.msgprint(
         _(f"Organization signed up successfully,{productify_subscription.name}")
     )
@@ -515,7 +515,7 @@ def send_user_list(user_list):
         "Productify Subscription", organization_name
     )
 
-    payload = json.dumps({"users": user_list, "erpnext_url": frappe.utils.get_url()})
+    payload = json.dumps({"users": user_list, "organization_id": organization_name})
     users = json.loads(user_list)
     productify_subscription.list_of_users = []
     for user in users:
