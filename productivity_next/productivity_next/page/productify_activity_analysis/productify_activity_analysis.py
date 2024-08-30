@@ -3,7 +3,6 @@ from datetime import datetime,time,timedelta
 import frappe
 from frappe import utils
 from frappe.utils import now
-from frappe.utils import add_months,getdate
 from collections import defaultdict
 from frappe import _
 import json
@@ -183,7 +182,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
 def work_intensity(user=None, start_date=None, end_date=None):
     if not user:
         return []
-
+    
     intensity_data = frappe.db.sql(f"""
         SELECT 
             HOUR(time) as hour, 
