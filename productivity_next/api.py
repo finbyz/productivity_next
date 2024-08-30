@@ -515,7 +515,7 @@ def send_user_list(user_list):
         "Productify Subscription", organization_name
     )
 
-    payload = json.dumps({"users": user_list, "organization_id": organization_name})
+    payload = json.dumps({"users": user_list, "erpnext_url": frappe.utils.get_url()})
     users = json.loads(user_list)
     productify_subscription.list_of_users = []
     for user in users:
