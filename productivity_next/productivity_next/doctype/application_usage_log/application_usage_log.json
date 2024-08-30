@@ -23,7 +23,10 @@
   "duration",
   "column_break_hqfs",
   "url",
-  "domain"
+  "domain",
+  "project",
+  "issue",
+  "task"
  ],
  "fields": [
   {
@@ -137,10 +140,28 @@
    "fieldtype": "Data",
    "label": "Process Name",
    "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
   }
  ],
  "links": [],
- "modified": "2024-07-15 14:47:44.906642",
+ "modified": "2024-08-14 11:25:59.908754",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",

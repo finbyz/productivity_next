@@ -819,9 +819,7 @@ def send_weekly_report():
     for employee in employees:
         send_email(employee.user_id, employee.employee_name, html_table)
         return data
-    
-
-
+   
 
 def submit_timesheet_created_by_productify():
     if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
@@ -838,3 +836,4 @@ def submit_timesheet_created_by_productify():
         doc.submit()
         frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
         frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
+
