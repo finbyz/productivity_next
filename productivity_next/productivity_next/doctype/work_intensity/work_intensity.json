@@ -8,6 +8,9 @@
   "naming_series",
   "employee",
   "employee_name",
+  "issue",
+  "task",
+  "project",
   "column_break_nchj",
   "time",
   "key_strokes",
@@ -27,7 +30,8 @@
   },
   {
    "fieldname": "column_break_nchj",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "read_only": 1
   },
   {
    "default": "WI-.YY.MM.DD.-",
@@ -73,17 +77,40 @@
    "label": "Mouse Scrolls",
    "non_negative": 1,
    "options": "0",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fetch_from": "employee.employee_name",
    "fieldname": "employee_name",
    "fieldtype": "Data",
-   "label": "Employee Name"
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1
   }
  ],
  "links": [],
- "modified": "2024-07-15 12:43:57.176432",
+ "modified": "2024-08-23 12:52:38.250823",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",
@@ -125,7 +152,7 @@
    "write": 1
   }
  ],
- "sort_field": "modified",
+ "sort_field": "time",
  "sort_order": "DESC",
  "states": []
 }

@@ -491,7 +491,7 @@ def organization_signup(
             "call_organization_name": resp_data.get("call_organization_name"),
         }
     )
-    productify_subscription.save(ignore_permissions=True)
+    productify_subscription.insert()
     frappe.msgprint(
         _(f"Organization signed up successfully,{productify_subscription.name}")
     )

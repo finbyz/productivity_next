@@ -18,7 +18,7 @@ def execute(filters=None):
 
 
 def get_columns(filters):
-    if filters.group_by_employee_and_domain:
+    if filters.group_by_employee_and_application_name:
         return [
             {
                 "fieldname": "employee",
@@ -28,8 +28,8 @@ def get_columns(filters):
                 "align": "left",
             },
             {
-                "fieldname": "domain",
-                "label": _("Domain"),
+                "fieldname": "application_name",
+                "label": _("Application"),
                 "align": "left",
                 "fieldtype": "Data",
                 "width": 300,
@@ -42,11 +42,11 @@ def get_columns(filters):
             },            
         ]
 
-    if filters.group_by_domain:
+    if filters.group_by_application_name:
         return [
             {
-                "fieldname": "domain",
-                "label": _("Domain"),
+                "fieldname": "application_name",
+                "label": _("Application"),
                 "align": "left",
                 "fieldtype": "Data",
                 "width": 300,
@@ -67,6 +67,20 @@ def get_columns(filters):
             "width": 200,
             "align": "left",
         },
+         {
+            "fieldname": "application_name",
+            "label": _("Application Name"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 200,
+        },
+         {
+            "fieldname": "application_title",
+            "label": _("Application Title"),
+            "align": "left",
+            "fieldtype": "Data",
+            "width": 200,
+        },
         {
             "fieldname": "from_time",
             "label": _("From Time"),
@@ -85,27 +99,6 @@ def get_columns(filters):
             "fieldtype": "Data",
             "width": 120,
         },
-        {
-            "fieldname": "application",
-            "label": _("Application"),
-            "align": "left",
-            "fieldtype": "Data",
-            "width": 200,
-        },
-        {
-            "fieldname": "domain",
-            "label": _("Domain"),
-            "align": "left",
-            "fieldtype": "Data",
-            "width": 200,
-        },
-        {
-            "fieldname": "url",
-            "label": _("URL"),
-            "align": "left",
-            "fieldtype": "Url",
-            "width": 250,
-        },
     ]
 
 
@@ -113,16 +106,16 @@ def get_data(filters):
     kwargs = {
         "filters": {
             "date": ["between", [filters.from_date, filters.to_date]],
-            "domain": ["!=", ""],
+            "application_name": ["!=", ""],
         },
         "fields": [
-            "domain",
+            "application_title",
             "date",
             "employee_name as employee",
             "from_time",
             "to_time",
             "duration",
-            "application_name as application",
+            "application_name",
             "url",
         ],
         "order_by": "employee asc ,duration desc", 
@@ -130,26 +123,24 @@ def get_data(filters):
     if filters.employee:
         kwargs["filters"]["employee"] = filters.employee
 
-    elif filters.group_by_domain:
-        kwargs["group_by"] = "domain"
+    elif filters.group_by_application_name:
+        kwargs["group_by"] = "application_name"
         kwargs["fields"].remove("from_time")
         kwargs["fields"].remove("to_time")
         kwargs["fields"].remove("duration")
         kwargs["fields"].append("sum(duration) as duration")
         kwargs["order_by"] = "sum(duration) desc"
 
-
-    elif filters.group_by_employee_and_domain:
-        kwargs["group_by"] = "employee, domain"
+    elif filters.group_by_employee_and_application_name:
+        kwargs["group_by"] = "employee, application_name"
         kwargs["fields"].remove("from_time")
         kwargs["fields"].remove("to_time")
         kwargs["fields"].remove("duration")
         kwargs["fields"].append("sum(duration) as duration")
         kwargs["order_by"] = "employee asc, sum(duration) desc"
-
+        
     else:
         kwargs["order_by"] = "employee asc, from_time desc"
-
 
     data = frappe.get_list(
         "Application Usage log",
@@ -162,11 +153,11 @@ def get_data(filters):
 
 def get_chart_data(filters):
     data = frappe.db.sql("""
-        SELECT domain, date, count(*) as domain_count
+        SELECT application_name, date, count(*) as application_count
         FROM `tabApplication Usage log`
-		where date between %(from_date)s and %(to_date)s and domain is not null and domain != ''
-        GROUP BY domain
-		ORDER BY domain_count desc
+		where date between %(from_date)s and %(to_date)s and application_name is not null and application_name != ''
+        GROUP BY application_name
+		ORDER BY application_count desc
 		Limit 10
         """,
         {
@@ -175,16 +166,16 @@ def get_chart_data(filters):
         },
         as_dict=True,
         )
-    labels = [x["domain"] for x in data]
-    count = [x["domain_count"] for x in data]
+    labels = [x["application_name"] for x in data]
+    count = [x["application_count"] for x in data]
 
     return {
         "data": {
             "labels": labels,
-            "datasets": [{"name": _("No of Hits"), "values": count}],
+            "datasets": [{"application_name": _("No of Hits"), "values": count}],
         },
         "type": "bar",
-        "colors": ["#7575ff"],
+        "colors": ["#4682B4"],
     }
 
 

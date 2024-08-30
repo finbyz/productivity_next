@@ -98,17 +98,45 @@ UserProfile = class UserProfile {
 		this.setup_timespan();
 		this.setup_user_search();
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
-		this.work_intensity();
 		this.overall_performance();
-		this.application_usage_time();
-		this.web_browsing_time();
-		this.top_phone_calls();
-		this.type_of_calls();
 		this.fetch_url_data();
-		this.hourly_calls_analysis();
-		this.top_document_analysis();
-		this.render_images();
+	
+		// JavaScript to handle tab switching
+		const tabs = document.querySelectorAll('.nav-link');
+		const contents = document.querySelectorAll('.tab-pane');
+	
+		tabs.forEach(tab => {
+			tab.addEventListener('click', () => {
+				const target = document.querySelector(tab.getAttribute('data-bs-target'));
+				
+				// Log aria-labelledby attribute
+				// console.log(target.getAttribute('aria-labelledby'));
+				
+				// Manage tab and content visibility
+				tabs.forEach(t => t.classList.remove('active'));
+				tab.classList.add('active');
+				
+				// Check aria-labelledby and execute methods if needed
+				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
+					this.work_intensity();
+					this.application_usage_time();
+					this.web_browsing_time();
+					this.top_document_analysis();
+					this.render_images();
+					// this.overall_performance_timely();
+				}
+				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
+					this.top_phone_calls();
+					this.type_of_calls();
+					this.hourly_calls_analysis();
+				}
+				
+				contents.forEach(content => content.classList.remove('show', 'active'));
+				target.classList.add('show', 'active');
+			});
+		});
 	}
+	
 
 	// Timespan Select Code Starts
 	setup_timespan() {
@@ -149,6 +177,9 @@ UserProfile = class UserProfile {
 				const urlParams = new URLSearchParams(window.location.search);
 				this.selected_start_date = urlParams.get('start_date');
 				this.selected_end_date = urlParams.get('end_date');
+				if (urlParams.get('employee')) {
+					this.selected_employee = urlParams.get('employee');
+				}
 				this.make_user_profile();
 			},
 		});
@@ -193,7 +224,7 @@ UserProfile = class UserProfile {
 			this.finish_user_profile_setup();
 		}
 	}
-	// Employee Name And Date Title Code Ends
+	// Employee Name And Date Title Code End
 
 	// Change Employee Button Code Starts
 	setup_user_search() {
@@ -256,16 +287,11 @@ UserProfile = class UserProfile {
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		}).then((response) => {
-			// console.log("Data fetched successfully for Intensity Chart:", response);
-	
-			// Check if there's data available
 			if (response.length === 0) {
-				// console.log("No data available for the selected period.");
 				return;
 			}
 	
 			const hours = Array.from({ length: 17 }, (_, index) => `${index + 7}:00`);
-	
 			const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 			const data = [];
 	
@@ -273,33 +299,19 @@ UserProfile = class UserProfile {
 				const hour = entry[0];
 				const value = entry[1];
 				const dayOfWeek = entry[2];
-	
-				// console.log(`Processing entry: hour=${hour}, value=${value}, dayOfWeek=${dayOfWeek}`);
-	
-				const xIndex = hour - 7; // Adjust for starting hour index in hours array
+				const xIndex = hour - 7;
 				const yIndex = days.indexOf(dayOfWeek);
-	
-				// console.log(`Computed indices: xIndex=${xIndex}, yIndex=${yIndex}`);
 	
 				if (yIndex !== -1) {
 					data.push([xIndex, yIndex, value || 0]);
-				} else {
-					console.warn(`Day of week '${dayOfWeek}' not found in days array.`);
 				}
 			});
-	
-	
-			// console.log("Transformed data for heatmap:", data);
 	
 			const values = data.map(item => item[2]);
 			const minValue = Math.min(...values);
 			const maxValue = Math.max(...values);
 	
-			// console.log("Min and Max values:", minValue, maxValue);
-	
 			const heatMapDom = document.querySelector('.work-intensity');
-			// console.log("Heatmap container element:", heatMapDom);
-	
 			const heatMapChart = echarts.init(heatMapDom, null, { renderer: 'svg' });
 	
 			const option = {
@@ -357,11 +369,16 @@ UserProfile = class UserProfile {
 				}]
 			};
 	
-			// console.log("ECharts Option Object:", option);
-	
 			heatMapChart.setOption(option);
+	
+			// Store the chart instance globally
+			window.myChart = heatMapChart;
+	
+			// Add resize listener
 			window.addEventListener('resize', function () {
-				heatMapChart.resize();
+				if (window.myChart) {
+					window.myChart.resize();
+				}
 			});
 		}).catch((error) => {
 			console.error("Error fetching data:", error);
@@ -433,7 +450,7 @@ UserProfile = class UserProfile {
 							var employeeName = _rawData.parkingApron.data[i];
 							var employeeActivities = _rawData.flight.data.filter(item => item[1] === employeeName);
 							employeeActivities.sort((a, b) => new Date(a[2]) - new Date(b[2]));
-						
+
 							if (employeeActivities.length > 0) {
 								employeeFirstEntry[employeeName] = new Date(employeeActivities[0][2]).getTime();
 								var lastEndTime = new Date(employeeActivities[0][3]).getTime();
@@ -450,11 +467,15 @@ UserProfile = class UserProfile {
 								}
 							}
 						}
-						
+
 						_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
 						_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);						
-						
+						_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);	
+						_rawData.flight.data = _rawData.flight.data.map(item => {
+							let date = new Date(item[1]);
+							let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+							return [item[0], formattedDate, ...item.slice(2)];
+						});						
 						var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
 						function setFixedDate(timestamp) {
 							var date = new Date(timestamp);
@@ -475,6 +496,16 @@ UserProfile = class UserProfile {
 	
 						return {
 							backgroundColor: 'transparent',
+							legend: {
+								selected: {
+									'Application': true,
+									'Idle': true,
+									'Call': true,
+									'Internal Meeting': true,
+									'External Meeting': true,
+									'Inactive': true
+								},
+							},
 							tooltip: {
 								formatter: function(params) {
 									var activityType = params.data[0];
@@ -494,7 +525,7 @@ UserProfile = class UserProfile {
 									if (hours > 0) durationString += hours + "h ";
 									if (minutes > 0) durationString += minutes + "m ";
 									if (seconds > 0 || durationString === "") durationString += seconds + "s";
-	
+
 									var tooltipContent = `<div style="line-height: 1.5;">`;
 									if (activityType === 'Call' && params.data[4]) {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
@@ -511,7 +542,7 @@ UserProfile = class UserProfile {
 									}
 								
 									tooltipContent += `
-										<span style="font-weight: bold;">Employee:</span> ${employeeName}<br>
+										<span style="font-weight: bold;">Date:</span> ${date}<br>
 										<span style="font-weight: bold;">Start:</span> ${startTimeString}<br>
 										<span style="font-weight: bold;">End:</span> ${endTimeString}<br>
 										<span style="font-weight: bold;">Duration:</span> ${durationString}`;
@@ -524,7 +555,7 @@ UserProfile = class UserProfile {
 							toolbox: {
 								left: 20,
 								top: 0,
-								itemSize: 20
+								itemSize: 20 
 							}, 
 							dataZoom: [
 								{
@@ -534,8 +565,8 @@ UserProfile = class UserProfile {
 									width: 10,
 									right: 10,
 									top: 70,
-									startValue: 0,
-									endValue: 10,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
 									bottom: 20,
 									handleSize: 0,
 									showDetail: false
@@ -544,8 +575,8 @@ UserProfile = class UserProfile {
 									type: 'inside',
 									id: 'insideY',
 									yAxisIndex: 0,
-									startValue: 0,
-									endValue: 10,
+									startValue: _rawData.flight.data.length,
+									endValue: _rawData.flight.data.length - 10,
 									zoomOnMouseWheel: false,
 									moveOnMouseMove: true,
 									moveOnMouseWheel: true
@@ -600,14 +631,14 @@ UserProfile = class UserProfile {
 								axisLabel: { 
 									show: true,
 									align: 'right',
-									margin: 10,   // Adjust margin between axis labels and bars
+									margin: 10,
 									formatter: function(value) {
 										return '{a|' + value + '}';
 									},
 									rich: {
 										a: {
 											align: 'right',
-											width: 80,
+											width: 100, // Increased width to accommodate the new date format
 										}
 									}
 								},
@@ -668,8 +699,57 @@ UserProfile = class UserProfile {
 							]
 						};
 					}
-	
 					overallPerformance.setOption(makeOption());
+					function updateChart() {
+						let legends = overallPerformance.getOption().legend[0].selected
+						legends = Object.keys(legends).filter(legend => legends[legend]);
+						var filteredData = _rawData.flight.data.filter(item => {
+							var activityType = item[0];
+							return legends.includes(activityType);
+						});
+
+						overallPerformance.setOption({
+							series: [{
+								id: 'flightData',
+								data: filteredData
+							}]
+						});
+					}
+					$('#overallChartLegends li').each(function() {
+						let li = $(this);
+						$(li).attr('selected', 'true');
+					});
+					function updateLegend() {
+						let overallChartLegends = $('#overallChartLegends li');
+						let legends = {};
+
+						overallChartLegends.each(function() {
+							let li = $(this);
+							legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+							// console.log(li.attr('data-value'));
+						});
+
+						overallPerformance.setOption({
+							legend: {
+								selected: legends
+							}
+						});
+
+						// console.log(legends);
+
+					}
+					let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+					$.each(overallChartLegends, function(index, li) {
+						$(li).on('click', function() {
+							if ($(li).attr('selected')) {
+								$(li).removeAttr('selected');
+							} else {
+								$(li).attr('selected', 'true');
+							}
+							updateLegend();
+							updateChart();
+						});
+					});
 					overallPerformance.on('click', function (params) {
 						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
@@ -865,13 +945,21 @@ UserProfile = class UserProfile {
 									fields: fields,
 									primary_action_label: 'Submit',
 									primary_action(values) {
+										// Disable the button and change its text
+										this.disable_primary_action();
+										this.set_title('Submitting...');
+								
 										if (values.internal_meeting) {
 											const companyRepresentatives = values.meeting_company_representative || [];
 											if (companyRepresentatives.length < 2) {
 												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+												// Re-enable the button if validation fails
+												this.enable_primary_action();
+												this.set_title('Submit');
 												return;
 											}
 										}
+								
 										frappe.call({
 											method: "productivity_next.api.add_meeting",
 											args: {
@@ -889,13 +977,40 @@ UserProfile = class UserProfile {
 											},
 											callback: (r) => {
 												if (r.message) {
-													frappe.msgprint("Meeting added successfully");
-													d.hide();
+													frappe.msgprint({
+														title: __('Success'),
+														indicator: 'green',
+														message: __('Meeting added successfully')
+													});
+													this.hide();
+												} else {
+													// If there's no message, assume it's an error
+													frappe.msgprint({
+														title: __('Error'),
+														indicator: 'red',
+														message: __('Failed to add meeting. Please try again.')
+													});
+													// Re-enable the submit button
+													this.enable_primary_action();
+													this.set_title('Submit');
 												}
+											},
+											error: (r) => {
+												// Handle any errors that occur during the call
+												frappe.msgprint({
+													title: __('Error'),
+													indicator: 'red',
+													message: __('An error occurred while adding the meeting. Please try again.')
+												});
+												// Re-enable the submit button
+												this.enable_primary_action();
+												this.set_title('Submit');
 											}
 										});
 									}
 								});
+								
+								// Set up the purpose field filter
 								d.fields_dict.purpose.get_query = function () {
 									return {
 										filters: {
@@ -903,8 +1018,9 @@ UserProfile = class UserProfile {
 										}
 									};
 								};
-	
-								d.show();
+								
+								// Show the dialog
+								d.show();								
 							}).catch(err => {
 								console.error("Error fetching employee details:", err);
 							});
@@ -912,8 +1028,542 @@ UserProfile = class UserProfile {
 					});
 				}
 			});
+			document.getElementById('activity-summary-report-link').addEventListener('click', function(event) {
+				// console.log("Activity Summary Report Link Clicked");
+				event.preventDefault();
+				goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date);
+			}.bind(this));
+
+			function goToActivitySummaryReport(employee,start_date, end_date) {
+				// console.log("Employee:", employee);
+				var baseUrl = window.location.origin;
+				var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Activity Summary?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+				window.open(activityAnalysisUrl, '_blank');
+			}
 	}
 	// Overall Performance Chart Code Ends
+
+	// Overall Performance Timely Chart Code Starts
+	overall_performance_timely(date, hour) {
+		// console.log("Overall Performance Chart", date, hour);
+	
+		let overallPerformanceDom = document.querySelector(`#performance-chart-${date}-${hour}`);
+		if (!overallPerformanceDom) {
+			console.error('Chart container not found:', `#performance-chart-${date}-${hour}`);
+		}
+		let overallPerformance = echarts.init(overallPerformanceDom, null, { renderer: 'svg' });
+		window.addEventListener('resize', overallPerformance.resize);
+	
+		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.overall_performance_timely", {
+			employee: this.selected_employee,
+			date: date,
+			hour: hour
+		}).then((r) => {
+			if (r.base_data.length === 0) {
+				// Handle no data scenario if needed
+			} else {
+				var _rawData = {
+					flight: {
+						dimensions: r.base_dimensions,
+						data: r.base_data
+					},
+					parkingApron: {
+						dimensions: r.dimensions,
+						data: r.data
+					}
+				};
+	
+				var priorityOrder = {
+					'Inactive': 0,
+					'Application': 1,
+					'Idle': 2,
+				};
+	
+				function makeOption() {
+					function convertDateTime(dateTimeString) {
+						const date = new Date(dateTimeString);
+						return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
+					}
+	
+					function padZero(num) {
+						return num < 10 ? `0${num}` : num;
+					}
+	
+					// Define the inactive periods array
+var inactivePeriods = [];
+// Define a map to track the end time of the last activity for each employee
+var employeeLastEndTime = {};
+// Sort the flight data by date and then by priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+// Iterate over each activity in the flight data
+for (var i = 0; i < _rawData.flight.data.length; i++) {
+    var activity = _rawData.flight.data[i];
+    var employeeName = activity[1];
+    var startTime = new Date(activity[2]).getTime();
+    var endTime = new Date(activity[3]).getTime(); // Assuming end time is at index 3
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        employeeLastEndTime[employeeName] = startTime; // Set to the start time of the first activity
+    }
+    // Calculate inactive period if there is a gap between the last activity and the current start time
+    if (startTime > employeeLastEndTime[employeeName]) {
+        var lastEndTime = employeeLastEndTime[employeeName];
+        var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
+        var endTimeString = convertDateTime(new Date(startTime).toISOString());       
+        inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+    }
+    // Update the last end time to the end time of the current activity
+    employeeLastEndTime[employeeName] = endTime;
+}
+// Combine flight data with inactive periods
+_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+// Sort combined data by date and priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+// Format the date for each entry
+_rawData.flight.data = _rawData.flight.data.map(item => {
+    let date = new Date(item[2]);
+    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+    return [item[0], formattedDate, ...item.slice(2)];
+});
+// Function to get the start of the hour for a given date
+function getStartOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+}
+
+// Function to get the end of the hour for a given date
+function getEndOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
+}
+
+// Define the inactive periods array
+var inactivePeriods = [];
+
+// Define a map to track the last end time of each employee
+var employeeLastEndTime = {};
+
+// Sort the flight data by date and then by priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Iterate over each activity in the flight data
+for (var i = 0; i < _rawData.flight.data.length; i++) {
+    var activity = _rawData.flight.data[i];
+    var employeeName = activity[1];
+    var startTime = new Date(activity[2]);
+    var endTime = new Date(activity[3]); // Assuming end time is at index 3
+
+    var hourStart = getStartOfHour(startTime);
+    var hourEnd = getEndOfHour(startTime);
+
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        employeeLastEndTime[employeeName] = hourStart;
+    }
+
+    // Calculate inactive periods for the previous hour if there's a gap
+    if (employeeLastEndTime[employeeName] < hourStart) {
+        if (employeeLastEndTime[employeeName] < hourEnd) {
+            var inactiveStart = employeeLastEndTime[employeeName];
+            var inactiveEnd = Math.min(hourEnd, startTime);
+            if (inactiveStart < inactiveEnd) {
+                var startTimeString = convertDateTime(new Date(inactiveStart).toISOString());
+                var endTimeString = convertDateTime(new Date(inactiveEnd).toISOString());
+                inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+            }
+        }
+        // Update last end time to the end of the current activity
+        employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
+    } else {
+        // Update last end time to the end of the current activity
+        employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
+    }
+}
+
+// Handle inactive periods after the last activity of each employee for the day
+for (const employee in employeeLastEndTime) {
+    var lastEnd = employeeLastEndTime[employee];
+    var nextHourStart = getStartOfHour(new Date(lastEnd)).getTime() + 3600000; // Start of next hour
+    var endOfDay = new Date(lastEnd).setHours(23, 59, 59, 999);
+
+    if (nextHourStart < endOfDay) {
+        var startTimeString = convertDateTime(new Date(lastEnd).toISOString());
+        var endTimeString = convertDateTime(new Date(nextHourStart).toISOString());
+        inactivePeriods.push(['Inactive', employee, startTimeString, endTimeString]);
+    }
+}
+
+// Combine flight data with inactive periods
+_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+
+// Sort combined data by date and priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Format the date for each entry
+_rawData.flight.data = _rawData.flight.data.map(item => {
+    let date = new Date(item[2]);
+    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+    return [item[0], formattedDate, ...item.slice(2)];
+});
+// Function to get the start of the hour for a given date
+function getStartOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+}
+
+// Function to get the end of the hour for a given date
+function getEndOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
+}
+
+// Define the inactive periods array
+var inactivePeriods = [];
+
+// Define a map to track the last end time of each employee
+var employeeLastEndTime = {};
+
+// Sort the flight data by date and then by priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Iterate over each activity in the flight data
+for (var i = 0; i < _rawData.flight.data.length; i++) {
+    var activity = _rawData.flight.data[i];
+    var employeeName = activity[1];
+    var startTime = new Date(activity[2]);
+    var endTime = new Date(activity[3]); // Assuming end time is at index 3
+
+    var hourStart = getStartOfHour(startTime);
+    var hourEnd = getEndOfHour(startTime);
+
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        // Initialize to the start of the day or the first hour boundary
+        employeeLastEndTime[employeeName] = hourStart;
+    }
+
+    // Handle inactive period from the end of the last activity to the start of the current activity
+    if (employeeLastEndTime[employeeName] < startTime) {
+        var inactiveStart = employeeLastEndTime[employeeName];
+        var inactiveEnd = startTime;
+        if (inactiveStart < inactiveEnd) {
+            var startTimeString = convertDateTime(new Date(inactiveStart).toISOString());
+            var endTimeString = convertDateTime(new Date(inactiveEnd).toISOString());
+            inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+        }
+    }
+
+    // Update last end time to the end of the current activity
+    employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
+
+    // Move the last end time to the end of the hour if needed
+    if (endTime > hourEnd) {
+        employeeLastEndTime[employeeName] = hourEnd;
+    }
+}
+
+// Handle inactive periods at the end of the day for each employee
+for (const employee in employeeLastEndTime) {
+    var lastEnd = employeeLastEndTime[employee];
+    var endOfDay = new Date(lastEnd).setHours(23, 59, 59, 999);
+
+    // Add inactive periods from the end of the last recorded activity until the end of the day
+    if (lastEnd < endOfDay) {
+        var startTimeString = convertDateTime(new Date(lastEnd).toISOString());
+        var endTimeString = convertDateTime(new Date(endOfDay).toISOString());
+        inactivePeriods.push(['Inactive', employee, startTimeString, endTimeString]);
+    }
+}
+
+// Combine flight data with inactive periods
+_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
+
+// Sort combined data by date and priority
+_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
+_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
+// Format the date for each entry
+_rawData.flight.data = _rawData.flight.data.map(item => {
+    let date = new Date(item[2]);
+    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
+    return [item[0], formattedDate, ...item.slice(2)];
+});
+
+
+					var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
+	
+					function setFixedDate(timestamp) {
+						var date = new Date(timestamp);
+						date.setFullYear(2000, 0, 1);
+						return date.getTime();
+					}
+					var startTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[2]).getTime()));
+					var endTimeList = _rawData.flight.data.map(item => setFixedDate(new Date(item[3]).getTime()));
+					var minStartTime = Math.min(...startTimeList);
+					var maxEndTime = Math.max(...endTimeList);
+	
+					var fixedStartTime = new Date(minStartTime);
+					var fixedEndTime = new Date(maxEndTime);
+	
+					let startHour = new Date(fixedStartTime);
+					startHour.setMinutes(0);
+					startHour.setSeconds(0);
+					let endHour = new Date(fixedStartTime);
+					endHour.setHours(endHour.getHours() + 1);
+					endHour.setMinutes(0);
+					endHour.setSeconds(0);
+					function formatTimeToHHMM(date) {
+						return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+					}
+					
+					return {
+						backgroundColor: 'transparent',
+
+						tooltip: {
+							formatter: function(params) {
+								var activityType = params.data[0];
+								var date = params.data[1];
+								var startTime_ = new Date(params.data[2]);
+								var endTime_ = new Date(params.data[3]);
+								// console.log(startTime_, endTime_);
+								var startTimeString = formatTimeToHHMM(startTime_);
+								var endTimeString = formatTimeToHHMM(endTime_);
+	
+								var durationMs = endTime_ - startTime_;
+								var durationSeconds = Math.floor(durationMs / 1000);
+								var hours = Math.floor(durationSeconds / 3600);
+								var minutes = Math.floor((durationSeconds % 3600) / 60);
+								var seconds = durationSeconds % 60;
+	
+								var durationString = "";
+								if (hours > 0) durationString += hours + "h ";
+								if (minutes > 0) durationString += minutes + "m ";
+								if (seconds > 0 || durationString === "") durationString += seconds + "s";
+	
+								var tooltipContent = `
+									<div class="custom-tooltip">
+										<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+											<tr>
+												<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+												<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+											</tr>
+								`;
+
+								if (activityType === "Application" || activityType === "Browser") {
+									if (params.data[4]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
+											</tr>`;
+									}
+									if (activityType) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[9]}</td>
+											</tr>`;
+									}
+									if (params.data[5]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+											</tr>`;
+									}
+									if (params.data[6]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
+											</tr>`;
+									}
+									if (params.data[7] && params.data[8]) {
+										tooltipContent += `
+											<tr>
+												<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
+												<td style="padding: 0px 10px; text-align: left;">${params.data[8]}</td>
+											</tr>`;
+									}
+								} else {
+									tooltipContent += `
+										<tr>
+											<td colspan="2" style="padding: 0px 10px; text-align: left;">${activityType}</td>
+										</tr>`;
+								}
+
+								tooltipContent += `
+										</table>
+									</div>`;
+								
+								return tooltipContent;
+							},
+							confine: true,  // Ensures the tooltip stays within the chart container
+							textStyle: {
+								fontSize: 15,
+							},
+							padding: [10, 15],
+						},
+						animation: false,
+						toolbox: {
+							left: 20,
+							top: 0,
+							itemSize: 20 
+						},
+						grid: {
+							show: false,
+							top: 20,
+							bottom: 5,
+							left: 120,
+							right: 20,
+							backgroundColor: 'transparent',
+							borderWidth: 0
+						},
+						xAxis: {
+							type: 'time',
+							position: 'top',
+							min: startHour,
+							max: endHour,
+							splitLine: {
+								lineStyle: {
+									color: ['#E9EDFF']
+								}
+							},
+							axisLine: { show: false },
+							axisTick: {
+								lineStyle: {
+									color: '#929ABA'
+								}
+							},
+							axisLabel: {
+								show: true,
+								formatter: function (value) {
+									let date = new Date(value);
+									return `${date.getHours()}:${padZero(date.getMinutes())}`;
+								}
+							}
+						},
+						yAxis: {
+							type: 'category',
+							axisTick: { show: false },
+							splitLine: { show: false },
+							axisLine: { show: false },
+							axisLabel: { 
+								show: false
+							},
+							data: uniqueDates,
+						},
+						series: [
+							{
+								id: 'flightData',
+								type: 'custom',
+								renderItem: function (params, api) {
+									var dateIndex = api.value(1);
+									var xValue = new Date(api.value(2));
+									var xEndValue = new Date(api.value(3));
+									xValue.setFullYear(2000, 0, 1);
+									xEndValue.setFullYear(2000, 0, 1);
+	
+									var yValue = api.coord([0, dateIndex])[1];
+									var activityType = api.value(0);
+	
+									var color;
+									if (activityType === 'Application') {
+										color = '#4BC0C0';
+									} else if (activityType === 'Inactive') {
+										color = '#E9EAEC';
+									} else if (activityType === 'Idle') {
+										color = '#FF6666';
+									} else if (activityType === 'Browser') {
+										color = '#2c5278';
+									} else {
+										color = '#4BC0C0';
+									}
+	
+									var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);
+	
+									var item = {
+										type: 'rect',
+										shape: {
+											x: api.coord([xValue, yValue])[0],
+											y: yValue - barHeight / 2,
+											width: api.size([xEndValue - xValue, 0])[0],
+											height: barHeight,
+										},
+										style: api.style({
+											fill: color,
+											stroke: 'rgba(0,0,0,0.2)'
+										})
+									};
+	
+									return item;
+								},
+								dimensions: _rawData.flight.dimensions,
+								encode: {
+									x: [2, 3],
+									y: 1,
+								},
+								data: _rawData.flight.data
+							}
+						]
+					};
+				}
+	
+				overallPerformance.setOption(makeOption());
+	
+				function updateChart() {
+					let legends = overallPerformance.getOption().legend[0].selected;
+					legends = Object.keys(legends).filter(legend => legends[legend]);
+					var filteredData = _rawData.flight.data.filter(item => {
+						var activityType = item[0];
+						return legends.includes(activityType);
+					});
+	
+					overallPerformance.setOption({
+						series: [{
+							id: 'flightData',
+							data: filteredData
+						}]
+					});
+				}
+	
+				$('#overallChartLegends li').each(function() {
+					let li = $(this);
+					$(li).attr('selected', 'true');
+				});
+	
+				function updateLegend() {
+					let overallChartLegends = $('#overallChartLegends li');
+					let legends = {};
+	
+					overallChartLegends.each(function() {
+						let li = $(this);
+						legends[li.attr('data-value')] = li.attr('selected') ? true : false;
+						// console.log(li.attr('data-value'));
+					});
+	
+					overallPerformance.setOption({
+						legend: {
+							selected: legends
+						}
+					});
+	
+					// console.log(legends);
+				}
+	
+				let overallChartLegends = document.querySelectorAll('#overallChartLegends li');
+				$.each(overallChartLegends, function(index, li) {
+					$(li).on('click', function() {
+						if ($(li).attr('selected')) {
+							$(li).removeAttr('selected');
+						} else {
+							$(li).attr('selected', 'true');
+						}
+						updateLegend();
+						updateChart();
+					});
+				});
+			}
+		});
+	}
+	// Overall Performance Timely Chart Code Ends
 
 	// Application Used Chart Code Starts
 	application_usage_time() {
@@ -1026,135 +1676,120 @@ UserProfile = class UserProfile {
 				myChart.resize();
 
 				myChart.setOption(option);
-
+				// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('application-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToApplicationAnalysis(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
+				myChart.resize(); // Resize to fit the container
+	
+				// Re-add resize listener to ensure chart resizes with window
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-
-				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
+		// Function to redirect to Application Analysis page with selected dates
+		function goToApplicationAnalysis(employee,start_date, end_date) {
+			var baseUrl = window.location.origin;
+			var applicationAnalysisUrl = baseUrl + "/app/query-report/Application Analysis?group_by_application_name=1&employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+			window.open(applicationAnalysisUrl, '_blank');
+		}
 	}
 	// Application Used Chart Code Ends
 
 	// Web Browsing Time Chart Code Starts
 	web_browsing_time() {
-		let data;
-		if (this.selected_employee !== null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-
-		// Fetch the data and render the pie chart using ECharts
+		let data = this.selected_employee || this.user_id;
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.web_browsing_time", {
 				user: data,
 				start_date: this.selected_start_date,
 				end_date: this.selected_end_date,
 			})
-			.then((r) => {
-				if (r.length === 0) {
-					// console.log("No data available to plot the chart.");
-					return;
-				}
-
+			.then(r => {
+				if (r.length === 0) return;
+	
 				const chartDom = document.getElementById('web-browsing-time');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
 				}
-
-				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
-
-				// Example function to get current theme's label color
-				const getCurrentThemeLabelColor = () => {
-					// Replace this with your actual theme color retrieval logic
-					// This is just a placeholder
-					return {
-						labelColor: '#FFFFFF', // Default to black
-						backgroundColor: 'rgba(0,0,0,0)' // Default to transparent
-					};
-				};
-
-				const themeColors = getCurrentThemeLabelColor();
-
+	
+				// Destroy existing chart instance if it exists
+				let myChart = echarts.getInstanceByDom(chartDom);
+				if (!myChart) {
+					myChart = echarts.init(chartDom, null, { renderer: 'svg' });
+				}
+	
 				const option = {
 					tooltip: {
-					  trigger: 'item',
-					  formatter: function(params) {
-						// Calculate hours and minutes
-						let totalHours = params.value;
-						let hours = Math.floor(totalHours); // Get the whole number of hours
-						let minutes = Math.round((totalHours - hours) * 60); // Convert the fraction to minutes and round it
-					
-						// Return formatted string with colon between hours and minutes
-						return `${params.name} : ${hours}:${minutes < 10 ? '0' + minutes : minutes} Hours`;
-					}
-					
+						trigger: 'item',
+						formatter: params => {
+							let totalHours = params.value;
+							let hours = Math.floor(totalHours);
+							let minutes = Math.round((totalHours - hours) * 60);
+							return `${params.name} : ${hours}:${minutes < 10 ? '0' + minutes : minutes} Hours`;
+						}
 					},
 					legend: {
-					  orient: 'horizontal',
-					  left: 10, // Adjust left position in pixels or adjust as needed
+						orient: 'horizontal',
+						left: 10
 					},
-					series: [
-					  {
+					series: [{
 						name: 'Access From',
 						type: 'pie',
 						radius: '55%',
 						top: '20%',
 						center: ['50%', '50%'],
-						label: {  // Add this property to control labels
-							show: false  // Set show to false to hide labels
-						  },
-						  labelLine: {  // Add this property to control label lines
-							show: false  // Set show to false to hide label lines
-						  },
+						label: {
+							show: false
+						},
+						labelLine: {
+							show: false
+						},
 						data: r,
 						emphasis: {
-						  itemStyle: {
-							shadowBlur: 10,
-							shadowOffsetX: 0,
-							shadowColor: 'rgba(0, 0, 0, 0.5)'
-						  }
+							itemStyle: {
+								shadowBlur: 10,
+								shadowOffsetX: 0,
+								shadowColor: 'rgba(0, 0, 0, 0.5)'
+							}
 						}
-					  }
-					],
-					color: [
-						'#FF6384', // Red
-						'#36A2EB', // Blue
-						'#FFCE56', // Yellow
-						'#4BC0C0', // Cyan
-						'#9966FF', // Lavender
-						'#FF9966', // Orange
-						'#66CCCC', // Light Blue
-						'#6699FF', // Light Blue
-						'#FF6666', // Light Red
-						'#FFCC66'  // Light Yellow
-					],
+					}],
+					color: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9966', '#66CCCC', '#6699FF', '#FF6666', '#FFCC66'],
 					textStyle: {
-						color: themeColors.labelColor
+						color: '#FFFFFF'
 					},
-					backgroundColor: themeColors.backgroundColor
+					backgroundColor: 'rgba(0,0,0,0)'
 				};
-
-				// Set dynamic width and height for the chart
-				myChart.resize();
-
+	
 				myChart.setOption(option);
-
+				// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('domain-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToDomainAnalysis(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
+				myChart.resize(); // Resize to fit the container
+	
+				// Re-add resize listener to ensure chart resizes with window
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-
-				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
+		// Function to redirect to Calls Analysis page with selected dates
+		function goToDomainAnalysis(employee,start_date, end_date) {
+			var baseUrl = window.location.origin;
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Domains Analysis?group_by_domain=1&employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	}
+	
 	// Web Browsing Time Chart Code Ends
 	
 	// Top phone calls chart code starts
@@ -1165,7 +1800,7 @@ UserProfile = class UserProfile {
 		} else {
 			data = this.user_id;
 		}
-	
+
 		frappe
 			.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.top_phone_calls", {
 				user: data,
@@ -1176,38 +1811,32 @@ UserProfile = class UserProfile {
 				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
 					if (containerElement) containerElement.style.display = 'none';
-                	return;
+					return;
 				}
-	
+
 				const chartDom = document.getElementById('top-phone-calls');
 				if (!chartDom) {
 					console.error('Chart container not found.');
 					return;
 				}
-	
+
 				const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
 				let customNames = r.customNames;
 				const option = {
 					tooltip: {
 						trigger: 'item',
-						// formatter: '{a} <br/>{b}: {c} Minutes ({d}%)',
 						formatter: function(params) {
 							let totalMinutes = params.value;
-							let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
-							let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
-						
-							// Format seconds to always display 2 digits
+							let minutes = Math.floor(totalMinutes);
+							let seconds = Math.round((totalMinutes - minutes) * 60);
 							let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
-						
+
 							if (params.seriesName === 'Caller Origin' || params.seriesName === 'Caller Details') {
-								// For specific series, show only label, minutes and seconds, and percentage
 								return `${params.marker} ${params.name}: ${minutes}:${formattedSeconds} Min`;
 							} else {
-								// For other series, show series name, label, minutes and seconds, and percentage
 								return `${params.seriesName} <br/>${params.marker} ${params.name}: ${minutes}:${formattedSeconds} Min`;
 							}
 						},
-						
 						position: ['50%', '50%'],
 					},
 					series: [
@@ -1219,24 +1848,16 @@ UserProfile = class UserProfile {
 							label: {
 								position: 'inner',
 								fontSize: 14,
-								width: 200, 
-								
+								width: 200,
 							},
 							labelLine: {
 								show: true
 							},
 							data: r.company_details,
 							color: [
-								'#FF6384', // Red
-								'#36A2EB', // Blue
-								'#FFCE56', // Yellow
-								'#4BC0C0', // Cyan
-								'#9966FF', // Lavender
-								'#FF9966', // Orange
-								'#66CCCC', // Light Blue
-								'#6699FF', // Light Blue
-								'#FF6666', // Light Red
-								'#FFCC66'  // Light Yellow
+								'#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+								'#9966FF', '#FF9966', '#66CCCC', '#6699FF',
+								'#FF6666', '#FFCC66'
 							]
 						},
 						{
@@ -1247,19 +1868,14 @@ UserProfile = class UserProfile {
 								length: 30,
 								show: true
 							},
-							
 							label: {
 								formatter: function(params) {
 									let totalMinutes = params.value;
-									let minutes = Math.floor(totalMinutes); // Get the whole number of minutes
-									let seconds = Math.round((totalMinutes - minutes) * 60); // Convert the fraction to seconds and round it
-								
-									// Format seconds to always display 2 digits
+									let minutes = Math.floor(totalMinutes);
+									let seconds = Math.round((totalMinutes - minutes) * 60);
 									let formattedSeconds = (seconds < 10 ? '0' : '') + seconds;
-								
-									let customIndex = params.data.customIndex || 0; // Default to index 0 if customIndex is not provided
+									let customIndex = params.data.customIndex || 0;
 									let customName = customNames[customIndex];
-								
 									return `{a|${customName}}{abg|}\n{hr|}\n  {b|${params.name}：}${minutes}:${formattedSeconds} Min`;
 								},
 								maxWidth: 200,
@@ -1271,65 +1887,70 @@ UserProfile = class UserProfile {
 								show: true,
 								rich: {
 									a: {
-									  color: '#6E7079',
-									  lineHeight: 22,
-									  align: 'center'
+										color: '#6E7079',
+										lineHeight: 22,
+										align: 'center'
 									},
 									hr: {
-									  borderColor: '#8C8D8E',
-									  width: '100%',
-									  borderWidth: 1,
-									  height: 0
+										borderColor: '#8C8D8E',
+										width: '100%',
+										borderWidth: 1,
+										height: 0
 									},
 									b: {
-									  color: '#4C5058',
-									  fontSize: 14,
-									  fontWeight: 'bold',
-									  lineHeight: 33
+										color: '#4C5058',
+										fontSize: 14,
+										fontWeight: 'bold',
+										lineHeight: 33
 									},
 									per: {
-									  color: '#fff',
-									  backgroundColor: '#4C5058',
-									  padding: [3, 4],
-									  borderRadius: 4
+										color: '#fff',
+										backgroundColor: '#4C5058',
+										padding: [3, 4],
+										borderRadius: 4
 									}
-								  },
-								  
+								},
 							},
 							data: r.caller_details,
 							color: [
-								'#FF6384', // Red
-								'#36A2EB', // Blue
-								'#FFCE56', // Yellow
-								'#4BC0C0', // Cyan
-								'#9966FF', // Lavender
-								'#FF9966', // Orange
-								'#66CCCC', // Light Blue
-								'#6699FF', // Light Blue
-								'#FF6666', // Light Red
-								'#FFCC66'  // Light Yellow
+								'#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+								'#9966FF', '#FF9966', '#66CCCC', '#6699FF',
+								'#FF6666', '#FFCC66'
 							]
 						}
 					],
 				};
-				
-	
+
 				// Set dynamic width and height for the chart
 				myChart.resize();
-	
+
 				myChart.setOption(option);
-	
+
+				// Ensure `selected_start_date` and `selected_end_date` are accessible or passed as arguments
+				document.getElementById('calls-analysis-link').addEventListener('click', function(event) {
+					event.preventDefault(); // Prevent the default action of the link
+					goToCallsAnalysis(this.selected_employee,this.selected_start_date, this.selected_end_date); // Pass the dates from context
+				}.bind(this)); // Bind `this` context for access to instance properties
+
 				window.addEventListener('resize', function () {
 					myChart.resize();
 				});
-	
+
 				// console.log("Chart plotted successfully.");
 			})
 			.catch(error => {
 				console.error("Error fetching chart data:", error);
 			});
+
+		// Function to redirect to Calls Analysis page with selected dates
+		function goToCallsAnalysis(employee,start_date, end_date) {
+			var baseUrl = window.location.origin;
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Calls Analysis?employee="+ employee +"&from_date=" + start_date + "&to_date=" + end_date;
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	}
 	// Top phone calls chart code ends
+
 	
 	// Type of calls chart code starts
 	type_of_calls() {
@@ -1462,6 +2083,7 @@ UserProfile = class UserProfile {
 						});
 					});
 					this.activity_data();
+					// console.log("score", this.numberCardData.score);
 				}
 			}
 		});
@@ -1470,7 +2092,7 @@ UserProfile = class UserProfile {
 		function getBaseURL() {
 			return window.location.origin + '/app/';
 		}
-
+	
 		let employee_data;
 		let start_date_ = this.selected_start_date;
 		let end_date_ = this.selected_end_date;
@@ -1479,7 +2101,7 @@ UserProfile = class UserProfile {
 		} else {
 			employee_data = this.user_id;
 		}
-
+	
 		const baseUrl = getBaseURL();
 		const container = this.main_section.find("#url-data");
 		container.empty();
@@ -1491,7 +2113,7 @@ UserProfile = class UserProfile {
 			<div class="row mt-3">
 				<div class="col-md-12">
 					<div class="custom-card">
-						<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 Site's Used</h4>
+						<h4 class="custom-title p-3" style="font-size: 14px !important;" align="center">Top 10 Sites Used</h4>
 						<div class="table-responsive">
 						<table class="table">
 							<thead>
@@ -1503,7 +2125,7 @@ UserProfile = class UserProfile {
 								</tr>
 							</thead>
 							<tbody>`;
-
+	
 		data.url_full_data.forEach(app => {
 			wholedata += `
 				<tr>
@@ -1513,7 +2135,7 @@ UserProfile = class UserProfile {
 					<td style="color:#FF4001">${this.convertSecondsToTime_(app.total_duration)} H</td>
 				</tr>`;
 		});
-
+	
 		wholedata += `
 							</tbody>
 						</table>
@@ -1525,7 +2147,7 @@ UserProfile = class UserProfile {
 			$(document).on('click', '.url-link', function (e) {
 				e.preventDefault();
 				let clickedLink = $(this); // Store reference to clicked link
-
+	
 				// AJAX call to Python function
 				frappe.call({
 					method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_url_brief_data",
@@ -1540,15 +2162,13 @@ UserProfile = class UserProfile {
 						if (r.message) {
 							let data = r.message.data;
 							render_url_brief_data(data);
-							$('#urlModal').modal('show'); // Show the modal after data is loaded
 						} else {
-							$('#urlModal').find('.modal-body').html('No data available for this URL.');
-							$('#urlModal').modal('show'); // Show the modal even if no data is available
+							render_url_brief_data([]); // Empty data to handle no data case
 						}
 					}
 				});
 			});
-
+	
 			function render_url_brief_data(data) {
 				function convertSecondsToTime_(seconds) {
 					const hours = Math.floor(seconds / 3600);
@@ -1556,7 +2176,7 @@ UserProfile = class UserProfile {
 					const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
 					return `${hours}:${formattedMinutes}`;
 				}
-			
+	
 				let displayContent = `
 				<style>
 					.url-table {
@@ -1587,27 +2207,49 @@ UserProfile = class UserProfile {
 								</tr>
 							</thead>
 							<tbody>`;
-			
-				data.forEach(app => {
-					displayContent += `
-					<tr>
-						<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
-						<td title="${app.url}"><a href="${app.url}" target="_blank"><span style="color:#00A6E0;"><b>${app.url}</b></span></a></td>
-						<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
-						<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
-					</tr>`;
-				});
-			
+	
+				if (data.length === 0) {
+					displayContent += `<tr><td colspan="4" class="text-center">No data available for this URL.</td></tr>`;
+				} else {
+					data.forEach(app => {
+						displayContent += `
+						<tr>
+							<td title="${app.application_title}"><span style="color:#00A6E0;"><b>${app.application_title}</b></span></td>
+							<td title="${app.url}"><a href="${app.url}" target="_blank"><span style="color:#00A6E0;"><b>${app.url}</b></span></a></td>
+							<td><span style="color:#FF4001;">${convertSecondsToTime_(app.duration)} H</span></td>
+							<td><span style="color:#62BA46;"><b>${app.count}</b></span></td>
+						</tr>`;
+					});
+				}
+	
 				displayContent += `
 							</tbody>
 						</table>
 					</div>
 				</div>`;
-			
-				$('#urlModal').find('.modal-body').html(displayContent);
-			}
+	
+				let dialog = new frappe.ui.Dialog({
+					title: 'URL Information',
+					fields: [
+						{
+							fieldtype: 'HTML',
+							label: '',
+							fieldname: 'url_content',
+							options: displayContent
+						}
+					],
+					size: 'extra-large',
+					primary_action_label: 'Close',
+					primary_action: function() {
+						dialog.hide();
+					},
+				});
+				
+				dialog.show();
+			}				
 		});
-	};
+	}
+	
 	// URL DATA Code Ends
 
 	// Sidebar Activity Data code starts
@@ -1656,6 +2298,7 @@ UserProfile = class UserProfile {
 			.catch((err) => {
 				console.error("Error fetching user image:", err);
 			});
+			// console.log("scor0e", this.score2);
 
 		this.setup_user_profile_links();
 	}
@@ -1675,239 +2318,240 @@ UserProfile = class UserProfile {
 
 				// Convert time values from seconds to formatted hours and minutes
 				const total_hours = this.convertSecondsToTime_(r.total_hours);
-const total_system_hours = this.convertSecondsToTime_(r.total_system_hours);
-const total_active_hours = this.convertSecondsToTime_(r.total_active_hours);
-const total_idle_time = this.convertSecondsToTime_(r.total_idle_time);
-const total_inactive_hours = this.convertSecondsToTime_(r.total_inactive_hours);
-const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
-const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
-const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
+				const total_system_hours = this.convertSecondsToTime_(r.total_system_hours);
+				const total_active_hours = this.convertSecondsToTime_(r.total_active_hours);
+				const total_idle_time = this.convertSecondsToTime_(r.total_idle_time);
+				const total_inactive_hours = this.convertSecondsToTime_(r.total_inactive_hours);
+				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
+				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
+				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
+				this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
+				$(document).ready(function() {
 
-$(document).ready(function() {
+					const hovercontainer = $("#user-activity-hover");
+					hovercontainer.html(`
+						<div class="progress" style="max-width: 400px !important;" data-toggle="tooltip" data-html="true" data-placement="left" title="">
+							<div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+						</div>
+					`);
+				
+					var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
+					myDefaultWhiteList.table = ['class'];
+					myDefaultWhiteList.tbody = [];
+					myDefaultWhiteList.tr = [];
+					myDefaultWhiteList.td = [];
+				
+					// Define tooltip content function
+					function getTooltipContent() {
+						return `
+							<div>
+								<h4 class ="text-center text-white">User Activity</h4>
+								<table class='table-borderless table-tooltip table-spacing'>
+									<tbody>
+					  <tr>
+						<td>Call:</td>
+						<td class="justify time-cell"><span>${total_call_raw} H</span></td>
+					  </tr>
+					  <tr>
+						<td>Meeting:</td>
+						<td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+					  </tr>
+					  <tr>
+						<td>System:</td>
+						<td class="justify time-cell"><span>${total_system_hours} H</span></td>
+					  </tr>
+					  <tr class = "border-bottom">
+						<td>Overlapping:</td>
+						<td class="justify time-cell"><span>-${overlapping} H</span></td>
+					  </tr>
+					  <tr>
+						<td><b>Active Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+					  </tr>
+					  <tr>
+						<td><b>Idle Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+					  </tr>
+					  ${r.total_inactive_hours > 0 ? `
+					  <tr>
+						<td><b>Inactive Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+					  </tr>` : ''}
+					  <tr class = "border-top">
+						<td><b>Total Time:</b></td>
+						<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+					  </tr>
+					</tbody>
+								</table>
+							</div>
+						`;
+					}
+				
+					$('[data-toggle="tooltip"]').tooltip({
+						container: 'body',
+						html: true,
+						whiteList: myDefaultWhiteList,
+						placement: 'left',
+						template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>',
+						title: getTooltipContent
+					});
+				});
 
-	const hovercontainer = $("#user-activity-hover");
-	hovercontainer.html(`
-		<div class="progress" style="max-width: 400px !important;" data-toggle="tooltip" data-html="true" data-placement="left" title="">
-			<div class="progress-bar bg-success" role="progressbar" style="width: ${r.total_active_hours}%" aria-valuenow="${r.total_active_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-			<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-			<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-			<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-			<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-		</div>
+
+	const container = $("#user-activity");
+	container.html(`
+		 <style>
+        .progress-container {
+            margin-bottom: 10px; /* Space between progress bar and table */
+        }
+    </style>
+		<div class="card border-primary shadow d-none d-lg-block table-height">
+    <div class="card-body">
+  <h5 class="card-title text-primary text-center">User Activity</h5>
+  <table class="table table-borderless custom-table">
+    <tbody>
+      <tr>
+        <td>Call:</td>
+        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>Meeting:</td>
+        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>System:</td>
+        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E5E4E2;">
+        <td>Overlapping:</td>
+        <td class="justify time-cell"><span>-${overlapping} H</span></td>
+      </tr>
+      <tr>
+        <td><b>Active Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Idle Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+      </tr>
+      ${r.total_inactive_hours > 0 ? `
+      <tr>
+        <td><b>Inactive Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+      </tr>` : ''}
+      <tr style="border-top: 3px solid">
+        <td><b>Total Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+		</div><br><br>
 	`);
+	container.append(`
+		<div class="score-container" style="text-align: center;">
+        <span style="padding-top:10px;font-size: 18px;">
+            Productivity Score : 
+            <span style="font-size: 22px;"><b>${this.score2} </b></span>
+        </span>
+    </div>`);
 
-	var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
-	myDefaultWhiteList.table = ['class'];
-	myDefaultWhiteList.tbody = [];
-	myDefaultWhiteList.tr = [];
-	myDefaultWhiteList.td = [];
+			var myDefaultWhiteList = $.fn.tooltip.Constructor.Default.whiteList;
+			myDefaultWhiteList.table = ['class'];
+			myDefaultWhiteList.tbody = [];
+			myDefaultWhiteList.tr = [];
+			myDefaultWhiteList.td = [];
 
-	// Define tooltip content function
-	function getTooltipContent() {
-		return `
-			<div>
-				<h4 class ="text-center text-white">User Activity</h4>
-				<table class='table-borderless table-tooltip table-spacing'>
-					<tbody>
-	  <tr>
-		<td>Call:</td>
-		<td class="justify time-cell"><span>${total_call_raw} H</span></td>
-	  </tr>
-	  <tr>
-		<td>Meeting:</td>
-		<td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
-	  </tr>
-	  <tr>
-		<td>System:</td>
-		<td class="justify time-cell"><span>${total_system_hours} H</span></td>
-	  </tr>
-	  <tr class = "border-bottom">
-		<td>Overlapping:</td>
-		<td class="justify time-cell"><span>-${overlapping} H</span></td>
-	  </tr>
-	  <tr>
-		<td><b>Active Time:</b></td>
-		<td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
-	  </tr>
-	  <tr>
-		<td><b>Idle Time:</b></td>
-		<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
-	  </tr>
-	  ${r.total_inactive_hours > 0 ? `
-	  <tr>
-		<td><b>Inactive Time:</b></td>
-		<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
-	  </tr>` : ''}
-	  <tr class = "border-top">
-		<td><b>Total Time:</b></td>
-		<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
-	  </tr>
-	</tbody>
-				</table>
-			</div>
-		`;
+			$('[data-toggle="tooltip"]').tooltip({
+				container: 'body',
+				html: true,
+				whiteList: myDefaultWhiteList,
+				title: function () { return '<u>text1</u><table class="table text-light"><tr><td>text2</td></tr></table>'; }
+			});
+
+				// Enable tooltips with custom class
+				$('[data-toggle="tooltip"]').tooltip({
+					html: true,
+					container: 'body',
+					placement: 'left', // Set tooltip placement to left
+					template: '<div class="tooltip-custom" style="max-width: 350px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>'
+				});
+				const styles = `
+							<style>
+								.custom-table td {
+									padding: 0px !important; /* Adjust padding to reduce space */
+									margin: 0 !important; /* Remove margin */
+								}
+								.custom-table {
+									font-size: 14px; /* Adjust font size if needed */
+								}
+								.custom-table td b {
+									font-weight: bold;
+								}
+								.card-body {
+									padding: 5px;
+									padding-bottom: 1px /* Adjust padding inside card body */
+								}
+								.card-title {
+									margin-bottom: 10px; /* Adjust margin at the bottom of the title */
+								}
+							</style>
+						
+`;
+				const mobilecontainer = $("#user-activity-mobile");
+				mobilecontainer.html(`
+					${styles}
+					<div class="d-lg-none">
+						<div class="card border-primary shadow table-height">
+							<div class="card-body">
+  <h5 class="card-title text-primary text-center">User Activity</h5>
+  <table class="table table-borderless custom-table">
+    <tbody>
+      <tr>
+        <td>Call:</td>
+        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>Meeting:</td>
+        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+      </tr>
+      <tr>
+        <td>System:</td>
+        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
+      </tr>
+      <tr style="border-bottom: 1px solid #E5E4E2;">
+        <td>Overlapping:</td>
+        <td class="justify time-cell"><span>-${overlapping} H</span></td>
+      </tr>
+      <tr>
+        <td><b>Active Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+      </tr>
+      <tr>
+        <td><b>Idle Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+      </tr>
+      ${r.total_inactive_hours > 0 ? `
+      <tr>
+        <td><b>Inactive Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+      </tr>` : ''}
+      <tr style="border-top: 3px solid">
+        <td><b>Total Time:</b></td>
+        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+						</div>
+					</div>`
+				)
+			});
 	}
-
-	$('[data-toggle="tooltip"]').tooltip({
-		container: 'body',
-		html: true,
-		whiteList: myDefaultWhiteList,
-		placement: 'left',
-		template: '<div class="tooltip-custom" style="max-width: 400px !important;" role="tooltip"><div class="arrow"></div><div class="tooltip-inner tooltip-inner-custom"></div></div>',
-		title: getTooltipContent
-	});
-});
-
-const container = $("#user-activity");
-container.html(`
-    <style>
-        .progress-container {
-            margin-bottom: 10px; /* Space between progress bar and table */
-        }
-        .custom-table {
-            font-size: 14px; /* Adjust font size if needed */
-        }
-        .custom-table td b {
-            font-weight: bold;
-        }
-        .table-container {
-            max-height: 100%; /* Set the height of the table container */
-            overflow: hidden; /* Hide overflow to avoid scrollbars */
-        }
-        .table-container .table {
-            height: 100%; /* Ensure the table takes full height of the container */
-        }
-		.right{
-			text-align: right;}
-    </style>
-    </div>
-    <div class="card border-primary shadow d-none d-lg-block">
-        <div class="card-body">
-            <h5 class="card-title text-center">User Activity</h5>
-            <table class="table table-borderless custom-table">
-    <tbody>
-      <tr>
-        <td>Call:</td>
-        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>Meeting:</td>
-        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>System:</td>
-        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
-      </tr>
-      <tr style="border-bottom: 1px solid #E5E4E2;">
-        <td>Overlapping:</td>
-        <td class="justify time-cell"><span>-${overlapping} H</span></td>
-      </tr>
-      <tr>
-        <td><b>Active Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
-      </tr>
-      <tr>
-        <td><b>Idle Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
-      </tr>
-      ${r.total_inactive_hours > 0 ? `
-      <tr>
-        <td><b>Inactive Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
-      </tr>` : ''}
-      <tr style="border-top: 3px solid">
-        <td><b>Total Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
-      </tr>
-    </tbody>
-  </table>
-        </div>
-    </div>
-`);
-
-const mobilecontainer = $("#user-activity-mobile");
-mobilecontainer.html(`
-    <style>
-        .progress-container {
-            margin-bottom: 10px; /* Space between progress bar and table */
-        }
-        .custom-table td {
-            padding: 0px !important; /* Adjust padding to reduce space */
-            margin: 0 !important; /* Remove margin */
-        }
-        .custom-table {
-            font-size: 14px; /* Adjust font size if needed */
-        }
-        .custom-table td b {
-            font-weight: bold;
-        }
-        .card-body {
-            padding: 5px; 
-			padding-bottom: 1px;/* Adjust padding inside card body */
-        }
-        .card-title {
-            margin-bottom: 10px; /* Adjust margin at the bottom of the title */
-        }
-        .table-container {
-            height: 100%; /* Set the height of the table container */
-            overflow: hidden; /* Hide overflow to avoid scrollbars */
-        }
-        .table-container .table {
-            height: 100%; /* Ensure the table takes full height of the container */
-            display: flex;
-            flex-direction: column;
-        }
-        .table-container .table tbody {
-            overflow: hidden; /* Hide overflow in tbody */
-        }
-    </style>
-    <div class="d-lg-none">
-        <div class="card border-primary shadow">
-            <div class="card-body">
-                <h5 class="card-title text-center">User Activity</h5>
-                <table class="table table-borderless custom-table">
-    <tbody>
-      <tr>
-        <td>Call:</td>
-        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>Meeting:</td>
-        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>System:</td>
-        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
-      </tr>
-      <tr style="border-bottom: 1px solid #E5E4E2;">
-        <td>Overlapping:</td>
-        <td class="justify time-cell"><span>-${overlapping} H</span></td>
-      </tr>
-      <tr>
-        <td><b>Active Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
-      </tr>
-      <tr>
-        <td><b>Idle Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
-      </tr>
-      ${r.total_inactive_hours > 0 ? `
-      <tr>
-        <td><b>Inactive Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
-      </tr>` : ''}
-      <tr style="border-top: 3px solid">
-        <td><b>Total Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
-      </tr>
-    </tbody>
-  </table>
-            </div>
-        </div>
-    </div>
-`);
-	});
-}
 	// Sidebar Activity Data code ends
 
 	// Hourly Calls Analysis (In Minutes) Chart code starts
@@ -2081,198 +2725,210 @@ mobilecontainer.html(`
 	
 	// User Activity Images code starts
 	async render_images() {
-		let startDatetime = new Date(this.selected_start_date + " 00:00:00"); // Replace with your start datetime
-		let endDatetime = new Date(this.selected_end_date + " 23:59:59"); // Replace with your end datetime
-		let data = null;
-		if (this.selected_employee != null) {
-			data = this.selected_employee;
-		} else {
-			data = this.user_id;
-		}
-
+		let startDatetime = new Date(this.selected_start_date + " 00:00:00");
+		let endDatetime = new Date(this.selected_end_date + " 23:59:59");
+		let data = this.selected_employee ? this.selected_employee : this.user_id;
+	
 		let lastPrintedDate = null;
 		let lastPrintedHour = null;
-		let slotTimeString = null;
-
+	
 		const imageContainer = this.main_section.find(".recent-activity-list");
 		const debounce = (func, delay) => {
 			let debounceTimer;
 			return function () {
-				const context = this;
-				const args = arguments;
 				clearTimeout(debounceTimer);
-				debounceTimer = setTimeout(() => func.apply(context, args), delay);
+				debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
 			};
 		};
-
-		async function loadImages(user, start_time, end_time) {
+		function formatDate(date) {
+			return date.toISOString().split('T')[0];
+		}
+	
+		const loadImages = async (user, start_time, end_time) => {
 			let flag = 0;
 			await frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.user_activity_images", {
 				user: user,
 				start_date: start_time,
 				end_date: end_time,
-			})
-				.then((imagedata) => {
-					if (imagedata.length > 0) {
-						flag = 1;
+			}).then((imagedata) => {
+				if (imagedata.length > 0) {
+					flag = 1;
+				}
+				imagedata.reverse();
+				let slotImages = {};
+				imagedata.forEach((image) => {
+					const imageDateTime = new Date(image.time);
+					const hour = imageDateTime.getHours();
+					const date = imageDateTime.toDateString();
+					const slot = Math.floor(imageDateTime.getMinutes() / 5);
+					this.formattedDate_ = formatDate(imageDateTime);
+					if (!slotImages[date]) {
+						slotImages[date] = {};
 					}
-					imagedata.reverse();
-					let slotImages = {};
-					imagedata.forEach((image) => {
-						const imageDateTime = new Date(image.time);
-						const hour = imageDateTime.getHours();
-						const date = imageDateTime.toDateString();
-						const slot = Math.floor(imageDateTime.getMinutes() / 5);
-						if (!slotImages[date]) {
-							slotImages[date] = {};
-						}
-						if (!slotImages[date][hour]) {
-							slotImages[date][hour] = new Array(12).fill(null);
-						}
-						slotImages[date][hour][slot] = image;
-					});
-					Object.keys(slotImages).reverse().forEach(date => {
-						Object.keys(slotImages[date]).reverse().forEach(hour => {
-							if (lastPrintedDate !== date || lastPrintedHour !== hour) {
-								const hourHeader = `<div class="col-md-12"><h5><b>${date} ${hour}:00:00</b></h5></div>`;
-								imageContainer.append(hourHeader);
-								lastPrintedDate = date;
-								lastPrintedHour = hour;
-							}
-
-							for (let slot = 11; slot >= 0; slot--) {
-								const image = slotImages[date][hour][slot];
-								const slotTime = new Date(date);
-								slotTime.setHours(hour);
-								slotTime.setMinutes(slot * 5);
-								const slotTimeString = slotTime.toLocaleTimeString('en-US', {
-									hour12: false
-								});
-
-								if (image) {
-									const imgElement = `
-								<div class="col-md-3">
-								<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
-									<img src="${image.screenshot}" title="${image.time_}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
-								</div>
-								<p style="text-align: center;"><b>${slotTimeString}</b></p>
-								</div>`;
-									imageContainer.append(imgElement);
-								} else {
-									const gapMessage = `
-								<div class="col-md-3">
-								<div style="width: 100%; height: 160px; background-color: #dddddd; display: flex; justify-content: center; align-items: center;">
-									<span style="font-weight: bold;">Not Active</span>
-								</div>
-								<p style="text-align: center;"><b>${slotTimeString}</b></p>
-								</div>`;
-									imageContainer.append(gapMessage);
-								}
-
-							}
-						});
-					});
-					function setImageHeight() {
-						const windowHeight = window.innerHeight;
-						const imageHeight = windowHeight * 0.2;
-						const images = document.querySelectorAll('.clickable-image');
-						images.forEach(img => {
-							img.style.height = `${imageHeight}px`;
-						});
+					if (!slotImages[date][hour]) {
+						slotImages[date][hour] = new Array(12).fill(null);
 					}
-					setImageHeight();
-					window.addEventListener('resize', setImageHeight);
-		
-					$('.clickable-image').off('click').on('click', function () {
-						const imgSrc = $(this).attr('src');
-						const activeApp = $(this).data('active-app'); // Get the active_app from data attribute
-
-						$('#zoomedImg').attr('src', imgSrc); // Set the image source in the modal
-						$('#imageModal').modal('show');
-
-						// Update the modal title to show only the active_app
-						$('#imageModalLabel').html(`${activeApp || 'Unknown App'}`);
-
-						// Set the modal image to stretch to fit
-						$('#zoomedImg').css({
-							'max-width': '100%',
-							'max-height': '100%',
-							'width': 'auto',
-							'height': 'auto',
-							'object-fit': 'contain'
-						});
+					slotImages[date][hour][slot] = image;
+				});
+	
+				Object.keys(slotImages).reverse().forEach(date => {
+					Object.keys(slotImages[date]).reverse().forEach(hour => {
+						if (lastPrintedDate !== date || lastPrintedHour !== hour) {
+							// console.log("hiii performance-chart-",this.formattedDate_,hour);
+							const hourHeader = `<div class="col-md-1"><h5><b>${date} ${hour}:00</b></h5></div><br><div class="col-md-11">
+							<div class="overall-performance-timely" id="performance-chart-${this.formattedDate_}-${hour}" style="min-height: 50px; max-height: 50px;">
+								<!-- Overall Performance Chart Container -->
+							</div>
+							</div>`;
+							imageContainer.append(hourHeader);
+							lastPrintedDate = date;
+							lastPrintedHour = hour;
+	
+							// Call the function to display chart for this hour
+							this.overall_performance_timely(this.formattedDate_,hour);
+						}
+	
+						for (let slot = 11; slot >= 0; slot--) {
+							const image = slotImages[date][hour][slot];
+							const slotTime = new Date(date);
+							slotTime.setHours(hour);
+							slotTime.setMinutes(slot * 5);
+							const slotTimeString = slotTime.toLocaleTimeString('en-US',{ hour: '2-digit', minute: '2-digit', hour12: false });
+	
+							if (image) {
+								const imgElement = `
+									<div class="col-md-3">
+										<div style="display: flex; justify-content: center; align-items: center; height: 160px;">
+											<img src="${image.screenshot}" title="${image.time_}" data-active-app="${image.active_app}" alt="User Activity Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" class="clickable-image">
+										</div>
+										<p style="text-align: center;"><b>${slotTimeString}</b></p>
+									</div>`;
+								imageContainer.append(imgElement);
+							} else {
+								const gapMessage = `
+									<div class="col-md-3">
+										<div style="width: 100%; height: 160px; background-color: #dddddd; display: flex; justify-content: center; align-items: center;">
+											<span style="font-weight: bold;">Not Active</span>
+										</div>
+										<p style="text-align: center;"><b>${slotTimeString}</b></p>
+									</div>`;
+								imageContainer.append(gapMessage);
+							}
+						}
 					});
 				});
+	
+				function setImageHeight() {
+					const windowHeight = window.innerHeight;
+					const imageHeight = windowHeight * 0.2;
+					const images = document.querySelectorAll('.clickable-image');
+					images.forEach(img => {
+						img.style.height = `${imageHeight}px`;
+					});
+				}
+				setImageHeight();
+				window.addEventListener('resize', setImageHeight);
+	
+				$('.clickable-image').off('click').on('click', function () {
+					const imgSrc = $(this).attr('src');
+					const activeApp = $(this).data('active-app');
+	
+					showImageDialog(imgSrc, activeApp);
+				});
+	
+			});
 			return flag;
+		};
+	
+		function showImageDialog(imgSrc, activeApp) {
+			// Create and show the Frappe dialog
+			let dialog = new frappe.ui.Dialog({
+				title: activeApp || 'Unknown App', // Set the title dynamically
+				fields: [
+					{
+						fieldtype: 'HTML',
+						label: '',
+						fieldname: 'image_content',
+						options: `
+							<div class="frappe-card custom-card">
+								<div class="modal-body">
+									<img id="zoomedImg" src="${imgSrc}" class="img-fluid" style="width: 100%; height: auto; object-fit: contain;">
+								</div>
+							</div>`
+					}
+				],
+				size: 'extra-large', // Adjust the size as needed
+				primary_action_label: 'Close',
+				primary_action: function () {
+					dialog.hide();
+				}
+			});
+	
+			dialog.show();
 		}
-
-		// let ct = new Date();
-
-		// if (endDatetime > new Date()){
-		// 	endDatetime = ct;
-		// }
-
-		// Loop through hours from start to end datetime
+	
 		let currentDatetime = endDatetime;
 		let start_time = new Date(currentDatetime);
 		let end_time = new Date(currentDatetime);
-
+	
 		imageContainer.empty();
-
+	
 		end_time = new Date(currentDatetime);
 		currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 		currentDatetime.setHours(currentDatetime.getHours() - 1);
 		start_time = new Date(currentDatetime);
-
+	
 		if (start_time < startDatetime) {
 			return;
-		}
-		else {
+		} else {
 			let flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
-
+	
 			while ((flag == 0) && (start_time > startDatetime)) {
 				end_time = new Date(currentDatetime);
 				currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 				currentDatetime.setHours(currentDatetime.getHours() - 1);
 				start_time = new Date(currentDatetime);
-
+	
 				flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
 			}
 		}
-
+	
 		if (currentDatetime > startDatetime) {
 			const handleScroll = debounce(async () => {
 				const scrollHeight = $(document).height();
 				const scrollPosition = $(window).height() + $(window).scrollTop();
 				const scrollThreshold = 400;
-
+	
 				if (scrollPosition >= scrollHeight - scrollThreshold) {
 					end_time = new Date(currentDatetime);
 					currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 					currentDatetime.setHours(currentDatetime.getHours() - 1);
 					start_time = new Date(currentDatetime);
-
+	
 					if (start_time < startDatetime) {
 						return;
-					}
-					else {
+					} else {
 						let flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
-
+	
 						while ((flag == 0) && (start_time > startDatetime)) {
 							end_time = new Date(currentDatetime);
 							currentDatetime.setHours(currentDatetime.getHours(), currentDatetime.getMinutes(), currentDatetime.getSeconds(), 0);
 							currentDatetime.setHours(currentDatetime.getHours() - 1);
 							start_time = new Date(currentDatetime);
-
+	
 							flag = await loadImages(data, start_time.toLocaleString('en-in'), end_time.toLocaleString('en-in'));
 						}
 					}
 				}
 			}, 100);
-
+	
 			$(window).on('scroll', handleScroll);
 		}
+	
+		// this.overall_performance_timely(); // If this is to be called at the end of all operations, ensure it is properly implemented
 	}
+	
+	
 	// User Activity Images code ends
 	
 	// Convert seconds to time for example 3600 seconds to 1 hours 0 minutes code starts

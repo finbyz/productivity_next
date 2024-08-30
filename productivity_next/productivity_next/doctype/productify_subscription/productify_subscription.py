@@ -60,6 +60,7 @@ class ProductifySubscription(Document):
             row
             for row in self.list_of_users
             if row.employee not in users and not users.add(row.employee)
+
         ]
 
     def update_application_list_of_users(self):

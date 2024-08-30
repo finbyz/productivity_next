@@ -3,10 +3,12 @@ from datetime import datetime,time,timedelta
 import frappe
 from frappe import utils
 from frappe.utils import now
-from frappe.utils import add_months,getdate
+from frappe.utils import add_months,getdate,validate_csrf_token
 from collections import defaultdict
 from frappe import _
 import json
+from productivity_next.api import calculate_total_working_hours
+
 
 from dateutil.parser import parse
 
@@ -49,7 +51,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
         adjusted_start = idle_start
         adjusted_end = idle_end
 
-        for non_idle in non_idle_periods:
+        for non_idle in non_idle_periods: 
             non_idle_start = non_idle['start_time']
             non_idle_end = non_idle['end_time']
 
@@ -181,7 +183,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
 def work_intensity(user=None, start_date=None, end_date=None):
     if not user:
         return []
-
+    
     intensity_data = frappe.db.sql(f"""
         SELECT 
             HOUR(time) as hour, 
@@ -243,7 +245,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
     """, as_dict=True)
 
     meetings = frappe.db.sql(f"""
-        SELECT m.name AS parent, 
+         SELECT m.name AS parent, 
             m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,DATE(m.meeting_from) as date,
             mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
@@ -329,6 +331,87 @@ def overall_performance(employee=None, start_date=None, end_date=None):
     }
 # Overall Performance Code Ends
 
+# Overall Performance timely Code Starts
+@frappe.whitelist()
+def overall_performance_timely(employee=None, date=None, hour=None):
+    if not employee:
+        return {
+            "labels": [],
+            "values": []
+        }
+    applications = frappe.db.sql(f"""
+    SELECT 
+        application_name AS name, 
+        from_time AS application_start, 
+        to_time AS application_end, 
+        date, 
+        LEFT(application_title, 80) AS application_title, 
+        LEFT(url, 80) AS url, 
+        project, 
+        issue, 
+        task,
+        process_name
+    FROM `tabApplication Usage log`
+    WHERE date = '{date}' 
+      AND employee = '{employee}' 
+      AND application_name != '' 
+      AND application_name IS NOT NULL 
+      AND HOUR(from_time) = {hour}
+    """, as_dict=True)
+
+
+    idle = frappe.db.sql(f"""
+        SELECT from_time AS idle_start, to_time AS idle_end, date
+        FROM `tabEmployee Idle Time`
+        WHERE date = '{date}' and employee = '{employee}' and HOUR(from_time) = {hour}
+    """, as_dict=True)
+
+    base_data = []
+    for app in applications:
+        if app.process_name in ["chrome.exe","firefox.exe","msedge.exe","opera.exe","iexplore.exe","brave.exe","safari.exe","vivaldi.exe","chromium.exe","microsoftedge.exe"]:
+            base_data.append([
+                "Browser",
+                app['date'],
+                app['application_start'],
+                app['application_end'],
+                app['application_title'].split(" - ")[0] if app['application_title'] else None,
+                app['url'] if app['url'] else None,
+                app['project'] if app['project'] else None,
+                app['issue'] if app['issue'] else None,
+                app['task'] if app['task'] else None,
+                app['name']
+            ])
+        else:
+            base_data.append([
+                "Application",
+                app['date'],
+                app['application_start'],
+                app['application_end'],
+                app['application_title'].split(" - ")[0] if app['application_title'] else None,
+                app['url'] if app['url'] else None,
+                app['project'] if app['project'] else None,
+                app['issue'] if app['issue'] else None,
+                app['task'] if app['task'] else None,
+                app['name']         
+            ])
+    for app in idle:
+        base_data.append([
+            "Idle",
+            app['date'],
+            app['idle_start'],
+            app['idle_end'],
+        ])
+    base_data = sorted(base_data, key=lambda x: x[2])
+    data = list(set([item[1] for item in base_data]))
+
+    return{
+        "base_dimensions":['Activity', 'Employee', 'Start Time', 'End Time'],
+        "dimensions":['Employee', 'Employee Name'],
+        "base_data":base_data,
+        "data":data
+    }
+# Overall Performance Timely Code Ends
+
 # Applications Used Code Starts
 @frappe.whitelist()
 def application_usage_time(user=None, start_date=None, end_date=None):
@@ -408,27 +491,25 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
 
     caller_name = frappe.db.sql(f"""
     SELECT 
-        CASE 
-            WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
-            ELSE 'Others'
-        END AS customname,
-        COALESCE(
-            (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
-            COALESCE(contact, client, customer_no)
-        ) AS identifier,
-        link_to AS ref_doctype, 
-        ROUND(SUM(duration)/60, 2) AS total_duration,
-        COUNT(*) AS call_count
-    FROM `tabEmployee Fincall`
-    WHERE date >= '{start_date}' 
-        AND date <= '{end_date}'
-        AND employee = '{user}' 
-    GROUP BY COALESCE(contact, client, customer_no), link_name
+    CASE 
+        WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
+        ELSE 'Others'
+    END AS customname,
+    COALESCE(
+        (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
+        COALESCE(ef.contact, ef.client, ef.customer_no)
+    ) AS identifier,
+    ef.link_to AS ref_doctype, 
+    ROUND(SUM(ef.duration)/60, 2) AS total_duration,
+    COUNT(*) AS call_count
+    FROM `tabEmployee Fincall` ef
+    WHERE ef.date >= '{start_date}' 
+        AND ef.date <= '{end_date}'
+        AND ef.employee = '{user}' 
+    GROUP BY COALESCE(ef.contact, ef.client, ef.customer_no), ef.link_name
+    HAVING SUM(ef.duration) > 60
     ORDER BY total_duration DESC
-    LIMIT 10
 """, as_dict=True)
-
-
 
     caller_details = []
     company_details = []
@@ -679,6 +760,8 @@ def fetch_url_data(user,start_date=None, end_date=None):
             "count": i['count'],
         })
 
+    score = calculate_total_working_hours(user, start_date, end_date, 8)
+
 
     return {
         "application_usage": total_counts['application_usage'],
@@ -703,6 +786,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
         "total_meeting_duration_external": meetings_external_employee[0].total_meeting_duration if meetings_external_employee else 0,
         "total_meeting_count_external": meetings_external_employee[0].meeting_count if meetings_external_employee else 0,
         "url_full_data": result_list[:10],
+        "score": score
     }
 
 @frappe.whitelist()

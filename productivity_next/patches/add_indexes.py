@@ -19,3 +19,13 @@ def execute():
             print(f"Index added to {index['doctype']} on fields {index['fields']}")
         except Exception as e:
             print(f"Failed to add index to {index['doctype']} on fields {index['fields']}: {e}")
+
+frappe.db.add_index("Version", ["modified_by","creation", "ref_doctype"])
+frappe.db.add_index("Employee Fincall", ["date", "employee", "calltype"])
+frappe.db.add_index("Application Usage log", ["date", "employee", "domain"])
+frappe.db.add_index("Employee Idle Time",["date","employee"])
+frappe.db.add_index("Productify Work Summary",["date","employee"])
+frappe.db.add_index("Work Intensity",["employee","time"])
+frappe.db.add_index("Screen Screenshot Log",["employee","time"])
+frappe.db.add_index("Meeting",["meeting_from","meeting_to","docstatus"])
+frappe.db.add_index("Meeting Company Representative",["employee"])
