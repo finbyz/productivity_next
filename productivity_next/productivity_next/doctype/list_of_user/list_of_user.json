@@ -1,7 +1,8 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2024-07-20 14:02:38.646851",
+ "creation": "2024-07-30 15:10:27.995896",
+ "default_view": "List",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -78,6 +79,7 @@
    "fieldtype": "Select",
    "label": "Status",
    "options": "Active\nInactive"
+
   }
  ],
  "index_web_pages_for_search": 1,

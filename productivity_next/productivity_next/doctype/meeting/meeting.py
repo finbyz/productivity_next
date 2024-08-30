@@ -126,7 +126,6 @@ class Meeting(Document):
 					'reference_doctype': "Meeting", 'reference_docname': self.name
 					})
 				new_event.save(ignore_permissions=True)
-
 		self.check_min_participants()
 
 

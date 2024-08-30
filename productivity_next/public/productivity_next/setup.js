@@ -1,4 +1,4 @@
-frappe.require('https://cdn.jsdelivr.net/npm/party-js@latest/bundle/party.min.js');
+frappe.require('assets/productivity_next/productivity_next/party.min.js');
 
 document.addEventListener("DOMContentLoaded", function () {
     function hasrole(rl) {
@@ -99,7 +99,8 @@ document.addEventListener("DOMContentLoaded", function () {
         {
             label: 'Organization Name',
             fieldname: 'organization_name',
-            fieldtype: 'Data',
+            fieldtype: 'Link',
+            options: 'Company',
             reqd: 1,
             default: data.organization_name
         },
