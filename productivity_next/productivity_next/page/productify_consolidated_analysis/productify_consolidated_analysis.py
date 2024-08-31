@@ -608,7 +608,7 @@ def user_analysis_data(start_date=None, end_date=None):
     productivity_score = {}
 
     for employee in employees:
-        score = calculate_total_working_hours(employee['name'], start_date, end_date, 8)
+        score = calculate_total_working_hours(employee['name'], start_date, end_date, 7.5)
         productivity_score[employee['name']] = score
     
     return {

@@ -760,7 +760,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
             "count": i['count'],
         })
 
-    score = calculate_total_working_hours(user, start_date, end_date, 8)
+    score = calculate_total_working_hours(user, start_date, end_date, 7.5)
 
 
     return {
