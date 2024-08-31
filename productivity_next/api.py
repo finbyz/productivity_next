@@ -772,7 +772,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 
         # Check if it's a Saturday (weekday 5)
         if date.weekday() == 5:
-            day_hours = 4
+            day_hours = 2.5
 
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
