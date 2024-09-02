@@ -355,6 +355,7 @@ def add_meeting(
     discussion,
     meeting_company_representative,
     meeting_party_representative,
+    project=None,
 ):
     meeting_company_representative = json.loads(meeting_company_representative)
     if meeting_party_representative:
@@ -367,6 +368,8 @@ def add_meeting(
     meeting.meeting_arranged_by = meeting_arranged_by
     meeting.internal_meeting = internal_meeting
     meeting.purpose = purpose
+    if project:
+        meeting.project = project
     # meeting.industry = industry if industry else None
     meeting.party_type = party_type if party_type else None
     meeting.party = party if party else None
@@ -741,7 +744,8 @@ def is_stop_disabled():
 from datetime import timedelta, datetime
 import frappe
 @frappe.whitelist()
-def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours):
+def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
+    frappe.throw(str(employee) + " - " + str(from_date) + " - " + str(to_date) + " - " + str(daily_working_hours) + " - " + str(saturday_working_hours))
     from_date = datetime.strptime(from_date, '%Y-%m-%d')
     to_date = datetime.strptime(to_date, '%Y-%m-%d')
     date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
@@ -772,8 +776,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 
         # Check if it's a Saturday (weekday 5)
         if date.weekday() == 5:
-            day_hours = 2.5
-
+            day_hours = saturday_working_hours
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
                 if leave.half_day:

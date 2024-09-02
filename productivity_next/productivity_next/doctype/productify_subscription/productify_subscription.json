@@ -14,6 +14,8 @@
   "project",
   "task",
   "issue",
+  "working_hours_per_day",
+  "working_hours_on_saturday",
   "column_break_ipqe",
   "site_url",
   "email",
@@ -119,19 +121,19 @@
    "default": "0",
    "fieldname": "project",
    "fieldtype": "Check",
-   "label": "Project"
+   "label": "Enable Project Analysis"
   },
   {
    "default": "0",
    "fieldname": "issue",
    "fieldtype": "Check",
-   "label": "Issue"
+   "label": "Enable Issue Analysis"
   },
   {
    "default": "0",
    "fieldname": "task",
    "fieldtype": "Check",
-   "label": "Task"
+   "label": "Enable Task Analysis"
   },
   {
    "fieldname": "api_key",
@@ -156,12 +158,23 @@
    "fieldtype": "Data",
    "hidden": 1,
    "label": "Call Organization Name"
+  },
+  {
+   "description": "Enter the number of working hours per weekday (Monday to Friday) and Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 7.5 hours per weekday and 2.5 hours for Saturday.",
+   "fieldname": "working_hours_per_day",
+   "fieldtype": "Data",
+   "label": "Working Hours Per Day"
+  },
+  {
+   "fieldname": "working_hours_on_saturday",
+   "fieldtype": "Data",
+   "label": "Working Hours On Saturday"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-26 12:16:54.483474",
+ "modified": "2024-09-02 11:48:11.250068",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

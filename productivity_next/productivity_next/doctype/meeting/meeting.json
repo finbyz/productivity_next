@@ -365,14 +365,13 @@
    "fieldname": "project",
    "fieldtype": "Link",
    "label": "Project",
-   "options": "Project",
-   "reqd": 1
+   "options": "Project"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-08-27 11:17:03.991251",
+ "modified": "2024-09-02 11:01:05.070154",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
