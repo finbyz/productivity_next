@@ -763,9 +763,9 @@ UserProfile = class UserProfile {
 
 					
 								// Fetch Productify Subscription settings
-								frappe.db.get_doc("Productify Subscription").then(subscription => {
-									const projectEnabled = subscription.project;
-									console.log("Project Enabled:", projectEnabled);
+								frappe.db.get_single_value("Productify Subscription", "project").then(value => {
+									const projectEnabled = value;
+									// console.log("Project Enabled:", projectEnabled);
 									const table_fields = [
 										{
 											label: "Employee",
