@@ -1466,12 +1466,19 @@ UserProfile = class UserProfile {
 			const employeeUrl = `${baseUrl}Productify Activity Analysis?start_date=${encodeURIComponent(this.selected_start_date)}&end_date=${encodeURIComponent(this.selected_end_date)}&employee=${encodeURIComponent(app.employee)}`;
 			const employeeMeetingUrl = `${baseUrl}meeting?employee=${encodeURIComponent(app.employee)}&meeting_from=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}&docstatus=1`;
 			const employeeFincallUrl = `${baseUrl}employee-fincall?employee=${encodeURIComponent(app.employee)}&date=${encodeURIComponent(`["Between",["${this.start_date_}","${this.end_date_}"]]`)}`;	
+			const score_ = 0;
+			if (app.score == 0) {
+				this.score_ = 100;
+			}
+			else {
+				this.score_ = parseFloat((((app.totalHours/3600) - (app.totalIdleTime/3600))/app.score)*100).toFixed(2);
+			}
 			wholedata += `
 				<tr>
 					<td align="left">
 						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
 					</td>
-					<td align="center" style="color:#6420AA;"><b>${parseFloat((((app.totalHours/3600) - (app.totalIdleTime/3600))/app.score)*100).toFixed(2)}</b></td>
+					<td align="center" style="color:#6420AA;"><b>${this.score_}</b></td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_((app.totalHours) - (app.totalIdleTime))}</td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalIdleTime)}</td>

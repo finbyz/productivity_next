@@ -2345,7 +2345,12 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
-				this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
+				if (this.numberCardData.score == 0) {
+					this.score2 = 100;
+				}
+				else {
+					this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
+				}
 				$(document).ready(function() {
 
 					const hovercontainer = $("#user-activity-hover");
