@@ -608,9 +608,15 @@ def user_analysis_data(start_date=None, end_date=None):
         }
     
     productivity_score = {}
+    # Retrieve working hours per day and on Saturday from the database
+    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+
+    hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
+    hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
 
     for employee in employees:
-        score = calculate_total_working_hours(employee['name'], start_date, end_date, 7.5)
+        score = calculate_total_working_hours(employee['name'],start_date, end_date, hours_per_weekday, hours_on_saturday)
         productivity_score[employee['name']] = score
     
     return {

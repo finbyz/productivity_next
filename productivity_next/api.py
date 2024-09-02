@@ -745,7 +745,6 @@ from datetime import timedelta, datetime
 import frappe
 @frappe.whitelist()
 def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
-    frappe.throw(str(employee) + " - " + str(from_date) + " - " + str(to_date) + " - " + str(daily_working_hours) + " - " + str(saturday_working_hours))
     from_date = datetime.strptime(from_date, '%Y-%m-%d')
     to_date = datetime.strptime(to_date, '%Y-%m-%d')
     date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]

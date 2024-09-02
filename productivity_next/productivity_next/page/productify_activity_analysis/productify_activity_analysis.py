@@ -779,9 +779,21 @@ def fetch_url_data(user,start_date=None, end_date=None):
             "count": i['count'],
         })
 
-    score = calculate_total_working_hours(user, start_date, end_date, 7.5)
+   # Retrieve working hours per day and on Saturday from the database
+    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
 
+    hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
+    hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
 
+    # Calculate total working hours
+    score = calculate_total_working_hours(
+        user,
+        start_date,
+        end_date,
+        hours_per_weekday,
+        hours_on_saturday
+    )
     return {
         "application_usage": total_counts['application_usage'],
         "version_count": total_counts['version_count'],
