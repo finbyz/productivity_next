@@ -366,6 +366,15 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         WHERE date = '{date}' and employee = '{employee}' and HOUR(from_time) = {hour}
     """, as_dict=True)
 
+    calls = frappe.db.sql(f"""
+        SELECT name AS parent, 
+            call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
+            employee, date,COALESCE(contact, client, customer_no) as caller, calltype, link_to as link_to, link_name as link_name
+        FROM `tabEmployee Fincall`
+        WHERE date = '{date}' and employee ='{employee}' and HOUR(call_datetime) = {hour}
+        ORDER BY date
+    """, as_dict=True)
+
     base_data = []
     for app in applications:
         if app.process_name in ["chrome.exe","firefox.exe","msedge.exe","opera.exe","iexplore.exe","brave.exe","safari.exe","vivaldi.exe","chromium.exe","microsoftedge.exe"]:
@@ -401,9 +410,19 @@ def overall_performance_timely(employee=None, date=None, hour=None):
             app['idle_start'],
             app['idle_end'],
         ])
+    for call in calls:
+        base_data.append([
+            "Call",
+            call['date'],
+            call['call_start'],
+            call['call_end'],
+            call['caller'],
+            call['calltype'],
+            call['link_to'],
+            call['link_name']
+        ])
     base_data = sorted(base_data, key=lambda x: x[2])
     data = list(set([item[1] for item in base_data]))
-
     return{
         "base_dimensions":['Activity', 'Employee', 'Start Time', 'End Time'],
         "dimensions":['Employee', 'Employee Name'],

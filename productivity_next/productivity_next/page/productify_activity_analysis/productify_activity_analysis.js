@@ -1077,6 +1077,7 @@ UserProfile = class UserProfile {
 					'Inactive': 0,
 					'Application': 1,
 					'Idle': 2,
+					'Call': 3,
 				};
 	
 				function makeOption() {
@@ -1382,6 +1383,21 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 												<td style="padding: 0px 10px; text-align: left;">${params.data[8]}</td>
 											</tr>`;
 									}
+								}
+								if (activityType === "Call") {
+									console.log("params",params);
+									if (params.data[4]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
+											</tr>`;
+									}
+									if (params.data[6] && params.data[7]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]} - ${params.data[7]}</td>
+											</tr>`;
+									}
 								} else {
 									tooltipContent += `
 										<tr>
@@ -1473,6 +1489,8 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 										color = '#FF6666';
 									} else if (activityType === 'Browser') {
 										color = '#2c5278';
+									} else if (activityType === 'Call') {
+										color = '#FFCC66';
 									} else {
 										color = '#4BC0C0';
 									}
