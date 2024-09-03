@@ -756,16 +756,20 @@ UserProfile = class UserProfile {
 							var endTime = params.value[3];
 							var employeeName = params.value[1];
 					
-							frappe.db.get_value("Employee", {
-								employee_name: employeeName
-							}, "user_id").then(r => {
-								var employeeId = r.message.user_id;
-
-					
-								// Fetch Productify Subscription settings
-								frappe.db.get_single_value("Productify Subscription", "project").then(value => {
-									const projectEnabled = value;
-									// console.log("Project Enabled:", projectEnabled);
+							// Fetch employee data
+							console.log("employeeName", this.selected_employee);	
+							frappe.db.get_value("Employee", { employee_name: employeeName }, "user_id")
+								.then(r => {
+									console.log(r)
+									return frappe.call({
+										method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_project_enabled",
+									});
+								})
+								.then(subscription_response => {
+									console.log(subscription_response.message);
+									const projectEnabled = subscription_response.message ? subscription_response.message : false;
+									console.log("Project Enabled:", projectEnabled);
+									// Define fields for the dialog
 									const table_fields = [
 										{
 											label: "Employee",
@@ -877,7 +881,6 @@ UserProfile = class UserProfile {
 											fieldname: "meeting_arranged_by",
 											fieldtype: "Link",
 											options: "User",
-											default: employeeId,
 											reqd: 1
 										},
 										{
@@ -1020,12 +1023,11 @@ UserProfile = class UserProfile {
 					
 									// Show the dialog
 									d.show();
-								}).catch(err => {
-									console.error("Error fetching Productify Subscription settings:", err);
+								})
+								.catch(err => {
+									console.error("Error:", err);
+									frappe.msgprint("An error occurred while fetching data. Please try again.");
 								});
-							}).catch(err => {
-								console.error("Error fetching employee details:", err);
-							});
 						}
 					});
 				}
@@ -2103,7 +2105,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 						});
 					});
 					this.activity_data();
-					// console.log("score", this.numberCardData.score);
 				}
 			}
 		});
@@ -2318,7 +2319,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 			.catch((err) => {
 				console.error("Error fetching user image:", err);
 			});
-			// console.log("scor0e", this.score2);
 
 		this.setup_user_profile_links();
 	}

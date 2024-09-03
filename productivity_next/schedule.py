@@ -847,9 +847,32 @@ def submit_timesheet_created_by_productify():
         filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">", yeasterday)},
         fields=["name"],
     )
-
     for timesheet in timesheets:
         doc = frappe.get_doc("Timesheet", timesheet.name)
         doc.submit()
         frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
         frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
+
+
+def delete_productify_data():
+    time_for_screenshots = int(frappe.db.get_single_value("Productify Subscription", "keep_screen_shots_for_days")) or 60
+    time_for_application_logs = int(frappe.db.get_single_value("Productify Subscription", "keep_application_logs_for_days")) or 60
+    time_for_error_logs = 10
+
+    date_for_screenshots = get_datetime() - timedelta(days=time_for_screenshots)
+    date_for_application_logs = get_datetime() - timedelta(days=time_for_application_logs)
+    date_for_error_logs = get_datetime() - timedelta(days=time_for_error_logs)
+    
+    screenshots = frappe.get_all("Screen Screenshot Log", {"time": ("<", date_for_screenshots.strftime("%Y-%m-%d %H:%M:%S"))})
+    for screenshot in screenshots:
+        frappe.delete_doc("Screen Screenshot Log", screenshot.name)
+ 
+    frappe.db.sql("""
+        DELETE FROM `tabApplication Usage log`
+        WHERE date < %s
+    """, (date_for_application_logs.date(),))
+
+    frappe.db.sql("""
+        DELETE FROM `tabProductify Error Log`
+        WHERE error_datetime < %s
+    """, (date_for_error_logs.strftime("%Y-%m-%d %H:%M:%S"),))

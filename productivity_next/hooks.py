@@ -144,12 +144,10 @@ scheduler_events = {
         "productivity_next.schedule.schedule_comments",
         "productivity_next.schedule.create_productify_work_summary_today",
     ],
-    "daily": [
-        "productivity_next.schedule.delete_older_screenshots",
-    ],
     "cron": {
         "0 1 * * *": [
             "productivity_next.schedule.create_productify_work_summary",
+            "productivity_next.schedule.delete_productify_data",
         ],
         "0 0 * * *": [
             "productivity_next.schedule.submit_timesheet_created_by_productify",

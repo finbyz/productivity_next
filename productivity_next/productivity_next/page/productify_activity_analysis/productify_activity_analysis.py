@@ -936,3 +936,11 @@ def version_conditions(user,start_date=None, end_date=None):
 
     return condition
 # Conditions to be applied to get data from versions table code ends
+
+
+@frappe.whitelist()
+def get_project_enabled():
+    # Load the document while ignoring permissions
+    doc = frappe.get_doc('Productify Subscription', None, ignore_permissions=True)
+    project_value = doc.project
+    return project_value

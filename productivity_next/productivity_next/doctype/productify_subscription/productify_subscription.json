@@ -8,6 +8,8 @@
   "organization_name",
   "status",
   "valid_upto",
+  "keep_screen_shots_for_days",
+  "keep_application_logs_for_days",
   "fincall",
   "application_usage",
   "sales_person",
@@ -160,21 +162,36 @@
    "label": "Call Organization Name"
   },
   {
-   "description": "Enter the number of working hours per weekday (Monday to Friday) and Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 7.5 hours per weekday and 2.5 hours for Saturday.",
+   "description": "Enter the number of working hours per weekday (Monday to Friday) in the format 7, 7.5, 8, etc. If not filled, the default is 7.5 hours per weekday.",
    "fieldname": "working_hours_per_day",
    "fieldtype": "Data",
    "label": "Working Hours Per Day"
   },
   {
+   "description": "Enter the number of working hours for Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 2.5 hours for Saturday.",
    "fieldname": "working_hours_on_saturday",
    "fieldtype": "Data",
    "label": "Working Hours On Saturday"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which screenshots will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_screen_shots_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Screen Shots For Days"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which application usage logs will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_application_logs_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Application Logs for Days"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-09-02 11:48:11.250068",
+ "modified": "2024-09-03 16:11:59.002240",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",
