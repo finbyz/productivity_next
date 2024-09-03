@@ -36,9 +36,11 @@ app_include_js = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-doctype_js = {"Lead": "public/js/doctype_js/lead.js",
+doctype_js = {
+    "Lead": "public/js/doctype_js/lead.js",
     "Customer": "public/js/doctype_js/customer.js",
-    "Opportunity": "public/js/doctype_js/opportunity.js",}
+    "Opportunity": "public/js/doctype_js/opportunity.js",
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -145,18 +147,17 @@ scheduler_events = {
     "daily": [
         "productivity_next.schedule.delete_older_screenshots",
     ],
-    "cron":{
-		"0 1 * * *": [
-			"productivity_next.schedule.create_productify_work_summary",
-        ], 
+    "cron": {
+        "0 1 * * *": [
+            "productivity_next.schedule.create_productify_work_summary",
+        ],
         "0 0 * * *": [
             "productivity_next.schedule.submit_timesheet_created_by_productify",
         ],
         # "5 4 * * sun" :[
         #     "productivity_next.schedule.send_weekly_report",
         # ]
-		
-	},
+    },
 }
 # 	"all": [
 # 		"productivity_next.tasks.all"
@@ -242,8 +243,14 @@ scheduler_events = {
 
 # auth_hooks = [
 # 	"productivity_next.auth.validate"
-# ]
+# ]{task} - {issue}
 
 fixtures = [
-    {"dt": "Role", "filters": [["name", "=", "Productify API"]]},
+    {"dt": "Custom Field", "filters": [["fieldname", "=", "is_created_by_productify"]]},
+    {
+        "dt": "Activity Type",
+        "filters": [
+            ["name", "in", ["Project", "Task", "Issue"]]
+        ]
+    }
 ]
