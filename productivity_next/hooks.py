@@ -147,7 +147,9 @@ scheduler_events = {
     "cron": {
         "0 1 * * *": [
             "productivity_next.schedule.create_productify_work_summary",
-            "productivity_next.schedule.delete_productify_data",
+            "productivity_next.schedule.delete_productify_error_logs",
+            "productivity_next.schedule.delete_screenshots",
+            "productivity_next.schedule.delete_application_logs",
         ],
         "0 0 * * *": [
             "productivity_next.schedule.submit_timesheet_created_by_productify",
