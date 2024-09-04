@@ -16,6 +16,7 @@
   "project",
   "task",
   "issue",
+  "enable_blurred_screenshot",
   "working_hours_per_day",
   "working_hours_on_saturday",
   "column_break_ipqe",
@@ -186,12 +187,18 @@
    "fieldname": "keep_application_logs_for_days",
    "fieldtype": "Data",
    "label": "Keep Application Logs for Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_blurred_screenshot",
+   "fieldtype": "Check",
+   "label": "Enable Blurred Screenshot"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-09-03 16:11:59.002240",
+ "modified": "2024-09-04 16:09:10.684828",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

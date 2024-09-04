@@ -27,7 +27,10 @@ def login(username, password, purpose):
     frappe.session.user = username
 
     token = get_bearer_token(username, expires_in_days=7, purpose=purpose)
-
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription"
+    )
+    
     return {
         "status": True,
         "access_token": token["access_token"],
@@ -39,6 +42,7 @@ def login(username, password, purpose):
         "full_name": frappe.db.get_value(
             "Employee", {"user_id": frappe.session.user}, "employee_name"
         ),
+        "blurred_screenshot": productify_subscription.get("blurred_screenshot",False),
     }
 
 
