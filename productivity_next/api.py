@@ -1,6 +1,7 @@
 import json
 import frappe
 from frappe.auth import LoginManager
+import frappe.utils
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
@@ -518,11 +519,8 @@ def send_user_list(user_list):
 
     if not organization_name:
         return {"message": "Organization name is not set in Productify Subscription"}
-    productify_subscription = frappe.get_doc(
-        "Productify Subscription", organization_name
-    )
-
-    payload = json.dumps({"users": user_list, "organization_id": organization_name})
+    productify_subscription = frappe.get_doc("Productify Subscription", organization_name)
+    payload = json.dumps({"users": user_list, "erpnext_url": frappe.utils.get_url()})
     users = json.loads(user_list)
     productify_subscription.list_of_users = []
     for user in users:
