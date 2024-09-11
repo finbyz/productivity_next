@@ -28,7 +28,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Api Type",
-   "options": "\nApplication Usage log\nset_application_checkin_checkout\nset_user_idel_time\nupload_file\nget_user_idel_time\nget_usage_time\nlogin\nget_server_details\nvalidate_user",
+   "options": "\nApplication Usage log\nScreenshot Log\nset_application_checkin_checkout\nset_user_idel_time\nupload_file\nget_user_idel_time\nget_usage_time\nlogin\nget_server_details\nvalidate_user\nWork Intensity\nTimesheet\nTask",
    "read_only": 1
   },
   {
@@ -77,7 +77,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-04 22:42:55.314607",
+ "modified": "2024-09-11 16:22:03.803175",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Error Log",
