@@ -43,7 +43,7 @@ def login(username, password, purpose):
         "full_name": frappe.db.get_value(
             "Employee", {"user_id": frappe.session.user}, "employee_name"
         ),
-        "blurred_screenshot": productify_subscription.get("blurred_screenshot",False),
+        "enable_blurred_screenshot": productify_subscription.get("enable_blurred_screenshot",False),
     }
 
 
