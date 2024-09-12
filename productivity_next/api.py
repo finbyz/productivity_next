@@ -789,3 +789,214 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         total_working_hours += day_hours
 
     return total_working_hours
+
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
+    data = {}
+    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+
+    hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
+    hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
+
+    # Calculate total working hours
+    productivity_score = calculate_total_working_hours(
+        employee,
+        start_date,
+        end_date,
+        hours_per_weekday,
+        hours_on_saturday
+    )
+
+    idle_time_data = frappe.db.sql(f"""
+        SELECT from_time as start_time, to_time as end_time
+        FROM `tabEmployee Idle Time`
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{employee}'
+    """, as_dict=True)
+
+    # Fetch fincall time logs
+    fincall_time_data = frappe.db.sql(f"""
+        SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
+        FROM `tabEmployee Fincall`
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{employee}' AND (calltype != 'Missed' AND calltype != 'Rejected')
+    """, as_dict=True)
+
+    # Fetch meeting time logs
+    meeting_time_data = frappe.db.sql(f"""
+        SELECT meeting_from as start_time, meeting_to as end_time
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{employee}'
+    """, as_dict=True)
+
+    # Combine all non-idle periods (meetings and calls)
+    non_idle_periods = fincall_time_data + meeting_time_data
+
+    total_idle_seconds = 0
+
+    for idle_period in idle_time_data:
+        idle_start = idle_period['start_time']
+        idle_end = idle_period['end_time']
+
+        adjusted_start = idle_start
+        adjusted_end = idle_end
+
+        for non_idle in non_idle_periods: 
+            non_idle_start = non_idle['start_time']
+            non_idle_end = non_idle['end_time']
+
+            # Check for overlap and adjust idle periods accordingly
+            if non_idle_start <= adjusted_end and non_idle_end >= adjusted_start:
+                if non_idle_start <= adjusted_start < non_idle_end:
+                    adjusted_start = non_idle_end
+                if non_idle_start < adjusted_end <= non_idle_end:
+                    adjusted_end = non_idle_start
+                if adjusted_start >= adjusted_end:
+                    adjusted_start = adjusted_end
+                    break
+
+        # Calculate the duration of the adjusted idle period
+        idle_duration = (adjusted_end - adjusted_start).total_seconds()
+        if idle_duration > 0:
+            total_idle_seconds += idle_duration
+    total_idle_time = flt(total_idle_seconds) 
+
+    list_data = []
+    meeting_total_data = frappe.db.sql(f"""
+        SELECT m.meeting_from as start_time, m.meeting_to as end_time
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee ='{employee}' 
+    """, as_dict=True)
+    calls_total_data = frappe.db.sql(f"""
+        SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
+        FROM `tabEmployee Fincall`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and (calltype != 'Missed' and calltype != 'Rejected')
+    """, as_dict=True)
+    application_total_data = frappe.db.sql(f"""
+        SELECT from_time as start_time, to_time as end_time
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}'
+    """, as_dict=True)
+
+    list_data.append(meeting_total_data)
+    list_data.append(calls_total_data)
+    list_data.append(application_total_data) 
+
+    if list_data != [[], [], []]:
+
+        # Flatten the list of intervals
+        flat_intervals = [interval for sublist in list_data for interval in sublist]
+
+        # Sort intervals by start time
+        flat_intervals.sort(key=lambda x: x['start_time'])
+
+        # Merge overlapping intervals
+        merged_intervals = []
+        current_interval = flat_intervals[0]
+
+        for interval in flat_intervals[1:]:
+            if interval['start_time'] and interval['end_time'] and current_interval['end_time']:
+                if interval['start_time'] <= current_interval['end_time']:
+                    # There is overlap, so merge the intervals
+                    current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
+                else:
+                    # No overlap, so add the current interval to the list and start a new one
+                    merged_intervals.append(current_interval)
+                    current_interval = interval
+            elif interval['start_time']:
+                # No overlap, so add the current interval to the list and start a new one
+                merged_intervals.append(current_interval)
+                current_interval = interval
+
+        # Don't forget to add the last interval
+        if current_interval:
+            merged_intervals.append(current_interval)
+
+
+        # Calculate the total time
+        total_time = timedelta()
+        for interval in merged_intervals:
+            if interval['start_time'] and interval['end_time']:
+                total_time += interval['end_time'] - interval['start_time']
+   
+        total_time = total_time.total_seconds()
+    else:
+        total_time = 0 
+
+    total_active_hours = total_time - total_idle_time
+
+    data["toal_active_hours"] = total_active_hours
+    data["total_time"] = total_time
+    data["total_idle_time"] = total_idle_time
+
+        
+    total_call_data = frappe.db.sql(f"""
+        SELECT 
+            SUM(duration) AS total_duration, calltype, count(calltype) as total_calls
+        FROM `tabEmployee Fincall`
+        WHERE date >= '2023-09-09' AND date <= '2024-09-09' and employee = 'HR-EMP-00022' and (calltype != 'Missed' and calltype != 'Rejected')
+        GROUP BY calltype
+    """, as_dict=True)
+    total_call_duration = 0
+    for call in total_call_data:
+        if call["calltype"] == "Incoming":
+            data["total_incoming_calls"] = call["total_calls"]
+            data["total_incoming_duration"] = call["total_duration"]
+            total_call_duration += call["total_duration"]
+        elif call["calltype"] == "Outgoing":
+            data["total_outgoing_calls"] = call["total_calls"]
+            data["total_outgoing_duration"] = call["total_duration"]
+            total_call_duration += call["total_duration"]
+    
+    data["total_call_duration"] = total_call_duration
+
+    total_meeting_data = frappe.db.sql(f"""
+        SELECT 
+            SUM(TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from))) AS total_duration, internal_meeting, count(internal_meeting) as total_meetings
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 AND mcr.employee = '{employee}' 
+        GROUP BY internal_meeting
+    """, as_dict=True)
+
+    total_meeting_duration = 0
+    data["total_internal_meetings"] = 0
+    data["total_internal_meeting_duration"] = 0.0
+    data["total_external_meetings"] = 0
+    data["total_external_meeting_duration"] = 0.0
+    data["total_meeting_duration"] = 0
+    for meeting in total_meeting_data:
+        if meeting["internal_meeting"]:
+            data["total_internal_meetings"] = meeting["total_meetings"]
+            data["total_internal_meeting_duration"] = meeting["total_duration"]
+            total_meeting_duration += meeting["total_duration"]
+        else:
+            data["total_external_meetings"] = meeting["total_meetings"]
+            data["total_external_meeting_duration"] = meeting["total_duration"]
+            total_meeting_duration += meeting["total_duration"]
+
+    data["total_meeting_duration"] = total_meeting_duration
+
+    total_web_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and url is not null
+    """, as_dict=True)
+
+    total_app_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and url is null
+    """, as_dict=True)
+
+
+    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
+    data["total_web_count"] = total_web_data[0]["total_web_count"]
+    data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
+    data["total_app_count"] = total_app_data[0]["total_app_count"]
+    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"])
+    data["productivity_score"] = round(((total_active_hours / 3600) / productivity_score) * 100, 2)
+    return data
