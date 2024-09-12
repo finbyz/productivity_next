@@ -728,7 +728,7 @@ def create_fincall(
     }
 
 
-@frappe.whitelist(allow_guest=False, methods=["GET"])
+@frappe.whitelist(allow_guest=True, methods=["GET"])
 def is_stop_disabled():
     """
     API_PATH: /api/method/productivity_next.api.is_stop_disabled"""
@@ -741,7 +741,10 @@ def is_stop_disabled():
         filter(lambda user: user.employee == current_user, subscription.list_of_users),
         None,
     )
-    return user.get('disable_stop_button',False)
+    return {
+        "is_stop_disabled": user.get("disable_stop_button", False),
+        "enable_blurred_screenshot": subscription.get("enable_blurred_screenshot",False),
+    }
 
 from datetime import timedelta, datetime
 import frappe
@@ -800,7 +803,6 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
 
     hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
     hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
-
     # Calculate total working hours
     productivity_score = calculate_total_working_hours(
         employee,
@@ -962,12 +964,12 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
         GROUP BY internal_meeting
     """, as_dict=True)
 
-    total_meeting_duration = 0
+    total_meeting_duration = 0.0
     data["total_internal_meetings"] = 0
     data["total_internal_meeting_duration"] = 0.0
     data["total_external_meetings"] = 0
     data["total_external_meeting_duration"] = 0.0
-    data["total_meeting_duration"] = 0
+    data["total_meeting_duration"] = 0.0
     for meeting in total_meeting_data:
         if meeting["internal_meeting"]:
             data["total_internal_meetings"] = meeting["total_meetings"]
@@ -997,6 +999,6 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     data["total_web_count"] = total_web_data[0]["total_web_count"]
     data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
     data["total_app_count"] = total_app_data[0]["total_app_count"]
-    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"])
+    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
     data["productivity_score"] = round(((total_active_hours / 3600) / productivity_score) * 100, 2)
     return data
