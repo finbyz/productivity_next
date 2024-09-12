@@ -728,8 +728,23 @@ def create_fincall(
     }
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=False, methods=["GET"])
 def is_stop_disabled():
+    """
+    API_PATH: /api/method/productivity_next.api.is_stop_disabled"""
+    subscription = frappe.get_doc("Productify Subscription")
+    current_user = frappe.db.get_value(
+        "Employee", filters={"user_id": frappe.session.user}, fieldname="name"
+    )
+
+    user = next(
+        filter(lambda user: user.employee == current_user, subscription.list_of_users),
+        None,
+    )
+    return user.get("disable_stop_button", False)
+
+@frappe.whitelist(allow_guest=False, methods=["GET"])
+def get_productify_subsription():
     """
     API_PATH: /api/method/productivity_next.api.is_stop_disabled"""
     subscription = frappe.get_doc("Productify Subscription")
