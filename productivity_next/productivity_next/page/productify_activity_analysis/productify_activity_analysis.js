@@ -1088,9 +1088,20 @@ UserProfile = class UserProfile {
 						const date = new Date(dateTimeString);
 						return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
 					}
+	
 					function padZero(num) {
 						return num < 10 ? `0${num}` : num;
 					}
+// Function to get the start of the hour for a given date
+function getStartOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+}
+
+// Function to get the end of the hour for a given date
+function getEndOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
+}
+
 // Define the inactive periods array
 var inactivePeriods = [];
 
@@ -1108,30 +1119,63 @@ for (var i = 0; i < _rawData.flight.data.length; i++) {
     var startTime = new Date(activity[2]);
     var endTime = new Date(activity[3]); // Assuming end time is at index 3
 
-    // If we have a previous end time for this employee
-    if (employeeLastEndTime[employeeName]) {
-        var lastEndTime = employeeLastEndTime[employeeName];
-        
-        // If there's a gap between the last activity and this one
-        if (startTime > lastEndTime) {
-            // Calculate the inactive period
-            var inactiveStart = lastEndTime;
-            var inactiveEnd = startTime;
+    // Initialize employee's last end time if not already set
+    if (!employeeLastEndTime[employeeName]) {
+        employeeLastEndTime[employeeName] = getStartOfHour(startTime);
+    }
 
-            // Only add the inactive period if it's not crossing midnight
-            if (inactiveStart.getDate() === inactiveEnd.getDate()) {
-                inactivePeriods.push([
-                    'Inactive',
-                    employeeName,
-                    convertDateTime(inactiveStart.toISOString()),
-                    convertDateTime(inactiveEnd.toISOString())
-                ]);
-            }
+    // Calculate inactive period if there is a gap between the last activity and the current start time
+    if (startTime > employeeLastEndTime[employeeName]) {
+        var inactiveStart = employeeLastEndTime[employeeName];
+        var inactiveEnd = startTime;
+        
+        // If the inactive period crosses an hour boundary, split it
+        while (getEndOfHour(inactiveStart) < inactiveEnd && getEndOfHour(inactiveStart) < startTime) {
+            var hourEnd = getEndOfHour(inactiveStart);
+            inactivePeriods.push([
+                'Inactive',
+                employeeName,
+                convertDateTime(inactiveStart.toISOString()),
+                convertDateTime(hourEnd.toISOString())
+            ]);
+            inactiveStart = new Date(hourEnd.getTime() + 1); // Start of next hour
+        }
+        
+        // Add the remaining inactive period if it exists and is within the same hour
+        if (inactiveStart < inactiveEnd && inactiveStart.getHours() === inactiveEnd.getHours()) {
+            inactivePeriods.push([
+                'Inactive',
+                employeeName,
+                convertDateTime(inactiveStart.toISOString()),
+                convertDateTime(inactiveEnd.toISOString())
+            ]);
         }
     }
 
-    // Update the last end time for this employee
+    // Update the last end time to the end of the current activity
     employeeLastEndTime[employeeName] = endTime;
+}
+
+// Handle inactive periods at the end of the day for each employee
+for (const employee in employeeLastEndTime) {
+    var lastEnd = employeeLastEndTime[employee];
+    var endOfHour = getEndOfHour(lastEnd);
+
+    // Only add an inactive period if it's within the same hour and there's actually a gap
+    if (lastEnd < endOfHour && 
+        lastEnd.getHours() === endOfHour.getHours() && 
+        lastEnd.getTime() !== endOfHour.getTime()) {
+        
+        // Ensure we're not creating a full 59-minute inactive period
+        if (endOfHour.getTime() - lastEnd.getTime() < 3540000) { // 59 minutes in milliseconds
+            inactivePeriods.push([
+                'Inactive',
+                employee,
+                convertDateTime(lastEnd.toISOString()),
+                convertDateTime(endOfHour.toISOString())
+            ]);
+        }
+    }
 }
 
 // Combine flight data with inactive periods
