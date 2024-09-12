@@ -1,11 +1,7 @@
 {
  "add_total_row": 0,
  "columns": [],
-<<<<<<< Updated upstream
  "creation": "2024-08-13 11:37:03.729498",
-=======
- "creation": "2024-08-13 11:13:05.855925",
->>>>>>> Stashed changes
  "disabled": 0,
  "docstatus": 0,
  "doctype": "Report",
@@ -14,11 +10,7 @@
  "is_standard": "Yes",
  "letter_head": "FinByz Tech Pvt Ltd",
  "letterhead": null,
-<<<<<<< Updated upstream
  "modified": "2024-08-13 11:37:03.729498",
-=======
- "modified": "2024-08-13 11:13:05.855925",
->>>>>>> Stashed changes
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Analysis",

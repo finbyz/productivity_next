@@ -299,7 +299,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
                 meeting['date'],
                 meeting['meeting_start'],
                 meeting['meeting_end'],
-                meeting['internal'],
+                meeting['meeting_arranged_by'],
                 meeting['client']
             ])
         else:
@@ -778,8 +778,7 @@ def fetch_url_data(user,start_date=None, end_date=None):
             "application_name": app_name,
             "count": i['count'],
         })
-
-   # Retrieve working hours per day and on Saturday from the database
+    # Retrieve working hours per day and on Saturday from the database
     weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
     saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
 
@@ -794,6 +793,9 @@ def fetch_url_data(user,start_date=None, end_date=None):
         hours_per_weekday,
         hours_on_saturday
     )
+
+
+
     return {
         "application_usage": total_counts['application_usage'],
         "version_count": total_counts['version_count'],

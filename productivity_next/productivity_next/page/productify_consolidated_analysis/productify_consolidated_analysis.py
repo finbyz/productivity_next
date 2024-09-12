@@ -335,7 +335,7 @@ def overall_performance_chart(start_date=None, end_date=None):
                 meeting['employee_name'].split()[0] + " " + meeting['employee_name'].split()[-1][0] + "." if meeting['employee_name'] else "",
                 meeting['meeting_start'],
                 meeting['meeting_end'],
-                meeting['internal'],
+                meeting['meeting_arranged_by'],
                 meeting['client']
             ])
         else:
