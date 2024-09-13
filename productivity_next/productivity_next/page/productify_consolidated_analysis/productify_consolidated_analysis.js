@@ -62,7 +62,7 @@ UserProfile = class UserProfile {
 		this.setup_timespan(); // Timespan Button
 		this.main_section.empty().append(frappe.render_template("productify_consolidated_analysis"));
 		this.user_analysis(); // User Analysis (User Productivity Stats)
-
+		this.client_calls_chart();
 		// this.overall_performance_chart(); // Overall Performance (All Employees)
 		// JavaScript to handle tab switching
 		const tabs = document.querySelectorAll('.nav-link');
@@ -277,7 +277,7 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date
 			})
 			.then((r) => {
-				const containerElement = document.getElementById('calls');
+				const containerElement = document.getElementById('phone-calls-tab');
 				if (r.caller_details.length === 0) {
 					if (containerElement) containerElement.style.display = 'none';
                 	return;
@@ -496,7 +496,7 @@ UserProfile = class UserProfile {
 									font: 14px / 21px 'Microsoft YaHei';
 									padding: 12px; /* Increased padding */
 									width: 200px; /* Adjust width as needed */
-									top: 0px;
+									top: 0px4;
 									left: 0px;
 									transform: translate3d(0, 0, 0);
 									border-color: rgb(255, 255, 255);
@@ -698,8 +698,7 @@ UserProfile = class UserProfile {
                             fill: color,
                             stroke: 'rgba(0,0,0,0.2)'
                         })
-                    };                    
-					
+                    };                    	
 					return item;
 				}
 				// console.log("data",_rawData.parkingApron.data.map(item => item[0]))

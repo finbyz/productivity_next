@@ -100,6 +100,7 @@ UserProfile = class UserProfile {
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
 		this.overall_performance();
 		this.fetch_url_data();
+		this.type_of_calls();
 	
 		// JavaScript to handle tab switching
 		const tabs = document.querySelectorAll('.nav-link');
@@ -1885,7 +1886,17 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
-				if (r.length === 0) {
+				const tabs = document.querySelectorAll('.nav-link');
+				const contents = document.querySelectorAll('.tab-pane');
+
+				// Hide calls tab if no call data is available
+				const callsTab = document.querySelector('#phone-calls-tab');
+				const callsContent = document.querySelector('#phone-calls');
+				if (r[0].value === null) {
+					console.log("No data available to plot the chart........................................");
+					if (callsTab) callsTab.style.display = 'none';
+        			if (callsContent) callsContent.style.display = 'none';
+					
 					// console.log("No data available to plot the chart.");
 					return;
 				}
