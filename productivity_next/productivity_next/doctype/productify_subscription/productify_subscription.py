@@ -76,6 +76,9 @@ class ProductifySubscription(Document):
                 "status": row.status,
                 "fincall": row.fincall,
                 "application_usage": row.application_usage,
+                "parent": self.application_organization_name,
+                "parentfield": "list_of_users",
+                "parenttype": "Productivity Application Organization",
             }
             for row in self.list_of_users
         ]
@@ -100,6 +103,9 @@ class ProductifySubscription(Document):
                 "status": row.status,
                 "fincall": row.fincall,
                 "application_usage": row.application_usage,
+                "parent": self.call_organization_name,
+                "parentfield": "list_of_users",
+                "parenttype": "Productivity Call log Organization",
             }
             for row in self.list_of_users
             if row.fincall
