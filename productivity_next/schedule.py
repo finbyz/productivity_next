@@ -273,9 +273,9 @@ def create_productify_work_summary():
         for PWS in pws_docs:
             frappe.delete_doc('Productify Work Summary', PWS['name'])
 
-    employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
+    employees = frappe.get_all('List of User', fields=['employee'])
     for i in employees:
-        employee = i['name']
+        employee = i['employee']
         date = date
         def productify_work_summary(employee,date):
             print('employee',employee)
@@ -399,10 +399,10 @@ def create_productify_work_summary():
 def create_productify_work_summary_today():
     from frappe.utils import today
     date = today()
-    employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
+    employees = frappe.get_all('List of User', fields=['employee'])
     for i in employees:
-        employee = i['name']
-        if not frappe.db.exists('Productify Work Summary', {'date': date,'employee':i['name']}):
+        employee = i['employee']
+        if not frappe.db.exists('Productify Work Summary', {'date': date,'employee':i['employee']}):
             # print("DOES NOT EXIST")
             date = date
             def productify_work_summary(employee,date):
@@ -525,8 +525,8 @@ def create_productify_work_summary_today():
             PWS.save()
             # print(PWS.name)
         else:
-            PWS_DOC = frappe.get_doc('Productify Work Summary',{'date': date,'employee':i['name']})
-            employee = i['name']
+            PWS_DOC = frappe.get_doc('Productify Work Summary',{'date': date,'employee':i['employee']})
+            employee = i['employee']
             print("else"+ employee)
             print("else"+ date) 
             print("else"+ PWS_DOC.name)
@@ -640,7 +640,7 @@ def create_productify_work_summary_today():
                         current_app = None
             if current_app is not None:
                 combined_applications.append(current_app)
-            PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['name']})
+            PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['employee']})
             for app_entry in combined_applications:
                 PWS.append('applications', {
                     'from_time': app_entry['start'],
@@ -892,7 +892,7 @@ def set_challenge():
     }
     
     response = requests.post(
-        "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
+        "http://productivity.finbyz.com/api/method/productivity_backend.api.get_challenge",
         data={"erpnext_url":productify_subscription.site_url},
         headers=headers
     )
