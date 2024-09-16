@@ -46,6 +46,40 @@ def login(username, password, purpose):
         "enable_blurred_screenshot": productify_subscription.get("enable_blurred_screenshot",False),
     }
 
+@frappe.whitelist(allow_guest=True)
+def login_with_challenge(username, password, purpose):
+    login_manager = LoginManager()
+    login_manager.authenticate(username, password)
+    frappe.session.user = username
+
+    token = get_bearer_token(username, expires_in_days=7, purpose=purpose)
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription"
+    )
+    challenge = productify_subscription.get("encrypted_challenge","")
+    return {
+        "status": True,
+        "access_token": token["access_token"],
+        "refresh_token": token["refresh_token"],
+        "access_token_expiry": token["expiration_time"],
+        "employee": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "name"
+        ),
+        "full_name": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "employee_name"
+        ),
+        "challenge": challenge,
+        "email": frappe.session.user,
+        'erpnext_url': frappe.utils.get_url(),
+    }
+
+@frappe.whitelist(methods=["GET"])
+def get_challenge():
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription"
+    )
+    challenge = productify_subscription.get("encrypted_challenge","")
+    return challenge
 
 @frappe.whitelist(allow_guest=False)
 def update_token(refresh_token, purpose):
@@ -628,49 +662,31 @@ def create_fincall(
     call_datetime,
     calltype,
     duration,
-    employee_fincall_generated,
-    contact_created,
     note=None,
     raw_log=None,
     client=None,
 ):
-    fincall = frappe.new_doc("Fincall Log")
-    fincall.employee = employee
-    fincall.employee_mobile = employee_mobile
-    fincall.customer_no = customer_no
-    fincall.call_datetime = call_datetime
-    fincall.calltype = calltype
-    fincall.duration = duration
-    fincall.employee_fincall_generated = employee_fincall_generated
-    fincall.contact_created = contact_created
-    fincall.note = note if note else None
-    fincall.raw_log = raw_log if raw_log else None
-    fincall.client = client if client else None
-    fincall.save(ignore_permissions=True)
-
     employee_details = frappe.db.get_value(
         "Employee",
-        fincall.employee,
+        employee,
         ["name", "employee_name"],
         as_dict=True,
     )
-
-    if fincall.customer_no[0] == "0":
-        fincall.customer_no = "+91" + fincall.customer_no[1:]
-    elif fincall.customer_no[0] != "+" and fincall.customer_no[0] != "0":
-        fincall.customer_no = "+91" + fincall.customer_no
+    if customer_no[0] == "0":
+        customer_no = "+91" + customer_no[1:]
+    elif customer_no[0] != "+" and customer_no[0] != "0":
+        customer_no = "+91" + customer_no
 
     ec_doc = frappe.new_doc("Employee Fincall")
     ec_doc.employee = employee_details["name"]
     ec_doc.employee_name = employee_details["employee_name"]
-    ec_doc.employee_mobile = fincall.employee_mobile
-    ec_doc.client = fincall.client if fincall.client else None
-    ec_doc.customer_no = fincall.customer_no
-    ec_doc.call_datetime = fincall.call_datetime
-    ec_doc.duration = fincall.duration
-    ec_doc.date = get_datetime(fincall.call_datetime).date()
-    ec_doc.calltype = fincall.calltype
-    ec_doc.fincall_log_ref = fincall.name
+    ec_doc.employee_mobile = employee_mobile
+    ec_doc.client = client if client else None
+    ec_doc.customer_no = customer_no
+    ec_doc.call_datetime = call_datetime
+    ec_doc.duration = duration
+    ec_doc.date = get_datetime(call_datetime).date()
+    ec_doc.calltype = calltype
     contact_query = f"""
         SELECT 
             c.name, 
@@ -686,9 +702,9 @@ def create_fincall(
             ON dl.parent = c.name 
         WHERE 
             LENGTH(cp.phone) >= 10 
-            AND (cp.phone = '{fincall.customer_no}' 
-            OR cp.phone LIKE '%{fincall.customer_no}' 
-            OR '{fincall.customer_no}' LIKE CONCAT("%", cp.phone))
+            AND (cp.phone = '{customer_no}' 
+            OR cp.phone LIKE '%{customer_no}' 
+            OR '{customer_no}' LIKE CONCAT("%", cp.phone))
         ORDER BY 
             CASE dl.link_doctype
                 WHEN 'Customer' THEN 1
@@ -712,9 +728,6 @@ def create_fincall(
 
     ec_doc.flags.ignore_permissions = True
     ec_doc.save()
-
-    # Update flag indicating that employee fincall is generated
-    fincall.db_set("employee_fincall_generated", 1)
 
     return {
         "employee_fincall": ec_doc.name,
@@ -1017,3 +1030,13 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
     data["productivity_score"] = round(((total_active_hours / 3600) / productivity_score) * 100, 2)
     return data
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def set_challenge_to_prroductify_subscription(challenge,verification_code):
+    if verification_code != "123456":
+        return {"message": "Invalid verification code"}
+    
+    subscription = frappe.get_doc("Productify Subscription")
+    subscription.encrypted_challenge = challenge
+    subscription.flags.ignore_permissions = True
+    subscription.save()

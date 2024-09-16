@@ -28,6 +28,7 @@
   "api_secret",
   "application_organization_name",
   "call_organization_name",
+  "encrypted_challenge",
   "section_break_qria",
   "get_users",
   "list_of_users"
@@ -193,12 +194,17 @@
    "fieldname": "enable_blurred_screenshot",
    "fieldtype": "Check",
    "label": "Enable Blurred Screenshot"
+  },
+  {
+   "fieldname": "encrypted_challenge",
+   "fieldtype": "Text",
+   "label": "Encrypted Challenge"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-09-04 16:09:10.684828",
+ "modified": "2024-09-12 17:38:59.903802",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

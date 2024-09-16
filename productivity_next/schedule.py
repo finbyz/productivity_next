@@ -3,6 +3,8 @@ from frappe.utils import nowdate, get_datetime, format_time, format_duration
 import frappe.utils
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
+
+import requests
 from .api import (
     set_application_checkin_checkout,
     set_application_idletime_checkin_checkout,
@@ -882,3 +884,23 @@ def delete_application_logs():
         WHERE date < %s
     """, (date_for_application_logs.date(),))
 
+
+def set_challenge():
+    productify_subscription = frappe.get_doc("Productify Subscription")
+    headers = {
+        "Authorization" : f"token {productify_subscription.api_key}:{productify_subscription.get_password('api_secret')}",
+    }
+    
+    response = requests.post(
+        "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
+        data={"erpnext_url":productify_subscription.site_url},
+        headers=headers
+    )
+    print(response.status_code)
+    if response.status_code == 200:
+        data = response.json().get("message")
+        if data.get("challenge"):
+            productify_subscription.encrypted_challenge = data.get("challenge")
+            productify_subscription.save()
+    else:
+        frappe.log_error("Productify Challenge Error",f"Failed to get challenge: {response.text}")

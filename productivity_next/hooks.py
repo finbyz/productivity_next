@@ -152,7 +152,8 @@ scheduler_events = {
             "productivity_next.schedule.delete_application_logs",
         ],
         "0 0 * * *": [
-            "productivity_next.schedule.submit_timesheet_created_by_productify",
+            "productivity_next.schedule.submit_timesheet_created_by_productify"
+            "productify_next.schedule.set_challenge",
         ],
         # "5 4 * * sun" :[
         #     "productivity_next.schedule.send_weekly_report",
