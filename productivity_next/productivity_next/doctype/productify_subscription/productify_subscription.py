@@ -68,8 +68,22 @@ class ProductifySubscription(Document):
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
+        response = requests.get(
+            f"{APPLICATION_ORG_URL}/{self.application_organization_name}",
+            params={"fields": ["list_of_users"]},
+            headers=headers
+        )
+        if response.status_code == 200:
+            existing_records = response.json().get('data',{}).get('list_of_users', [])
+        else:
+            frappe.log_error("Upadating productify user",response.text)
+
+        record_dict = {record["employee_id"]: [record["name"],record['email_sent']] for record in existing_records}
+        
         list_of_users = [
             {
+                "name": record_dict.get(row.employee,["",False])[0],
+                "email_sent": record_dict.get(row.employee,["",False])[1],
                 "employee_id": row.employee,
                 "email": row.user_id,
                 "full_name": row.employee_name,
@@ -95,8 +109,21 @@ class ProductifySubscription(Document):
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
         }
+        response = requests.get(
+            f"{CALL_LOG_URL}/{self.call_organization_name}",
+            params={"fields": ["list_of_users"]},
+            headers=headers
+        )
+        if response.status_code == 200:
+            existing_records = response.json().get('data',{}).get('list_of_users', [])
+        else:
+            frappe.log_error("Upadating productify user",response.text)
+
+        record_dict = {record["employee_id"]: record["name"] for record in existing_records}
+        
         list_of_users = [
             {
+                "name": record_dict.get(row.employee),
                 "employee_id": row.employee,
                 "email": row.user_id,
                 "full_name": row.employee_name,
@@ -108,7 +135,6 @@ class ProductifySubscription(Document):
                 "parenttype": "Productivity Call log Organization",
             }
             for row in self.list_of_users
-            if row.fincall
         ]
         return requests.put(
             f"{CALL_LOG_URL}/{self.call_organization_name}",
