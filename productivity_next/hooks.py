@@ -143,6 +143,7 @@ scheduler_events = {
         "productivity_next.schedule.bg_employee_log_generation",
         "productivity_next.schedule.schedule_comments",
         "productivity_next.schedule.create_productify_work_summary_today",
+        "productivity_next.schedule.set_challenge_if_expired",
     ],
     "cron": {
         "0 1 * * *": [
