@@ -39,6 +39,7 @@ def get_employees():
         if employee['name'] in [emp['employee'] for emp in employee_analysis]:
             all_analysed_employees.append(employee)
     employees = all_analysed_employees
+
     if not employees:
         return []
     return employees
@@ -280,7 +281,8 @@ def employee_calls_chart(user, start_date=None, end_date=None):
 # Overall Performance (All Employees) Code Starts
 @frappe.whitelist()
 def overall_performance_chart(start_date=None, end_date=None):
-    employees = get_employees_overall_performance(end_date)
+    employees = get_employees()
+    employees_overall = get_employees_overall_performance(end_date)
     if not employees:
         return {}
     calls = frappe.db.sql(f"""
@@ -317,10 +319,9 @@ def overall_performance_chart(start_date=None, end_date=None):
             dwsp.employee, dwsp.employee_name
         FROM `tabProductify Work Summary` AS dwsp
         JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
-        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
+        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees_overall)})
         ORDER BY dwsp.employee
     """, as_dict=True)
-
     base_data = []
     for app in applications:
         base_data.append([
@@ -374,7 +375,7 @@ def overall_performance_chart(start_date=None, end_date=None):
     for i in employees:
         data.append([
             i['employee_name'].split()[0] + " " + i['employee_name'].split()[-1][0] + "." if i['employee_name'] else "",
-            i['employee'],
+            i['name'],
         ])
 
     return{
