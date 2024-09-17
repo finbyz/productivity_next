@@ -214,7 +214,7 @@ def format_duration(duration_seconds):
         return "0h 0m"
 @frappe.whitelist()
 def get_employees():
-    employees = frappe.get_all("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["name", "employee_name"])
+    employees = frappe.get_all("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
     if not employees:
         return []
     return employees

@@ -2432,52 +2432,52 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 								}
 							</style>
 						
-`;
+							`;
 				const mobilecontainer = $("#user-activity-mobile");
 				mobilecontainer.html(`
 					${styles}
 					<div class="d-lg-none">
 						<div class="card border-primary shadow table-height">
 							<div class="card-body">
-  <h5 class="card-title text-primary text-center">User Activity</h5>
-  <table class="table table-borderless custom-table">
-    <tbody>
-      <tr>
-        <td>Call:</td>
-        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>Meeting:</td>
-        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>System:</td>
-        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
-      </tr>
-      <tr style="border-bottom: 1px solid #E5E4E2;">
-        <td>Overlapping:</td>
-        <td class="justify time-cell"><span>-${overlapping} H</span></td>
-      </tr>
-      <tr>
-        <td><b>Active Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
-      </tr>
-      <tr>
-        <td><b>Idle Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
-      </tr>
-      ${r.total_inactive_hours > 0 ? `
-      <tr>
-        <td><b>Inactive Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
-      </tr>` : ''}
-      <tr style="border-top: 3px solid">
-        <td><b>Total Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+							<h5 class="card-title text-primary text-center">User Activity</h5>
+							<table class="table table-borderless custom-table">
+								<tbody>
+								<tr>
+									<td>Call:</td>
+									<td class="justify time-cell"><span>${total_call_raw} H</span></td>
+								</tr>
+								<tr>
+									<td>Meeting:</td>
+									<td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+								</tr>
+								<tr>
+									<td>System:</td>
+									<td class="justify time-cell"><span>${total_system_hours} H</span></td>
+								</tr>
+								<tr style="border-bottom: 1px solid #E5E4E2;">
+									<td>Overlapping:</td>
+									<td class="justify time-cell"><span>-${overlapping} H</span></td>
+								</tr>
+								<tr>
+									<td><b>Active Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+								</tr>
+								<tr>
+									<td><b>Idle Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+								</tr>
+								${r.total_inactive_hours > 0 ? `
+								<tr>
+									<td><b>Inactive Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+								</tr>` : ''}
+								<tr style="border-top: 3px solid">
+									<td><b>Total Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+								</tr>
+								</tbody>
+							</table>
+							</div>
 						</div>
 					</div>`
 				)

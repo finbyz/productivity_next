@@ -32,14 +32,26 @@ def set_dates(start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_employees():
-    employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["name", "employee_name"])
+    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
+    employee_analysis = frappe.get_all('List of User', fields=['employee', 'employee_name'])
+    all_analysed_employees = []
+    for employee in employees:
+        if employee['name'] in [emp['employee'] for emp in employee_analysis]:
+            all_analysed_employees.append(employee)
+    employees = all_analysed_employees
     if not employees:
         return []
     return employees
 
 @frappe.whitelist()
 def get_employees_version():
-    employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["user_id"])
+    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["user_id","name"])
+    employee_analysis = frappe.get_all('List of User', fields=['employee', 'employee_name'])
+    all_analysed_employees = []
+    for employee in employees:
+        if employee['name'] in [emp['employee'] for emp in employee_analysis]:
+            all_analysed_employees.append({"user_id":employee['user_id']})
+    employees = all_analysed_employees
     if not employees:
         return []
     return employees
@@ -276,7 +288,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
             employee, employee_name,COALESCE(contact, client, customer_no) as caller, calltype
         FROM `tabEmployee Fincall`
-        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -286,7 +298,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
-        WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY mcr.employee
     """, as_dict=True)
 
@@ -295,7 +307,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             from_time AS idle_start, to_time AS idle_end,
             employee, employee_name
         FROM `tabEmployee Idle Time`
-        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -305,7 +317,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             dwsp.employee, dwsp.employee_name
         FROM `tabProductify Work Summary` AS dwsp
         JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
-        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY dwsp.employee
     """, as_dict=True)
 
