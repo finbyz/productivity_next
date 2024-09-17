@@ -892,7 +892,7 @@ def set_challenge():
     }
     
     response = requests.post(
-        "http://productivity.finbyz.com/api/method/productivity_backend.api.get_challenge",
+        "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
         data={"erpnext_url":productify_subscription.site_url},
         headers=headers
     )
