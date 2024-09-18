@@ -224,10 +224,15 @@ def create_employee_log(fincall_log):
                 ec_doc.link_name = contact.get("link_name", "")
 
             ec_doc.flags.ignore_permissions = True
-            ec_doc.save()
-
-            # Update flag indicating that employee fincall is generated
-            fincall_log.db_set("employee_fincall_generated", 1)
+            
+            try:
+                ec_doc.save()
+                fincall_log.db_set("employee_fincall_generated", 1)
+            except frappe.exceptions.UniqueValidationError:
+                fincall_log.db_set("duplicate_contact", 1)
+            except Exception as e:
+                error_message = f"Error occurred while saving Employee Fincall: {str(e)}"
+                frappe.log_error(error_message, "Employee Fincall Creation Error")
 
 def schedule_comments():
     calls = frappe.db.get_list(
