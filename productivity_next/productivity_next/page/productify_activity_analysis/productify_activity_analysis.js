@@ -1080,8 +1080,11 @@ UserProfile = class UserProfile {
 				var priorityOrder = {
 					'Inactive': 0,
 					'Application': 1,
-					'Idle': 2,
-					'Call': 3
+					'Browser': 2,
+					'Idle': 3,
+					'Internal Meeting': 4,
+					'External Meeting': 5,
+					'Call': 6
 				};
 	
 				function makeOption() {
@@ -1242,44 +1245,87 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 								if (minutes > 0) durationString += minutes + "m ";
 								if (seconds > 0 || durationString === "") durationString += seconds + "s";
 	
-								var tooltipContent = `
-									<div class="custom-tooltip">
-										<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
-											<tr>
-												<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
-												<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
-											</tr>
-								`;
+								var tooltipContent = ``;
 
+								if (activityType === "Application" || activityType === "Browser") {
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">${params.data[9]}</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Call") {
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Call</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Idle"){
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Idle</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Inactive"){
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Inactive</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Internal Meeting" || activityType === "External Meeting") {
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Meeting</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
 								if (activityType === "Application" || activityType === "Browser") {
 									if (params.data[4]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
-											</tr>`;
-									}
-									if (activityType) {
-										tooltipContent += `
-											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[9]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
 											</tr>`;
 									}
 									if (params.data[5]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
 											</tr>`;
 									}
 									if (params.data[6]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
 											</tr>`;
 									}
 									if (params.data[7] && params.data[8]) {
 										tooltipContent += `
 											<tr>
 												<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
+												<td></td>
 												<td style="padding: 0px 10px; text-align: left;">${params.data[8]}</td>
 											</tr>`;
 									}
@@ -1289,20 +1335,38 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 									if (params.data[4]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
 											</tr>`;
 									}
 									if (params.data[6] && params.data[7]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]} - ${params.data[7]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[6]} - ${params.data[7]}</td>
 											</tr>`;
 									}
-								} else {
-									tooltipContent += `
-										<tr>
-											<td colspan="2" style="padding: 0px 10px; text-align: left;">${activityType}</td>
-										</tr>`;
+								} 
+								if (activityType === "Internal Meeting" || activityType === "External Meeting") {
+									if (params.data[7] && params.data[8]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[8]} - ${params.data[7]}</td>
+											</tr>`;
+									}
+									if (params.data[4]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
+											</tr>`;
+									}
+									if (params.data[5]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+											</tr>`;
+									}
+								}
+								else {
+									
 								}
 
 								tooltipContent += `
@@ -1391,10 +1455,14 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 										color = '#2c5278';
 									} else if (activityType === 'Call') {
 										color = '#FFCC66';
+									} else if (activityType === 'Internal Meeting') {
+										color = '#9966FF';
+									} else if (activityType == 'External Meeting') {
+										color = '#6699FF';
 									} else {
 										color = '#4BC0C0';
 									}
-	
+
 									var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);
 	
 									var item = {

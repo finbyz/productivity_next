@@ -331,7 +331,6 @@ def overall_performance(employee=None, start_date=None, end_date=None):
     }
 # Overall Performance Code Ends
 
-# Overall Performance timely Code Starts
 @frappe.whitelist()
 def overall_performance_timely(employee=None, date=None, hour=None):
     if not employee:
@@ -339,6 +338,14 @@ def overall_performance_timely(employee=None, date=None, hour=None):
             "labels": [],
             "values": []
         }
+    
+    # Convert hour to integer
+    hour = int(hour)
+
+    # Calculate the start and end of the specified hour
+    hour_start = f"{hour:02d}:00:00"
+    hour_end = f"{(hour + 1) % 24:02d}:00:00"
+
     applications = frappe.db.sql(f"""
     SELECT 
         application_name AS name, 
@@ -356,81 +363,129 @@ def overall_performance_timely(employee=None, date=None, hour=None):
       AND employee = '{employee}' 
       AND application_name != '' 
       AND application_name IS NOT NULL 
-      AND HOUR(from_time) = {hour}
+      AND (
+          (HOUR(from_time) = {hour}) OR
+          (HOUR(from_time) < {hour} AND HOUR(to_time) >= {hour})
+      )
     """, as_dict=True)
-
 
     idle = frappe.db.sql(f"""
         SELECT from_time AS idle_start, to_time AS idle_end, date
         FROM `tabEmployee Idle Time`
-        WHERE date = '{date}' and employee = '{employee}' and HOUR(from_time) = {hour}
+        WHERE date = '{date}' AND employee = '{employee}' 
+        AND (
+            (HOUR(from_time) = {hour}) OR
+            (HOUR(from_time) < {hour} AND HOUR(to_time) >= {hour})
+        )
     """, as_dict=True)
 
     calls = frappe.db.sql(f"""
         SELECT name AS parent, 
             call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
-            employee, date,COALESCE(contact, client, customer_no) as caller, calltype, link_to as link_to, link_name as link_name
+            employee, date, COALESCE(contact, client, customer_no) as caller, calltype, link_to as link_to, link_name as link_name
         FROM `tabEmployee Fincall`
-        WHERE date = '{date}' and employee ='{employee}' and HOUR(call_datetime) = {hour}
+        WHERE date = '{date}' AND employee ='{employee}' 
+        AND (
+            (HOUR(call_datetime) = {hour}) OR
+            (HOUR(call_datetime) < {hour} AND HOUR(ADDTIME(call_datetime, SEC_TO_TIME(duration))) >= {hour})
+        )
         ORDER BY date
     """, as_dict=True)
 
+
+    meetings = frappe.db.sql(f"""
+        SELECT m.name AS parent, 
+            m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
+            DATE(m.meeting_from) as date, mcr.employee, mcr.employee_name, m.organization as organization, m.discussion as description,
+            m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
+        FROM `tabMeeting` AS m
+        JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
+        WHERE DATE(m.meeting_from) = '{date}' AND mcr.employee = '{employee}' AND m.docstatus = 1
+        AND (
+            (HOUR(m.meeting_from) = {hour}) OR
+            (HOUR(m.meeting_from) < {hour} AND HOUR(m.meeting_to) >= {hour})
+        )
+        ORDER BY m.meeting_from
+    """, as_dict=True)
+
+    def split_activity(activity_type, start, end, *args):
+        start_time = datetime.strptime(str(start), "%Y-%m-%d %H:%M:%S")
+        end_time = datetime.strptime(str(end), "%Y-%m-%d %H:%M:%S")
+        
+        hour_start_time = start_time.replace(hour=hour, minute=0, second=0)
+        hour_end_time = hour_start_time + timedelta(hours=1)
+        
+        if start_time < hour_start_time:
+            start_time = hour_start_time
+        if end_time > hour_end_time:
+            end_time = hour_end_time
+        
+        return [activity_type, start_time.date(), start_time, end_time] + list(args)
+
     base_data = []
     for app in applications:
-        if app.process_name in ["chrome.exe","firefox.exe","msedge.exe","opera.exe","iexplore.exe","brave.exe","safari.exe","vivaldi.exe","chromium.exe","microsoftedge.exe"]:
-            base_data.append([
-                "Browser",
-                app['date'],
-                app['application_start'],
-                app['application_end'],
-                app['application_title'].split(" - ")[0] if app['application_title'] else None,
-                app['url'] if app['url'] else None,
-                app['project'] if app['project'] else None,
-                app['issue'] if app['issue'] else None,
-                app['task'] if app['task'] else None,
-                app['name']
-            ])
-        else:
-            base_data.append([
-                "Application",
-                app['date'],
-                app['application_start'],
-                app['application_end'],
-                app['application_title'].split(" - ")[0] if app['application_title'] else None,
-                app['url'] if app['url'] else None,
-                app['project'] if app['project'] else None,
-                app['issue'] if app['issue'] else None,
-                app['task'] if app['task'] else None,
-                app['name']         
-            ])
+        activity_type = "Browser" if app['process_name'] in ["chrome.exe", "firefox.exe", "msedge.exe", "opera.exe", "iexplore.exe", "brave.exe", "safari.exe", "vivaldi.exe", "chromium.exe", "microsoftedge.exe"] else "Application"
+        base_data.append(split_activity(
+            activity_type,
+            app['application_start'],
+            app['application_end'],
+            app['application_title'].split(" - ")[0] if app['application_title'] else None,
+            app['url'] if app['url'] else None,
+            app['project'] if app['project'] else None,
+            app['issue'] if app['issue'] else None,
+            app['task'] if app['task'] else None,
+            app['name']
+        ))
+
     for app in idle:
-        base_data.append([
+        base_data.append(split_activity(
             "Idle",
-            app['date'],
             app['idle_start'],
-            app['idle_end'],
-        ])
+            app['idle_end']
+        ))
+
     for call in calls:
-        base_data.append([
+        base_data.append(split_activity(
             "Call",
-            call['date'],
             call['call_start'],
             call['call_end'],
             call['caller'],
             call['calltype'],
             call['link_to'],
             call['link_name']
-        ])
+        ))
+
+    for meeting in meetings:
+        if meeting['internal']:
+            base_data.append(split_activity(
+                "Internal Meeting",
+                meeting['meeting_start'],
+                meeting['meeting_end'],
+                meeting['meeting_arranged_by'],
+                meeting['description'],
+                meeting['client']
+            ))
+        else:
+            base_data.append(split_activity(
+                "External Meeting",
+                meeting['meeting_start'],
+                meeting['meeting_end'],
+                meeting['meeting_arranged_by'],
+                meeting['description'],
+                meeting['internal'],
+                meeting['client'],
+                meeting['party_type'],
+            ))
+
     base_data = sorted(base_data, key=lambda x: x[2])
     data = list(set([item[1] for item in base_data]))
-    return{
-        "base_dimensions":['Activity', 'Employee', 'Start Time', 'End Time'],
-        "dimensions":['Employee', 'Employee Name'],
-        "base_data":base_data,
-        "data":data
-    }
-# Overall Performance Timely Code Ends
 
+    return {
+        "base_dimensions": ['Activity', 'Employee', 'Start Time', 'End Time'],
+        "dimensions": ['Employee', 'Employee Name'],
+        "base_data": base_data,
+        "data": data
+    }
 # Applications Used Code Starts
 @frappe.whitelist()
 def application_usage_time(user=None, start_date=None, end_date=None):
