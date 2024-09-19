@@ -8,8 +8,8 @@ frappe.query_reports["Productify Weekly Summary"] = {
             "label": __("Timespan"),
             "fieldtype": "Select",
             "width": "80",
-            "options": "\ntoday\nyesterday\nthis week\nlast week\nthis month\nlast month",
-            "default": "yesterday"
+            "options": "\nToday\nYesterday\nThis Week\nLast Week\nThis Month\nLast Month",
+            "default": "Yesterday"
         },
 	]
 };

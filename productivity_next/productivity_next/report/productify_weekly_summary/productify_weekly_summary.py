@@ -9,7 +9,7 @@ from frappe.utils import get_timespan_date_range
 
 def execute(filters=None):
     columns = get_columns(filters)
-    from_date, to_date = get_timespan_date_range(filters.get("timespan"))
+    from_date, to_date = get_timespan_date_range((filters.get("timespan")).lower())
     data = get_data(from_date, to_date)
     return columns, data
 
