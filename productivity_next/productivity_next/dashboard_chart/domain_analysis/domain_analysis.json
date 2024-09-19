@@ -6,12 +6,12 @@
  "docstatus": 0,
  "doctype": "Dashboard Chart",
  "dynamic_filters_json": "{}",
- "filters_json": "{\"from_date\":\"2024-05-22\",\"to_date\":\"2024-05-29\"}",
+ "filters_json": "{\"from_date\":\"2024-09-18\",\"to_date\":\"2024-09-18\"}",
  "group_by_type": "Count",
- "idx": 0,
+ "idx": 14,
  "is_public": 1,
  "is_standard": 1,
- "modified": "2024-05-29 16:14:37.897330",
+ "modified": "2024-09-19 16:34:01.502024",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Domain Analysis",
@@ -21,12 +21,6 @@
  "roles": [
   {
    "role": "Employee"
-  },
-  {
-   "role": "Productivity Manager"
-  },
-  {
-   "role": "Productivity User"
   }
  ],
  "time_interval": "Yearly",
