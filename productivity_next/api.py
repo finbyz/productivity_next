@@ -1040,3 +1040,41 @@ def set_challenge_to_prroductify_subscription(challenge,verification_code):
     subscription.encrypted_challenge = challenge
     subscription.flags.ignore_permissions = True
     subscription.save()
+
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_meeting_data_for_mobile_app(user, start_date, end_date):
+    meetings = frappe.db.sql(f"""
+        SELECT 
+            m.meeting_from as start_time, m.meeting_to as end_time, m.purpose, m.party, m.party_type, m.discussion, m.internal_meeting, m.meeting_arranged_by
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee = '{user}'
+    """, as_dict=True)
+    return {"meetings": meetings}
+
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_application_data_for_mobile_app(user, start_date, end_date):
+    data = {}
+    total_web_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is not null
+    """, as_dict=True)
+
+    total_app_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is null
+    """, as_dict=True)
+
+
+    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
+    data["total_web_count"] = total_web_data[0]["total_web_count"]
+    data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
+    data["total_app_count"] = total_app_data[0]["total_app_count"]
+    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
+    return data

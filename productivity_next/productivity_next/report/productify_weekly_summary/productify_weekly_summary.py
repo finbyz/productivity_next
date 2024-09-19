@@ -5,10 +5,12 @@ import frappe
 from frappe import _
 from datetime import datetime, timedelta
 from productivity_next.api import calculate_total_working_hours
+from frappe.utils import get_timespan_date_range
 
 def execute(filters=None):
     columns = get_columns(filters)
-    data = get_data(filters)
+    from_date, to_date = get_timespan_date_range(filters.get("timespan"))
+    data = get_data(from_date, to_date)
     return columns, data
 
 def get_columns(filters=None):
@@ -81,24 +83,6 @@ def get_columns(filters=None):
             "width": 150
         },
         {
-            "fieldname": "keyboard",
-            "label": _("Keyboard"),
-            "fieldtype": "Data",
-            "width": 150
-        },
-        {
-            "fieldname": "mouse",
-            "label": _("Mouse"),
-            "fieldtype": "Data",
-            "width": 150
-        },
-        {
-            "fieldname": "scroll",
-            "label": _("Scroll"),
-            "fieldtype": "Data",
-            "width": 150
-        },
-        {
             "fieldname": "meetings",
             "label": _("Meetings"),
             "fieldtype": "Data",
@@ -114,9 +98,9 @@ def get_columns(filters=None):
 
     return columns
 
-def get_data(filters=None):
+def get_data(from_date, to_date):
     data = []
-    user_analysis = user_analysis_data(filters.get("from_date"), filters.get("to_date"))
+    user_analysis = user_analysis_data(from_date, to_date)
 
     # Initialize total counters
     total_hours_sum = 0
@@ -128,9 +112,6 @@ def get_data(filters=None):
     outgoing_hours_sum = 0
     missed_calls_sum = 0
     rejected_calls_sum = 0
-    keyboard_sum = 0
-    mouse_sum = 0
-    scroll_sum = 0
     meetings_sum = 0
     meetings_hours_sum = 0
 
@@ -152,9 +133,6 @@ def get_data(filters=None):
             "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
             "missed_calls": employee_data.get("missed_fincall_count", 0),
             "rejected_calls": employee_data.get("rejected_fincall_count", 0),
-            "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
-            "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
-            "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
             "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
             "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
         }
@@ -169,9 +147,6 @@ def get_data(filters=None):
         outgoing_hours_sum += employee_data.get("total_outgoing_duration", 0)
         missed_calls_sum += employee_data.get("missed_fincall_count", 0)
         rejected_calls_sum += employee_data.get("rejected_fincall_count", 0)
-        keyboard_sum += user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0)
-        mouse_sum += user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0)
-        scroll_sum += user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0)
         meetings_sum += user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0)
         meetings_hours_sum += user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
 
@@ -190,9 +165,6 @@ def get_data(filters=None):
         "outgoing_hours": outgoing_hours_sum,
         "missed_calls": missed_calls_sum,
         "rejected_calls": rejected_calls_sum,
-        "keyboard": keyboard_sum,
-        "mouse": mouse_sum,
-        "scroll": scroll_sum,
         "meetings": meetings_sum,
         "meetings_hours": meetings_hours_sum
     }

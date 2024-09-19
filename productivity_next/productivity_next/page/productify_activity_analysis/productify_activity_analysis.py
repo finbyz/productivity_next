@@ -13,7 +13,7 @@ from productivity_next.api import calculate_total_working_hours
 from dateutil.parser import parse
 
 # Sidebar Activity Data code starts
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_activity_chart_data(user,start_date=None, end_date=None):
     if user == "Administrator":
         return {}
@@ -677,7 +677,7 @@ def type_of_calls(user = None,start_date=None,end_date=None):
 # Type Of Calls Code Ends
 
 # URL DATA AND SIDEBAR DATA CODE STARTS
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True, methods=["GET"])
 def fetch_url_data(user,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]

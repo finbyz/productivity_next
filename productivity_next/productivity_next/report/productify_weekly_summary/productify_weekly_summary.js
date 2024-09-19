@@ -4,16 +4,12 @@
 frappe.query_reports["Productify Weekly Summary"] = {
 	"filters": [
 		{
-			fieldname: "from_date",
-			label: __("From Date"),
-			fieldtype: "Date",
-			default: frappe.datetime.add_days(frappe.datetime.get_today(), -7)
-		},
-		{
-			fieldname: "to_date",
-			label: __("To Date"),
-			fieldtype: "Date",
-			default: frappe.datetime.add_days(frappe.datetime.get_today(), -1)
-		}
+            "fieldname": "timespan",
+            "label": __("Timespan"),
+            "fieldtype": "Select",
+            "width": "80",
+            "options": "\ntoday\nyesterday\nthis week\nlast week\nthis month\nlast month",
+            "default": "yesterday"
+        },
 	]
 };
