@@ -112,7 +112,7 @@
  ],
  "image_field": "screenshot",
  "links": [],
- "modified": "2024-09-04 10:20:56.463496",
+ "modified": "2024-09-19 16:18:08.162550",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",
@@ -128,18 +128,6 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Prodcutivity Manager",
    "share": 1,
    "write": 1
   },

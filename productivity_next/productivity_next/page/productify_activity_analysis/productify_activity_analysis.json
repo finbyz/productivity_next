@@ -3,8 +3,8 @@
  "creation": "2024-07-17 09:39:38.979129",
  "docstatus": 0,
  "doctype": "Page",
- "idx": 0,
- "modified": "2024-07-17 09:40:06.123031",
+ "idx": 12,
+ "modified": "2024-09-19 16:33:33.256497",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Activity Analysis",
@@ -13,9 +13,6 @@
  "roles": [
   {
    "role": "Employee"
-  },
-  {
-   "role": "Productivity User"
   }
  ],
  "script": null,

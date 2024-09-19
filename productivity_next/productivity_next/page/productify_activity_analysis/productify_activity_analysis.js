@@ -2323,7 +2323,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 					this.score2 = 100;
 				}
 				else {
-					this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
+					this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(0);
 				}
 				$(document).ready(function() {
 
