@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 # Copyright (c) 2013, Frappe Technologies Pvt. Ltd.
 # For license information, please see license.txt
 
@@ -185,14 +184,3 @@ def get_report_summary(data):
         return []
 
     return []
-=======
-# Copyright (c) 2024, Finbyz Tech Pvt Ltd and contributors
-# For license information, please see license.txt
-
-# import frappe
-
-
-def execute(filters=None):
-	columns, data = [], []
-	return columns, data
->>>>>>> Stashed changes
