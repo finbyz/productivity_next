@@ -100,6 +100,7 @@ UserProfile = class UserProfile {
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
 		this.overall_performance();
 		this.fetch_url_data();
+		this.type_of_calls();
 	
 		// JavaScript to handle tab switching
 		const tabs = document.querySelectorAll('.nav-link');
@@ -123,7 +124,6 @@ UserProfile = class UserProfile {
 					this.web_browsing_time();
 					this.top_document_analysis();
 					this.render_images();
-					// this.overall_performance_timely();
 				}
 				if (target.getAttribute('aria-labelledby') === 'phone-calls-tab') {
 					this.top_phone_calls();
@@ -531,7 +531,7 @@ UserProfile = class UserProfile {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
 									} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
-										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Internal:</span> ${params.data[4]}<br>`;
+										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Arranged By:</span> ${params.data[4]}<br>`;
 										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
 										if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
 										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
@@ -751,279 +751,283 @@ UserProfile = class UserProfile {
 						});
 					});
 					overallPerformance.on('click', function (params) {
-						// console.log("params",params);
 						if (params.value[0] === 'Inactive' || params.value[0] === 'Idle') {
-							// console.log("start",params.value[2]);
 							var startTime = params.value[2];
 							var endTime = params.value[3];
-							// console.log("hiiiiiiiiiiiiiiiiiiii",startTime, endTime);
 							var employeeName = params.value[1];
-	
-							frappe.db.get_value("Employee", {
-								employee_name: employeeName
-							}, "user_id").then(r => {
-								var employeeId = r.message.user_id;
-								const table_fields = [
-									{
-										label: "Employee",
-										fieldname: "employee",
-										fieldtype: "Link",
-										in_list_view: 1,
-										options: "Employee",
-										ignore_user_permissions: 1,
-										reqd: 1,
-									}
-								];
-								const party_fields = [
-									{
-										label: 'Contact',
-										fieldname: 'contact',
-										fieldtype: 'Link',
-										options: 'Contact',
-										in_list_view: 1,
-										get_query: function() {
-											const selectedParty = d.get_values().party;
-											const selectedPartyType = d.get_values().party_type;
-											return {
-												filters: {
-													link_doctype: selectedPartyType,
-													link_name: selectedParty
-												}
-											};
+					
+							// Fetch employee data
+							console.log("employeeName", this.selected_employee);	
+							frappe.db.get_value("Employee", { employee_name: employeeName }, "user_id")
+								.then(r => {
+									console.log(r)
+									return frappe.call({
+										method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_project_enabled",
+									});
+								})
+								.then(subscription_response => {
+									console.log(subscription_response.message);
+									const projectEnabled = subscription_response.message ? subscription_response.message : false;
+									console.log("Project Enabled:", projectEnabled);
+									// Define fields for the dialog
+									const table_fields = [
+										{
+											label: "Employee",
+											fieldname: "employee",
+											fieldtype: "Link",
+											in_list_view: 1,
+											options: "Employee",
+											ignore_user_permissions: 1,
+											reqd: 1,
 										}
-									}
-								];
-								var fields = [
-									{
-										fieldtype: "HTML",
-										options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
-									},
-									{
-										fieldtype: 'Section Break',
-									},
-									{
-										label: "Internal Meeting",
-										fieldname: "internal_meeting",
-										fieldtype: "Check",
-										onchange: function() {
-											const companyRepField = d.fields_dict.meeting_company_representative;
-											if (this.get_value()) {
-												companyRepField.df.reqd = 1;
-												companyRepField.grid.min_rows = 2;
-											} else {
-												companyRepField.df.reqd = 0;
-												companyRepField.grid.min_rows = 0;
-											}
-											companyRepField.refresh();
-										}
-									},
-									{
-										fieldname: 'internal_meeting_note',
-										fieldtype: 'HTML',
-										options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
-										depends_on: 'eval:doc.internal_meeting'
-									},
-									{
-										label: "Purpose",
-										fieldname: "purpose",
-										fieldtype: "Link",
-										options: "Meeting Purpose",
-										reqd: 1
-									},
-									{
-										label: __("Party Type"),
-										fieldtype: 'Link',
-										options: "DocType",
-										fieldname: 'party_type',
-										get_query: function () {
-											return {
-												filters: {
-													"name": ["in", ["Customer", "Supplier", "Lead"]]
-												}
-											};
-										},
-										depends_on: 'eval:!doc.internal_meeting',
-										mandatory_depends_on: 'eval:!doc.internal_meeting',
-									},
-									{
-										label: 'Party',
-										fieldname: 'party',
-										fieldtype: 'Dynamic Link',
-										options: 'party_type',
-										change: function() {
-											const selectedParty = d.get_value('party');
-											const selectedPartyType = d.get_value('party_type');
-									
-											if (selectedParty && selectedPartyType) {
-												d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
-													return {
-														filters: {
-															link_doctype: selectedPartyType,
-															link_name: selectedParty
-														}
-													};
+									];
+									const party_fields = [
+										{
+											label: 'Contact',
+											fieldname: 'contact',
+											fieldtype: 'Link',
+											options: 'Contact',
+											in_list_view: 1,
+											get_query: function() {
+												const selectedParty = d.get_values().party;
+												const selectedPartyType = d.get_values().party_type;
+												return {
+													filters: {
+														link_doctype: selectedPartyType,
+														link_name: selectedParty
+													}
 												};
-												d.fields_dict['meeting_party_representative'].grid.refresh();
+											}
+										}
+									];
+									var fields = [
+										{
+											fieldtype: "HTML",
+											options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
+										},
+										{
+											fieldtype: 'Section Break',
+										},
+										{
+											label: "Internal Meeting",
+											fieldname: "internal_meeting",
+											fieldtype: "Check",
+											onchange: function() {
+												const companyRepField = d.fields_dict.meeting_company_representative;
+												if (this.get_value()) {
+													companyRepField.df.reqd = 1;
+													companyRepField.grid.min_rows = 2;
+												} else {
+													companyRepField.df.reqd = 0;
+													companyRepField.grid.min_rows = 0;
+												}
+												companyRepField.refresh();
 											}
 										},
-										depends_on: 'eval:!doc.internal_meeting',
-										mandatory_depends_on: 'eval:!doc.internal_meeting',
-									},
-									{
-										label: "Meeting Arranged By",
-										fieldname: "meeting_arranged_by",
-										fieldtype: "Link",
-										options: "User",
-										default: employeeId,
-										reqd: 1
-									},
-									{
-										fieldtype: 'Column Break',
-									},
-									{
-										label: 'Meeting From',
-										fieldname: 'meeting_from',
-										fieldtype: 'Datetime',
-										default: startTime,
-										reqd: 1
-									},
-									{
-										label: 'Meeting To',
-										fieldname: 'meeting_to',
-										fieldtype: 'Datetime',
-										default: endTime,
-										reqd: 1
-									},
-									// {
-									// 	label: "Industry",
-									// 	fieldname: "industry",
-									// 	fieldtype: "Link",
-									// 	options: "Industry Type",
-									// 	depends_on: 'eval:!doc.internal_meeting',
-									// 	mandatory_depends_on: 'eval:!doc.internal_meeting',
-									// },
-									{
-										fieldtype: 'Section Break',
-									},
-									{
-										label: 'Meeting Company Representative',
-										"allow_bulk_edit": 1,
-										fieldname: 'meeting_company_representative',
-										fieldtype: 'Table',
-										fields: table_fields,
-										options: 'Meeting Company Representative',
-										reqd: 1,
-										onchange: function() {
-											if (d.get_value('internal_meeting')) {
-												this.grid.min_rows = 2;
-											} else {
-												this.grid.min_rows = 0;
-											}
-										}
-									},
-									{
-										fieldtype: 'Section Break',
-									},
-									{
-										label: 'Meeting Party Representative',
-										fieldname: 'meeting_party_representative',
-										fieldtype: 'Table',
-										fields: party_fields,
-										options: 'Meeting Party Representative',
-										depends_on: 'eval:!doc.internal_meeting',
-									},
-									{
-										label: "Discussion",
-										fieldname: "discussion",
-										fieldtype: "Text Editor",
-										reqd: 1
-									},
-								];
-	
-								let d = new frappe.ui.Dialog({
-									title: 'Add Meeting',
-									fields: fields,
-									primary_action_label: 'Submit',
-									primary_action(values) {
-										// Disable the button and change its text
-										this.disable_primary_action();
-										this.set_title('Submitting...');
-								
-										if (values.internal_meeting) {
-											const companyRepresentatives = values.meeting_company_representative || [];
-											if (companyRepresentatives.length < 2) {
-												frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
-												// Re-enable the button if validation fails
-												this.enable_primary_action();
-												this.set_title('Submit');
-												return;
-											}
-										}
-								
-										frappe.call({
-											method: "productivity_next.api.add_meeting",
-											args: {
-												meeting_from: values.meeting_from,
-												meeting_to: values.meeting_to,
-												meeting_arranged_by: values.meeting_arranged_by,
-												internal_meeting: values.internal_meeting,
-												purpose: values.purpose,
-												// industry: values.industry || null,
-												party_type: values.party_type || null,
-												party: values.party || null,
-												discussion: values.discussion,
-												meeting_company_representative: values.meeting_company_representative || null,
-												meeting_party_representative: values.meeting_party_representative || null
+										{
+											fieldname: 'internal_meeting_note',
+											fieldtype: 'HTML',
+											options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+											depends_on: 'eval:doc.internal_meeting'
+										},
+										{
+											label: "Purpose",
+											fieldname: "purpose",
+											fieldtype: "Link",
+											options: "Meeting Purpose",
+											reqd: 1
+										},
+										{
+											label: __("Party Type"),
+											fieldtype: 'Link',
+											options: "DocType",
+											fieldname: 'party_type',
+											get_query: function () {
+												return {
+													filters: {
+														"name": ["in", ["Customer", "Supplier", "Lead"]]
+													}
+												};
 											},
-											callback: (r) => {
-												if (r.message) {
-													frappe.msgprint({
-														title: __('Success'),
-														indicator: 'green',
-														message: __('Meeting added successfully')
-													});
-													this.hide();
+											depends_on: 'eval:!doc.internal_meeting',
+											mandatory_depends_on: 'eval:!doc.internal_meeting',
+										},
+										{
+											label: 'Party',
+											fieldname: 'party',
+											fieldtype: 'Dynamic Link',
+											options: 'party_type',
+											change: function() {
+												const selectedParty = d.get_value('party');
+												const selectedPartyType = d.get_value('party_type');
+										
+												if (selectedParty && selectedPartyType) {
+													d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+														return {
+															filters: {
+																link_doctype: selectedPartyType,
+																link_name: selectedParty
+															}
+														};
+													};
+													d.fields_dict['meeting_party_representative'].grid.refresh();
+												}
+											},
+											depends_on: 'eval:!doc.internal_meeting',
+											mandatory_depends_on: 'eval:!doc.internal_meeting',
+										},
+										{
+											label: "Meeting Arranged By",
+											fieldname: "meeting_arranged_by",
+											fieldtype: "Link",
+											options: "User",
+											reqd: 1
+										},
+										{
+											fieldtype: 'Column Break',
+										},
+										{
+											label: 'Meeting From',
+											fieldname: 'meeting_from',
+											fieldtype: 'Datetime',
+											default: startTime,
+											reqd: 1
+										},
+										{
+											label: 'Meeting To',
+											fieldname: 'meeting_to',
+											fieldtype: 'Datetime',
+											default: endTime,
+											reqd: 1
+										},
+										{
+											fieldtype: 'Section Break',
+										},
+										{
+											label: 'Meeting Company Representative',
+											"allow_bulk_edit": 1,
+											fieldname: 'meeting_company_representative',
+											fieldtype: 'Table',
+											fields: table_fields,
+											options: 'Meeting Company Representative',
+											reqd: 1,
+											onchange: function() {
+												if (d.get_value('internal_meeting')) {
+													this.grid.min_rows = 2;
 												} else {
-													// If there's no message, assume it's an error
+													this.grid.min_rows = 0;
+												}
+											}
+										},
+										{
+											fieldtype: 'Section Break',
+										},
+										{
+											label: 'Meeting Party Representative',
+											fieldname: 'meeting_party_representative',
+											fieldtype: 'Table',
+											fields: party_fields,
+											options: 'Meeting Party Representative',
+											depends_on: 'eval:!doc.internal_meeting',
+										},
+										{
+											label: "Discussion",
+											fieldname: "discussion",
+											fieldtype: "Text Editor",
+											reqd: 1
+										},
+									];
+					
+									// Add Project field if enabled in Productify Subscription
+									if (projectEnabled) {
+										fields.splice(9, 0, {
+											label: "Project",
+											fieldname: "project",
+											fieldtype: "Link",
+											options: "Project"
+										});
+									}
+					
+									let d = new frappe.ui.Dialog({
+										title: 'Add Meeting',
+										fields: fields,
+										primary_action_label: 'Submit',
+										primary_action(values) {
+											this.disable_primary_action();
+											this.set_title('Submitting...');
+									
+											if (values.internal_meeting) {
+												const companyRepresentatives = values.meeting_company_representative || [];
+												if (companyRepresentatives.length < 2) {
+													frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+													this.enable_primary_action();
+													this.set_title('Submit');
+													return;
+												}
+											}
+									
+											frappe.call({
+												method: "productivity_next.api.add_meeting",
+												args: {
+													meeting_from: values.meeting_from,
+													meeting_to: values.meeting_to,
+													meeting_arranged_by: values.meeting_arranged_by,
+													internal_meeting: values.internal_meeting,
+													purpose: values.purpose,
+													party_type: values.party_type || null,
+													party: values.party || null,
+													discussion: values.discussion,
+													meeting_company_representative: values.meeting_company_representative || null,
+													meeting_party_representative: values.meeting_party_representative || null,
+													project: values.project || null  // Add project to the args
+												},
+												callback: (r) => {
+													if (r.message) {
+														frappe.msgprint({
+															title: __('Success'),
+															indicator: 'green',
+															message: __('Meeting added successfully')
+														});
+														this.hide();
+													} else {
+														frappe.msgprint({
+															title: __('Error'),
+															indicator: 'red',
+															message: __('Failed to add meeting. Please try again.')
+														});
+														this.enable_primary_action();
+														this.set_title('Submit');
+													}
+												},
+												error: (r) => {
 													frappe.msgprint({
 														title: __('Error'),
 														indicator: 'red',
-														message: __('Failed to add meeting. Please try again.')
+														message: __('An error occurred while adding the meeting. Please try again.')
 													});
-													// Re-enable the submit button
 													this.enable_primary_action();
 													this.set_title('Submit');
 												}
-											},
-											error: (r) => {
-												// Handle any errors that occur during the call
-												frappe.msgprint({
-													title: __('Error'),
-													indicator: 'red',
-													message: __('An error occurred while adding the meeting. Please try again.')
-												});
-												// Re-enable the submit button
-												this.enable_primary_action();
-												this.set_title('Submit');
-											}
-										});
-									}
-								});
-								
-								// Set up the purpose field filter
-								d.fields_dict.purpose.get_query = function () {
-									return {
-										filters: {
-											internal_meeting: d.get_value('internal_meeting')
+											});
 										}
+									});
+									
+									// Set up the purpose field filter
+									d.fields_dict.purpose.get_query = function () {
+										return {
+											filters: {
+												internal_meeting: d.get_value('internal_meeting')
+											}
+										};
 									};
-								};
-								
-								// Show the dialog
-								d.show();								
-							}).catch(err => {
-								console.error("Error fetching employee details:", err);
-							});
+					
+									// Show the dialog
+									d.show();
+								})
+								.catch(err => {
+									console.error("Error:", err);
+									frappe.msgprint("An error occurred while fetching data. Please try again.");
+								});
 						}
 					});
 				}
@@ -1076,7 +1080,11 @@ UserProfile = class UserProfile {
 				var priorityOrder = {
 					'Inactive': 0,
 					'Application': 1,
-					'Idle': 2,
+					'Browser': 2,
+					'Idle': 3,
+					'Internal Meeting': 4,
+					'External Meeting': 5,
+					'Call': 6
 				};
 	
 				function makeOption() {
@@ -1088,191 +1096,89 @@ UserProfile = class UserProfile {
 					function padZero(num) {
 						return num < 10 ? `0${num}` : num;
 					}
-	
-					// Define the inactive periods array
+// Function to get the start of the hour for a given date
+function getStartOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
+}
+
+// Function to get the end of the hour for a given date
+function getEndOfHour(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
+}
+
+// Define the inactive periods array
 var inactivePeriods = [];
-// Define a map to track the end time of the last activity for each employee
+
+// Define a map to track the last end time of each employee
 var employeeLastEndTime = {};
+
 // Sort the flight data by date and then by priority
 _rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
 _rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
+
 // Iterate over each activity in the flight data
 for (var i = 0; i < _rawData.flight.data.length; i++) {
     var activity = _rawData.flight.data[i];
     var employeeName = activity[1];
-    var startTime = new Date(activity[2]).getTime();
-    var endTime = new Date(activity[3]).getTime(); // Assuming end time is at index 3
+    var startTime = new Date(activity[2]);
+    var endTime = new Date(activity[3]); // Assuming end time is at index 3
+
     // Initialize employee's last end time if not already set
     if (!employeeLastEndTime[employeeName]) {
-        employeeLastEndTime[employeeName] = startTime; // Set to the start time of the first activity
+        employeeLastEndTime[employeeName] = getStartOfHour(startTime);
     }
+
     // Calculate inactive period if there is a gap between the last activity and the current start time
     if (startTime > employeeLastEndTime[employeeName]) {
-        var lastEndTime = employeeLastEndTime[employeeName];
-        var startTimeString = convertDateTime(new Date(lastEndTime).toISOString());
-        var endTimeString = convertDateTime(new Date(startTime).toISOString());       
-        inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
-    }
-    // Update the last end time to the end time of the current activity
-    employeeLastEndTime[employeeName] = endTime;
-}
-// Combine flight data with inactive periods
-_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-// Sort combined data by date and priority
-_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-// Format the date for each entry
-_rawData.flight.data = _rawData.flight.data.map(item => {
-    let date = new Date(item[2]);
-    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
-    return [item[0], formattedDate, ...item.slice(2)];
-});
-// Function to get the start of the hour for a given date
-function getStartOfHour(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
-}
-
-// Function to get the end of the hour for a given date
-function getEndOfHour(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
-}
-
-// Define the inactive periods array
-var inactivePeriods = [];
-
-// Define a map to track the last end time of each employee
-var employeeLastEndTime = {};
-
-// Sort the flight data by date and then by priority
-_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-
-// Iterate over each activity in the flight data
-for (var i = 0; i < _rawData.flight.data.length; i++) {
-    var activity = _rawData.flight.data[i];
-    var employeeName = activity[1];
-    var startTime = new Date(activity[2]);
-    var endTime = new Date(activity[3]); // Assuming end time is at index 3
-
-    var hourStart = getStartOfHour(startTime);
-    var hourEnd = getEndOfHour(startTime);
-
-    // Initialize employee's last end time if not already set
-    if (!employeeLastEndTime[employeeName]) {
-        employeeLastEndTime[employeeName] = hourStart;
-    }
-
-    // Calculate inactive periods for the previous hour if there's a gap
-    if (employeeLastEndTime[employeeName] < hourStart) {
-        if (employeeLastEndTime[employeeName] < hourEnd) {
-            var inactiveStart = employeeLastEndTime[employeeName];
-            var inactiveEnd = Math.min(hourEnd, startTime);
-            if (inactiveStart < inactiveEnd) {
-                var startTimeString = convertDateTime(new Date(inactiveStart).toISOString());
-                var endTimeString = convertDateTime(new Date(inactiveEnd).toISOString());
-                inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
-            }
-        }
-        // Update last end time to the end of the current activity
-        employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
-    } else {
-        // Update last end time to the end of the current activity
-        employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
-    }
-}
-
-// Handle inactive periods after the last activity of each employee for the day
-for (const employee in employeeLastEndTime) {
-    var lastEnd = employeeLastEndTime[employee];
-    var nextHourStart = getStartOfHour(new Date(lastEnd)).getTime() + 3600000; // Start of next hour
-    var endOfDay = new Date(lastEnd).setHours(23, 59, 59, 999);
-
-    if (nextHourStart < endOfDay) {
-        var startTimeString = convertDateTime(new Date(lastEnd).toISOString());
-        var endTimeString = convertDateTime(new Date(nextHourStart).toISOString());
-        inactivePeriods.push(['Inactive', employee, startTimeString, endTimeString]);
-    }
-}
-
-// Combine flight data with inactive periods
-_rawData.flight.data = _rawData.flight.data.concat(inactivePeriods);
-
-// Sort combined data by date and priority
-_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-
-// Format the date for each entry
-_rawData.flight.data = _rawData.flight.data.map(item => {
-    let date = new Date(item[2]);
-    let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
-    return [item[0], formattedDate, ...item.slice(2)];
-});
-// Function to get the start of the hour for a given date
-function getStartOfHour(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
-}
-
-// Function to get the end of the hour for a given date
-function getEndOfHour(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 59, 59, 999);
-}
-
-// Define the inactive periods array
-var inactivePeriods = [];
-
-// Define a map to track the last end time of each employee
-var employeeLastEndTime = {};
-
-// Sort the flight data by date and then by priority
-_rawData.flight.data.sort((a, b) => new Date(a[2]).getTime() - new Date(b[2]).getTime());
-_rawData.flight.data.sort((a, b) => priorityOrder[a[0]] - priorityOrder[b[0]]);
-
-// Iterate over each activity in the flight data
-for (var i = 0; i < _rawData.flight.data.length; i++) {
-    var activity = _rawData.flight.data[i];
-    var employeeName = activity[1];
-    var startTime = new Date(activity[2]);
-    var endTime = new Date(activity[3]); // Assuming end time is at index 3
-
-    var hourStart = getStartOfHour(startTime);
-    var hourEnd = getEndOfHour(startTime);
-
-    // Initialize employee's last end time if not already set
-    if (!employeeLastEndTime[employeeName]) {
-        // Initialize to the start of the day or the first hour boundary
-        employeeLastEndTime[employeeName] = hourStart;
-    }
-
-    // Handle inactive period from the end of the last activity to the start of the current activity
-    if (employeeLastEndTime[employeeName] < startTime) {
         var inactiveStart = employeeLastEndTime[employeeName];
         var inactiveEnd = startTime;
-        if (inactiveStart < inactiveEnd) {
-            var startTimeString = convertDateTime(new Date(inactiveStart).toISOString());
-            var endTimeString = convertDateTime(new Date(inactiveEnd).toISOString());
-            inactivePeriods.push(['Inactive', employeeName, startTimeString, endTimeString]);
+        
+        // If the inactive period crosses an hour boundary, split it
+        while (getEndOfHour(inactiveStart) < inactiveEnd && getEndOfHour(inactiveStart) < startTime) {
+            var hourEnd = getEndOfHour(inactiveStart);
+            inactivePeriods.push([
+                'Inactive',
+                employeeName,
+                convertDateTime(inactiveStart.toISOString()),
+                convertDateTime(hourEnd.toISOString())
+            ]);
+            inactiveStart = new Date(hourEnd.getTime() + 1); // Start of next hour
+        }
+        
+        // Add the remaining inactive period if it exists and is within the same hour
+        if (inactiveStart < inactiveEnd && inactiveStart.getHours() === inactiveEnd.getHours()) {
+            inactivePeriods.push([
+                'Inactive',
+                employeeName,
+                convertDateTime(inactiveStart.toISOString()),
+                convertDateTime(inactiveEnd.toISOString())
+            ]);
         }
     }
 
-    // Update last end time to the end of the current activity
-    employeeLastEndTime[employeeName] = Math.max(employeeLastEndTime[employeeName], endTime);
-
-    // Move the last end time to the end of the hour if needed
-    if (endTime > hourEnd) {
-        employeeLastEndTime[employeeName] = hourEnd;
-    }
+    // Update the last end time to the end of the current activity
+    employeeLastEndTime[employeeName] = endTime;
 }
 
 // Handle inactive periods at the end of the day for each employee
 for (const employee in employeeLastEndTime) {
     var lastEnd = employeeLastEndTime[employee];
-    var endOfDay = new Date(lastEnd).setHours(23, 59, 59, 999);
+    var endOfHour = getEndOfHour(lastEnd);
 
-    // Add inactive periods from the end of the last recorded activity until the end of the day
-    if (lastEnd < endOfDay) {
-        var startTimeString = convertDateTime(new Date(lastEnd).toISOString());
-        var endTimeString = convertDateTime(new Date(endOfDay).toISOString());
-        inactivePeriods.push(['Inactive', employee, startTimeString, endTimeString]);
+    // Only add an inactive period if it's within the same hour and there's actually a gap
+    if (lastEnd < endOfHour && 
+        lastEnd.getHours() === endOfHour.getHours() && 
+        lastEnd.getTime() !== endOfHour.getTime()) {
+        
+        // Ensure we're not creating a full 59-minute inactive period
+        if (endOfHour.getTime() - lastEnd.getTime() < 3540000) { // 59 minutes in milliseconds
+            inactivePeriods.push([
+                'Inactive',
+                employee,
+                convertDateTime(lastEnd.toISOString()),
+                convertDateTime(endOfHour.toISOString())
+            ]);
+        }
     }
 }
 
@@ -1289,8 +1195,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
     let formattedDate = `${padZero(date.getDate())}-${padZero(date.getMonth() + 1)}-${date.getFullYear()}`;
     return [item[0], formattedDate, ...item.slice(2)];
 });
-
-
 					var uniqueDates = [...new Set(_rawData.flight.data.map(item => item[1]))];
 	
 					function setFixedDate(timestamp) {
@@ -1341,52 +1245,128 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 								if (minutes > 0) durationString += minutes + "m ";
 								if (seconds > 0 || durationString === "") durationString += seconds + "s";
 	
-								var tooltipContent = `
-									<div class="custom-tooltip">
-										<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
-											<tr>
-												<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
-												<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
-											</tr>
-								`;
+								var tooltipContent = ``;
 
+								if (activityType === "Application" || activityType === "Browser") {
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">${params.data[9]}</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Call") {
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Call</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Idle"){
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Idle</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Inactive"){
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Inactive</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
+								if (activityType === "Internal Meeting" || activityType === "External Meeting") {
+									tooltipContent += `
+										<div class="custom-tooltip">
+											<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+												<tr>
+													<td style="padding: 0px 10px; text-align: left; font-weight: bold;">${startTimeString}</td>
+													<td style="padding: 0px 10px; font-weight: bold;">Meeting</td>
+													<td style="padding: 0px 10px; text-align: right; font-weight: bold;">${durationString}</td>
+												</tr>
+									`;
+								}
 								if (activityType === "Application" || activityType === "Browser") {
 									if (params.data[4]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
-											</tr>`;
-									}
-									if (activityType) {
-										tooltipContent += `
-											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[9]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
 											</tr>`;
 									}
 									if (params.data[5]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
 											</tr>`;
 									}
 									if (params.data[6]) {
 										tooltipContent += `
 											<tr>
-												<td colspan="2" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[6]}</td>
 											</tr>`;
 									}
 									if (params.data[7] && params.data[8]) {
 										tooltipContent += `
 											<tr>
 												<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
+												<td></td>
 												<td style="padding: 0px 10px; text-align: left;">${params.data[8]}</td>
 											</tr>`;
 									}
-								} else {
-									tooltipContent += `
-										<tr>
-											<td colspan="2" style="padding: 0px 10px; text-align: left;">${activityType}</td>
-										</tr>`;
+								}
+								if (activityType === "Call") {
+									console.log("params",params);
+									if (params.data[4]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
+											</tr>`;
+									}
+									if (params.data[6] && params.data[7]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[6]} - ${params.data[7]}</td>
+											</tr>`;
+									}
+								} 
+								if (activityType === "Internal Meeting" || activityType === "External Meeting") {
+									if (params.data[7] && params.data[8]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[8]} - ${params.data[7]}</td>
+											</tr>`;
+									}
+									if (params.data[4]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[4]}</td>
+											</tr>`;
+									}
+									if (params.data[5]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[5]}</td>
+											</tr>`;
+									}
+								}
+								else {
+									
 								}
 
 								tooltipContent += `
@@ -1473,10 +1453,16 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 										color = '#FF6666';
 									} else if (activityType === 'Browser') {
 										color = '#2c5278';
+									} else if (activityType === 'Call') {
+										color = '#FFCC66';
+									} else if (activityType === 'Internal Meeting') {
+										color = '#9966FF';
+									} else if (activityType == 'External Meeting') {
+										color = '#6699FF';
 									} else {
 										color = '#4BC0C0';
 									}
-	
+
 									var barHeight = Math.min(20, api.size([0, 1])[1] * 0.8);
 	
 									var item = {
@@ -1968,7 +1954,17 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
-				if (r.length === 0) {
+				const tabs = document.querySelectorAll('.nav-link');
+				const contents = document.querySelectorAll('.tab-pane');
+
+				// Hide calls tab if no call data is available
+				const callsTab = document.querySelector('#phone-calls-tab');
+				const callsContent = document.querySelector('#phone-calls');
+				if (r[0].value === null) {
+					console.log("No data available to plot the chart........................................");
+					if (callsTab) callsTab.style.display = 'none';
+        			if (callsContent) callsContent.style.display = 'none';
+					
 					// console.log("No data available to plot the chart.");
 					return;
 				}
@@ -2083,7 +2079,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 						});
 					});
 					this.activity_data();
-					// console.log("score", this.numberCardData.score);
 				}
 			}
 		});
@@ -2298,7 +2293,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 			.catch((err) => {
 				console.error("Error fetching user image:", err);
 			});
-			// console.log("scor0e", this.score2);
 
 		this.setup_user_profile_links();
 	}
@@ -2325,7 +2319,12 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
-				this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
+				if (this.numberCardData.score == 0) {
+					this.score2 = 100;
+				}
+				else {
+					this.score2 = parseFloat(((r.total_active_hours/3600)/this.numberCardData.score)*100).toFixed(2);
+				}
 				$(document).ready(function() {
 
 					const hovercontainer = $("#user-activity-hover");
@@ -2501,52 +2500,52 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 								}
 							</style>
 						
-`;
+							`;
 				const mobilecontainer = $("#user-activity-mobile");
 				mobilecontainer.html(`
 					${styles}
 					<div class="d-lg-none">
 						<div class="card border-primary shadow table-height">
 							<div class="card-body">
-  <h5 class="card-title text-primary text-center">User Activity</h5>
-  <table class="table table-borderless custom-table">
-    <tbody>
-      <tr>
-        <td>Call:</td>
-        <td class="justify time-cell"><span>${total_call_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>Meeting:</td>
-        <td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
-      </tr>
-      <tr>
-        <td>System:</td>
-        <td class="justify time-cell"><span>${total_system_hours} H</span></td>
-      </tr>
-      <tr style="border-bottom: 1px solid #E5E4E2;">
-        <td>Overlapping:</td>
-        <td class="justify time-cell"><span>-${overlapping} H</span></td>
-      </tr>
-      <tr>
-        <td><b>Active Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
-      </tr>
-      <tr>
-        <td><b>Idle Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
-      </tr>
-      ${r.total_inactive_hours > 0 ? `
-      <tr>
-        <td><b>Inactive Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
-      </tr>` : ''}
-      <tr style="border-top: 3px solid">
-        <td><b>Total Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+							<h5 class="card-title text-primary text-center">User Activity</h5>
+							<table class="table table-borderless custom-table">
+								<tbody>
+								<tr>
+									<td>Call:</td>
+									<td class="justify time-cell"><span>${total_call_raw} H</span></td>
+								</tr>
+								<tr>
+									<td>Meeting:</td>
+									<td class="justify time-cell"><span>${total_meeting_raw} H</span></td>
+								</tr>
+								<tr>
+									<td>System:</td>
+									<td class="justify time-cell"><span>${total_system_hours} H</span></td>
+								</tr>
+								<tr style="border-bottom: 1px solid #E5E4E2;">
+									<td>Overlapping:</td>
+									<td class="justify time-cell"><span>-${overlapping} H</span></td>
+								</tr>
+								<tr>
+									<td><b>Active Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_active_hours} H</b></span></td>
+								</tr>
+								<tr>
+									<td><b>Idle Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
+								</tr>
+								${r.total_inactive_hours > 0 ? `
+								<tr>
+									<td><b>Inactive Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+								</tr>` : ''}
+								<tr style="border-top: 3px solid">
+									<td><b>Total Time:</b></td>
+									<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
+								</tr>
+								</tbody>
+							</table>
+							</div>
 						</div>
 					</div>`
 				)

@@ -32,14 +32,27 @@ def set_dates(start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_employees():
-    employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["name", "employee_name"])
+    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
+    employee_analysis = frappe.get_all('List of User', fields=['employee', 'employee_name'])
+    all_analysed_employees = []
+    for employee in employees:
+        if employee['name'] in [emp['employee'] for emp in employee_analysis]:
+            all_analysed_employees.append(employee)
+    employees = all_analysed_employees
+
     if not employees:
         return []
     return employees
 
 @frappe.whitelist()
 def get_employees_version():
-    employees = frappe.get_list("Employee", filters={"status": "Active","enable_productify_analysis":1}, fields=["user_id"])
+    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["user_id","name"])
+    employee_analysis = frappe.get_all('List of User', fields=['employee', 'employee_name'])
+    all_analysed_employees = []
+    for employee in employees:
+        if employee['name'] in [emp['employee'] for emp in employee_analysis]:
+            all_analysed_employees.append({"user_id":employee['user_id']})
+    employees = all_analysed_employees
     if not employees:
         return []
     return employees
@@ -268,7 +281,8 @@ def employee_calls_chart(user, start_date=None, end_date=None):
 # Overall Performance (All Employees) Code Starts
 @frappe.whitelist()
 def overall_performance_chart(start_date=None, end_date=None):
-    employees = get_employees_overall_performance(end_date)
+    employees = get_employees()
+    employees_overall = get_employees_overall_performance(end_date)
     if not employees:
         return {}
     calls = frappe.db.sql(f"""
@@ -276,7 +290,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             call_datetime AS call_start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS call_end,
             employee, employee_name,COALESCE(contact, client, customer_no) as caller, calltype
         FROM `tabEmployee Fincall`
-        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -286,7 +300,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
-        WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE m.meeting_from >= '{end_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY mcr.employee
     """, as_dict=True)
 
@@ -295,7 +309,7 @@ def overall_performance_chart(start_date=None, end_date=None):
             from_time AS idle_start, to_time AS idle_end,
             employee, employee_name
         FROM `tabEmployee Idle Time`
-        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE date >= '{end_date}' and date <= '{end_date}' and employee IN ({','.join(f"'{employee['name']}'" for employee in employees)})
         ORDER BY employee
     """, as_dict=True)
 
@@ -305,10 +319,9 @@ def overall_performance_chart(start_date=None, end_date=None):
             dwsp.employee, dwsp.employee_name
         FROM `tabProductify Work Summary` AS dwsp
         JOIN `tabProductify Work Summary Application` AS a ON a.parent = dwsp.name
-        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees)})
+        WHERE dwsp.date >= '{end_date}' and dwsp.date <= '{end_date}' AND dwsp.employee IN ({','.join(f"'{employee['employee']}'" for employee in employees_overall)})
         ORDER BY dwsp.employee
     """, as_dict=True)
-
     base_data = []
     for app in applications:
         base_data.append([
@@ -335,7 +348,7 @@ def overall_performance_chart(start_date=None, end_date=None):
                 meeting['employee_name'].split()[0] + " " + meeting['employee_name'].split()[-1][0] + "." if meeting['employee_name'] else "",
                 meeting['meeting_start'],
                 meeting['meeting_end'],
-                meeting['internal'],
+                meeting['meeting_arranged_by'],
                 meeting['client']
             ])
         else:
@@ -362,7 +375,7 @@ def overall_performance_chart(start_date=None, end_date=None):
     for i in employees:
         data.append([
             i['employee_name'].split()[0] + " " + i['employee_name'].split()[-1][0] + "." if i['employee_name'] else "",
-            i['employee'],
+            i['name'],
         ])
 
     return{
@@ -606,9 +619,15 @@ def user_analysis_data(start_date=None, end_date=None):
         }
     
     productivity_score = {}
+    # Retrieve working hours per day and on Saturday from the database
+    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+
+    hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
+    hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
 
     for employee in employees:
-        score = calculate_total_working_hours(employee['name'], start_date, end_date, 8)
+        score = calculate_total_working_hours(employee['name'],start_date, end_date, hours_per_weekday, hours_on_saturday)
         productivity_score[employee['name']] = score
     
     return {

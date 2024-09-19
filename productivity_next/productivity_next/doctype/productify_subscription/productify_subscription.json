@@ -8,12 +8,17 @@
   "organization_name",
   "status",
   "valid_upto",
+  "keep_screen_shots_for_days",
+  "keep_application_logs_for_days",
   "fincall",
   "application_usage",
   "sales_person",
   "project",
   "task",
   "issue",
+  "enable_blurred_screenshot",
+  "working_hours_per_day",
+  "working_hours_on_saturday",
   "column_break_ipqe",
   "site_url",
   "email",
@@ -23,6 +28,8 @@
   "api_secret",
   "application_organization_name",
   "call_organization_name",
+  "encrypted_challenge",
+  "challenge_updated_on",
   "section_break_qria",
   "get_users",
   "list_of_users"
@@ -119,19 +126,19 @@
    "default": "0",
    "fieldname": "project",
    "fieldtype": "Check",
-   "label": "Project"
+   "label": "Enable Project Analysis"
   },
   {
    "default": "0",
    "fieldname": "issue",
    "fieldtype": "Check",
-   "label": "Issue"
+   "label": "Enable Issue Analysis"
   },
   {
    "default": "0",
    "fieldname": "task",
    "fieldtype": "Check",
-   "label": "Task"
+   "label": "Enable Task Analysis"
   },
   {
    "fieldname": "api_key",
@@ -156,12 +163,56 @@
    "fieldtype": "Data",
    "hidden": 1,
    "label": "Call Organization Name"
+  },
+  {
+   "description": "Enter the number of working hours per weekday (Monday to Friday) in the format 7, 7.5, 8, etc. If not filled, the default is 7.5 hours per weekday.",
+   "fieldname": "working_hours_per_day",
+   "fieldtype": "Data",
+   "label": "Working Hours Per Day"
+  },
+  {
+   "description": "Enter the number of working hours for Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 2.5 hours for Saturday.",
+   "fieldname": "working_hours_on_saturday",
+   "fieldtype": "Data",
+   "label": "Working Hours On Saturday"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which screenshots will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_screen_shots_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Screen Shots For Days"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which application usage logs will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_application_logs_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Application Logs for Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_blurred_screenshot",
+   "fieldtype": "Check",
+   "label": "Enable Blurred Screenshot"
+  },
+  {
+   "fieldname": "encrypted_challenge",
+   "fieldtype": "Text",
+   "label": "Encrypted Challenge",
+   "read_only": 1
+  },
+  {
+   "fieldname": "challenge_updated_on",
+   "fieldtype": "Date",
+   "label": "Challenge Updated On",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-08-26 12:11:34.055940",
+ "modified": "2024-09-17 13:46:11.905062",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

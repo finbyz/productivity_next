@@ -1,6 +1,7 @@
 import json
 import frappe
 from frappe.auth import LoginManager
+import frappe.utils
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
@@ -27,7 +28,10 @@ def login(username, password, purpose):
     frappe.session.user = username
 
     token = get_bearer_token(username, expires_in_days=7, purpose=purpose)
-
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription"
+    )
+    
     return {
         "status": True,
         "access_token": token["access_token"],
@@ -39,8 +43,43 @@ def login(username, password, purpose):
         "full_name": frappe.db.get_value(
             "Employee", {"user_id": frappe.session.user}, "employee_name"
         ),
+        "enable_blurred_screenshot": productify_subscription.get("enable_blurred_screenshot",False),
     }
 
+@frappe.whitelist(allow_guest=True)
+def login_with_challenge(username, password, purpose):
+    login_manager = LoginManager()
+    login_manager.authenticate(username, password)
+    frappe.session.user = username
+
+    token = get_bearer_token(username, expires_in_days=7, purpose=purpose)
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription"
+    )
+    challenge = productify_subscription.get("encrypted_challenge","")
+    return {
+        "status": True,
+        "access_token": token["access_token"],
+        "refresh_token": token["refresh_token"],
+        "access_token_expiry": token["expiration_time"],
+        "employee": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "name"
+        ),
+        "full_name": frappe.db.get_value(
+            "Employee", {"user_id": frappe.session.user}, "employee_name"
+        ),
+        "challenge": challenge,
+        "email": frappe.session.user,
+        'erpnext_url': frappe.utils.get_url(),
+    }
+
+@frappe.whitelist(methods=["GET"])
+def get_challenge():
+    productify_subscription = frappe.get_doc(
+        "Productify Subscription"
+    )
+    challenge = productify_subscription.get("encrypted_challenge","")
+    return challenge
 
 @frappe.whitelist(allow_guest=False)
 def update_token(refresh_token, purpose):
@@ -355,6 +394,7 @@ def add_meeting(
     discussion,
     meeting_company_representative,
     meeting_party_representative,
+    project=None,
 ):
     meeting_company_representative = json.loads(meeting_company_representative)
     if meeting_party_representative:
@@ -367,6 +407,8 @@ def add_meeting(
     meeting.meeting_arranged_by = meeting_arranged_by
     meeting.internal_meeting = internal_meeting
     meeting.purpose = purpose
+    if project:
+        meeting.project = project
     # meeting.industry = industry if industry else None
     meeting.party_type = party_type if party_type else None
     meeting.party = party if party else None
@@ -511,10 +553,7 @@ def send_user_list(user_list):
 
     if not organization_name:
         return {"message": "Organization name is not set in Productify Subscription"}
-    productify_subscription = frappe.get_doc(
-        "Productify Subscription", organization_name
-    )
-
+    productify_subscription = frappe.get_doc("Productify Subscription", organization_name)
     payload = json.dumps({"users": user_list, "erpnext_url": frappe.utils.get_url()})
     users = json.loads(user_list)
     productify_subscription.list_of_users = []
@@ -623,49 +662,31 @@ def create_fincall(
     call_datetime,
     calltype,
     duration,
-    employee_fincall_generated,
-    contact_created,
     note=None,
     raw_log=None,
     client=None,
 ):
-    fincall = frappe.new_doc("Fincall Log")
-    fincall.employee = employee
-    fincall.employee_mobile = employee_mobile
-    fincall.customer_no = customer_no
-    fincall.call_datetime = call_datetime
-    fincall.calltype = calltype
-    fincall.duration = duration
-    fincall.employee_fincall_generated = employee_fincall_generated
-    fincall.contact_created = contact_created
-    fincall.note = note if note else None
-    fincall.raw_log = raw_log if raw_log else None
-    fincall.client = client if client else None
-    fincall.save(ignore_permissions=True)
-
     employee_details = frappe.db.get_value(
         "Employee",
-        fincall.employee,
+        employee,
         ["name", "employee_name"],
         as_dict=True,
     )
-
-    if fincall.customer_no[0] == "0":
-        fincall.customer_no = "+91" + fincall.customer_no[1:]
-    elif fincall.customer_no[0] != "+" and fincall.customer_no[0] != "0":
-        fincall.customer_no = "+91" + fincall.customer_no
+    if customer_no[0] == "0":
+        customer_no = "+91" + customer_no[1:]
+    elif customer_no[0] != "+" and customer_no[0] != "0":
+        customer_no = "+91" + customer_no
 
     ec_doc = frappe.new_doc("Employee Fincall")
     ec_doc.employee = employee_details["name"]
     ec_doc.employee_name = employee_details["employee_name"]
-    ec_doc.employee_mobile = fincall.employee_mobile
-    ec_doc.client = fincall.client if fincall.client else None
-    ec_doc.customer_no = fincall.customer_no
-    ec_doc.call_datetime = fincall.call_datetime
-    ec_doc.duration = fincall.duration
-    ec_doc.date = get_datetime(fincall.call_datetime).date()
-    ec_doc.calltype = fincall.calltype
-    ec_doc.fincall_log_ref = fincall.name
+    ec_doc.employee_mobile = employee_mobile
+    ec_doc.client = client if client else None
+    ec_doc.customer_no = customer_no
+    ec_doc.call_datetime = call_datetime
+    ec_doc.duration = duration
+    ec_doc.date = get_datetime(call_datetime).date()
+    ec_doc.calltype = calltype
     contact_query = f"""
         SELECT 
             c.name, 
@@ -681,9 +702,9 @@ def create_fincall(
             ON dl.parent = c.name 
         WHERE 
             LENGTH(cp.phone) >= 10 
-            AND (cp.phone = '{fincall.customer_no}' 
-            OR cp.phone LIKE '%{fincall.customer_no}' 
-            OR '{fincall.customer_no}' LIKE CONCAT("%", cp.phone))
+            AND (cp.phone = '{customer_no}' 
+            OR cp.phone LIKE '%{customer_no}' 
+            OR '{customer_no}' LIKE CONCAT("%", cp.phone))
         ORDER BY 
             CASE dl.link_doctype
                 WHEN 'Customer' THEN 1
@@ -707,9 +728,6 @@ def create_fincall(
 
     ec_doc.flags.ignore_permissions = True
     ec_doc.save()
-
-    # Update flag indicating that employee fincall is generated
-    fincall.db_set("employee_fincall_generated", 1)
 
     return {
         "employee_fincall": ec_doc.name,
@@ -736,14 +754,32 @@ def is_stop_disabled():
         filter(lambda user: user.employee == current_user, subscription.list_of_users),
         None,
     )
-    return user.get('disable_stop_button',False)
+    return user.get("disable_stop_button", False)
+
+@frappe.whitelist(allow_guest=False, methods=["GET"])
+def get_productify_subsription():
+    """
+    API_PATH: /api/method/productivity_next.api.is_stop_disabled"""
+    subscription = frappe.get_doc("Productify Subscription")
+    current_user = frappe.db.get_value(
+        "Employee", filters={"user_id": frappe.session.user}, fieldname="name"
+    )
+
+    user = next(
+        filter(lambda user: user.employee == current_user, subscription.list_of_users),
+        None,
+    )
+    return {
+        "is_stop_disabled": user.get("disable_stop_button", False),
+        "enable_blurred_screenshot": subscription.get("enable_blurred_screenshot",False),
+    }
 
 from datetime import timedelta, datetime
 import frappe
 @frappe.whitelist()
-def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours):
-    from_date = datetime.strptime(from_date, '%Y-%m-%d')
-    to_date = datetime.strptime(to_date, '%Y-%m-%d')
+def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
+    from_date = datetime.strptime(str(from_date), '%Y-%m-%d')
+    to_date = datetime.strptime(str(to_date), '%Y-%m-%d')
     date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
 
     holidays = frappe.db.sql("""
@@ -772,8 +808,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 
         # Check if it's a Saturday (weekday 5)
         if date.weekday() == 5:
-            day_hours *= 0.5
-
+            day_hours = saturday_working_hours
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
                 if leave.half_day:
@@ -785,3 +820,261 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         total_working_hours += day_hours
 
     return total_working_hours
+
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
+    data = {}
+    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+
+    hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
+    hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
+    # Calculate total working hours
+    productivity_score = calculate_total_working_hours(
+        employee,
+        start_date,
+        end_date,
+        hours_per_weekday,
+        hours_on_saturday
+    )
+
+    idle_time_data = frappe.db.sql(f"""
+        SELECT from_time as start_time, to_time as end_time
+        FROM `tabEmployee Idle Time`
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{employee}'
+    """, as_dict=True)
+
+    # Fetch fincall time logs
+    fincall_time_data = frappe.db.sql(f"""
+        SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
+        FROM `tabEmployee Fincall`
+        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{employee}' AND (calltype != 'Missed' AND calltype != 'Rejected')
+    """, as_dict=True)
+
+    # Fetch meeting time logs
+    meeting_time_data = frappe.db.sql(f"""
+        SELECT meeting_from as start_time, meeting_to as end_time
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{employee}'
+    """, as_dict=True)
+
+    # Combine all non-idle periods (meetings and calls)
+    non_idle_periods = fincall_time_data + meeting_time_data
+
+    total_idle_seconds = 0
+
+    for idle_period in idle_time_data:
+        idle_start = idle_period['start_time']
+        idle_end = idle_period['end_time']
+
+        adjusted_start = idle_start
+        adjusted_end = idle_end
+
+        for non_idle in non_idle_periods: 
+            non_idle_start = non_idle['start_time']
+            non_idle_end = non_idle['end_time']
+
+            # Check for overlap and adjust idle periods accordingly
+            if non_idle_start <= adjusted_end and non_idle_end >= adjusted_start:
+                if non_idle_start <= adjusted_start < non_idle_end:
+                    adjusted_start = non_idle_end
+                if non_idle_start < adjusted_end <= non_idle_end:
+                    adjusted_end = non_idle_start
+                if adjusted_start >= adjusted_end:
+                    adjusted_start = adjusted_end
+                    break
+
+        # Calculate the duration of the adjusted idle period
+        idle_duration = (adjusted_end - adjusted_start).total_seconds()
+        if idle_duration > 0:
+            total_idle_seconds += idle_duration
+    total_idle_time = flt(total_idle_seconds) 
+
+    list_data = []
+    meeting_total_data = frappe.db.sql(f"""
+        SELECT m.meeting_from as start_time, m.meeting_to as end_time
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee ='{employee}' 
+    """, as_dict=True)
+    calls_total_data = frappe.db.sql(f"""
+        SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
+        FROM `tabEmployee Fincall`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and (calltype != 'Missed' and calltype != 'Rejected')
+    """, as_dict=True)
+    application_total_data = frappe.db.sql(f"""
+        SELECT from_time as start_time, to_time as end_time
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}'
+    """, as_dict=True)
+
+    list_data.append(meeting_total_data)
+    list_data.append(calls_total_data)
+    list_data.append(application_total_data) 
+
+    if list_data != [[], [], []]:
+
+        # Flatten the list of intervals
+        flat_intervals = [interval for sublist in list_data for interval in sublist]
+
+        # Sort intervals by start time
+        flat_intervals.sort(key=lambda x: x['start_time'])
+
+        # Merge overlapping intervals
+        merged_intervals = []
+        current_interval = flat_intervals[0]
+
+        for interval in flat_intervals[1:]:
+            if interval['start_time'] and interval['end_time'] and current_interval['end_time']:
+                if interval['start_time'] <= current_interval['end_time']:
+                    # There is overlap, so merge the intervals
+                    current_interval['end_time'] = max(current_interval['end_time'], interval['end_time'])
+                else:
+                    # No overlap, so add the current interval to the list and start a new one
+                    merged_intervals.append(current_interval)
+                    current_interval = interval
+            elif interval['start_time']:
+                # No overlap, so add the current interval to the list and start a new one
+                merged_intervals.append(current_interval)
+                current_interval = interval
+
+        # Don't forget to add the last interval
+        if current_interval:
+            merged_intervals.append(current_interval)
+
+
+        # Calculate the total time
+        total_time = timedelta()
+        for interval in merged_intervals:
+            if interval['start_time'] and interval['end_time']:
+                total_time += interval['end_time'] - interval['start_time']
+   
+        total_time = total_time.total_seconds()
+    else:
+        total_time = 0 
+
+    total_active_hours = total_time - total_idle_time
+
+    data["toal_active_hours"] = total_active_hours
+    data["total_time"] = total_time
+    data["total_idle_time"] = total_idle_time
+
+        
+    total_call_data = frappe.db.sql(f"""
+        SELECT 
+            SUM(duration) AS total_duration, calltype, count(calltype) as total_calls
+        FROM `tabEmployee Fincall`
+        WHERE date >= '2023-09-09' AND date <= '2024-09-09' and employee = 'HR-EMP-00022' and (calltype != 'Missed' and calltype != 'Rejected')
+        GROUP BY calltype
+    """, as_dict=True)
+    total_call_duration = 0
+    for call in total_call_data:
+        if call["calltype"] == "Incoming":
+            data["total_incoming_calls"] = call["total_calls"]
+            data["total_incoming_duration"] = call["total_duration"]
+            total_call_duration += call["total_duration"]
+        elif call["calltype"] == "Outgoing":
+            data["total_outgoing_calls"] = call["total_calls"]
+            data["total_outgoing_duration"] = call["total_duration"]
+            total_call_duration += call["total_duration"]
+    
+    data["total_call_duration"] = total_call_duration
+
+    total_meeting_data = frappe.db.sql(f"""
+        SELECT 
+            SUM(TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from))) AS total_duration, internal_meeting, count(internal_meeting) as total_meetings
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 AND mcr.employee = '{employee}' 
+        GROUP BY internal_meeting
+    """, as_dict=True)
+
+    total_meeting_duration = 0.0
+    data["total_internal_meetings"] = 0
+    data["total_internal_meeting_duration"] = 0.0
+    data["total_external_meetings"] = 0
+    data["total_external_meeting_duration"] = 0.0
+    data["total_meeting_duration"] = 0.0
+    for meeting in total_meeting_data:
+        if meeting["internal_meeting"]:
+            data["total_internal_meetings"] = meeting["total_meetings"]
+            data["total_internal_meeting_duration"] = meeting["total_duration"]
+            total_meeting_duration += meeting["total_duration"]
+        else:
+            data["total_external_meetings"] = meeting["total_meetings"]
+            data["total_external_meeting_duration"] = meeting["total_duration"]
+            total_meeting_duration += meeting["total_duration"]
+
+    data["total_meeting_duration"] = total_meeting_duration
+
+    total_web_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and url is not null
+    """, as_dict=True)
+
+    total_app_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and url is null
+    """, as_dict=True)
+
+
+    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
+    data["total_web_count"] = total_web_data[0]["total_web_count"]
+    data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
+    data["total_app_count"] = total_app_data[0]["total_app_count"]
+    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
+    data["productivity_score"] = round(((total_active_hours / 3600) / productivity_score) * 100, 2)
+    return data
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def set_challenge_to_prroductify_subscription(challenge,verification_code):
+    if verification_code != "123456":
+        return {"message": "Invalid verification code"}
+    
+    subscription = frappe.get_doc("Productify Subscription")
+    subscription.encrypted_challenge = challenge
+    subscription.flags.ignore_permissions = True
+    subscription.save()
+
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_meeting_data_for_mobile_app(user, start_date, end_date):
+    meetings = frappe.db.sql(f"""
+        SELECT 
+            m.meeting_from as start_time, m.meeting_to as end_time, m.purpose, m.party, m.party_type, m.discussion, m.internal_meeting, m.meeting_arranged_by
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee = '{user}'
+    """, as_dict=True)
+    return {"meetings": meetings}
+
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_application_data_for_mobile_app(user, start_date, end_date):
+    data = {}
+    total_web_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is not null
+    """, as_dict=True)
+
+    total_app_data = frappe.db.sql(f"""
+        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
+        FROM `tabApplication Usage log`
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is null
+    """, as_dict=True)
+
+
+    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
+    data["total_web_count"] = total_web_data[0]["total_web_count"]
+    data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
+    data["total_app_count"] = total_app_data[0]["total_app_count"]
+    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
+    return data

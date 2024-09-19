@@ -3,6 +3,8 @@ from frappe.utils import nowdate, get_datetime, format_time, format_duration
 import frappe.utils
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
+
+import requests
 from .api import (
     set_application_checkin_checkout,
     set_application_idletime_checkin_checkout,
@@ -222,10 +224,15 @@ def create_employee_log(fincall_log):
                 ec_doc.link_name = contact.get("link_name", "")
 
             ec_doc.flags.ignore_permissions = True
-            ec_doc.save()
-
-            # Update flag indicating that employee fincall is generated
-            fincall_log.db_set("employee_fincall_generated", 1)
+            
+            try:
+                ec_doc.save()
+                fincall_log.db_set("employee_fincall_generated", 1)
+            except frappe.exceptions.UniqueValidationError:
+                fincall_log.db_set("duplicate_contact", 1)
+            except Exception as e:
+                error_message = f"Error occurred while saving Employee Fincall: {str(e)}"
+                frappe.log_error(error_message, "Employee Fincall Creation Error")
 
 def schedule_comments():
     calls = frappe.db.get_list(
@@ -271,9 +278,9 @@ def create_productify_work_summary():
         for PWS in pws_docs:
             frappe.delete_doc('Productify Work Summary', PWS['name'])
 
-    employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
+    employees = frappe.get_all('List of User', fields=['employee'])
     for i in employees:
-        employee = i['name']
+        employee = i['employee']
         date = date
         def productify_work_summary(employee,date):
             print('employee',employee)
@@ -397,10 +404,10 @@ def create_productify_work_summary():
 def create_productify_work_summary_today():
     from frappe.utils import today
     date = today()
-    employees = frappe.get_all('Employee', filters={'status': 'Active','enable_productify_analysis':1}, fields=['name'])
+    employees = frappe.get_all('List of User', fields=['employee'])
     for i in employees:
-        employee = i['name']
-        if not frappe.db.exists('Productify Work Summary', {'date': date,'employee':i['name']}):
+        employee = i['employee']
+        if not frappe.db.exists('Productify Work Summary', {'date': date,'employee':i['employee']}):
             # print("DOES NOT EXIST")
             date = date
             def productify_work_summary(employee,date):
@@ -523,8 +530,8 @@ def create_productify_work_summary_today():
             PWS.save()
             # print(PWS.name)
         else:
-            PWS_DOC = frappe.get_doc('Productify Work Summary',{'date': date,'employee':i['name']})
-            employee = i['name']
+            PWS_DOC = frappe.get_doc('Productify Work Summary',{'date': date,'employee':i['employee']})
+            employee = i['employee']
             print("else"+ employee)
             print("else"+ date) 
             print("else"+ PWS_DOC.name)
@@ -638,7 +645,7 @@ def create_productify_work_summary_today():
                         current_app = None
             if current_app is not None:
                 combined_applications.append(current_app)
-            PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['name']})
+            PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['employee']})
             for app_entry in combined_applications:
                 PWS.append('applications', {
                     'from_time': app_entry['start'],
@@ -837,3 +844,104 @@ def submit_timesheet_created_by_productify():
         frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
         frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
 
+
+def submit_timesheet_created_by_productify():
+    if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
+        frappe.throw("Custom Field 'is_created_by_productify' not found")
+    yeasterday = get_datetime() - timedelta(days=1)
+    timesheets = frappe.get_all(
+        "Timesheet",
+        filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">", yeasterday)},
+        fields=["name"],
+    )
+    for timesheet in timesheets:
+        doc = frappe.get_doc("Timesheet", timesheet.name)
+        doc.submit()
+        frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
+        frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
+
+
+def delete_productify_error_logs():
+    time_for_error_logs = 10
+
+    date_for_error_logs = get_datetime() - timedelta(days=time_for_error_logs)
+
+    frappe.db.sql("""
+        DELETE FROM `tabProductify Error Log`
+        WHERE error_datetime < %s
+    """, (date_for_error_logs.strftime("%Y-%m-%d %H:%M:%S"),))
+
+
+def delete_screenshots():
+    time_for_screenshots = int(frappe.db.get_single_value("Productify Subscription", "keep_screen_shots_for_days")) or 60
+    date_for_screenshots = get_datetime() - timedelta(days=time_for_screenshots)
+    screenshots = frappe.get_all("Screen Screenshot Log", {"time": ("<", date_for_screenshots.strftime("%Y-%m-%d %H:%M:%S"))})
+    for screenshot in screenshots:
+        frappe.delete_doc("Screen Screenshot Log", screenshot.name)
+
+def delete_application_logs():
+    time_for_application_logs = int(frappe.db.get_single_value("Productify Subscription", "keep_application_logs_for_days")) or 60
+    
+    date_for_application_logs = get_datetime() - timedelta(days=time_for_application_logs)
+
+    frappe.db.sql("""
+        DELETE FROM `tabApplication Usage log`
+        WHERE date < %s
+    """, (date_for_application_logs.date(),))
+
+
+def set_challenge():
+    productify_subscription = frappe.get_doc("Productify Subscription")
+    headers = {
+        "Authorization" : f"token {productify_subscription.api_key}:{productify_subscription.get_password('api_secret')}",
+    }
+    
+    response = requests.post(
+        "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
+        data={"erpnext_url":productify_subscription.site_url},
+        headers=headers
+    )
+    print(response.status_code)
+    if response.status_code == 200:
+        data = response.json().get("message")
+        if data.get("challenge"):
+            productify_subscription.encrypted_challenge = data.get("challenge")
+            productify_subscription.challenge_updated_on = nowdate()
+            productify_subscription.save()
+    else:
+        frappe.log_error("Productify Challenge Error",f"Failed to get challenge: {response.text}")
+
+
+
+
+def set_challenge_if_expired():
+    productify_subscription = frappe.get_doc("Productify Subscription")
+    headers = {
+        "Authorization": f"token {productify_subscription.api_key}:{productify_subscription.get_password('api_secret')}",
+    }
+
+    should_update_challenge = (
+        not productify_subscription.get("challenge_updated_on")
+        or get_datetime(productify_subscription.challenge_updated_on) <= get_datetime(nowdate()) - timedelta(days=1)
+    )
+
+    if should_update_challenge:
+        response = requests.post(
+            "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
+            data={"erpnext_url": productify_subscription.site_url},
+            headers=headers,
+        )
+
+        print(response.status_code)
+        if response.status_code == 200:
+            data = response.json().get("message", {})
+            challenge = data.get("challenge")
+            if challenge:
+                productify_subscription.encrypted_challenge = challenge
+                productify_subscription.challenge_updated_on = nowdate()
+                productify_subscription.save()
+        else:
+            frappe.log_error(
+                "Productify Challenge Error",
+                f"Failed to get challenge: {response.text}",
+            )
