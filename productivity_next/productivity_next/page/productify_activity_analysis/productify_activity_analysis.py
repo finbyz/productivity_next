@@ -167,12 +167,12 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
     toal_hours_to_show = max(32400, total_time)
     total_active_hours = total_time - total_idle_time 
     return {
-        "total_time": total_time,
-        "total_system_hours": total_system_hours,
-        "total_idle_time": total_idle_time,
-        "total_call_data": total_call_data[0].total_duration,
-        "total_meeting_data": total_meeting_data[0].total_duration,
-        "total_active_hours": total_active_hours,
+        "total_time": total_time or 0,
+        "total_system_hours": total_system_hours or 0,
+        "total_idle_time": total_idle_time or 0,
+        "total_call_data": total_call_data[0].total_duration or 0,
+        "total_meeting_data": total_meeting_data[0].total_duration or 0,
+        "total_active_hours": total_active_hours or 0,
         "total_inactive_hours": (toal_hours_to_show or 0) - ((total_active_hours or 0) + (total_idle_time or 0)),
         "total_hours": toal_hours_to_show,
     }
