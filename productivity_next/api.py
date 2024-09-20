@@ -56,7 +56,6 @@ def login_with_challenge(username, password, purpose):
     productify_subscription = frappe.get_doc(
         "Productify Subscription"
     )
-    challenge = productify_subscription.get("encrypted_challenge","")
     return {
         "status": True,
         "access_token": token["access_token"],
@@ -68,17 +67,17 @@ def login_with_challenge(username, password, purpose):
         "full_name": frappe.db.get_value(
             "Employee", {"user_id": frappe.session.user}, "employee_name"
         ),
-        "challenge": challenge,
+        "token": productify_subscription.token,
         "email": frappe.session.user,
         'erpnext_url': frappe.utils.get_url(),
     }
 
 @frappe.whitelist(methods=["GET"])
-def get_challenge():
+def get_token():
     productify_subscription = frappe.get_doc(
         "Productify Subscription"
     )
-    challenge = productify_subscription.get("encrypted_challenge","")
+    challenge = productify_subscription.get("token","")
     return challenge
 
 @frappe.whitelist(allow_guest=False)
@@ -1032,14 +1031,12 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     return data
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def set_challenge_to_prroductify_subscription(challenge,verification_code):
-    if verification_code != "123456":
-        return {"message": "Invalid verification code"}
-    
+def set_token_to_productify_subscription(token):
     subscription = frappe.get_doc("Productify Subscription")
-    subscription.encrypted_challenge = challenge
+    subscription.token = token
+    subscription.token_updated_on = frappe.utils.today()
     subscription.flags.ignore_permissions = True
-    subscription.save()
+    subscription.save(ignore_permissions=True)
 
 
 

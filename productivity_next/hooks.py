@@ -143,7 +143,7 @@ scheduler_events = {
         "productivity_next.schedule.bg_employee_log_generation",
         "productivity_next.schedule.schedule_comments",
         "productivity_next.schedule.create_productify_work_summary_today",
-        "productivity_next.schedule.set_challenge_if_expired",
+        "productivity_next.schedule.set_challenge",
     ],
     "cron": {
         "0 1 * * *": [
@@ -154,7 +154,6 @@ scheduler_events = {
         ],
         "0 0 * * *": [
             "productivity_next.schedule.submit_timesheet_created_by_productify",
-            "productivity_next.schedule.set_challenge",
         ],
         # "5 4 * * sun" :[
         #     "productivity_next.schedule.send_weekly_report",

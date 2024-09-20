@@ -1472,7 +1472,7 @@ UserProfile = class UserProfile {
 				this.score_ = 100;
 			}
 			else {
-				this.score_ = parseFloat((((app.totalHours/3600) - (app.totalIdleTime/3600))/app.score)*100).toFixed(2);
+				this.score_ = parseFloat((((app.totalHours/3600) - (app.totalIdleTime/3600))/app.score)*100).toFixed(0);
 			}
 			wholedata += `
 				<tr>

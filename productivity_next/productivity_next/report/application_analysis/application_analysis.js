@@ -3,7 +3,6 @@
 
 frappe.query_reports["Application Analysis"] = {
 	"filters": [
-<<<<<<< Updated upstream
 		{
 			"fieldname": "from_date",
 			"label": __("From Date"),
@@ -42,8 +41,5 @@ frappe.query_reports["Application Analysis"] = {
 				frappe.query_report.refresh();
 			},
 		},
-=======
-
->>>>>>> Stashed changes
 	]
 };
