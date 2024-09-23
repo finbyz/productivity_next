@@ -98,6 +98,7 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Party Type",
+   "mandatory_depends_on": "eval:doc.internal_meeting != 1",
    "options": "\nLead\nCustomer\nSupplier"
   },
   {
@@ -106,6 +107,7 @@
    "fieldtype": "Dynamic Link",
    "ignore_user_permissions": 1,
    "label": "Party",
+   "mandatory_depends_on": "eval:doc.internal_meeting != 1",
    "options": "party_type"
   },
   {
@@ -371,7 +373,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-09-02 11:01:05.070154",
+ "modified": "2024-09-22 12:36:23.617017",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
