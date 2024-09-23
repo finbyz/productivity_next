@@ -163,7 +163,8 @@ class ProductifySubscription(Document):
             data = resp.json()["data"]
             valid_upto = data.get("valid_upto")
             return valid_upto and valid_upto < frappe.utils.nowdate()
-        frappe.throw(resp.text)
+
+        return False
 
     def update_subscription(self):
         headers = {

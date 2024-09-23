@@ -895,53 +895,20 @@ def set_challenge():
     headers = {
         "Authorization" : f"token {productify_subscription.api_key}:{productify_subscription.get_password('api_secret')}",
     }
-    
-    response = requests.post(
-        "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
-        data={"erpnext_url":productify_subscription.site_url},
-        headers=headers
-    )
-    print(response.status_code)
-    if response.status_code == 200:
-        data = response.json().get("message")
-        if data.get("challenge"):
-            productify_subscription.encrypted_challenge = data.get("challenge")
-            productify_subscription.challenge_updated_on = nowdate()
-            productify_subscription.save()
-    else:
-        frappe.log_error("Productify Challenge Error",f"Failed to get challenge: {response.text}")
 
-
-
-
-def set_challenge_if_expired():
-    productify_subscription = frappe.get_doc("Productify Subscription")
-    headers = {
-        "Authorization": f"token {productify_subscription.api_key}:{productify_subscription.get_password('api_secret')}",
-    }
-
-    should_update_challenge = (
-        not productify_subscription.get("challenge_updated_on")
-        or get_datetime(productify_subscription.challenge_updated_on) <= get_datetime(nowdate()) - timedelta(days=1)
-    )
-
-    if should_update_challenge:
+    if not productify_subscription.token_updated_on or get_datetime(productify_subscription.token_updated_on) < get_datetime(nowdate()):
         response = requests.post(
             "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
             data={"erpnext_url": productify_subscription.site_url},
-            headers=headers,
+            headers=headers
         )
 
-        print(response.status_code)
         if response.status_code == 200:
-            data = response.json().get("message", {})
-            challenge = data.get("challenge")
-            if challenge:
-                productify_subscription.encrypted_challenge = challenge
-                productify_subscription.challenge_updated_on = nowdate()
+            data = response.json().get("message")
+            if data.get("token"):
+                productify_subscription.token = data.get("token")
+                productify_subscription.token_updated_on = nowdate()
+                productify_subscription.flags.ignore_permissions = True
                 productify_subscription.save()
         else:
-            frappe.log_error(
-                "Productify Challenge Error",
-                f"Failed to get challenge: {response.text}",
-            )
+            frappe.log_error(title="Productify Challenge Error", message=f"Failed to get challenge: {response.text}")

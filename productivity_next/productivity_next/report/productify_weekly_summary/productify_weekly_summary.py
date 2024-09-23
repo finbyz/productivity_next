@@ -123,7 +123,7 @@ def get_data(from_date, to_date):
         active_hours = total_hours - total_idle_time
         employee_record = {
             "employee": frappe.get_value("Employee", employee, "employee_name"),
-            "productivity_score": round((((active_hours/3600)/user_analysis.get("productivity_score", {}).get(employee, 0))*100),2),
+            "productivity_score": round((((active_hours/3600)/user_analysis.get("productivity_score", {}).get(employee, 0))*100),0),
             "total_hours": total_hours,
             "active_hours": active_hours,
             "idle_hours": total_idle_time,

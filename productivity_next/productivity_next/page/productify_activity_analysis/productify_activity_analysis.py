@@ -487,7 +487,7 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         "data": data
     }
 # Applications Used Code Starts
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def application_usage_time(user=None, start_date=None, end_date=None):
     if not user or user is None:
         return {
@@ -526,7 +526,7 @@ def application_usage_time(user=None, start_date=None, end_date=None):
 # Applications Used Code Ends
 
 # Web Browsing Time code starts
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def web_browsing_time(user = None,start_date=None,end_date=None):
     if not user or user == None:
         return {

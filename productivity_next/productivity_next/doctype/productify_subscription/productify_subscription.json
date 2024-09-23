@@ -28,8 +28,8 @@
   "api_secret",
   "application_organization_name",
   "call_organization_name",
-  "encrypted_challenge",
-  "challenge_updated_on",
+  "token",
+  "token_updated_on",
   "section_break_qria",
   "get_users",
   "list_of_users"
@@ -197,22 +197,23 @@
    "label": "Enable Blurred Screenshot"
   },
   {
-   "fieldname": "encrypted_challenge",
-   "fieldtype": "Text",
-   "label": "Encrypted Challenge",
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "label": "Token",
+   "length": 140,
    "read_only": 1
   },
   {
-   "fieldname": "challenge_updated_on",
+   "fieldname": "token_updated_on",
    "fieldtype": "Date",
-   "label": "Challenge Updated On",
+   "label": "Token Updated On",
    "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-09-17 13:46:11.905062",
+ "modified": "2024-09-19 20:30:56.651450",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

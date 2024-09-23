@@ -13,6 +13,8 @@ from productivity_next.productivity_next.doctype.meeting_schedule.meeting_schedu
 
 class Meeting(Document):
 	def validate(self):
+		if self.internal_meeting :
+			self.organization = "Internal Meeting"
 		if self.party_type and self.party:
 			data = get_party_details(party_type=self.party_type,party=self.party)
 			if data:
