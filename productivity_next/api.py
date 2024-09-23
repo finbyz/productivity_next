@@ -1057,17 +1057,16 @@ def get_meeting_data_for_mobile_app(user, start_date, end_date):
 def get_application_data_for_mobile_app(user, start_date, end_date):
     data = {}
     total_web_data = frappe.db.sql(f"""
-        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
+        SELECT sum(duration) as total_web_duration, count(DISTINCT domain) as total_web_count
         FROM `tabApplication Usage log`
         WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is not null
     """, as_dict=True)
 
     total_app_data = frappe.db.sql(f"""
-        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
+        SELECT sum(duration) as total_app_duration, count(DISTINCT application_name) as total_app_count
         FROM `tabApplication Usage log`
         WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is null
     """, as_dict=True)
-
 
     data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
     data["total_web_count"] = total_web_data[0]["total_web_count"]

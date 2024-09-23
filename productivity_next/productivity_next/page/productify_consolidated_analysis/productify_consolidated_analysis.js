@@ -1404,6 +1404,17 @@ UserProfile = class UserProfile {
 				}
 			}
 		});
+		document.getElementById('user-analysis-report-link').addEventListener('click', function(event) {
+			// console.log("Activity Summary Report Link Clicked");
+			event.preventDefault();
+			goToActivitySummaryReport(this.selected_employee,this.selected_start_date, this.selected_end_date);
+		}.bind(this));
+		function goToActivitySummaryReport(employee,start_date, end_date) {
+			// console.log("Employee:", employee);
+			var baseUrl = window.location.origin;
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Weekly Summary?timespan=Yesterday";
+			window.open(activityAnalysisUrl, '_blank');
+		}
 	};
 	async user_analysis_data(data) {
 		// console.log("Overall Performance Data", data);
