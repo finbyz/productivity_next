@@ -121,7 +121,7 @@ UserProfile = class UserProfile {
 				// Check aria-labelledby and execute methods if needed
 				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
 					this.work_intensity();
-					// this.application_usage_time();
+					this.application_usage_time();
 					this.web_browsing_time();
 					this.top_document_analysis();
 					this.render_images();
