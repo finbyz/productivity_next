@@ -21,7 +21,7 @@ from frappe.utils import (
 )
 
 
-@frappe.whitelist(allow_guest=False)
+@frappe.whitelist(allow_guest=True)
 def login(username, password, purpose):
     login_manager = LoginManager()
     login_manager.authenticate(username, password)
@@ -46,7 +46,7 @@ def login(username, password, purpose):
         "enable_blurred_screenshot": productify_subscription.get("enable_blurred_screenshot",False),
     }
 
-@frappe.whitelist(allow_guest=False)
+@frappe.whitelist(allow_guest=True)
 def login_with_challenge(username, password, purpose):
     login_manager = LoginManager()
     login_manager.authenticate(username, password)
@@ -80,7 +80,7 @@ def get_token():
     challenge = productify_subscription.get("token","")
     return challenge
 
-@frappe.whitelist(allow_guest=False)
+@frappe.whitelist(allow_guest=True)
 def update_token(refresh_token, purpose):
     access_token = update_expiry_time(
         frappe.session.user, refresh_token, expires_in_days=7, purpose=purpose
@@ -1070,7 +1070,7 @@ def get_application_data_for_mobile_app(user, start_date, end_date):
         WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is null
     """, as_dict=True)
 
-    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
+    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0 
     data["total_web_count"] = total_web_data[0]["total_web_count"]
     data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
     data["total_app_count"] = total_app_data[0]["total_app_count"]
@@ -1081,12 +1081,11 @@ def get_application_data_for_mobile_app(user, start_date, end_date):
 
 import base64
 import os
-
 import frappe
 from frappe.utils.file_manager import get_file_path
 @frappe.whitelist(allow_guest=False)
-def get_profile_photo(emp):
-    file_id = frappe.get_value("Employee",emp,"image")
+def get_profile_photo(employee):
+    file_id = frappe.get_value("Employee",employee,"image")
     file = frappe.get_doc(doctype="File", filters={"file_url": file_id})
     file.flags.ignore_permissions = True
     file_url = os.path.abspath(get_file_path(file_id))
