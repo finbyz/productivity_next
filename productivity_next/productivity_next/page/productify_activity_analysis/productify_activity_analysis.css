@@ -44,8 +44,9 @@
     max-width: 100%;
 }
 .sidebar-image-wrapper{
-
+    pointer-events: none;
     width: 100%;
+    cursor: default;
 }
 .sidebar-image {
     width: 100% !important; /* Ensure it covers the full width of the parent */
@@ -53,6 +54,7 @@
     height: auto; /* Maintain aspect ratio */
     object-fit: cover; /* Ensure image covers the container */
     cursor: default;
+    pointer-events: none;
 }
 
 @media (max-width: 480px) {
