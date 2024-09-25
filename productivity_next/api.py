@@ -21,7 +21,7 @@ from frappe.utils import (
 )
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=False)
 def login(username, password, purpose):
     login_manager = LoginManager()
     login_manager.authenticate(username, password)
@@ -46,7 +46,7 @@ def login(username, password, purpose):
         "enable_blurred_screenshot": productify_subscription.get("enable_blurred_screenshot",False),
     }
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=False)
 def login_with_challenge(username, password, purpose):
     login_manager = LoginManager()
     login_manager.authenticate(username, password)
@@ -347,7 +347,7 @@ def get_user_last_check_in_and_out(emp_id):
     return {"status": True, "message": emp_data}
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=False)
 def user_error_log(employee, error_message):
     try:
         doc = frappe.new_doc("User Error Log")
@@ -473,7 +473,7 @@ def make_meetings(source_name, doctype, ref_doctype, target_doc=None):
     return doclist
 
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
+@frappe.whitelist(allow_guest=False, methods=["POST"])
 def organization_signup(
     domain,
     organization_name,
@@ -543,7 +543,7 @@ def organization_signup(
         content_type="application/json",
     )
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
+@frappe.whitelist(allow_guest=False, methods=["POST"])
 def send_user_list(user_list):
     url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.receive_user_list"
     organization_name = frappe.db.get_single_value(
@@ -596,7 +596,7 @@ def get_active_projects():
     return []
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_employee_last_callTime(employee=None):
     if not employee:
         return {"message": "Something went wrong"}
@@ -619,7 +619,7 @@ def get_employee_last_callTime(employee=None):
     }
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_employee_fincall(employee, employee_mobile, customer_no, date, call_datetime):
     if (
         not employee
@@ -653,7 +653,7 @@ def get_employee_fincall(employee, employee_mobile, customer_no, date, call_date
     }
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+@frappe.whitelist(allow_guest=False, methods=["GET", "POST"])
 def create_fincall(
     employee,
     employee_mobile,
@@ -787,14 +787,16 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         WHERE holiday_date BETWEEN %s AND %s
     """, (from_date, to_date), as_dict=True)
     holiday_dates = set(holiday.holiday_date for holiday in holidays)
-
-    leaves = frappe.db.sql("""
-        SELECT from_date, to_date, half_day
-        FROM `tabLeave Application`
-        WHERE employee = %s
-        AND status = 'Approved'
-        AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
-    """, (employee, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
+    if not frappe.db.exists("DocType", "Leave Application"):
+        leaves = []
+    else:
+        leaves = frappe.db.sql("""
+            SELECT from_date, to_date, half_day
+            FROM `tabLeave Application`
+            WHERE employee = %s
+            AND status = 'Approved'
+            AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
+        """, (employee, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
 
     total_working_hours = 0
     for date in date_range:
@@ -822,7 +824,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     data = {}
     weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
@@ -1030,7 +1032,7 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     data["productivity_score"] = round(((total_active_hours / 3600) / productivity_score) * 100, 2)
     return data
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
+@frappe.whitelist(allow_guest=False, methods=["POST"])
 def set_token_to_productify_subscription(token):
     subscription = frappe.get_doc("Productify Subscription")
     subscription.token = token
@@ -1040,7 +1042,7 @@ def set_token_to_productify_subscription(token):
 
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_meeting_data_for_mobile_app(user, start_date, end_date):
     meetings = frappe.db.sql(f"""
         SELECT 
@@ -1053,7 +1055,7 @@ def get_meeting_data_for_mobile_app(user, start_date, end_date):
 
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_application_data_for_mobile_app(user, start_date, end_date):
     data = {}
     total_web_data = frappe.db.sql(f"""
@@ -1074,3 +1076,28 @@ def get_application_data_for_mobile_app(user, start_date, end_date):
     data["total_app_count"] = total_app_data[0]["total_app_count"]
     data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
     return data
+
+
+
+import base64
+import os
+
+import frappe
+from frappe.utils.file_manager import get_file_path
+@frappe.whitelist(allow_guest=False)
+def get_profile_photo(emp):
+    file_id = frappe.get_value("Employee",emp,"image")
+    file = frappe.get_doc(doctype="File", filters={"file_url": file_id})
+    file.flags.ignore_permissions = True
+    file_url = os.path.abspath(get_file_path(file_id))
+
+    with open(file_url, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+    return {
+        "status": True,
+        "status_response": "Success",
+        "file_name": file.file_name,
+        "file_url": file.file_url,
+        "file_id": file.name,
+        "encoded_string": encoded_string,
+    }

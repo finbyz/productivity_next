@@ -9,15 +9,9 @@
             {% if user_image %}
             <img class="sidebar-image" src="{{ user_image }}" >
             {% else %}
-            <div class="sidebar-standard-image hide">
-                <div class="standard-image"></div>
-            </div>
+            <img class="sidebar-image" src="/files/user-profile.jpg" alt="Default Profile Image">
             {% endif %}
-            <div class="sidebar-image-actions">
-                <div class="dropdown"> <a href="#" class="dropdown-toggle" data-toggle="dropdown">Change</a>
-                    <div class="dropdown-menu" role="menu"> <a class="dropdown-item sidebar-image-change">Upload</a> <a
-                            class="dropdown-item sidebar-image-remove">Remove</a> </div>
-                </div>
+           
             </div>
         </li>
     </ul>
@@ -61,7 +55,7 @@
         <a href="{{employeeFincallUrl}}" target="_blank">
             <div class="calls-hover">
                 <div class="call-item">
-                    <svg fill="green" xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px">
+                    <svg fill="green" xmlns="http://www.w3.org/2000/svg" height="50px" viewBox="0 -960 960 960" width="50px">
                         <path d="M763-145q-121-9-229.5-59.5T339-341q-86-86-136-194.5T144-765q-2-21 12.5-36.5T192-817h136q17 0 29.5 10.5T374-780l24 107q2 13-1.5 25T385-628l-97 98q20 38 46 73t58 66q30 30 64 55.5t72 45.5l99-96q8-8 20-11.5t25-1.5l107 23q17 5 27 17.5t10 29.5v136q0 21-16 35.5T763-145ZM528-528v-192h72v69l165-165 51 50-165 166h69v72H528Z" />
                     </svg>
                     <span class="call-count" style="color:green;"><b>{{numberCardData.incoming_fincall_count + numberCardData.internal_incoming_fincall_count}}</b></span>
@@ -76,7 +70,7 @@
                     <span class="call-count" style="color:rgb(23, 162, 184);"><b>{{numberCardData.outgoing_fincall_count + numberCardData.internal_outgoing_fincall_count}}</b></span>
                 </div>
                 <div class="call-item">
-                    <svg fill="#ffc107" xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px">
+                    <svg fill="#ffc107" xmlns="http://www.w3.org/2000/svg" height="50px" viewBox="0 -960 960 960" width="50px">
                         <path d="m136-144-92-90q-12-12-12-28t12-28q88-95 203-142.5T480-480q118 0 232.5 47.5T916-290q12 12 12 28t-12 28l-92 90q-11 11-25.5 12t-26.5-8l-116-88q-8-6-12-14t-4-18v-114q-38-12-78-19t-82-7q-42 0-82 7t-78 19v114q0 10-4 18t-12 14l-116 88q-12 9-26.5 8T136-144Zm342-362L280-704v104h-80v-240h240v80H336l141 141 226-226 57 57-282 282Z" />
                     </svg>
                     <span class="call-count" style="color:#ffc107;"><b>{{numberCardData.missed_fincall_count + numberCardData.internal_missed_fincall_count}}</b></span>

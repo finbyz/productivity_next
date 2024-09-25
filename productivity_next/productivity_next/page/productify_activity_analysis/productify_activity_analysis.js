@@ -99,6 +99,7 @@ UserProfile = class UserProfile {
 		this.setup_user_search();
 		this.main_section.empty().append(frappe.render_template("productify_activity_analysis"));
 		this.overall_performance();
+		this.application_usage_time();
 		this.fetch_url_data();
 		this.type_of_calls();
 	
@@ -120,7 +121,7 @@ UserProfile = class UserProfile {
 				// Check aria-labelledby and execute methods if needed
 				if (target.getAttribute('aria-labelledby') === 'system-activity-tab') {
 					this.work_intensity();
-					this.application_usage_time();
+					// this.application_usage_time();
 					this.web_browsing_time();
 					this.top_document_analysis();
 					this.render_images();
@@ -399,7 +400,35 @@ UserProfile = class UserProfile {
 				end_date: this.selected_end_date    
 			})
 			.then((r) => {
-				// console.log("Overall Performance Data:", r);
+				const callsTab = document.querySelector('#summary-tab');
+				const callsContent = document.querySelector('#summary');
+				if (r.base_data.length === 0) {
+				// console.log("No data available to plot the chart........................................");
+				if (callsTab) callsTab.style.display = 'none';
+				if (callsContent) callsContent.style.display = 'none';
+				
+				// Make system-activity tab active
+				const systemActivityTab = document.querySelector('#system-activity-tab');
+				const systemActivityContent = document.querySelector('#system-activity');
+				
+				if (systemActivityTab && systemActivityContent) {
+					// Remove active class from all tabs and content
+					document.querySelectorAll('.nav-link').forEach(tab => tab.classList.remove('active'));
+					document.querySelectorAll('.tab-pane').forEach(content => content.classList.remove('active', 'show'));
+					
+					// Add active class to system-activity tab and content
+					systemActivityTab.classList.add('active');
+					systemActivityContent.classList.add('active', 'show');
+					
+					// Call functions related to system-activity tab
+					this.work_intensity();
+					this.application_usage_time();
+					this.web_browsing_time();
+					this.top_document_analysis();
+					this.render_images();
+				}
+				return
+				}
 				if (r.base_data.length === 0) {
 					// Handle no data scenario if needed
 				} else {
@@ -763,7 +792,7 @@ UserProfile = class UserProfile {
 								}),
 								frappe.db.get_value('Employee', {user_id: frappe.session.user}, ['name', 'employee_name'])
 							]).then(([subscription_response, employee_response]) => {
-								console.log("Project Enabled:", subscription_response.message);
+								// console.log("Project Enabled:", subscription_response.message);
 								const projectEnabled = subscription_response.message ? subscription_response.message : false;
 								const currentUserEmployee = employee_response.message;
 								
@@ -1033,7 +1062,7 @@ UserProfile = class UserProfile {
 									company_representative.grid.refresh();
 									
 									// Log for debugging
-									console.log("Added row:", company_representative.grid.grid_rows[0].doc);
+									// console.log("Added row:", company_representative.grid.grid_rows[0].doc);
 								}
 					
 								// Show the dialog
@@ -1346,7 +1375,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 									}
 								}
 								if (activityType === "Call") {
-									console.log("params",params);
+									// console.log("params",params);
 									if (params.data[4]) {
 										tooltipContent += `
 											<tr>
@@ -1576,6 +1605,17 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
+				// console.log(r)
+				// Hide calls tab if no call data is available
+				const callsTab = document.querySelector('#system-activity-tab');
+				const callsContent = document.querySelector('#system-activity');
+				if (r.length === 0) {
+					// console.log("No data available to plot the chart........................................");
+					if (callsTab) callsTab.style.display = 'none';
+        			if (callsContent) callsContent.style.display = 'none';
+
+					return;
+				}
 				if (r.length === 0) {
 					return;
 				}
@@ -1975,8 +2015,9 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				// Hide calls tab if no call data is available
 				const callsTab = document.querySelector('#phone-calls-tab');
 				const callsContent = document.querySelector('#phone-calls');
-				if (r[0].value === null) {
-					console.log("No data available to plot the chart........................................");
+				// console.log("call",r)
+				if (r[0].value === null & r[1].value === null) {
+					// console.log("No data available to plot the chart........................................");
 					if (callsTab) callsTab.style.display = 'none';
         			if (callsContent) callsContent.style.display = 'none';
 					
@@ -2326,14 +2367,15 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 			.then((r) => {
 
 				// Convert time values from seconds to formatted hours and minutes
-				const total_hours = this.convertSecondsToTime_(r.total_hours);
 				const total_system_hours = this.convertSecondsToTime_(r.total_system_hours);
 				const total_active_hours = this.convertSecondsToTime_(r.total_active_hours);
 				const total_idle_time = this.convertSecondsToTime_(r.total_idle_time);
-				const total_inactive_hours = this.convertSecondsToTime_(r.total_inactive_hours);
+				const total_inactive_hours = (this.numberCardData.score - r.total_active_hours/3600)*3600
+				const total_hours = this.convertSecondsToTime_(total_inactive_hours + r.total_active_hours + r.total_idle_time)
 				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
+				const inactive_time = this.convertSecondsToTime_((this.numberCardData.score - r.total_active_hours/3600)*3600)
 				if (this.numberCardData.score == 0) {
 					this.score2 = 100;
 				}
@@ -2349,7 +2391,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 							<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 							<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 							<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-							<div class="progress-bar bg-dark" role="progressbar" style="width: ${r.total_inactive_hours}%" aria-valuenow="${r.total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
+							<div class="progress-bar bg-dark" role="progressbar" style="width: ${total_inactive_hours}%" aria-valuenow="${total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 						</div>
 					`);
 				
@@ -2390,10 +2432,10 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 						<td><b>Idle Time:</b></td>
 						<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
 					  </tr>
-					  ${r.total_inactive_hours > 0 ? `
+					  ${total_inactive_hours > 0 ? `
 					  <tr>
 						<td><b>Inactive Time:</b></td>
-						<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+						<td class="justify time-cell"><span><b>${inactive_time} H</b></span></td>
 					  </tr>` : ''}
 					  <tr class = "border-top">
 						<td><b>Total Time:</b></td>
@@ -2452,10 +2494,10 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
         <td><b>Idle Time:</b></td>
         <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
       </tr>
-      ${r.total_inactive_hours > 0 ? `
+      ${total_inactive_hours > 0 ? `
       <tr>
         <td><b>Inactive Time:</b></td>
-        <td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+        <td class="justify time-cell"><span><b>${inactive_time} H</b></span></td>
       </tr>` : ''}
       <tr style="border-top: 3px solid">
         <td><b>Total Time:</b></td>
@@ -2514,7 +2556,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 									margin-bottom: 10px; /* Adjust margin at the bottom of the title */
 								}
 							</style>
-						
 							`;
 				const mobilecontainer = $("#user-activity-mobile");
 				mobilecontainer.html(`
@@ -2549,10 +2590,10 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 									<td><b>Idle Time:</b></td>
 									<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
 								</tr>
-								${r.total_inactive_hours > 0 ? `
+								${total_inactive_hours > 0 ? `
 								<tr>
 									<td><b>Inactive Time:</b></td>
-									<td class="justify time-cell"><span><b>${total_inactive_hours} H</b></span></td>
+									<td class="justify time-cell"><span><b>${inactive_time} H</b></span></td>
 								</tr>` : ''}
 								<tr style="border-top: 3px solid">
 									<td><b>Total Time:</b></td>
