@@ -1083,20 +1083,55 @@ import base64
 import os
 import frappe
 from frappe.utils.file_manager import get_file_path
-@frappe.whitelist(allow_guest=False)
-def get_profile_photo(employee):
-    file_id = frappe.get_value("Employee",employee,"image")
-    file = frappe.get_doc(doctype="File", filters={"file_url": file_id})
-    file.flags.ignore_permissions = True
-    file_url = os.path.abspath(get_file_path(file_id))
+from frappe.utils import cstr
 
-    with open(file_url, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-    return {
-        "status": True,
-        "status_response": "Success",
-        "file_name": file.file_name,
-        "file_url": file.file_url,
-        "file_id": file.name,
-        "encoded_string": encoded_string,
-    }
+@frappe.whitelist(allow_guest=False)
+def get_profile_photo(**kwargs):
+    emp = kwargs.get('emp')
+    
+    if not emp:
+        return {
+            "status": False,
+            "status_response": "Employee not provided",
+            "file_name": None,
+            "file_url": None,
+            "file_id": None,
+            "encoded_string": None,
+        }
+
+    file_id = frappe.get_value("Employee", emp, "image")
+    if not file_id:
+        return {
+            "status": False,
+            "status_response": "Employee has no profile photo",
+            "file_name": None,
+            "file_url": None,
+            "file_id": None,
+            "encoded_string": None,
+        }
+
+    try:
+        file = frappe.get_doc("File", {"file_url": file_id})
+        file.flags.ignore_permissions = True
+        file_url = os.path.abspath(get_file_path(file_id))
+
+        with open(file_url, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+
+        return {
+            "status": True,
+            "status_response": "Success",
+            "file_name": file.file_name,
+            "file_url": file.file_url,
+            "file_id": file.name,
+            "encoded_string": encoded_string,
+        }
+    except Exception as e:
+        return {
+            "status": False,
+            "status_response": f"Error: {cstr(e)}",
+            "file_name": None,
+            "file_url": None,
+            "file_id": None,
+            "encoded_string": None,
+        }
