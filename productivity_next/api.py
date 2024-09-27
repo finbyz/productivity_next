@@ -1087,9 +1087,9 @@ from frappe.utils import cstr
 
 @frappe.whitelist(allow_guest=False)
 def get_profile_photo(**kwargs):
-    emp = kwargs.get('emp')
+    employee = kwargs.get('employee')
     
-    if not emp:
+    if not employee:
         return {
             "status": False,
             "status_response": "Employee not provided",
@@ -1099,7 +1099,7 @@ def get_profile_photo(**kwargs):
             "encoded_string": None,
         }
 
-    file_id = frappe.get_value("Employee", emp, "image")
+    file_id = frappe.get_value("Employee", employee, "image")
     if not file_id:
         return {
             "status": False,
