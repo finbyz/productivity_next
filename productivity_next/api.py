@@ -713,7 +713,6 @@ def create_fincall(
             c.modified DESC
         LIMIT 1;
     """
-
     contact_details = frappe.db.sql(contact_query, as_dict=True)
     if (
         contact_details

@@ -513,7 +513,7 @@ def user_analysis_data(start_date=None, end_date=None):
 
         adjusted_start = idle_start
         adjusted_end = idle_end
-
+ 
         if employee in non_idle_by_employee:
             for non_idle in non_idle_by_employee[employee]:
                 non_idle_start = non_idle['start_time']

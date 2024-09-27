@@ -2017,7 +2017,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				const callsContent = document.querySelector('#phone-calls');
 				// console.log("call",r)
 				if (r[0].value === null & r[1].value === null) {
-					// console.log("No data available to plot the chart........................................");
 					if (callsTab) callsTab.style.display = 'none';
         			if (callsContent) callsContent.style.display = 'none';
 					
@@ -2370,12 +2369,10 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				const total_system_hours = this.convertSecondsToTime_(r.total_system_hours);
 				const total_active_hours = this.convertSecondsToTime_(r.total_active_hours);
 				const total_idle_time = this.convertSecondsToTime_(r.total_idle_time);
-				const total_inactive_hours = (this.numberCardData.score - r.total_active_hours/3600)*3600
-				const total_hours = this.convertSecondsToTime_(total_inactive_hours + r.total_active_hours + r.total_idle_time)
+				const total_hours = this.convertSecondsToTime_(r.total_hours);
 				const total_call_raw = this.convertSecondsToTime_(this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration);
 				const total_meeting_raw = this.convertSecondsToTime_(this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal);
 				const overlapping = this.convertSecondsToTime_((r.total_system_hours + (this.numberCardData.total_outgoing_duration + this.numberCardData.internal_total_outgoing_duration + this.numberCardData.total_incoming_duration + this.numberCardData.internal_total_incoming_duration) + (this.numberCardData.total_meeting_duration_external + this.numberCardData.total_meeting_duration_internal)) - (r.total_active_hours));
-				const inactive_time = this.convertSecondsToTime_((this.numberCardData.score - r.total_active_hours/3600)*3600)
 				if (this.numberCardData.score == 0) {
 					this.score2 = 100;
 				}
@@ -2391,7 +2388,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 							<div class="progress-bar bg-danger" role="progressbar" style="width: ${r.total_idle_time}%" aria-valuenow="${r.total_idle_time}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 							<div class="progress-bar bg-info" role="progressbar" style="width: ${r.total_call_data}%" aria-valuenow="${r.total_call_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 							<div class="progress-bar bg-warning" role="progressbar" style="width: ${r.total_meeting_data}%" aria-valuenow="${r.total_meeting_data}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
-							<div class="progress-bar bg-dark" role="progressbar" style="width: ${total_inactive_hours}%" aria-valuenow="${total_inactive_hours}" aria-valuemin="0" aria-valuemax="${r.total_hours}"></div>
 						</div>
 					`);
 				
@@ -2432,11 +2428,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 						<td><b>Idle Time:</b></td>
 						<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
 					  </tr>
-					  ${total_inactive_hours > 0 ? `
-					  <tr>
-						<td><b>Inactive Time:</b></td>
-						<td class="justify time-cell"><span><b>${inactive_time} H</b></span></td>
-					  </tr>` : ''}
 					  <tr class = "border-top">
 						<td><b>Total Time:</b></td>
 						<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
@@ -2494,11 +2485,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
         <td><b>Idle Time:</b></td>
         <td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
       </tr>
-      ${total_inactive_hours > 0 ? `
-      <tr>
-        <td><b>Inactive Time:</b></td>
-        <td class="justify time-cell"><span><b>${inactive_time} H</b></span></td>
-      </tr>` : ''}
       <tr style="border-top: 3px solid">
         <td><b>Total Time:</b></td>
         <td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
@@ -2590,11 +2576,6 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 									<td><b>Idle Time:</b></td>
 									<td class="justify time-cell"><span><b>${total_idle_time} H</b></span></td>
 								</tr>
-								${total_inactive_hours > 0 ? `
-								<tr>
-									<td><b>Inactive Time:</b></td>
-									<td class="justify time-cell"><span><b>${inactive_time} H</b></span></td>
-								</tr>` : ''}
 								<tr style="border-top: 3px solid">
 									<td><b>Total Time:</b></td>
 									<td class="justify time-cell"><span><b>${total_hours} H</b></span></td>
@@ -2825,7 +2806,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 					}
 					slotImages[date][hour][slot] = image;
 				});
-	
+			ssss	
 				Object.keys(slotImages).reverse().forEach(date => {
 					Object.keys(slotImages[date]).reverse().forEach(hour => {
 						if (lastPrintedDate !== date || lastPrintedHour !== hour) {

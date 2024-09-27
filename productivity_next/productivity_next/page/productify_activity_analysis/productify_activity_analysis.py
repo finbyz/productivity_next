@@ -488,6 +488,7 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         "base_data": base_data,
         "data": data
     }
+
 # Applications Used Code Starts
 @frappe.whitelist(allow_guest=True)
 def application_usage_time(user=None, start_date=None, end_date=None):
