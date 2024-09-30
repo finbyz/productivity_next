@@ -121,21 +121,38 @@ def get_data(from_date, to_date):
         total_idle_time = user_analysis.get("total_idle_time", {}).get(employee, 0)
 
         active_hours = total_hours - total_idle_time
-        employee_record = {
-            "employee": frappe.get_value("Employee", employee, "employee_name"),
-            "productivity_score": round((((active_hours/3600)/user_analysis.get("productivity_score", {}).get(employee, 0))*100),0),
-            "total_hours": total_hours,
-            "active_hours": active_hours,
-            "idle_hours": total_idle_time,
-            "incoming_calls": employee_data.get("incoming_fincall_count", 0),
-            "incoming_hours": employee_data.get("total_incoming_duration", 0),
-            "outgoing_calls": employee_data.get("outgoing_fincall_count", 0),
-            "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
-            "missed_calls": employee_data.get("missed_fincall_count", 0),
-            "rejected_calls": employee_data.get("rejected_fincall_count", 0),
-            "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
-            "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
-        }
+        if user_analysis.get("productivity_score", {}).get(employee, 0) == 0:
+            employee_record = {
+                "employee": frappe.get_value("Employee", employee, "employee_name"),
+                "productivity_score": 100,
+                "total_hours": total_hours,
+                "active_hours": active_hours,
+                "idle_hours": total_idle_time,
+                "incoming_calls": employee_data.get("incoming_fincall_count", 0),
+                "incoming_hours": employee_data.get("total_incoming_duration", 0),
+                "outgoing_calls": employee_data.get("outgoing_fincall_count", 0),
+                "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
+                "missed_calls": employee_data.get("missed_fincall_count", 0),
+                "rejected_calls": employee_data.get("rejected_fincall_count", 0),
+                "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
+                "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
+            }
+        else:
+            employee_record = {
+                "employee": frappe.get_value("Employee", employee, "employee_name"),
+                "productivity_score": round((((active_hours/3600)/user_analysis.get("productivity_score", {}).get(employee, 0))*100),0),
+                "total_hours": total_hours,
+                "active_hours": active_hours,
+                "idle_hours": total_idle_time,
+                "incoming_calls": employee_data.get("incoming_fincall_count", 0),
+                "incoming_hours": employee_data.get("total_incoming_duration", 0),
+                "outgoing_calls": employee_data.get("outgoing_fincall_count", 0),
+                "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
+                "missed_calls": employee_data.get("missed_fincall_count", 0),
+                "rejected_calls": employee_data.get("rejected_fincall_count", 0),
+                "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
+                "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
+            }
 
         # Accumulate totals
         total_hours_sum += total_hours
