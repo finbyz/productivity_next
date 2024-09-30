@@ -1,6 +1,7 @@
 import frappe
 from frappe.utils import nowdate, get_datetime, format_time, format_duration
 import frappe.utils
+from frappe.utils.data import cint
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
 
@@ -903,12 +904,42 @@ def set_challenge():
             headers=headers
         )
 
-        if response.status_code == 200:
-            data = response.json().get("message")
-            if data.get("token"):
-                productify_subscription.token = data.get("token")
-                productify_subscription.token_updated_on = nowdate()
-                productify_subscription.flags.ignore_permissions = True
-                productify_subscription.save()
-        else:
+        if response.status_code != 200:
             frappe.log_error(title="Productify Challenge Error", message=f"Failed to get challenge: {response.text}")
+            return
+        
+        data = response.json().get("message")
+        if not data.get("token"):
+            frappe.log_error(title="Productify Challenge Error", message=f"Failed to get challenge: {response.text}")
+            return
+        productify_subscription.token = data.get("token")
+        productify_subscription.token_updated_on = nowdate()
+        productify_subscription.flags.ignore_permissions = True
+        productify_subscription.save()
+        
+        date = get_datetime()
+        for user in productify_subscription.list_of_users:
+            expiration_time = date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=7)
+            outh_bearer_token_name_call = frappe.db.get_value(
+                "OAuth Bearer Token",
+                filters={"purpose": "productivity_desktop", "user": user.user_id}, fieldname="name"
+            )
+            call_expiration = frappe.db.get_value(
+                "OAuth Bearer Token",
+                filters={"purpose": "productivity_desktop", "user": user.user_id}, fieldname="name"
+            )
+            outh_bearer_token_name_app = frappe.db.get_value(
+                "OAuth Bearer Token",
+                filters={"purpose": "productivity_call_log", "user": user.user_id}, fieldname="name"
+            )
+            app_expiration = frappe.db.get_value(
+                "OAuth Bearer Token",
+                filters={"purpose": "productivity_call_log", "user": user.user_id}, fieldname="name"
+            )
+
+            if outh_bearer_token_name_call and call_expiration != expiration_time:
+                frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_call, "expiration_time", expiration_time)
+                frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_call, "expires_in", (expiration_time - get_datetime()).total_seconds())
+            if outh_bearer_token_name_app and app_expiration != expiration_time:
+                frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_app, "expiration_time", expiration_time)
+                frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_app, "expires_in", (expiration_time - get_datetime()).total_seconds())
