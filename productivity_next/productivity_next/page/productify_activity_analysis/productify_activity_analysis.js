@@ -2587,7 +2587,23 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 					</div>`
 				)
 			});
+			function toggleTheme(theme) {
+				const body = document.body;
+				if (theme === 'dark') {
+					body.setAttribute('data-theme', 'dark');
+				} else {
+					body.removeAttribute('data-theme');
+				}
+			}
+			
+			// Example usage:
+			// To set dark mode
+			toggleTheme('dark');
+			
+			// To set light mode
+			toggleTheme('light');
 	}
+	
 	// Sidebar Activity Data code ends
 
 	// Hourly Calls Analysis (In Minutes) Chart code starts

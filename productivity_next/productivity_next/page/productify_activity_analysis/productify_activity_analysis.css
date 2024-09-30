@@ -1,12 +1,12 @@
 :root {
     --color-chart-label: #F6F8FC;
-    /* Default light theme color */
 }
 
 [data-theme="dark"] {
     --color-chart-label: #2b2e33;
-    /* Dark theme color */
 }
+
+
 .table-height{
    max-height: 100%;
    min-height: fit-content;
@@ -292,4 +292,28 @@ path[paint-order="stroke"] {
 
 #overallChartLegends > li:not([selected='selected']) {
     opacity: 0.5;
+}
+
+[data-theme="dark"] {
+    --card-bg-color: #2e2e2e;
+    --card-font-color: white;
+    --text-primary-color: white; /* Primary text color for dark theme */
+   
+
+}
+.card-body {
+    background-color: var(--card-bg-color);
+    color: var(--card-font-color);
+}
+
+.text-primary {
+    color: var(--text-primary-color) !important; /* Use the custom property */
+}
+
+.card-body .custom-table td {
+    color: var(--card-font-color);
+}
+
+.card-body .custom-table {
+    background-color: var(--card-bg-color);
 }
