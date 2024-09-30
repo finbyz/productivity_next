@@ -490,7 +490,7 @@ def organization_signup(
     API_PATH: /api/method/productivity_next.api.organization_signup
     """
 
-    url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
+    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.organization_signup"
 
     payload = json.dumps(
         {
@@ -545,7 +545,7 @@ def organization_signup(
 
 @frappe.whitelist(allow_guest=False, methods=["POST"])
 def send_user_list(user_list):
-    url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.receive_user_list"
+    url = "http://productivity.finbyz.com/api/method/productivity_backend.api.receive_user_list"
     organization_name = frappe.db.get_single_value(
         "Productify Subscription", "organization_name"
     )
@@ -1040,16 +1040,52 @@ def set_token_to_productify_subscription(token):
     subscription.save(ignore_permissions=True)
 
 
-
-@frappe.whitelist(allow_guest=False, methods=["GET"])
+import re
+@frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_meeting_data_for_mobile_app(user, start_date, end_date):
     meetings = frappe.db.sql(f"""
-        SELECT 
-            m.meeting_from as start_time, m.meeting_to as end_time, m.purpose, m.party, m.party_type, m.discussion, m.internal_meeting, m.meeting_arranged_by
-        FROM `tabMeeting` as m
-        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee = '{user}'
+    SELECT
+        m.name, 
+        m.meeting_from AS start_time, 
+        m.meeting_to AS end_time, 
+        m.purpose, 
+        m.party, 
+        m.party_type, 
+        m.discussion, 
+        m.internal_meeting,
+        u.full_name AS meeting_arranged_by
+    FROM `tabMeeting` AS m
+    JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent
+    JOIN `tabUser` AS u ON u.name = m.meeting_arranged_by
+    WHERE m.meeting_from >= '{start_date} 00:00:00' 
+      AND m.meeting_to <= '{end_date} 23:59:59' 
+      AND m.docstatus = 1 
+      AND (mcr.employee = '{user}' OR mcr.employee IS NULL)
+    GROUP BY m.name
+    Order by m.meeting_from desc
     """, as_dict=True)
+    company = []
+    party = []
+    for meet in meetings:
+        meet["discussion"] = re.sub(r'<[^>]+>', '', meet["discussion"])
+        company_representative = frappe.db.sql(f"""
+            SELECT employee_name
+            FROM `tabMeeting Company Representative`
+            WHERE parent = '{meet["name"]}'
+        """, as_dict=True)
+        for rep in company_representative:
+            company.append(rep["employee_name"])
+        party_representative = frappe.db.sql(f"""
+            SELECT c.full_name as contact_name
+            FROM `tabMeeting Party Representative` as mpr
+            JOIN `tabContact` as c ON mpr.contact = c.name
+            WHERE mpr.parent = '{meet["name"]}'
+        """, as_dict=True)
+        for rep in party_representative:
+            party.append(rep["contact_name"])
+        meet["company_representative"] = company
+        meet["party_representative"] = party
+    
     return {"meetings": meetings}
 
 
