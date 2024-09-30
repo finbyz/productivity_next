@@ -1172,3 +1172,14 @@ def get_profile_photo(**kwargs):
             "file_id": None,
             "encoded_string": None,
         }
+
+@frappe.whitelist(allow_guest=True)
+def get_allowed_modules(employee=None):
+    if not employee:
+        return []
+    modules = {}
+    data = frappe.get_value("List of User", filters = {"employee": employee}, fieldname = ["fincall", "application_usage", "sales_person"])
+    modules["fincall"] = data[0]
+    modules["application_usage"] = data[1]
+    modules["sales_person"] = data[2]
+    return modules
