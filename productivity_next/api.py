@@ -1085,6 +1085,8 @@ def get_meeting_data_for_mobile_app(user, start_date, end_date):
             party.append(rep["contact_name"])
         meet["company_representative"] = company
         meet["party_representative"] = party
+        company = []
+        party = []
     
     return {"meetings": meetings}
 
