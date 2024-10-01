@@ -128,7 +128,7 @@ doctype_js = {
 # Document Events
 # ---------------
 # Hook on document methods and events
-
+before_migrate = ["productivity_next.schedule.create_auto_email_report"]
 doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
