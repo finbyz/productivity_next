@@ -945,19 +945,20 @@ def set_challenge():
                 frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_app, "expires_in", (expiration_time - get_datetime()).total_seconds())
 
 def create_auto_email_report():
-    email_account = frappe.get_value("Email Account", filters={"default_outgoing": 1})
-    employees = frappe.get_all("List of User", fields=["user_id"])
-    new_emails = [user['user_id'] for user in employees]
-    email_to_field = "\n".join(new_emails)
-    doc = frappe.new_doc("Auto Email Report")
-    doc.report = "Productify Weekly Summary"
-    doc.user = "Administrator"
-    doc.enabled = 1
-    doc.report_type = "Script Report"
-    doc.send_if_data = 1
-    doc.sender = email_account
-    doc.email_to = email_to_field
-    doc.frequency = "Daily"
-    doc.format = "HTML"
-    doc.description = "<div class='ql-editor read-mode'><p>We are pleased to present the comprehensive analysis of our organization's performance over the past week. To delve deeper into the details and gain further insights, we invite you to explore the <strong>Productify Consolidated Analysis</strong> page within our ERP system.</p><p><br></p><p>This detailed report provides a thorough overview of key metrics and trends, offering valuable insights to help us better understand our performance and make informed decisions.</p><p><br></p><p>We encourage you to review the report to stay updated on our progress and identify areas for improvement.</p></div>"
-    doc.save()
+    if not frappe.db.exists("Auto Email Report", {"report": "Productify Weekly Summary"}):
+        email_account = frappe.get_value("Email Account", filters={"default_outgoing": 1})
+        employees = frappe.get_all("List of User", fields=["user_id"])
+        new_emails = [user['user_id'] for user in employees]
+        email_to_field = "\n".join(new_emails)
+        doc = frappe.new_doc("Auto Email Report")
+        doc.report = "Productify Weekly Summary"
+        doc.user = "Administrator"
+        doc.enabled = 1
+        doc.report_type = "Script Report"
+        doc.send_if_data = 1
+        doc.sender = email_account
+        doc.email_to = email_to_field
+        doc.frequency = "Daily"
+        doc.format = "HTML"
+        doc.description = "<div class='ql-editor read-mode'><p>We are pleased to present the comprehensive analysis of our organization's performance over the past week. To delve deeper into the details and gain further insights, we invite you to explore the <strong>Productify Consolidated Analysis</strong> page within our ERP system.</p><p><br></p><p>This detailed report provides a thorough overview of key metrics and trends, offering valuable insights to help us better understand our performance and make informed decisions.</p><p><br></p><p>We encourage you to review the report to stay updated on our progress and identify areas for improvement.</p></div>"
+        doc.save()
