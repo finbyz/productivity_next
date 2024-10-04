@@ -945,7 +945,7 @@ def set_challenge():
                 frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_app, "expires_in", (expiration_time - get_datetime()).total_seconds())
 
 def create_auto_email_report():
-    if not frappe.db.exists("Auto Email Report", {"report": "Productify Weekly Summary"}):
+    if not frappe.db.exists("Auto Email Report", {"report": "Productify Weekly Summary"}) and frappe.db.exists("List of User"):
         email_account = frappe.get_value("Email Account", filters={"default_outgoing": 1})
         employees = frappe.get_all("List of User", fields=["user_id"])
         new_emails = [user['user_id'] for user in employees]

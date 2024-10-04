@@ -57,6 +57,7 @@ class ApplicationUsagelog(Document):
                 self.application_name = self.application_title.split("-")[-1].strip()
 
         self.duration = time_diff_in_seconds(self.to_time, self.from_time)
+        self.application_title = self.application_title[:120]
 
 
 def on_doctype_update():
