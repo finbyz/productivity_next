@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     { fieldname: 'employee', fieldtype: 'Data', in_list_view: 1, label: 'Employee', read_only: 1 },
                     { fieldname: 'user_id', fieldtype: 'Data', in_list_view: 1, label: 'User ID', read_only: 1 },
                     { fieldname: 'cell_number', fieldtype: 'Data', in_list_view: 1, label: 'Phone No' },
-                    { fieldname: 'fincall', fieldtype: 'Check', in_list_view: 1, label: 'Productify App' },
+                    { fieldname: 'fincall', fieldtype: 'Check', in_list_view: 1, label: 'Productify Call App' },
                     { fieldname: 'application_usage', fieldtype: 'Check', in_list_view: 1, label: 'Application Usage' },
                     { fieldname: 'sales_person', fieldtype: 'Check', in_list_view: 1, label: 'Sales Person' },
                     { fieldname: 'project', fieldtype: 'Check', in_list_view: 1, label: 'Project Tracking' },
@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     },
                     callback: function (r) {
                         if (r.message) {
-                            frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://www.microsoft.com/store/productId/9N408GBRL5BW?ocid=pdpshare'>Productify Call App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzproductify.productify&pcampaignid=web_share">Productify Desktop App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
+                            frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://www.microsoft.com/store/productId/9N408GBRL5BW?ocid=pdpshare'>Productify Desktop App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzfincall.productify&pcampaignid=web_share">Productify Call App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
                             party.confetti(document.body, {
                                 count: party.variation.range(200, 300),
                             });
@@ -218,7 +218,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
             if (subscription && subscription.organization_name && subscription.list_of_users.length === 0 && !dialog.display) {
-                if (subscription && subscription.organization_name && subscription.list_of_users.length === 0 && !dialog.display) {
                 dialog.show();
                 console.log('Subscription done but no users');
             }
