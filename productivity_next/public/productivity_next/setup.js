@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     },
                     callback: function (r) {
                         if (r.message) {
-                            frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://www.microsoft.com/store/productId/9N408GBRL5BW?ocid=pdpshare'>Productify Desktop App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzfincall.productify&pcampaignid=web_share">Productify Call App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
+                            frappe.msgprint(`You have successfully registered for Productify. Please ask your Users to download <a target="_blank" href='https://www.microsoft.com/store/productId/9N408GBRL5BW?ocid=pdpshare'>Productify Desktop App</a> and <a target="_blank" href="https://play.google.com/store/apps/details?id=com.finbyzproductify.productify&pcampaignid=web_share">Productify Call App</a>  to start activity analysis.\nLogin on both places will be through their own ERP email id and password`);
                             party.confetti(document.body, {
                                 count: party.variation.range(200, 300),
                             });
