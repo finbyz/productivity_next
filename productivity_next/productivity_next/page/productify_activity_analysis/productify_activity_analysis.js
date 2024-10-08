@@ -915,6 +915,31 @@ UserProfile = class UserProfile {
 										fieldtype: 'Column Break',
 									},
 									{
+										fieldname: 'meeting-schedule',
+										label: 'Meeting Schedule',
+										fieldtype: 'Link',
+										options: 'Meeting Schedule',
+										onchange: function() {
+											const scheduleMeeting = d.get_value('meeting-schedule');
+											if (scheduleMeeting) {
+												frappe.db.get_doc('Meeting Schedule', scheduleMeeting)
+													.then(doc => {
+														if (doc) {
+															d.set_value('purpose', doc.purpose);
+															d.set_value('party_type', doc.party_type);
+															d.set_value('party', doc.party);
+															d.set_value('meeting_arranged_by', doc.meeting_arranged_by);
+															d.set_value('project', doc.project);
+														}
+													})
+													.catch(error => {
+														console.error('Error fetching Meeting Schedule doc:', error);
+													});
+											}
+
+										}
+									},
+									{
 										label: 'Meeting From',
 										fieldname: 'meeting_from',
 										fieldtype: 'Datetime',
@@ -968,7 +993,7 @@ UserProfile = class UserProfile {
 					
 								// Add Project field if enabled in Productify Subscription
 								if (projectEnabled) {
-									fields.splice(9, 0, {
+									fields.splice(8, 0, {
 										label: "Project",
 										fieldname: "project",
 										fieldtype: "Link",
