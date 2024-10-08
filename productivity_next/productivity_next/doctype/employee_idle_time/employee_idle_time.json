@@ -75,6 +75,8 @@
   {
    "fieldname": "date",
    "fieldtype": "Date",
+   "in_filter": 1,
+   "in_standard_filter": 1,
    "label": "Date",
    "read_only": 1,
    "reqd": 1
@@ -82,7 +84,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-09-19 16:19:46.998046",
+ "modified": "2024-10-08 09:57:09.301603",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Idle Time",

@@ -172,7 +172,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 4,
+   "link_count": 7,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -216,9 +216,39 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Weekly Summary",
+   "link_count": 0,
+   "link_to": "Productify Weekly Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Application Usage Log Productify",
+   "link_count": 0,
+   "link_to": "Application Usage Log Productify",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Application Checkin Checkout",
+   "link_count": 0,
+   "link_to": "Application Checkin Checkout",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2024-08-13 16:05:20.306433",
+ "modified": "2024-10-08 09:50:06.965483",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify",
