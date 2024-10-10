@@ -42,7 +42,7 @@ def get_employees():
     employees = all_analysed_employees
 
     if not employees:
-        return []
+        frappe.throw("No data found for the selected date.")
     return employees
 
 @frappe.whitelist()
@@ -55,14 +55,14 @@ def get_employees_version():
             all_analysed_employees.append({"user_id":employee['user_id']})
     employees = all_analysed_employees
     if not employees:
-        return []
+        frappe.throw("No data found for the selected date.")
     return employees
 
 @frappe.whitelist()
 def get_employees_overall_performance(end_date):
     employees = frappe.get_list("Productify Work Summary", filters={"date": end_date}, fields=["employee","employee_name"])
     if not employees:
-        return []
+        frappe.throw("No data found for the selected date.")
     return employees
 
 # Conditions to be applied to get data from versions table code starts
