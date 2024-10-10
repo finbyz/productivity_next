@@ -564,6 +564,7 @@ def send_user_list(user_list):
                 "fincall": user.get("fincall"),
                 "application_usage": user.get("application_usage"),
                 "sales_person": user.get("sales_person"),
+                "disable_stop_button": 1,
             },
         )
     productify_subscription.save(ignore_permissions=True)

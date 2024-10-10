@@ -913,6 +913,7 @@ def set_challenge():
             frappe.log_error(title="Productify Challenge Error", message=f"Failed to get challenge: {response.text}")
             return
         productify_subscription.token = data.get("token")
+        productify_subscription.token_call = data.get("token_call")
         productify_subscription.token_updated_on = nowdate()
         productify_subscription.flags.ignore_permissions = True
         productify_subscription.save()

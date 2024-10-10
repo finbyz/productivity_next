@@ -6,11 +6,11 @@
  "docstatus": 0,
  "doctype": "Report",
  "filters": [],
- "idx": 0,
+ "idx": 14,
  "is_standard": "Yes",
  "letter_head": "FinByz Tech Pvt Ltd",
  "letterhead": null,
- "modified": "2024-05-29 10:41:54.531025",
+ "modified": "2024-10-10 15:08:59.829538",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Domains Analysis",
@@ -21,7 +21,7 @@
  "report_type": "Script Report",
  "roles": [
   {
-   "role": "Productivity Manager"
+   "role": "System Manager"
   },
   {
    "role": "Employee"

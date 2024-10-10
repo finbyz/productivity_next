@@ -164,7 +164,7 @@ def get_activity_chart_data(user,start_date=None, end_date=None):
     total_application_duration = total_application_hours[0].total_duration if total_application_hours and total_application_hours[0].total_duration is not None else 0
     total_idle_duration = total_idle_hours[0].total_duration if total_idle_hours and total_idle_hours[0].total_duration is not None else 0
     total_system_hours = total_application_duration - total_idle_duration
-    toal_hours_to_show = max(32400, total_time)
+    toal_hours_to_show = total_time
     total_active_hours = total_time - total_idle_time
     weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
     saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
