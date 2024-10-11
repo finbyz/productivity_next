@@ -2846,8 +2846,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 						slotImages[date][hour] = new Array(12).fill(null);
 					}
 					slotImages[date][hour][slot] = image;
-				});
-			ssss	
+				});	
 				Object.keys(slotImages).reverse().forEach(date => {
 					Object.keys(slotImages[date]).reverse().forEach(hour => {
 						if (lastPrintedDate !== date || lastPrintedHour !== hour) {
