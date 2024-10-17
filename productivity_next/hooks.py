@@ -253,5 +253,6 @@ fixtures = [
         "filters": [
             ["name", "in", ["Project", "Task", "Issue"]]
         ]
-    }
+    },
+    {"dt": "Property Setter", "filters": [["module", "in", ["Productivity Next"]]]},
 ]
