@@ -7,8 +7,10 @@ from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
 from frappe.utils import flt
+from datetime import datetime
 import requests
 from werkzeug import Response
+import pytz
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import (
@@ -654,7 +656,7 @@ def get_employee_fincall(employee, employee_mobile, customer_no, date, call_date
     }
 
 
-@frappe.whitelist(allow_guest=False, methods=["GET", "POST"])
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def create_fincall(
     employee,
     employee_mobile,
@@ -714,7 +716,18 @@ def create_fincall(
             c.modified DESC
         LIMIT 1;
     """
+
     contact_details = frappe.db.sql(contact_query, as_dict=True)
+    if contact_details == []:
+        contact_details = frappe.db.sql(f"""select name as link_name, 'Job Applicant' as link_doctype from `tabJob Applicant`
+                                        WHERE 
+                                            LENGTH(mobile_number) >= 10 
+                                            AND (mobile_number = '{customer_no}' 
+                                            OR mobile_number LIKE '%{customer_no}' 
+                                            OR '{customer_no}' LIKE CONCAT("%", mobile_number)
+                                            OR phone_number = '{customer_no}' 
+                                            OR phone_number LIKE '%{customer_no}' 
+                                            OR '{customer_no}' LIKE CONCAT("%", phone_number)) """, as_dict=True)
     if (
         contact_details
         and contact_details[0].get("link_doctype", "")
@@ -1184,3 +1197,97 @@ def get_allowed_modules(employee=None):
     modules["application_usage"] = data[1]
     modules["sales_person"] = data[2]
     return modules
+
+@frappe.whitelist(allow_guest=False, methods=["POST"])
+def create_location_log(location, cmd):
+    for loc in location:
+        doc = frappe.new_doc("Location Logs")
+        doc.employee = loc.get("extras").get("employee")
+        doc.date = loc.get("extras").get("date")
+        doc.time = convert_utc_to_ist(loc.get("timestamp"))
+        # doc.time = loc.get("extras").get("timestamp")
+        doc.event = loc.get("event")
+        doc.uuid = loc.get("uuid")
+        doc.odometer = loc.get("odometer")
+        doc.age = loc.get("age")
+        doc.is_moving = loc.get("is_moving")
+        doc.activity_type = loc.get("activity").get("type")
+        doc.confidence = loc.get("activity").get("confidence")
+        doc.battery_is_charging = loc.get("battery").get("is_charging")
+        doc.level = loc.get("battery").get("level")
+        
+        doc.latitude = loc.get("coords").get("latitude")
+        doc.longitude = loc.get("coords").get("longitude")
+        doc.acurracy = loc.get("coords").get("accuracy")
+        doc.speed = loc.get("coords").get("speed")
+        doc.speed_accuracy = loc.get("coords").get("speed_accuracy")
+        doc.heading = loc.get("coords").get("heading")
+        doc.heading_accuracy = loc.get("coords").get("heading_accuracy")
+        doc.altitude = loc.get("coords").get("altitude")
+        doc.ellipsoidal_altitude = loc.get("coords").get("ellipsoidal_altitude")
+        doc.altitude_accuracy = loc.get("coords").get("altitude_accuracy")
+        
+        doc.save()
+        frappe.db.commit()
+    return location
+    
+@frappe.whitelist(allow_guest=False, methods=["GET"])
+def map_route_line(start_date, end_date, employee):
+    location_logs = frappe.db.sql("""
+    SELECT latitude, longitude, heading, is_stationary, time
+    FROM `tabLocation Logs`
+    WHERE employee = %s AND date BETWEEN %s AND %s
+    ORDER BY time DESC
+    """, (employee, start_date, end_date), as_dict=True)
+    for log in location_logs:
+        log["latitude"] = float(log["latitude"])
+        log["longitude"] = float(log["longitude"])
+        log["heading"] = float(log["heading"])
+        log["is_stationary"] = float(log["is_stationary"])
+        log["time"] = datetime.strptime(str(log["time"]),"%Y-%m-%d %H:%M:%S")
+    return location_logs
+
+
+def convert_utc_to_ist(iso_utc_timestamp):
+    # Define the UTC timezone
+    utc_timezone = pytz.utc
+
+    # Parse the ISO-8601 UTC timestamp
+    utc_datetime = datetime.fromisoformat(iso_utc_timestamp.replace("Z", "+00:00"))
+
+    # Define the IST timezone
+    ist_timezone = pytz.timezone('Asia/Kolkata')
+
+    # Convert UTC time to IST
+    ist_datetime = utc_datetime.astimezone(ist_timezone)
+
+    # Format the IST time in 24-hour format
+    ist_formatted = ist_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+    return ist_formatted
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_location_logs(employee, start_date, end_date):
+     
+        location_logs = frappe.db.sql("""
+            SELECT employee, date, time, activity_type, heading, latitude, longitude
+            FROM `tabLocation Logs`
+            WHERE employee = %s AND date BETWEEN %s AND %s
+            ORDER BY time
+        """, (employee, start_date, end_date), as_dict=True)
+        
+        
+        for log in location_logs:
+            log["employee"] = str(log["employee"]) 
+            log["date"] = datetime.strptime(str(log["date"]), "%Y-%m-%d").date()  
+            log["time"] = datetime.strptime(str(log["time"]),"%Y-%m-%d %H:%M:%S").time()  
+            log["activity_type"] = str(log["activity_type"])
+            log["heading"] = float(log["heading"])
+            log["location"] = {
+                "latitude": float(log["latitude"]),
+                "longitude": float(log["longitude"])
+            }
+        return location_logs
+
+   
+    

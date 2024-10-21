@@ -153,7 +153,7 @@
    "read_only": 1
   },
   {
-   "depends_on": "eval:!doc.contact",
+   "depends_on": "eval:!doc.contact && !doc.link_name",
    "fieldname": "create_contact",
    "fieldtype": "Button",
    "label": "Create Contact"
@@ -173,7 +173,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-06-25 13:04:30.113513",
+ "modified": "2024-10-21 15:01:53.883964",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",

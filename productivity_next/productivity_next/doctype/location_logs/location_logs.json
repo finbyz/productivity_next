@@ -1,0 +1,272 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-10-14 12:42:34.562075",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "info_section",
+  "naming_series",
+  "employee",
+  "employee_name",
+  "date",
+  "time",
+  "column_break_lv4m",
+  "event",
+  "uuid",
+  "odometer",
+  "age",
+  "is_moving",
+  "is_stationary",
+  "column_break_qrqv",
+  "activity_type",
+  "confidence",
+  "battery_is_charging",
+  "level",
+  "section_break_a4bx",
+  "latitude",
+  "longitude",
+  "accuracy",
+  "speed",
+  "speed_accuracy",
+  "column_break_5rkf",
+  "heading",
+  "heading_accuracy",
+  "altitude",
+  "ellipsoidal_altitude",
+  "altitude_accuracy"
+ ],
+ "fields": [
+  {
+   "default": "LL-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "LL-.YY.MM.DD.-",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_lv4m",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Data",
+   "label": "Latitude",
+   "read_only": 1
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Data",
+   "label": "Longitude",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accuracy",
+   "fieldtype": "Data",
+   "label": "Accuracy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "heading",
+   "fieldtype": "Data",
+   "label": "Heading",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_qrqv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "event",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "uuid",
+   "fieldtype": "Data",
+   "label": "UUID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "age",
+   "fieldtype": "Data",
+   "label": "Age",
+   "read_only": 1
+  },
+  {
+   "fieldname": "odometer",
+   "fieldtype": "Data",
+   "label": "Odometer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "speed",
+   "fieldtype": "Data",
+   "label": "Speed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_a4bx",
+   "fieldtype": "Section Break",
+   "label": "Coords"
+  },
+  {
+   "fieldname": "speed_accuracy",
+   "fieldtype": "Data",
+   "label": "Speed Accuracy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "heading_accuracy",
+   "fieldtype": "Data",
+   "label": "Heading Accuracy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "altitude",
+   "fieldtype": "Data",
+   "label": "Altitude",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ellipsoidal_altitude",
+   "fieldtype": "Data",
+   "label": "Ellipsoidal Altitude",
+   "read_only": 1
+  },
+  {
+   "fieldname": "altitude_accuracy",
+   "fieldtype": "Data",
+   "label": "Altitude Accuracy",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_moving",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Moving",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_5rkf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "confidence",
+   "fieldtype": "Data",
+   "label": "Confidence",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "battery_is_charging",
+   "fieldtype": "Check",
+   "label": "Battery Is Charging",
+   "read_only": 1
+  },
+  {
+   "fieldname": "level",
+   "fieldtype": "Data",
+   "label": "Level",
+   "read_only": 1
+  },
+  {
+   "fieldname": "info_section",
+   "fieldtype": "Section Break",
+   "label": "Info"
+  },
+  {
+   "fieldname": "activity_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Activity Type",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_stationary",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Stationary",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-10-18 16:52:56.171280",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Location Logs",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

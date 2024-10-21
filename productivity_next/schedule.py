@@ -218,6 +218,16 @@ def create_employee_log(fincall_log):
             """
 
             contact_details = frappe.db.sql(contact_query, as_dict=True)
+            if contact_details == []:
+                contact_details = frappe.db.sql(f"""select name as link_name, 'Job Applicant' as link_doctype from `tabJob Applicant`
+                                                WHERE 
+                                                    LENGTH(mobile_number) >= 10 
+                                                    AND (mobile_number = '{fincall_log.customer_no}' 
+                                                    OR mobile_number LIKE '%{fincall_log.customer_no}' 
+                                                    OR '{fincall_log.customer_no}' LIKE CONCAT("%", mobile_number)
+                                                    OR phone_number = '{fincall_log.customer_no}' 
+                                                    OR phone_number LIKE '%{fincall_log.customer_no}' 
+                                                    OR '{fincall_log.customer_no}' LIKE CONCAT("%", phone_number)) """, as_dict=True)
             if contact_details and contact_details[0].get("link_doctype", "") and contact_details[0].get("link_name", ""):
                 contact = contact_details[0]
                 ec_doc.link_to = contact.get("link_doctype", "")
