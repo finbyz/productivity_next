@@ -57,14 +57,14 @@ class EmployeeFincall(Document):
         return ""
 
     def get_comment_text(self, employee_fincall_url) -> str:
-        if self.get_contact_name is None:
+        if self.get_contact_name is None and self.link_name is None:
             return ""
         call_time = format_duration(self.duration)
         formatted_datetime = format_datetime(self.call_datetime, "dd-MM-yyyy HH:mm:ss")
         spoken_about = f"<br><b>Discussed: </b><p>{self.spoke_about}</p>" if self.spoke_about else ""
         TEXT = (
             f"<b>{self.employee_name}</b> <a href='{employee_fincall_url}'>{self.get_svg}</a> "
-            f"<b>{self.get_contact_name}</b> at {formatted_datetime} "
+            f"<b>{self.get_contact_name or self.link_name}</b> at {formatted_datetime} "
             f"for {call_time} {spoken_about}"
         )
         return TEXT

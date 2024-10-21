@@ -250,7 +250,7 @@ def schedule_comments():
         "Employee Fincall",
         {
             "comment": ('is','not set'),
-            "contact":("is",'set'),
+            "link_name":("is",'set'),
         },
         order_by="call_datetime ASC",
         page_length=100,
