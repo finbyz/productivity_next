@@ -572,10 +572,18 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
         WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
         ELSE 'Others'
     END AS customname,
-    COALESCE(
-        (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
-        COALESCE(ef.contact, ef.client, ef.customer_no)
-    ) AS identifier,
+    CASE 
+        WHEN ef.contact IS NOT NULL THEN
+            COALESCE(
+                (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
+                COALESCE(ef.contact, ef.client, ef.customer_no)
+            )
+        ELSE 
+            CASE 
+                WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
+                ELSE 'Others'
+            END
+    END AS identifier,
     ef.link_to AS ref_doctype, 
     ROUND(SUM(ef.duration)/60, 2) AS total_duration,
     COUNT(*) AS call_count
@@ -585,14 +593,16 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
         AND ef.employee = '{user}' 
     GROUP BY COALESCE(ef.contact, ef.client, ef.customer_no), ef.link_name
     HAVING SUM(ef.duration) > 60
-    ORDER BY total_duration DESC
-""", as_dict=True)
+    ORDER BY total_duration DESC;
+
+    """, as_dict=True)
+    # frappe.throw(str(caller_name))
 
     caller_details = []
     company_details = []
 
     others_duration = 0
-    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'}
+    main_categories = {'Customer', 'Supplier', 'Lead', 'Company', 'Job Applicant'}
     for row in caller_name:
         ref_doctype = row['ref_doctype']
         total_duration = row['total_duration']
@@ -630,7 +640,7 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
     customNames = []
     for app in caller_name:
         caller_details.append({
-            "name": app['identifier'],
+            "name": app['identifier'] if app['identifier'] else app['customname'],
             "value": app['total_duration'],
             "customIndex": count
         })

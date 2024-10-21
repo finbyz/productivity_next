@@ -1874,6 +1874,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 				end_date: this.selected_end_date,
 			})
 			.then((r) => {
+				console.log(r);
 				const containerElement = document.getElementById('calls');
 				if (r.caller_details.length === 0) {
 					if (containerElement) containerElement.style.display = 'none';

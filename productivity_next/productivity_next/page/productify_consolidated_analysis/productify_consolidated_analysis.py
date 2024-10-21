@@ -144,7 +144,7 @@ def client_calls_chart(start_date=None, end_date=None):
     company_details = []
     others_duration = 0
 
-    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'} 
+    main_categories = {'Customer', 'Supplier', 'Lead', 'Company', 'Job Applicant'} 
     for row in caller_name:
         ref_doctype = row['ref_doctype']
         total_duration = row['total_duration']
