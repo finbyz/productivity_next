@@ -1234,7 +1234,7 @@ def create_location_log(location, cmd):
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def map_route_line(start_date, end_date, employee):
     location_logs = frappe.db.sql("""
-    SELECT latitude, longitude, heading, is_stationary, time
+    SELECT latitude, longitude, heading, is_stationary, time, uuid
     FROM `tabLocation Logs`
     WHERE employee = %s AND date BETWEEN %s AND %s
     ORDER BY time DESC

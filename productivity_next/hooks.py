@@ -128,7 +128,7 @@ doctype_js = {
 # Document Events
 # ---------------
 # Hook on document methods and events
-before_migrate = ["productivity_next.schedule.create_auto_email_report"]
+before_migrate = ["productivity_next.schedule.create_auto_email_report","productivity_next.schedule.create_auto_email_report_weekly"]
 doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
@@ -151,6 +151,8 @@ scheduler_events = {
             "productivity_next.schedule.delete_productify_error_logs",
             "productivity_next.schedule.delete_screenshots",
             "productivity_next.schedule.delete_application_logs",
+            "productivity_next.schedule.create_auto_email_report",
+            "productivity_next.schedule.create_auto_email_report_weekly"
         ],
         "0 0 * * *": [
             "productivity_next.schedule.submit_timesheet_created_by_productify",

@@ -1,7 +1,7 @@
 // Copyright (c) 2024, Finbyz Tech Pvt Ltd and contributors
 // For license information, please see license.txt
 
-frappe.query_reports["Productify Weekly Summary"] = {
+frappe.query_reports["Employee Productivity Matrix"] = {
 	"filters": [
 		{
             "fieldname": "timespan",

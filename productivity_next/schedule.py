@@ -955,21 +955,165 @@ def set_challenge():
                 frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_app, "expiration_time", expiration_time)
                 frappe.db.set_value("OAuth Bearer Token", outh_bearer_token_name_app, "expires_in", (expiration_time - get_datetime()).total_seconds())
 
-def create_auto_email_report():
-    if not frappe.db.exists("Auto Email Report", {"report": "Productify Weekly Summary"}) and frappe.db.exists("List of User"):
+import frappe
+from typing import Literal, Dict, Any, Optional
+
+def get_email_template(report_type: Literal["daily", "weekly"]) -> str:
+    """Returns the appropriate email template based on report type."""
+    dashboard_url = f"{frappe.utils.get_url()}/app/Productify%20Consolidated%20Analysis"
+    
+    templates = {
+        "daily": f"""<div class='ql-editor read-mode'>
+            <p>Dear Team,</p>
+            <p>Here's your daily Productify performance summary for yesterday. The report provides detailed insights into:</p>
+            <ul>
+                <li><strong>Activity Timeline:</strong> Hour-by-hour breakdown of user activities including:
+                    <ul>
+                        <li>Application usage periods</li>
+                        <li>Meeting times (Internal & External)</li>
+                        <li>Active vs Idle time</li>
+                        <li>Call durations</li>
+                    </ul>
+                </li>
+                <li><strong>User Analysis Metrics:</strong>
+                    <ul>
+                        <li>Productivity Scores</li>
+                        <li>Activity Hours (Total, Active, Idle)</li>
+                        <li>Phone Call Statistics (Incoming, Outgoing, Missed, Rejected)</li>
+                        <li>Work Intensity (Keyboard, Mouse, Scroll activity)</li>
+                        <li>Meeting Hours</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>For interactive visualizations and deeper insights, visit the <a href="{dashboard_url}"><strong>Productify Consolidated Analysis</strong></a> dashboard.</p>
+            <p><strong>Key Actions:</strong></p>
+            <ul>
+                <li>Review your productivity scores and activity patterns</li>
+                <li>Analyze your time distribution across different activities</li>
+                <li>Check your meeting attendance and call handling efficiency</li>
+                <li>Monitor your work intensity metrics</li>
+            </ul>
+            <p><strong>Note:</strong> This report reflects yesterday's activities. For real-time data, please visit the dashboard.</p>
+            <p>Best regards,<br>Your Productify Analytics Team</p>
+        </div>""",
+        "weekly": f"""<div class='ql-editor read-mode'>
+            <p>Dear Team,</p>
+            <p>Welcome to your weekly Productify performance analysis. This comprehensive report aggregates last week's productivity data, providing valuable insights into:</p>
+            <ul>
+                <li><strong>Weekly Activity Patterns:</strong>
+                    <ul>
+                        <li>Daily productivity trends and scores</li>
+                        <li>Application usage patterns across the week</li>
+                        <li>Meeting time distribution</li>
+                        <li>Peak productivity periods</li>
+                    </ul>
+                </li>
+                <li><strong>Consolidated Metrics:</strong>
+                    <ul>
+                        <li>Overall productivity scoring</li>
+                        <li>Total active vs idle time analysis</li>
+                        <li>Communication patterns (calls and meetings)</li>
+                        <li>Work intensity trends</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>For detailed analytics and trend visualization, access the <a href="{dashboard_url}"><strong>Productify Consolidated Analysis</strong></a> dashboard.</p>
+            <p><strong>Weekly Insights:</strong></p>
+            <ul>
+                <li>Compare your daily productivity patterns</li>
+                <li>Identify your most productive days and times</li>
+                <li>Review your meeting and communication efficiency</li>
+                <li>Track progress on work intensity metrics</li>
+            </ul>
+            <p><strong>Note:</strong> This report summarizes last week's activities. For current week trends, please check the live dashboard.</p>
+            <p>Best regards,<br>Your Productify Analytics Team</p>
+        </div>"""
+    }
+    return templates[report_type]
+
+def get_report_config(frequency: Literal["Daily", "Weekly"]) -> Dict[str, Any]:
+    """Returns the configuration for the auto email report based on frequency."""
+    auto_email_name = f"Employee Productivity Matrix {frequency}"
+    
+    config = {
+        "doctype": "Auto Email Report",
+        "report": "Employee Productivity Matrix",
+        "name": auto_email_name,
+        "user": "Administrator",
+        "enabled": 1,
+        "report_type": "Script Report",
+        "send_if_data": 1,
+        "format": "HTML",
+        "frequency": frequency,
+        "filters": frappe.as_json({"timespan": "Yesterday" if frequency == "Daily" else "Last Week"})
+    }
+    
+    if frequency == "Weekly":
+        config["day_of_week"] = "Monday"
+        
+    return config
+
+def setup_auto_email_report(frequency: Literal["Daily", "Weekly"]) -> None:
+    """Sets up or updates an auto email report based on frequency."""
+    try:
+        # Get email configuration
         email_account = frappe.get_value("Email Account", filters={"default_outgoing": 1})
+        if not email_account:
+            frappe.throw("No default outgoing email account found")
+            
+        # Get user emails
         employees = frappe.get_all("List of User", fields=["user_id"])
-        new_emails = [user['user_id'] for user in employees]
-        email_to_field = "\n".join(new_emails)
-        doc = frappe.new_doc("Auto Email Report")
-        doc.report = "Productify Weekly Summary"
-        doc.user = "Administrator"
-        doc.enabled = 1
-        doc.report_type = "Script Report"
-        doc.send_if_data = 1
-        doc.sender = email_account
-        doc.email_to = email_to_field
-        doc.frequency = "Daily"
-        doc.format = "HTML"
-        doc.description = "<div class='ql-editor read-mode'><p>We are pleased to present the comprehensive analysis of our organization's performance over the past week. To delve deeper into the details and gain further insights, we invite you to explore the <strong>Productify Consolidated Analysis</strong> page within our ERP system.</p><p><br></p><p>This detailed report provides a thorough overview of key metrics and trends, offering valuable insights to help us better understand our performance and make informed decisions.</p><p><br></p><p>We encourage you to review the report to stay updated on our progress and identify areas for improvement.</p></div>"
-        doc.save()
+        if not employees:
+            frappe.throw("No users found in List of User")
+            
+        email_to_field = "\n".join(user['user_id'] for user in employees)
+        
+        # Check for existing reports with this frequency
+        existing_reports = frappe.get_all(
+            "Auto Email Report",
+            filters={
+                "report": "Employee Productivity Matrix",
+                "frequency": frequency
+            }
+        )
+        
+        if existing_reports:
+            # Update the first existing report
+            doc = frappe.get_doc("Auto Email Report", existing_reports[0].name)
+            doc.email_to = email_to_field
+            doc.enabled = 1  # Ensure it's enabled
+            doc.save()
+            
+            # Disable any additional reports with the same frequency
+            if len(existing_reports) > 1:
+                for report in existing_reports[1:]:
+                    extra_doc = frappe.get_doc("Auto Email Report", report.name)
+                    extra_doc.enabled = 0
+                    extra_doc.save()
+                frappe.msgprint(f"Disabled {len(existing_reports) - 1} duplicate reports")
+                
+            frappe.msgprint(f"Updated existing {frequency} report")
+        else:
+            # Create new report only if none exist
+            doc = frappe.new_doc("Auto Email Report")
+            doc.update(get_report_config(frequency))
+            doc.sender = email_account
+            doc.email_to = email_to_field
+            doc.description = get_email_template("daily" if frequency == "Daily" else "weekly")
+            doc.insert()
+            frappe.msgprint(f"Created new {frequency} report")
+        
+        frappe.db.commit()
+        frappe.msgprint(f"{frequency} report setup completed successfully")
+        
+    except Exception as e:
+        frappe.log_error(f"Failed to setup {frequency} auto email report: {str(e)}")
+        frappe.throw(f"Error setting up auto email report: {str(e)}")
+
+def create_auto_email_report():
+    """Creates or updates daily auto email report."""
+    setup_auto_email_report("Daily")
+
+def create_auto_email_report_weekly():
+    """Creates or updates weekly auto email report."""
+    setup_auto_email_report("Weekly")
