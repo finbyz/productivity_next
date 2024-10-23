@@ -960,7 +960,9 @@ from typing import Literal, Dict, Any, Optional
 
 def get_email_template(report_type: Literal["daily", "weekly"]) -> str:
     """Returns the appropriate email template based on report type."""
-    dashboard_url = f"{frappe.utils.get_url()}/app/Productify%20Consolidated%20Analysis"
+    # Ensure consistent single forward slash in URL
+    base_url = frappe.utils.get_url().rstrip('/')  # Remove any trailing slashes
+    dashboard_url = f"{base_url}/app/Productify%20Consolidated%20Analysis"
     
     templates = {
         "daily": f"""<div class='ql-editor read-mode'>
@@ -1079,16 +1081,8 @@ def setup_auto_email_report(frequency: Literal["Daily", "Weekly"]) -> None:
             # Update the first existing report
             doc = frappe.get_doc("Auto Email Report", existing_reports[0].name)
             doc.email_to = email_to_field
-            doc.enabled = 1  # Ensure it's enabled
+            doc.description = get_email_template("daily" if frequency == "Daily" else "weekly")
             doc.save()
-            
-            # Disable any additional reports with the same frequency
-            if len(existing_reports) > 1:
-                for report in existing_reports[1:]:
-                    extra_doc = frappe.get_doc("Auto Email Report", report.name)
-                    extra_doc.enabled = 0
-                    extra_doc.save()
-                frappe.msgprint(f"Disabled {len(existing_reports) - 1} duplicate reports")
                 
             frappe.msgprint(f"Updated existing {frequency} report")
         else:
