@@ -121,7 +121,9 @@ def get_data(from_date, to_date):
         total_idle_time = user_analysis.get("total_idle_time", {}).get(employee, 0)
 
         active_hours = total_hours - total_idle_time
-        if user_analysis.get("productivity_score", {}).get(employee, 0) == 0:
+        productivity_score = user_analysis.get("productivity_score", {}).get(employee, 0)
+
+        if productivity_score == 0:
             employee_record = {
                 "employee": frappe.get_value("Employee", employee, "employee_name"),
                 "productivity_score": 100,
@@ -140,7 +142,7 @@ def get_data(from_date, to_date):
         else:
             employee_record = {
                 "employee": frappe.get_value("Employee", employee, "employee_name"),
-                "productivity_score": round((((active_hours/3600)/user_analysis.get("productivity_score", {}).get(employee, 0))*100),0),
+                "productivity_score": round((((active_hours / 3600) / productivity_score) * 100), 0),
                 "total_hours": total_hours,
                 "active_hours": active_hours,
                 "idle_hours": total_idle_time,
@@ -190,7 +192,11 @@ def get_data(from_date, to_date):
     formatted_totals_row = {k: format_duration(v) if k in ['total_hours', 'active_hours', 'idle_hours', 'incoming_hours', 'outgoing_hours', 'meetings_hours'] else v for k, v in totals_row.items()}
     data.append(formatted_totals_row)
 
+    # Sort data on productivity_score in descending order
+    data = sorted(data[:-1], key=lambda x: x['productivity_score'], reverse=True) + [formatted_totals_row]
+
     return data
+
 
 
 def format_duration(duration_seconds):
