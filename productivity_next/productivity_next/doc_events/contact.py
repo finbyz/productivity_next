@@ -1,6 +1,8 @@
 import frappe
 
 def validate(self, method):
+    normalize_and_check_duplicates(self)
+
     frappe.enqueue(
         update_contacts,
         contacts=self.name,
@@ -9,6 +11,46 @@ def validate(self, method):
         queue="long",
         job_name="Update Contacts"
     )
+
+def normalize_and_check_duplicates(doc):
+    client_no = []
+    for row in doc.phone_nos:
+        if row.phone:
+            phone = row.phone.replace(" ", "") 
+            if phone[0] != "+" and phone[0] != "0":
+                phone = "+91" + phone
+            elif phone[0] == "0":
+                phone = "+91" + phone[1:]
+            
+            row.phone = phone  
+            client_no.append(phone)
+
+    if not client_no:
+        return
+
+    client_no_tuple = tuple(client_no)
+
+    duplicates = []
+    for phone in client_no:
+        last_10_digits = phone[-10:]  
+        duplicate_contacts = frappe.db.sql("""
+            SELECT name FROM `tabContact`
+            WHERE phone LIKE %(phone_last_10)s AND name != %(contact_name)s
+        """, {
+            "phone_last_10": "%" + last_10_digits,
+            "contact_name": doc.name
+        }, as_dict=True)
+        if duplicate_contacts:
+            duplicates.append({
+                "phone": phone,
+                "duplicates": [contact['name'] for contact in duplicate_contacts]
+            })
+
+    if duplicates:
+        error_message = "Duplicate phone numbers found:\n"
+        for dup in duplicates:
+            error_message += f"Phone: {dup['phone']} - Duplicate Contacts: {', '.join(dup['duplicates'])}\n"
+        frappe.throw(error_message)
 
 def update_contacts(contacts, phone_nos, links):
     # Collect and normalize the phone numbers
