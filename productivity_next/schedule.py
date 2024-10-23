@@ -1058,8 +1058,6 @@ def setup_auto_email_report(frequency: Literal["Daily", "Weekly"]) -> None:
     try:
         # Get email configuration
         email_account = frappe.get_value("Email Account", filters={"default_outgoing": 1})
-        if not email_account:
-            frappe.throw("No default outgoing email account found")
             
         # Get user emails
         employees = frappe.get_all("List of User", fields=["user_id"])
@@ -1108,7 +1106,6 @@ def setup_auto_email_report(frequency: Literal["Daily", "Weekly"]) -> None:
         
     except Exception as e:
         frappe.log_error(f"Failed to setup {frequency} auto email report: {str(e)}")
-        frappe.throw(f"Error setting up auto email report: {str(e)}")
 
 def create_auto_email_report():
     """Creates or updates daily auto email report."""
