@@ -224,7 +224,7 @@ def create_employee_log(fincall_log):
                                                     LENGTH(mobile_number) >= 10 
                                                     AND (mobile_number = '{fincall_log.customer_no}' 
                                                     OR mobile_number LIKE '%{fincall_log.customer_no}' 
-                                                    OR '{fincall_log.customer_no}' LIKE CONCAT("%", mobile_number)""", as_dict=True)
+                                                    OR '{fincall_log.customer_no}' LIKE CONCAT("%", mobile_number))""", as_dict=True)
             if contact_details and contact_details[0].get("link_doctype", "") and contact_details[0].get("link_name", ""):
                 contact = contact_details[0]
                 ec_doc.link_to = contact.get("link_doctype", "")
@@ -875,7 +875,7 @@ def delete_productify_error_logs():
     date_for_error_logs = get_datetime() - timedelta(days=time_for_error_logs)
 
     frappe.db.sql("""
-        DELETE FROM `tabProjob aductify Error Log`
+        DELETE FROM `tabProductify Error Log`
         WHERE error_datetime < %s
     """, (date_for_error_logs.strftime("%Y-%m-%d %H:%M:%S"),))
 

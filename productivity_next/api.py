@@ -724,10 +724,7 @@ def create_fincall(
                                             LENGTH(mobile_number) >= 10 
                                             AND (mobile_number = '{customer_no}' 
                                             OR mobile_number LIKE '%{customer_no}' 
-                                            OR '{customer_no}' LIKE CONCAT("%", mobile_number)
-                                            OR phone_number = '{customer_no}' 
-                                            OR phone_number LIKE '%{customer_no}' 
-                                            OR '{customer_no}' LIKE CONCAT("%", phone_number)) """, as_dict=True)
+                                            OR '{customer_no}' LIKE CONCAT("%", mobile_number))""", as_dict=True)
     if (
         contact_details
         and contact_details[0].get("link_doctype", "")
@@ -1265,29 +1262,3 @@ def convert_utc_to_ist(iso_utc_timestamp):
     ist_formatted = ist_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
     return ist_formatted
-
-@frappe.whitelist(allow_guest=True, methods=["GET"])
-def get_location_logs(employee, start_date, end_date):
-     
-        location_logs = frappe.db.sql("""
-            SELECT employee, date, time, activity_type, heading, latitude, longitude
-            FROM `tabLocation Logs`
-            WHERE employee = %s AND date BETWEEN %s AND %s
-            ORDER BY time
-        """, (employee, start_date, end_date), as_dict=True)
-        
-        
-        for log in location_logs:
-            log["employee"] = str(log["employee"]) 
-            log["date"] = datetime.strptime(str(log["date"]), "%Y-%m-%d").date()  
-            log["time"] = datetime.strptime(str(log["time"]),"%Y-%m-%d %H:%M:%S").time()  
-            log["activity_type"] = str(log["activity_type"])
-            log["heading"] = float(log["heading"])
-            log["location"] = {
-                "latitude": float(log["latitude"]),
-                "longitude": float(log["longitude"])
-            }
-        return location_logs
-
-   
-    
