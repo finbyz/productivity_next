@@ -12,10 +12,10 @@ UserProfile = class UserProfile {
 
 		const urlParams = new URLSearchParams(window.location.search);
 		const currentEmployee = urlParams.get('employee');
-		// console.log("URL employee parameter:", currentEmployee);
+		console.log("FIRST employee parameter:", currentEmployee);
 		if (currentEmployee && currentEmployee !== 'undefined') {
 			this.selected_employee = currentEmployee;
-			// console.log("Employee set from URL:", this.selected_employee);
+			console.log("FIRST Employee set from URL:", this.selected_employee);
 		} else {
 			const employeePromise = frappe.db.get_value("Employee", {
 				"user_id": frappe.session.user
@@ -28,7 +28,7 @@ UserProfile = class UserProfile {
 					window.history.pushState({
 						path: newUrl.toString()
 					}, '', newUrl.toString());
-					// console.log("Employee set from session and URL updated:", this.selected_employee);
+					console.log("SECOND Employee set from session and URL updated:", this.selected_employee);
 				}
 			}).catch(error => {
 				console.error("Error retrieving employee:", error);
@@ -78,6 +78,7 @@ UserProfile = class UserProfile {
 		frappe.db.exists("User", this.user_id)
 			.then((exists) => {
 				if (exists) {
+					console.log("THIRD EMPLOYEE", this.selected_employee);
 					this.make_user_profile();
 				} else {
 					frappe.dom.unfreeze();
@@ -102,6 +103,7 @@ UserProfile = class UserProfile {
 		this.application_usage_time();
 		this.fetch_url_data();
 		this.type_of_calls();
+		this.meetings_analysis();
 	
 		// JavaScript to handle tab switching
 		const tabs = document.querySelectorAll('.nav-link');
@@ -130,6 +132,10 @@ UserProfile = class UserProfile {
 					this.top_phone_calls();
 					this.type_of_calls();
 					this.hourly_calls_analysis();
+				}
+
+				if (target.getAttribute('aria-labelledby') === 'meetings-tab') {
+					this.meetings_analysis();
 				}
 				
 				contents.forEach(content => content.classList.remove('show', 'active'));
@@ -181,6 +187,7 @@ UserProfile = class UserProfile {
 				if (urlParams.get('employee')) {
 					this.selected_employee = urlParams.get('employee');
 				}
+				console.log("FOURTH EMPLOYEE", this.selected_employee);
 				this.make_user_profile();
 			},
 		});
@@ -262,6 +269,7 @@ UserProfile = class UserProfile {
 			}) => {
 				dialog.hide();
 				this.selected_employee = employee;
+				console.log("FIFTH EMPLOYEE", this.selected_employee);
 				this.make_user_profile()
 				const newUrl = new URL(window.location.href);
 				newUrl.searchParams.set('employee', employee);
@@ -274,6 +282,224 @@ UserProfile = class UserProfile {
 	}
 	// Change Employee Button Code Ends
 
+	meetings_analysis() {    
+		const renderMeetingsBound = this.renderMeetings.bind(this);
+		
+		let user = this.selected_employee !== null ? this.selected_employee : this.user_id;
+		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.meetings_analysis", {
+			user: user,
+			start_date: this.selected_start_date,
+			end_date: this.selected_end_date,
+		}).then((response) => {
+			console.log("Meetings Analysis Response:", response);
+			
+			// Extract locations from meetings if available
+			const locations = response.map(meeting => ({
+				lat: meeting.latitude,
+				lng: meeting.longitude,
+				name: meeting.location_name || `${meeting.client || 'Internal Meeting'}`
+			})).filter(loc => loc.lat && loc.lng); // Filter out meetings without coordinates
+			
+			// Render the map if locations are available
+			if (locations.length) {
+				const mapContainer = document.querySelector('#meetings-map-container');
+				if (mapContainer) {
+					// Initialize map
+					new MeetingsMap(mapContainer, locations);
+				}
+			}
+			
+			renderMeetingsBound(response);
+		}).catch((error) => {
+			console.error("Error fetching data:", error);
+		});
+	}
+
+    renderMeetings(meetings) {
+        if (!meetings || !Array.isArray(meetings)) {
+            console.warn("Invalid meetings data:", meetings);
+            return;
+        }
+    
+        const meetingsList = document.getElementById('meetings-list');
+        if (!meetingsList) {
+            console.error("Meetings list container not found");
+            return;
+        }
+    
+        // Store the class instance's context
+        const self = this;
+    
+        meetingsList.innerHTML = ''; // Clear previous entries
+    
+        meetings.forEach((meeting, index) => {
+            const isInternal = meeting.internal_meeting === 1;
+            
+            // Safely split representatives, filter out empty strings and trim whitespace
+            const companyReps = meeting.company_representatives ? 
+                meeting.company_representatives.split(',')
+                    .filter(rep => rep.trim())
+                    .map(rep => rep.trim()) : [];
+            
+            const partyReps = !isInternal && meeting.party_representatives ? 
+                meeting.party_representatives.split(',')
+                    .filter(rep => rep.trim())
+                    .map(rep => rep.trim()) : [];
+    
+            const collapseId = `collapse-content-${index}`;
+            const card = document.createElement('div');
+            card.className = 'col-md-4 mb-4';
+    
+            // Determine card styling based on meeting type
+            const borderColor = isInternal ? '#6420AA' : '#6699FF';
+            const hoverColor = isInternal ? '#5a1d99' : '#5580e6';
+    
+            // Set party and party_type for internal meetings
+            const displayParty = isInternal ? "Internal Meeting" : (meeting.client || "N/A");
+            const displayPartyType = isInternal ? "Company" : (meeting.party_type || "N/A");
+    
+            const cardHTML = `
+                <div class="card shadow h-100" 
+                    style="cursor: pointer; border: none; border-top: 4px solid ${borderColor}; transition: transform 0.2s;">
+                    <div class="card-header position-relative" 
+                        style="background-color: transparent; border-bottom: 1px solid rgba(0,0,0,0.125); transition: background-color 0.3s;"
+                        data-collapse-id="${collapseId}">
+                        
+                        <h5 class="mb-1 font-weight-bold text-dark">
+                            <span class="text-truncate d-block" title="${displayParty}">${displayParty}</span>
+                            <small class="d-block mt-1 text-muted text-truncate" title="${displayPartyType}">${displayPartyType}</small>
+                        </h5>
+                        
+                        <div class="meeting-details mt-3">
+                            <p class="mb-1 text-truncate" title="Arranged By: ${meeting.meeting_arranged_by || "Unknown"}">
+                                <i class="mr-2"></i>Arranged By: ${meeting.meeting_arranged_by || "Unknown"}
+                            </p>
+                            <p class="mb-1 text-truncate" title="Date: ${meeting.date || "N/A"}">
+                                <i class="mr-2"></i>Date: ${meeting.date || "N/A"}
+                            </p>
+                            <p class="mb-1 text-truncate" title="From: ${meeting.meeting_from || "N/A"}">
+                                <i class="mr-2"></i>From: ${meeting.meeting_from || "N/A"}
+                            </p>
+                            <p class="mb-1 text-truncate" title="To: ${meeting.meeting_to || "N/A"}">
+                                <i class="mr-2"></i>To: ${meeting.meeting_to || "N/A"}
+                            </p>
+                            <p class="mb-0 text-truncate" title="Duration: ${(meeting.total_duration || 0) / 60} mins">
+                                <i class="mr-2"></i>Duration: ${(meeting.total_duration || 0) / 60} mins
+                            </p>
+                        </div>
+                    </div>
+    
+                    <div id="${collapseId}" class="collapse">
+                        <div class="card-body">
+                            <div class="purpose-section mb-4">
+                                <h6 class="font-weight-bold text-uppercase text-muted mb-2">Purpose</h6>
+                                <p class="text-dark" style="word-wrap: break-word;">${meeting.purpose || "N/A"}</p>
+                            </div>
+    
+                            <div class="discussion-section mb-4">
+                                <h6 class="font-weight-bold text-uppercase text-muted mb-2">Discussion</h6>
+                                <p class="text-dark" style="word-wrap: break-word;">${meeting.discussion || "N/A"}</p>
+                            </div>
+    
+                            <div class="row representatives-section">
+                                ${isInternal ? `
+                                    <div class="col-12 mb-3">
+                                        <h6 class="font-weight-bold text-center text-uppercase text-muted mb-3">Internal</h6>
+                                        <div class="list-group">
+                                            ${companyReps.length ? 
+                                                companyReps.map(rep => `
+                                                    <div class="list-group-item border mb-2 rounded text-truncate" title="${rep}">
+                                                        <i class="mr-2"></i>${rep}
+                                                    </div>
+                                                `).join('') : 
+                                                '<div class="text-center text-muted">No internal representatives</div>'
+                                            }
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="font-weight-bold text-center text-uppercase text-muted mb-3">Internal</h6>
+                                        <div class="list-group">
+                                            ${companyReps.length ? 
+                                                companyReps.map(rep => `
+                                                    <div class="list-group-item border mb-2 rounded text-truncate" title="${rep}">
+                                                        <i class="mr-2"></i>${rep}
+                                                    </div>
+                                                `).join('') : 
+                                                '<div class="text-center text-muted">No internal representatives</div>'
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <h6 class="font-weight-bold text-center text-uppercase text-muted mb-3">External</h6>
+                                        <div class="list-group">
+                                            ${partyReps.length ? 
+                                                partyReps.map(rep => `
+                                                    <div class="list-group-item border mb-2 rounded text-truncate" title="${rep}">
+                                                        <i class="mr-2"></i>${rep}
+                                                    </div>
+                                                `).join('') : 
+                                                '<div class="text-center text-muted">No external representatives</div>'
+                                            }
+                                        </div>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+    
+            card.innerHTML = cardHTML;
+            
+            // Add hover effect to the card header
+            const cardHeader = card.querySelector('.card-header');
+            cardHeader.addEventListener('mouseover', function() {
+                this.style.backgroundColor = 'rgba(0,0,0,0.03)';
+            });
+            cardHeader.addEventListener('mouseout', function() {
+                this.style.backgroundColor = 'transparent';
+            });
+            cardHeader.addEventListener('click', function() {
+                const collapseId = this.dataset.collapseId;
+                self.toggleMeeting(collapseId, this);  // Use the stored context
+            });
+    
+            // Add custom tooltip functionality for truncated elements
+            const truncatedElements = card.querySelectorAll('.text-truncate');
+            truncatedElements.forEach(element => {
+                element.addEventListener('mouseover', function() {
+                    if (this.offsetWidth < this.scrollWidth) {
+                        this.style.position = 'relative';
+                    }
+                });
+                element.addEventListener('mouseout', function() {
+                    this.style.position = 'static';
+                });
+            });
+    
+            meetingsList.appendChild(card);
+        });
+    }
+
+    toggleMeeting(collapseId, headerElement) {
+        const content = document.getElementById(collapseId);
+        if (!content) return;
+    
+        // Toggle the collapse
+        if (content.classList.contains('show')) {
+            content.style.maxHeight = '0px';
+            setTimeout(() => {
+                content.classList.remove('show');
+            }, 300);
+        } else {
+            content.classList.add('show');
+            content.style.maxHeight = content.scrollHeight + 'px';
+        }
+    
+        // Add visual feedback to the header
+        headerElement.classList.toggle('active');
+    }
 	// Work Intensity Code Starts
 	work_intensity() {
 		let user;
@@ -3036,3 +3262,128 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 }
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;
+
+class MeetingsMap {
+    constructor(container, locations) {
+        this.container = container;
+        this.locations = locations;
+        this.map = null;
+        this.markers = [];
+        this.path = null;
+        this.init();
+    }
+
+    init() {
+        // Add Leaflet CSS if not already added
+        if (!document.querySelector('#leaflet-css')) {
+            const linkElement = document.createElement('link');
+            linkElement.id = 'leaflet-css';
+            linkElement.rel = 'stylesheet';
+            linkElement.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+            document.head.appendChild(linkElement);
+        }
+
+        // Add custom marker styles
+        if (!document.querySelector('#custom-marker-styles')) {
+            const styleElement = document.createElement('style');
+            styleElement.id = 'custom-marker-styles';
+            styleElement.textContent = `
+                .custom-marker {
+                    background: none;
+                    border: none;
+                }
+                .marker-icon {
+                    width: 24px;
+                    height: 24px;
+                    background: #6420AA;
+                    border-radius: 50%;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+            `;
+            document.head.appendChild(styleElement);
+        }
+
+        // Create map container
+        const mapHtml = `
+            <div class="frappe-card chart-column-container">
+                <div class="title-area">
+                    <h4 class="card-title">Meeting Locations</h4>
+                </div>
+                <div id="map-container" style="height: 400px; margin-top: 16px; border-radius: 8px; overflow: hidden;"></div>
+            </div>
+        `;
+        this.container.innerHTML = mapHtml;
+
+        // Load Leaflet JS and initialize map
+        if (!window.L) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+            script.onload = () => this.initializeMap();
+            document.head.appendChild(script);
+        } else {
+            this.initializeMap();
+        }
+    }
+
+    initializeMap() {
+        // Initialize the map
+        const defaultCenter = [20.5937, 78.9629]; // Center of India
+        this.map = L.map('map-container').setView(defaultCenter, 5);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(this.map);
+
+        this.updateMapMarkers();
+    }
+
+    updateMapMarkers() {
+        // Clear existing markers and path
+        this.markers.forEach(marker => marker.remove());
+        this.markers = [];
+        if (this.path) {
+            this.path.remove();
+        }
+
+        if (!this.locations || this.locations.length === 0) {
+            return;
+        }
+
+        // Add markers and create bounds
+        const bounds = L.latLngBounds();
+        this.locations.forEach((location, index) => {
+            const marker = L.marker([location.lat, location.lng], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div class="marker-icon">${index + 1}</div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            })
+            .bindPopup(location.name || `Location ${index + 1}`)
+            .addTo(this.map);
+
+            this.markers.push(marker);
+            bounds.extend([location.lat, location.lng]);
+        });
+
+        // Create path between markers
+        const pathCoordinates = this.locations.map(loc => [loc.lat, loc.lng]);
+        this.path = L.polyline(pathCoordinates, {
+            color: '#6420AA',
+            weight: 3,
+            opacity: 0.8
+        }).addTo(this.map);
+
+        // Fit map to show all markers
+        if (this.locations.length > 0) {
+            this.map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+}

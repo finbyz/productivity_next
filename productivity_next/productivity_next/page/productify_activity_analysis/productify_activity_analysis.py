@@ -1012,3 +1012,49 @@ def get_project_enabled():
     doc = frappe.get_doc('Productify Subscription', None, ignore_permissions=True)
     project_value = doc.project
     return project_value
+
+@frappe.whitelist()
+def meetings_analysis(user, start_date=None, end_date=None):
+    data = frappe.db.sql("""
+        SELECT 
+        m.internal_meeting,
+        DATE(m.meeting_from) as date,
+        SUM(TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from))) as total_duration,
+        m.meeting_from,
+        m.meeting_to,
+        m.party_type,
+        m.party as client,
+        m.meeting_arranged_by,
+        m.purpose,
+        m.discussion,
+        m.latitude,
+        m.longitude,
+        GROUP_CONCAT(DISTINCT mcr.employee_name ORDER BY mcr.employee_name SEPARATOR ', ') as company_representatives,
+        GROUP_CONCAT(DISTINCT mpr.contact ORDER BY mpr.contact SEPARATOR ', ') as party_representatives
+    FROM `tabMeeting` as m
+    LEFT JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+    LEFT JOIN `tabMeeting Party Representative` as mpr ON m.name = mpr.parent
+    WHERE 
+        m.meeting_from >= %s 
+        AND m.meeting_to <= %s 
+        AND m.docstatus = 1 
+        AND EXISTS (
+            SELECT 1 
+            FROM `tabMeeting Company Representative` mcr2 
+            WHERE mcr2.parent = m.name 
+            AND mcr2.employee = %s
+        )
+    GROUP BY 
+        m.name,
+        m.internal_meeting,
+        m.meeting_from,
+        m.meeting_to,
+        m.party_type,
+        m.party,
+        m.meeting_arranged_by,
+        m.purpose,
+        m.discussion
+    ORDER BY m.meeting_from DESC
+    """, (f'{start_date} 00:00:00', f'{end_date} 23:59:59', user), as_dict=True)
+    
+    return data
