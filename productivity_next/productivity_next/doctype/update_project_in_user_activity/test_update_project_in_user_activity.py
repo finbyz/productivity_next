@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestUpdatingProjectInUserActivity(FrappeTestCase):
+class TestUpdateProjectInUserActivity(FrappeTestCase):
 	pass

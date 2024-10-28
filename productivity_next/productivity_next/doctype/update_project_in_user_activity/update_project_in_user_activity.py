@@ -5,7 +5,7 @@ import frappe
 from frappe.model.document import Document
 from datetime import datetime
 
-class UpdatingProjectInUserActivity(Document):
+class UpdateProjectInUserActivity(Document):
     def validate(self):
         if not self.project or self.project == "":
             self.project = None
@@ -55,5 +55,5 @@ class UpdatingProjectInUserActivity(Document):
             # frappe.db.commit()  # Uncomment if necessary
             
         except Exception as e:
-            frappe.log_error(f"Error in UpdatingProjectInUserActivity: {str(e)}")
+            frappe.log_error(f"Error in UpdateProjectInUserActivity: {str(e)}")
             frappe.throw(f"Error processing dates: {str(e)}")
