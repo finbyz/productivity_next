@@ -103,7 +103,7 @@ UserProfile = class UserProfile {
 		this.application_usage_time();
 		this.fetch_url_data();
 		this.type_of_calls();
-		this.meetings_analysis();
+		// this.meetings_analysis();
 	
 		// JavaScript to handle tab switching
 		const tabs = document.querySelectorAll('.nav-link');
@@ -282,224 +282,652 @@ UserProfile = class UserProfile {
 	}
 	// Change Employee Button Code Ends
 
-	meetings_analysis() {    
+	meetings_analysis() {
 		const renderMeetingsBound = this.renderMeetings.bind(this);
+		const user = this.selected_employee || this.user_id;
 		
-		let user = this.selected_employee !== null ? this.selected_employee : this.user_id;
+		if (!user || !this.selected_start_date || !this.selected_end_date) {
+			frappe.msgprint({
+				title: __('Validation Error'),
+				indicator: 'red',
+				message: __('Please ensure all required fields are filled.')
+			});
+			return;
+		}
+	
+		// frappe.show_progress(__('Loading Meetings'), 0, 100);
+		
 		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.meetings_analysis", {
 			user: user,
 			start_date: this.selected_start_date,
 			end_date: this.selected_end_date,
 		}).then((response) => {
-			console.log("Meetings Analysis Response:", response);
+			frappe.hide_progress();
 			
-			// Extract locations from meetings if available
-			const locations = response.map(meeting => ({
-				lat: meeting.latitude,
-				lng: meeting.longitude,
-				name: meeting.location_name || `${meeting.client || 'Internal Meeting'}`
-			})).filter(loc => loc.lat && loc.lng); // Filter out meetings without coordinates
-			
+			if (!Array.isArray(response)) {
+				throw new Error('Invalid response format');
+			}
+	
+			if (response.length === 0) {
+				// frappe.msgprint({
+				// 	title: __('No Data'),
+				// 	indicator: 'blue',
+				// 	message: __('No meetings found for the selected period.')
+				// });
+				return;
+			}
+	
+			// Extract locations from meetings and stops
+			const locations = response
+				.filter(event => event && typeof event === 'object')
+				.map(event => {
+					try {
+						if (event.type === 'meeting') {
+							return {
+								lat: parseFloat(event.latitude) || 0,
+								lng: parseFloat(event.longitude) || 0,
+								name: event.location_name || `${event.client || 'Internal Meeting'}`,
+								type: 'meeting'
+							};
+						} else {
+							return {
+								lat: parseFloat(event.latitude) || 0,
+								lng: parseFloat(event.longitude) || 0,
+								name: `Stop (${event.duration} mins)`,
+								type: 'stop'
+							};
+						}
+					} catch (err) {
+						console.error('Error processing event:', err);
+						return null;
+					}
+				})
+				.filter(loc => loc && loc.lat && loc.lng);
+	
 			// Render the map if locations are available
 			if (locations.length) {
 				const mapContainer = document.querySelector('#meetings-map-container');
 				if (mapContainer) {
-					// Initialize map
-					new MeetingsMap(mapContainer, locations);
+					try {
+						new MeetingsMap(mapContainer, locations);
+					} catch (err) {
+						console.error('Error initializing map:', err);
+						frappe.msgprint({
+							title: __('Map Error'),
+							indicator: 'red',
+							message: __('Failed to initialize the map. Please try again.')
+						});
+					}
 				}
 			}
-			
+	
 			renderMeetingsBound(response);
 		}).catch((error) => {
+			frappe.hide_progress();
 			console.error("Error fetching data:", error);
+			frappe.msgprint({
+				title: __('Error'),
+				indicator: 'red',
+				message: __('Failed to fetch meetings data. Please try again.')
+			});
 		});
 	}
+	renderMeetings(events) {
+		if (!events || !Array.isArray(events)) {
+			console.warn("Invalid events data:", events);
+			return;
+		}
+	
+		const meetingsList = document.getElementById('meetings-list');
+		if (!meetingsList) {
+			console.error("Meetings list container not found");
+			return;
+		}
+	
+		const self = this;
+		meetingsList.className = 'position-relative px-4';
+		meetingsList.innerHTML = '';
+	
+		// Add timeline line
+		const timelineLine = document.createElement('div');
+		timelineLine.className = 'position-absolute';
+		timelineLine.style.cssText = `
+			left: 2rem;
+			top: 0;
+			bottom: 0;
+			width: 2px;
+			background-color: #e9ecef;
+			z-index: 1;
+		`;
+		meetingsList.appendChild(timelineLine);
+	
+		events.forEach((event, index) => {
+			if (event.type === 'stop') {
+				// Render stop event
+				const stopItem = document.createElement('div');
+				stopItem.className = 'row mb-4 position-relative';
+				
+				const stopHTML = `
+					<div class="col-12 position-relative">
+						<!-- Timeline node -->
+						<div class="position-absolute" style="
+							left: 1.5rem;
+							width: 1rem;
+							height: 1rem;
+							background-color: #dc3545;
+							border-radius: 50%;
+							transform: translateX(-50%);
+							z-index: 2;
+							top: 1.5rem;
+						"></div>
+	
+						<!-- Stop card -->
+						<div class="card shadow-sm ml-5" style="border-left: 4px solid #dc3545">
+							<div class="card-header position-relative" 
+								style="background-color: rgba(220, 53, 69, 0.1);">
+								<div class="d-flex justify-content-between align-items-center">
+									<div>
+										<h5 class="mb-1 font-weight-bold">
+											Stop Duration: ${this.convertSecondsToTime_(event.duration)} H
+											<small class="d-block mt-1 text-muted">
+												${new Date(event.stop_time).toLocaleString()}
+											</small>
+										</h5>
+									</div>
+									<button class="btn btn-primary btn-sm add-meeting-btn">
+										Add Meeting
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
+				
+				stopItem.innerHTML = stopHTML;
+				
+				const addMeetingBtn = stopItem.querySelector('.add-meeting-btn');
+            addMeetingBtn.addEventListener('click', () => {
+                // Get the stop time from the event data
+                const stopTime = new Date(event.stop_time);
+                
+                // Calculate start time by subtracting duration (converting seconds to milliseconds)
+                // Note: Changed from minutes to seconds since event.duration is in seconds
+                const durationInMs = event.duration * 1000; // Convert seconds to milliseconds
+                const startTime = new Date(stopTime.getTime() - durationInMs);
+                
+                // Format dates for the dialog using the browser's timezone
+                const formatDateTime = (date) => {
+                    // Pad with leading zeros
+                    const pad = (num) => String(num).padStart(2, '0');
+                    
+                    const year = date.getFullYear();
+                    const month = pad(date.getMonth() + 1);
+                    const day = pad(date.getDate());
+                    const hours = pad(date.getHours());
+                    const minutes = pad(date.getMinutes());
+                    const seconds = pad(date.getSeconds());
+                    
+                    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                };
 
-    renderMeetings(meetings) {
-        if (!meetings || !Array.isArray(meetings)) {
-            console.warn("Invalid meetings data:", meetings);
-            return;
-        }
-    
-        const meetingsList = document.getElementById('meetings-list');
-        if (!meetingsList) {
-            console.error("Meetings list container not found");
-            return;
-        }
-    
-        // Store the class instance's context
-        const self = this;
-    
-        meetingsList.innerHTML = ''; // Clear previous entries
-    
-        meetings.forEach((meeting, index) => {
-            const isInternal = meeting.internal_meeting === 1;
-            
-            // Safely split representatives, filter out empty strings and trim whitespace
-            const companyReps = meeting.company_representatives ? 
-                meeting.company_representatives.split(',')
-                    .filter(rep => rep.trim())
-                    .map(rep => rep.trim()) : [];
-            
-            const partyReps = !isInternal && meeting.party_representatives ? 
-                meeting.party_representatives.split(',')
-                    .filter(rep => rep.trim())
-                    .map(rep => rep.trim()) : [];
-    
-            const collapseId = `collapse-content-${index}`;
-            const card = document.createElement('div');
-            card.className = 'col-md-4 mb-4';
-    
-            // Determine card styling based on meeting type
-            const borderColor = isInternal ? '#6420AA' : '#6699FF';
-            const hoverColor = isInternal ? '#5a1d99' : '#5580e6';
-    
-            // Set party and party_type for internal meetings
-            const displayParty = isInternal ? "Internal Meeting" : (meeting.client || "N/A");
-            const displayPartyType = isInternal ? "Company" : (meeting.party_type || "N/A");
-    
-            const cardHTML = `
-                <div class="card shadow h-100" 
-                    style="cursor: pointer; border: none; border-top: 4px solid ${borderColor}; transition: transform 0.2s;">
-                    <div class="card-header position-relative" 
-                        style="background-color: transparent; border-bottom: 1px solid rgba(0,0,0,0.125); transition: background-color 0.3s;"
-                        data-collapse-id="${collapseId}">
-                        
-                        <h5 class="mb-1 font-weight-bold text-dark">
-                            <span class="text-truncate d-block" title="${displayParty}">${displayParty}</span>
-                            <small class="d-block mt-1 text-muted text-truncate" title="${displayPartyType}">${displayPartyType}</small>
-                        </h5>
-                        
-                        <div class="meeting-details mt-3">
-                            <p class="mb-1 text-truncate" title="Arranged By: ${meeting.meeting_arranged_by || "Unknown"}">
-                                <i class="mr-2"></i>Arranged By: ${meeting.meeting_arranged_by || "Unknown"}
-                            </p>
-                            <p class="mb-1 text-truncate" title="Date: ${meeting.date || "N/A"}">
-                                <i class="mr-2"></i>Date: ${meeting.date || "N/A"}
-                            </p>
-                            <p class="mb-1 text-truncate" title="From: ${meeting.meeting_from || "N/A"}">
-                                <i class="mr-2"></i>From: ${meeting.meeting_from || "N/A"}
-                            </p>
-                            <p class="mb-1 text-truncate" title="To: ${meeting.meeting_to || "N/A"}">
-                                <i class="mr-2"></i>To: ${meeting.meeting_to || "N/A"}
-                            </p>
-                            <p class="mb-0 text-truncate" title="Duration: ${(meeting.total_duration || 0) / 60} mins">
-                                <i class="mr-2"></i>Duration: ${(meeting.total_duration || 0) / 60} mins
-                            </p>
-                        </div>
-                    </div>
-    
-                    <div id="${collapseId}" class="collapse">
-                        <div class="card-body">
-                            <div class="purpose-section mb-4">
-                                <h6 class="font-weight-bold text-uppercase text-muted mb-2">Purpose</h6>
-                                <p class="text-dark" style="word-wrap: break-word;">${meeting.purpose || "N/A"}</p>
-                            </div>
-    
-                            <div class="discussion-section mb-4">
-                                <h6 class="font-weight-bold text-uppercase text-muted mb-2">Discussion</h6>
-                                <p class="text-dark" style="word-wrap: break-word;">${meeting.discussion || "N/A"}</p>
-                            </div>
-    
-                            <div class="row representatives-section">
-                                ${isInternal ? `
-                                    <div class="col-12 mb-3">
-                                        <h6 class="font-weight-bold text-center text-uppercase text-muted mb-3">Internal</h6>
-                                        <div class="list-group">
-                                            ${companyReps.length ? 
-                                                companyReps.map(rep => `
-                                                    <div class="list-group-item border mb-2 rounded text-truncate" title="${rep}">
-                                                        <i class="mr-2"></i>${rep}
-                                                    </div>
-                                                `).join('') : 
-                                                '<div class="text-center text-muted">No internal representatives</div>'
-                                            }
-                                        </div>
-                                    </div>
-                                ` : `
-                                    <div class="col-md-6 mb-3">
-                                        <h6 class="font-weight-bold text-center text-uppercase text-muted mb-3">Internal</h6>
-                                        <div class="list-group">
-                                            ${companyReps.length ? 
-                                                companyReps.map(rep => `
-                                                    <div class="list-group-item border mb-2 rounded text-truncate" title="${rep}">
-                                                        <i class="mr-2"></i>${rep}
-                                                    </div>
-                                                `).join('') : 
-                                                '<div class="text-center text-muted">No internal representatives</div>'
-                                            }
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <h6 class="font-weight-bold text-center text-uppercase text-muted mb-3">External</h6>
-                                        <div class="list-group">
-                                            ${partyReps.length ? 
-                                                partyReps.map(rep => `
-                                                    <div class="list-group-item border mb-2 rounded text-truncate" title="${rep}">
-                                                        <i class="mr-2"></i>${rep}
-                                                    </div>
-                                                `).join('') : 
-                                                '<div class="text-center text-muted">No external representatives</div>'
-                                            }
-                                        </div>
-                                    </div>
-                                `}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-    
-            card.innerHTML = cardHTML;
-            
-            // Add hover effect to the card header
-            const cardHeader = card.querySelector('.card-header');
-            cardHeader.addEventListener('mouseover', function() {
-                this.style.backgroundColor = 'rgba(0,0,0,0.03)';
-            });
-            cardHeader.addEventListener('mouseout', function() {
-                this.style.backgroundColor = 'transparent';
-            });
-            cardHeader.addEventListener('click', function() {
-                const collapseId = this.dataset.collapseId;
-                self.toggleMeeting(collapseId, this);  // Use the stored context
-            });
-    
-            // Add custom tooltip functionality for truncated elements
-            const truncatedElements = card.querySelectorAll('.text-truncate');
-            truncatedElements.forEach(element => {
-                element.addEventListener('mouseover', function() {
-                    if (this.offsetWidth < this.scrollWidth) {
-                        this.style.position = 'relative';
-                    }
-                });
-                element.addEventListener('mouseout', function() {
-                    this.style.position = 'static';
-                });
-            });
-    
-            meetingsList.appendChild(card);
+                const formattedStartTime = formatDateTime(startTime);
+                const formattedStopTime = formatDateTime(stopTime);
+
+
+					// Fetch employee data and project enabled status
+					Promise.all([
+						frappe.call({
+							method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_project_enabled",
+						}),
+						frappe.db.get_value('Employee', {user_id: frappe.session.user}, ['name', 'employee_name'])
+					]).then(([subscription_response, employee_response]) => {
+						const projectEnabled = subscription_response.message ? subscription_response.message : false;
+						const currentUserEmployee = employee_response.message;
+						
+						// Define fields for the dialog
+						const table_fields = [
+							{
+								label: "Employee",
+								fieldname: "employee",
+								fieldtype: "Link",
+								in_list_view: 1,
+								options: "Employee",
+								ignore_user_permissions: 1,
+								reqd: 1,
+							}
+						];
+						const party_fields = [
+							{
+								label: 'Contact',
+								fieldname: 'contact',
+								fieldtype: 'Link',
+								options: 'Contact',
+								in_list_view: 1,
+								get_query: function() {
+									const selectedParty = d.get_values().party;
+									const selectedPartyType = d.get_values().party_type;
+									return {
+										filters: {
+											link_doctype: selectedPartyType,
+											link_name: selectedParty
+										}
+									};
+								}
+							}
+						];
+	
+						var fields = [
+							{
+								fieldtype: "HTML",
+								options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
+							},
+							{
+								fieldtype: 'Section Break',
+							},
+							{
+								label: "Internal Meeting",
+								fieldname: "internal_meeting",
+								fieldtype: "Check",
+								onchange: function() {
+									const companyRepField = d.fields_dict.meeting_company_representative;
+									if (this.get_value()) {
+										companyRepField.df.reqd = 1;
+										companyRepField.grid.min_rows = 2;
+									} else {
+										companyRepField.df.reqd = 0;
+										companyRepField.grid.min_rows = 0;
+									}
+									companyRepField.refresh();
+								}
+							},
+							{
+								fieldname: 'internal_meeting_note',
+								fieldtype: 'HTML',
+								options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+								depends_on: 'eval:doc.internal_meeting'
+							},
+							{
+								label: "Purpose",
+								fieldname: "purpose",
+								fieldtype: "Link",
+								options: "Meeting Purpose",
+								reqd: 1
+							},
+							{
+								label: __("Party Type"),
+								fieldtype: 'Link',
+								options: "DocType",
+								fieldname: 'party_type',
+								get_query: function () {
+									return {
+										filters: {
+											"name": ["in", ["Customer", "Supplier", "Lead"]]
+										}
+									};
+								},
+								depends_on: 'eval:!doc.internal_meeting',
+								mandatory_depends_on: 'eval:!doc.internal_meeting',
+							},
+							{
+								label: 'Party',
+								fieldname: 'party',
+								fieldtype: 'Dynamic Link',
+								options: 'party_type',
+								change: function() {
+									const selectedParty = d.get_value('party');
+									const selectedPartyType = d.get_value('party_type');
+							
+									if (selectedParty && selectedPartyType) {
+										d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+											return {
+												filters: {
+													link_doctype: selectedPartyType,
+													link_name: selectedParty
+												}
+											};
+										};
+										d.fields_dict['meeting_party_representative'].grid.refresh();
+									}
+								},
+								depends_on: 'eval:!doc.internal_meeting',
+								mandatory_depends_on: 'eval:!doc.internal_meeting',
+							},
+							{
+								label: "Meeting Arranged By",
+								fieldname: "meeting_arranged_by",
+								fieldtype: "Link",
+								options: "User",
+								default: frappe.session.user,
+								reqd: 1
+							},
+							{
+								fieldtype: 'Column Break',
+							},
+							{
+								fieldname: 'meeting-schedule',
+								label: 'Meeting Schedule',
+								fieldtype: 'Link',
+								options: 'Meeting Schedule',
+								onchange: function() {
+									const scheduleMeeting = d.get_value('meeting-schedule');
+									if (scheduleMeeting) {
+										frappe.db.get_doc('Meeting Schedule', scheduleMeeting)
+											.then(doc => {
+												if (doc) {
+													d.set_value('purpose', doc.purpose);
+													d.set_value('party_type', doc.party_type);
+													d.set_value('party', doc.party);
+													d.set_value('meeting_arranged_by', doc.meeting_arranged_by);
+													d.set_value('project', doc.project);
+												}
+											})
+											.catch(error => {
+												console.error('Error fetching Meeting Schedule doc:', error);
+											});
+									}
+								}
+							},
+							{
+								label: 'Meeting From',
+								fieldname: 'meeting_from',
+								fieldtype: 'Datetime',
+								default: formattedStartTime,
+								reqd: 1
+							},
+							{
+								label: 'Meeting To',
+								fieldname: 'meeting_to',
+								fieldtype: 'Datetime',
+								default: formattedStopTime,
+								reqd: 1
+							},
+							{
+								fieldtype: 'Section Break',
+							},
+							{
+								label: 'Meeting Company Representative',
+								allow_bulk_edit: 1,
+								fieldname: 'meeting_company_representative',
+								fieldtype: 'Table',
+								fields: table_fields,
+								options: 'Meeting Company Representative',
+								reqd: 1,
+								onchange: function() {
+									if (d.get_value('internal_meeting')) {
+										this.grid.min_rows = 2;
+									} else {
+										this.grid.min_rows = 0;
+									}
+								}
+							},
+							{
+								fieldtype: 'Section Break',
+							},
+							{
+								label: 'Meeting Party Representative',
+								fieldname: 'meeting_party_representative',
+								fieldtype: 'Table',
+								fields: party_fields,
+								options: 'Meeting Party Representative',
+								depends_on: 'eval:!doc.internal_meeting',
+							},
+							{
+								label: "Discussion",
+								fieldname: "discussion",
+								fieldtype: "Text Editor",
+								reqd: 1
+							},
+						];
+	
+						// Add Project field if enabled in Productify Subscription
+						if (projectEnabled) {
+							fields.splice(8, 0, {
+								label: "Project",
+								fieldname: "project",
+								fieldtype: "Link",
+								options: "Project"
+							});
+						}
+	
+						let d = new frappe.ui.Dialog({
+							title: 'Add Meeting',
+							fields: fields,
+							primary_action_label: 'Submit',
+							primary_action(values) {
+								// Validate meeting times
+								const meetingStart = new Date(values.meeting_from);
+								const meetingEnd = new Date(values.meeting_to);
+								
+								if (isNaN(meetingStart.getTime()) || isNaN(meetingEnd.getTime())) {
+									frappe.msgprint(__('Invalid meeting time format. Please check the dates and times.'));
+									return;
+								}
+								
+								if (meetingEnd < meetingStart) {
+									frappe.msgprint(__('Meeting end time cannot be earlier than start time.'));
+									return;
+								}
+								
+								// Calculate duration in minutes
+								const durationMs = meetingEnd.getTime() - meetingStart.getTime();
+								const durationMinutes = Math.round(durationMs / (1000 * 60));
+								
+								if (durationMinutes <= 0) {
+									frappe.msgprint(__('Meeting duration must be greater than zero.'));
+									return;
+								}
+	
+								// Validate internal meeting requirements
+								if (values.internal_meeting) {
+									const companyRepresentatives = values.meeting_company_representative || [];
+									if (companyRepresentatives.length < 2) {
+										frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+										return;
+									}
+								}
+	
+								this.disable_primary_action();
+								this.set_title('Submitting...');
+						
+								frappe.call({
+									method: "productivity_next.api.add_meeting",
+									args: {
+										meeting_from: values.meeting_from,
+										meeting_to: values.meeting_to,
+										meeting_arranged_by: values.meeting_arranged_by,
+										internal_meeting: values.internal_meeting,
+										purpose: values.purpose,
+										party_type: values.party_type || null,
+										party: values.party || null,
+										discussion: values.discussion,
+										meeting_company_representative: values.meeting_company_representative || null,
+										meeting_party_representative: values.meeting_party_representative || null,
+										project: values.project || null
+									},
+									callback: (r) => {
+										if (r.message) {
+											frappe.msgprint({
+												title: __('Success'),
+												indicator: 'green',
+												message: __('Meeting added successfully')
+											});
+											this.hide();
+										} else {
+											frappe.msgprint({
+												title: __('Error'),
+												indicator: 'red',
+												message: __('Failed to add meeting. Please try again.')
+											});
+											this.enable_primary_action();
+											this.set_title('Submit');
+										}
+									},
+									error: (r) => {
+										frappe.msgprint({
+											title: __('Error'),
+											indicator: 'red',
+											message: __('An error occurred while adding the meeting. Please try again.')
+										});
+										this.enable_primary_action();
+										this.set_title('Submit');
+									}
+								});
+            }
         });
-    }
+        
+        // Set up the purpose field filter
+        d.fields_dict.purpose.get_query = function () {
+            return {
+                filters: {
+                    internal_meeting: d.get_value('internal_meeting')
+                }
+            };
+        };
 
-    toggleMeeting(collapseId, headerElement) {
-        const content = document.getElementById(collapseId);
-        if (!content) return;
-    
-        // Toggle the collapse
-        if (content.classList.contains('show')) {
-            content.style.maxHeight = '0px';
-            setTimeout(() => {
-                content.classList.remove('show');
-            }, 300);
-        } else {
-            content.classList.add('show');
-            content.style.maxHeight = content.scrollHeight + 'px';
+        if (currentUserEmployee) {
+            let company_representative = d.fields_dict.meeting_company_representative;
+            
+            // Force add a new row
+            company_representative.grid.add_new_row(null, null, true);
+            
+            // Set the value directly on the grid rows
+            company_representative.grid.grid_rows[0].doc.employee = currentUserEmployee.name;
+            
+            // Refresh the grid
+            company_representative.grid.refresh();
         }
-    
-        // Add visual feedback to the header
-        headerElement.classList.toggle('active');
-    }
+
+        // Show the dialog
+        d.show();
+    })
+    .catch(err => {
+        console.error("Error:", err);
+        frappe.msgprint("An error occurred while fetching data. Please try again.");
+    });
+});
+				
+				meetingsList.appendChild(stopItem);
+			} else {
+				// Render meeting event
+				const isInternal = event.internal_meeting === 1;
+				const companyReps = event.company_representatives ? 
+					event.company_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
+				const partyReps = !isInternal && event.party_representatives ? 
+					event.party_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
+				
+				const collapseId = `collapse-content-${index}`;
+				const timelineItem = document.createElement('div');
+				timelineItem.className = 'row mb-4 position-relative';
+	
+				const primaryColor = isInternal ? '#6420AA' : '#6699FF';
+				const backgroundColor = isInternal ? 'rgba(100, 32, 170, 0.1)' : 'rgba(102, 153, 255, 0.1)';
+				const displayParty = isInternal ? "Internal Meeting" : (event.client || "N/A");
+				const displayPartyType = isInternal ? "Company" : (event.party_type || "N/A");
+	
+				timelineItem.innerHTML = `
+					<div class="col-12 position-relative">
+						<div class="position-absolute" style="
+							left: 1.5rem;
+							width: 1rem;
+							height: 1rem;
+							background-color: ${primaryColor};
+							border-radius: 50%;
+							transform: translateX(-50%);
+							z-index: 2;
+							top: 1.5rem;
+						"></div>
+						<div class="card shadow-sm ml-5" style="border-left: 4px solid ${primaryColor}">
+							<div class="card-header" style="background-color: ${backgroundColor};" data-collapse-id="${collapseId}">
+								<div class="d-flex justify-content-between align-items-start">
+									<h5 class="mb-1 font-weight-bold">
+										${displayParty}
+										<small class="d-block mt-1 text-muted">${displayPartyType}</small>
+									</h5>
+									<span class="toggle-icon">▼</span>
+								</div>
+								<div class="meeting-details mt-3">
+									<p class="mb-2"><strong>Date:</strong> ${event.date || "N/A"}</p>
+									<p class="mb-2"><strong>Time:</strong> ${event.meeting_from || "N/A"} - ${event.meeting_to || "N/A"} (${this.convertSecondsToTime_(event.total_duration)} H)</p>
+									<p class="mb-0"><strong>Arranged By:</strong> ${event.meeting_arranged_by || "Unknown"}</p>
+								</div>
+							</div>
+							<div id="${collapseId}" class="collapse">
+								<div class="card-body">
+									<div class="mb-4">
+										<h6 class="font-weight-bold text-uppercase text-muted mb-2">Purpose</h6>
+										<p>${event.purpose || "N/A"}</p>
+									</div>
+									<div class="mb-4">
+										<h6 class="font-weight-bold text-uppercase text-muted mb-2">Discussion</h6>
+										<p>${event.discussion || "N/A"}</p>
+									</div>
+									<div class="row">
+										<div class="col-${isInternal ? '12' : '6'}">
+											<h6 class="font-weight-bold text-uppercase text-muted mb-3">Internal Representatives</h6>
+											<div class="list-group">
+												${companyReps.length ? 
+													companyReps.map(rep => `
+														<div class="list-group-item">${rep}</div>
+													`).join('') : 
+													'<div class="text-muted">No internal representatives</div>'
+												}
+											</div>
+										</div>
+										${!isInternal ? `
+											<div class="col-6">
+												<h6 class="font-weight-bold text-uppercase text-muted mb-3">External Representatives</h6>
+												<div class="list-group">
+													${partyReps.length ? 
+														partyReps.map(rep => `
+															<div class="list-group-item">${rep}</div>
+														`).join('') : 
+														'<div class="text-muted">No external representatives</div>'
+													}
+												</div>
+											</div>
+										` : ''}
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
+	
+				const cardHeader = timelineItem.querySelector('.card-header');
+				cardHeader.addEventListener('click', function() {
+					const collapseId = this.dataset.collapseId;
+					self.toggleMeeting(collapseId, this, this.querySelector('.toggle-icon'));
+				});
+	
+				meetingsList.appendChild(timelineItem);
+			}
+		});
+	}
+	
+	toggleMeeting(collapseId, headerElement, toggleIcon) {
+		const content = document.getElementById(collapseId);
+		if (!content) return;
+	
+		// Toggle the collapse with animation
+		if (content.classList.contains('show')) {
+			content.style.maxHeight = '0px';
+			setTimeout(() => {
+				content.classList.remove('show');
+			}, 300);
+			toggleIcon.style.transform = 'rotate(0deg)';
+		} else {
+			content.classList.add('show');
+			content.style.maxHeight = content.scrollHeight + 'px';
+			toggleIcon.style.transform = 'rotate(180deg)';
+		}
+	
+		// Add visual feedback to the header
+		headerElement.classList.toggle('active');
+		
+		// Add transition styles
+		content.style.transition = 'max-height 0.3s ease-out';
+		toggleIcon.style.transition = 'transform 0.3s ease-out';
+	}
 	// Work Intensity Code Starts
 	work_intensity() {
 		let user;

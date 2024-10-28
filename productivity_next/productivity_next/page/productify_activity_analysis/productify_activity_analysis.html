@@ -27,37 +27,7 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .card {
-			transform: translateY(0);
-			transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-		}
-		.card:hover {
-			transform: translateY(-5px);
-			box-shadow: 0 5px 5px rgba(0,0,0,0.15) !important;
-		}
-		.collapse {
-			transition: max-height 0.3s ease-out;
-			max-height: 0;
-			overflow: hidden;
-		}
-		.collapse.show {
-			max-height: 2000px; /* Adjust based on your content */
-		}
-		.card-header.active {
-			border-bottom-left-radius: 0 !important;
-			border-bottom-right-radius: 0 !important;
-		}
-		.meeting-details p {
-			font-size: 0.9rem;
-			margin-left: 1rem;
-		}
-		.list-group-item {
-			transition: transform 0.2s ease;
-		}
-		.list-group-item:hover {
-			transform: translateX(5px);
-		}
-	
+        
                 
     </style>
 </head>
@@ -81,11 +51,11 @@
                             Calls Analysis
                         </a>
                     </li>
-                    <li class="nav-item show">
+                    <!-- <li class="nav-item show">
                         <a class="nav-link" id="meetings-tab" data-bs-toggle="tab" data-bs-target="#meetings-analysis" role="tab" aria-controls="meetings-analysis" aria-selected="true">
                             Meetings Analysis
                         </a>
-                    </li>
+                    </li> -->
                 </ul>
             </div>
             

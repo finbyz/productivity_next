@@ -51,6 +51,13 @@ class UpdateProjectInUserActivity(Document):
             update_app_usage.run()
             update_screen_log.run()
 
+            self.employee = None
+            self.project = None
+            self.from_time = None
+            self.to_time = None
+            self.employee_name = None
+            
+            frappe.msgprint("Project updated successfully")
             # Optionally, you can commit if your changes require it
             # frappe.db.commit()  # Uncomment if necessary
             
