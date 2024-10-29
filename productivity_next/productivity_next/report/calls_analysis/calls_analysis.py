@@ -27,17 +27,16 @@ def get_contact_group_columns(filters):
             "align": "left",
         },
         {
+            "fieldname": "party_type",
+            "label": _("Party Type"),
+            "fieldtype": "Data",
+            "width": 120,
+        },
+        {
             "fieldname": "party",
             "label": _("Party"),
             "fieldtype": "Data",
             "width": 200,
-        },
-        {
-            "fieldname": "party_type",
-            "label": _("Party Type"),
-            "fieldtype": "Link",
-            "options": "doctype",
-            "width": 120,
         },
         {
             "fieldname": "employee",
@@ -87,17 +86,16 @@ def get_contact_group_columns(filters):
 def get_group_by_party_columns(filters):
     return [
         {
+            "fieldname": "party_type",
+            "label": _("Party Type"),
+            "fieldtype": "Data",
+            "width": 120,
+        },
+        {
             "fieldname": "party",
             "label": _("Party"),
             "fieldtype": "Data",
             "width": 200,
-        },
-        {
-            "fieldname": "party_type",
-            "label": _("Party Type"),
-            "fieldtype": "Link",
-            "options": "doctype",
-            "width": 120,
         },
         {
             "fieldname": "employee",
@@ -215,7 +213,8 @@ def get_data(filters):
     kwargs = {
         "filters": conditions_filters,
         "fields": [
-            "employee_name as employee",
+            "employee as employee",
+            "employee_name as employee_name",
             "calltype",
             "call_datetime as from_time",
             "DATE_ADD(call_datetime,INTERVAL duration SECOND) as to_time",
@@ -249,7 +248,8 @@ def get_data(filters):
         kwargs["fields"] = [
             "link_name as party",
             "link_to as party_type",
-            "employee_name as employee",
+            "employee as employee",
+            "employee_name as employee_name",
             "SUM(duration) as duration",
         ]
         kwargs["order_by"] = "link_name asc"
@@ -262,7 +262,8 @@ def get_data(filters):
         kwargs["fields"] = [
             "link_name as party",
             "link_to as party_type",
-            "employee_name as employee",
+            "employee as employee",
+            "employee_name as employee_name",
             "SUM(duration) as duration",
         ]
         kwargs["fields"].extend(

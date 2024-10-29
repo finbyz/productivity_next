@@ -22,3 +22,7 @@ class ScreenScreenshotLog(Document):
 def on_doctype_update():
 	frappe.db.add_unique("Screen Screenshot Log", ["employee", "time"])
 	frappe.db.add_index("Screen Screenshot Log",["employee","time"])
+	file = frappe.new_doc("File")
+	file.file_name = "screenshots"
+	file.is_folder = 1
+	file.insert(ignore_if_duplicate=True)
