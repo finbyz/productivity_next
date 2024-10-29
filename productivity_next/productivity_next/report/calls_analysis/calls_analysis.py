@@ -48,7 +48,7 @@ def get_contact_group_columns(filters):
         {
             "fieldname": "duration",
             "label": _("Duration"),
-            "fieldtype": "Data",
+            "fieldtype": "Duration",
             "width": 120,
         },
         {
@@ -107,7 +107,7 @@ def get_group_by_party_columns(filters):
         {
             "fieldname": "duration",
             "label": _("Duration"),
-            "fieldtype": "Data",
+            "fieldtype": "Duration",
             "width": 120,
         },
         {
@@ -190,7 +190,7 @@ def get_columns(filters):
         {
             "fieldname": "duration",
             "label": _("Duration"),
-            "fieldtype": "Data",
+            "fieldtype": "Duration",
             "width": 200,
         },
     ]
@@ -300,8 +300,8 @@ def get_data(filters):
         )
 
     data = frappe.get_list("Employee Fincall", **kwargs)
-    for row in data:
-        row["duration"] = format_duration(row["duration"], hide_days=True) or "0s"
+    # for row in data:
+        # row["duration"] = format_duration(row["duration"], hide_days=True) or "0s"
     return data
 
 

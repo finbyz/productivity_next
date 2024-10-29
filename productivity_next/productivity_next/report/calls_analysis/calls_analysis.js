@@ -46,6 +46,7 @@ frappe.query_reports["Calls Analysis"] = {
 		value = default_formatter(value, row, column, data);
 
 		if (column.fieldname.includes("calltype")) {
+			try{
 			if (data[column.fieldname] == "Incoming") {
 				value = "<span style='color:rgb(40, 167, 69)'>" + value + "</span>";
 			} else if (data[column.fieldname] == "Outgoing") {
@@ -57,9 +58,11 @@ frappe.query_reports["Calls Analysis"] = {
 			else if (data[column.fieldname] == "Rejected") {
 				value = "<span style='color:rgb(224, 54, 54)'>" + value + "</span>";
 			}
+		}catch(error){
+		}
 		}
 
 		return value;
-	},
+	}
 
 };
