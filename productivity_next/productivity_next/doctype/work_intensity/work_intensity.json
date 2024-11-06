@@ -15,7 +15,9 @@
   "time",
   "key_strokes",
   "mouse_clicks",
-  "mouse_scrolls"
+  "mouse_scrolls",
+  "section_break_iuhm",
+  "used_softwares"
  ],
  "fields": [
   {
@@ -107,10 +109,20 @@
    "label": "Project",
    "options": "Project",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_iuhm",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "used_softwares",
+   "fieldtype": "Table",
+   "label": "Used Softwares",
+   "options": "Used Software"
   }
  ],
  "links": [],
- "modified": "2024-09-19 16:17:30.887410",
+ "modified": "2024-11-06 10:06:54.341123",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",
