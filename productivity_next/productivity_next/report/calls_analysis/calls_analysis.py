@@ -142,7 +142,13 @@ def get_group_by_party_columns(filters):
 
 
 def get_columns(filters):
-    columns = [
+    if filters.get("group_by_party"):
+        return get_group_by_party_columns(filters)
+    if filters.get("group_by_contact"):
+        return get_contact_group_columns(filters)
+        
+    # Default columns when no grouping is selected
+    return [
         {
             "fieldname": "employee",
             "label": _("Employee"),
@@ -159,6 +165,18 @@ def get_columns(filters):
         {
             "fieldname": "contact",
             "label": _("Contact"),
+            "fieldtype": "Data",
+            "width": 200,
+        },
+        {
+            "fieldname": "client",
+            "label": _("Client"),
+            "fieldtype": "Data",
+            "width": 200,
+        },
+        {
+            "fieldname": "customer_no",
+            "label": _("Customer No"),
             "fieldtype": "Data",
             "width": 200,
         },
@@ -194,18 +212,11 @@ def get_columns(filters):
             "width": 200,
         },
     ]
-    if filters.get("group_by_party"):
-        columns = get_group_by_party_columns(filters)
-    if filters.get("group_by_contact"):
-        columns = get_contact_group_columns(filters)
-    return columns
 
 
 def get_data(filters):
-
     conditions_filters = {
         "date": ["between", [filters.from_date, filters.to_date]],
-        "link_name": ["is", "set"],
     }
     if filters.get("employee"):
         conditions_filters["employee"] = filters.employee
@@ -222,27 +233,13 @@ def get_data(filters):
             "link_name as party",
             "duration",
             "calltype",
+            "contact",
+            "client",
+            "customer_no",
         ],
         "order_by": "call_datetime desc",
     }
-    kwargs["fields"].append(
-        """
-        (CASE
-            WHEN contact IS NOT NULL THEN contact
-            WHEN client IS NOT NULL THEN client
-            WHEN customer_no IS NOT NULL THEN customer_no
-        END)
-        as contact"""
-    )
-    kwargs["fields"].append(
-        """
-        (CASE
-            WHEN contact IS NOT NULL THEN contact
-            WHEN client IS NOT NULL THEN client
-            WHEN customer_no IS NOT NULL THEN customer_no
-        END)
-        as contact"""
-    )
+
     if filters.get("group_by_party"):
         kwargs["group_by"] = "link_name,employee"
         kwargs["fields"] = [
@@ -265,43 +262,37 @@ def get_data(filters):
             "employee as employee",
             "employee_name as employee_name",
             "SUM(duration) as duration",
+            """
+            (CASE
+                WHEN contact IS NOT NULL THEN contact
+                WHEN client IS NOT NULL THEN client
+                WHEN customer_no IS NOT NULL THEN customer_no
+            END)
+            as contact
+            """,
+            """
+            SUM(
+                CASE calltype WHEN 'Incoming' THEN 1 ELSE 0 END
+            ) as incoming_count
+            """,
+            """
+            SUM(
+                CASE calltype WHEN 'Outgoing' THEN 1 ELSE 0 END
+            ) as outgoing_count
+            """,
+            """
+            SUM(
+                CASE calltype WHEN 'Missed' THEN 1 ELSE 0 END
+            ) as missed_count
+            """,
+            """
+            SUM(
+                CASE calltype WHEN 'Rejected' THEN 1 ELSE 0 END
+            ) as rejected_count
+            """,
         ]
-        kwargs["fields"].extend(
-            [
-                """
-                (CASE
-                    WHEN contact IS NOT NULL THEN contact
-                    WHEN client IS NOT NULL THEN client
-                    WHEN customer_no IS NOT NULL THEN customer_no
-                END)
-                as contact
-                """,
-                """
-                SUM(
-                    CASE calltype WHEN 'Incoming' THEN 1 ELSE 0 END
-                ) as incoming_count
-                """,
-                """
-                SUM(
-                    CASE calltype WHEN 'Outgoing' THEN 1 ELSE 0 END
-                ) as outgoing_count
-                """,
-                """
-                SUM(
-                    CASE calltype WHEN 'Missed' THEN 1 ELSE 0 END
-                ) as missed_count
-                """,
-                """
-                SUM(
-                    CASE calltype WHEN 'Rejected' THEN 1 ELSE 0 END
-                ) as rejected_count
-                """,
-            ]
-        )
 
     data = frappe.get_list("Employee Fincall", **kwargs)
-    # for row in data:
-        # row["duration"] = format_duration(row["duration"], hide_days=True) or "0s"
     return data
 
 
@@ -309,7 +300,6 @@ def get_chart_data(filters):
     kwargs = {
         "filters": {
             "date": ["between", [filters.from_date, filters.to_date]],
-            "link_name": ["is", "set"],
         },
         "fields": [
             "date",
