@@ -258,5 +258,5 @@ fixtures = [
     },
     {"dt": "Role", "filters": [["name", "in", ["Productify Manager"]]]},
     {"dt": "Property Setter", "filters": [["module", "in", ["Productivity Next"]]]},
-    {"dt": "Custom HTML Block", "filters": [["name", "in", ["Signup Button"]]]},,
+    {"dt": "Custom HTML Block", "filters": [["name", "in", ["Signup Button"]]]},
 ]
