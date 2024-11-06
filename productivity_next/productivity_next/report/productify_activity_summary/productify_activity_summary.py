@@ -4,6 +4,7 @@ from frappe import _
 import frappe
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from productivity_next.api import calculate_total_working_hours
 def execute(filters=None):
     columns = get_columns()
     all_data = get_data(filters)
@@ -33,6 +34,11 @@ def get_columns(filters=None):
             "fieldname": "ending_date",
             "label": _("Ending Date"),
             "fieldtype": "Date",
+        },
+        {
+            "fieldname": "productivity_score",
+            "label": _("Productivity Score"),
+            "fieldtype": "Data",  
         },
         {
             "fieldname": "total_hours",
@@ -152,6 +158,7 @@ def get_data(filters):
             summary = {
                 "starting_date": current_filters["from_date"],
                 "ending_date": current_filters["to_date"],
+                "productivity_score": 0,
                 "total_hours": 0,
                 "active_hours": 0,
                 "idle_hours": 0,
@@ -177,27 +184,51 @@ def get_data(filters):
 
                 active_hours = total_hours - total_idle_time
                 average_active = active_hours / total_days if total_days else 0
-
-                employee_record = {
-                    "employee": frappe.get_value("Employee", employee, "employee_name"),
-                    "starting_date": current_filters["from_date"],
-                    "ending_date": current_filters["to_date"],
-                    "total_hours": total_hours,
-                    "active_hours": active_hours,
-                    "idle_hours": total_idle_time,
-                    "average_active": average_active,
-                    "incoming_calls": employee_data.get("incoming_fincall_count", 0),
-                    "incoming_hours": employee_data.get("total_incoming_duration", 0),
-                    "outgoing_calls": employee_data.get("outgoing_fincall_count", 0),
-                    "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
-                    "missed_calls": employee_data.get("missed_fincall_count", 0),
-                    "rejected_calls": employee_data.get("rejected_fincall_count", 0),
-                    "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
-                    "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
-                    "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
-                    "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
-                    "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
-                }
+                productivity_score = user_analysis.get("productivity_score", {}).get(employee, 0)
+                if productivity_score == 0:
+                    employee_record = {
+                        "employee": frappe.get_value("Employee", employee, "employee_name"),
+                        "starting_date": current_filters["from_date"],
+                        "ending_date": current_filters["to_date"],
+                        "productivity_score": 100,
+                        "total_hours": total_hours,
+                        "active_hours": active_hours,
+                        "idle_hours": total_idle_time,
+                        "average_active": average_active,
+                        "incoming_calls": employee_data.get("incoming_fincall_count", 0),
+                        "incoming_hours": employee_data.get("total_incoming_duration", 0),
+                        "outgoing_calls": employee_data.get("outgoing_fincall_count", 0),
+                        "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
+                        "missed_calls": employee_data.get("missed_fincall_count", 0),
+                        "rejected_calls": employee_data.get("rejected_fincall_count", 0),
+                        "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
+                        "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
+                        "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
+                        "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
+                        "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
+                    }
+                else:
+                    employee_record = {
+                        "employee": frappe.get_value("Employee", employee, "employee_name"),
+                        "starting_date": current_filters["from_date"],
+                        "ending_date": current_filters["to_date"],
+                        "productivity_score":  round((((active_hours / 3600) / productivity_score) * 100), 0),
+                        "total_hours": total_hours,
+                        "active_hours": active_hours,
+                        "idle_hours": total_idle_time,
+                        "average_active": average_active,
+                        "incoming_calls": employee_data.get("incoming_fincall_count", 0),
+                        "incoming_hours": employee_data.get("total_incoming_duration", 0),
+                        "outgoing_calls": employee_data.get("outgoing_fincall_count", 0),
+                        "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
+                        "missed_calls": employee_data.get("missed_fincall_count", 0),
+                        "rejected_calls": employee_data.get("rejected_fincall_count", 0),
+                        "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
+                        "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
+                        "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
+                        "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
+                        "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
+                    }
 
      
                 data.append({k: format_duration(v) if k in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours'] else v for k, v in employee_record.items()})
@@ -504,8 +535,21 @@ def user_analysis_data(start_date=None, end_date=None, filters=None):
             'total_keystrokes': item['total_keystrokes'],
             'total_mouse_clicks': item['total_mouse_clicks'],
             'total_scroll': item['total_scroll']
-        }    
+        }  
+    
+    productivity_score = {}
+    # Retrieve working hours per day and on Saturday from the database
+    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
 
+    hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
+    hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
+    employees = get_employees()
+    for employee in employees:
+        score = calculate_total_working_hours(employee['name'],start_date, end_date, hours_per_weekday, hours_on_saturday)
+        productivity_score[employee['name']] = score
+    
+    # frappe.throw(str(productivity_score))
     # frappe.throw(str(total_hours_per_employee))                        
     return {
         "total_days": total_days,
@@ -513,10 +557,16 @@ def user_analysis_data(start_date=None, end_date=None, filters=None):
         "total_idle_time": total_idle_time,
         "employee_fincall_data": employee_fincall_data,
         "meeting_employee_data": meetings_external_employee,
-        "work_intensity_data": work_intensity_data
+        "work_intensity_data": work_intensity_data,
+        "productivity_score": productivity_score
     }
 # User Analysis (User Productivity Stats) Code Ends
-
+@frappe.whitelist()
+def get_employees():
+    employees = frappe.get_all("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
+    if not employees:
+        return []
+    return employees
 def get_summary_data(summarized_data):
     # Initialize a dictionary to store the totals
     totals = {
