@@ -249,11 +249,11 @@ def get_data(filters):
             "employee_name as employee_name",
             "SUM(duration) as duration",
         ]
-        kwargs["order_by"] = "link_name asc"
+        kwargs["order_by"] = "duration desc"
 
     if filters.get("group_by_contact"):
         kwargs["group_by"] = "customer_no,employee"
-        kwargs["order_by"] = "customer_no asc"
+        kwargs["order_by"] = "duration desc"
 
     if filters.get("group_by_contact") or filters.get("group_by_party"):
         kwargs["fields"] = [
