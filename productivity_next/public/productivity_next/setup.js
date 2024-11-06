@@ -204,14 +204,14 @@ document.addEventListener("DOMContentLoaded", function () {
             d.hide();
         }
     });
-    if (window.location.pathname === '/app' || window.location.pathname === '/app/home') {
+    if (window.location.pathname === '/app' || window.location.pathname === '/app/home' || window.location.pathname === '/app/productify') {
         if (subscription && !subscription.organization_name) {
             d.show();
             console.log('Subscription not done');
         }
     }
     setInterval(() => {
-        if (window.location.pathname === '/app' || window.location.pathname === '/app/home') {
+        if (window.location.pathname === '/app' || window.location.pathname === '/app/home' || window.location.pathname === '/app/productify') {
             if (subscription && !subscription.organization_name && !d.display) {
                 d.show();
                 console.log('Subscription not done');
@@ -221,9 +221,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 dialog.show();
                 console.log('Subscription done but no users');
             }
+            else{
+                console.log('Subscription done');
+            }
         }
 
-    }, 30000);
+    }, 10000);
+
+    window.openSignupDialog = function () {
+        if(!d.display){
+            d.show();
+        }
+    }
+    window.openUserDialog = function () {
+        if(!dialog.display){
+            dialog.show();
+        }
+    }
+    
 
 });
 

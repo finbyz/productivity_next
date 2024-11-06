@@ -75,7 +75,7 @@ doctype_js = {
 # ------------
 
 # before_install = "productivity_next.install.before_install"
-# after_install = "productivity_next.setup.install.after_install"
+after_install = "productivity_next.setup.install.after_install"
 
 # Uninstallation
 # ------------
@@ -258,4 +258,5 @@ fixtures = [
     },
     {"dt": "Role", "filters": [["name", "in", ["Productify Manager"]]]},
     {"dt": "Property Setter", "filters": [["module", "in", ["Productivity Next"]]]},
+    {"dt": "Custom HTML Block", "filters": [["name", "in", ["Signup Button"]]]},
 ]

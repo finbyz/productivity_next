@@ -43,6 +43,12 @@ frappe.ui.form.on("Productify Subscription", {
         }
         frm.trigger('issue');
         frm.trigger('task');
+
+        if(!frm.doc.organization_name){
+            frm.add_custom_button(__('Signup'), function () {
+                window.openSignupDialog()
+            });
+        }
     },
     
     project(frm) {

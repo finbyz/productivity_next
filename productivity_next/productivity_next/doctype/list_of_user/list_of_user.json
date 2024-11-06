@@ -1,0 +1,97 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-07-30 15:10:27.995896",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "user_id",
+  "employee_name",
+  "fincall",
+  "application_usage",
+  "sales_person",
+  "disable_stop_button",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "fincall",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Fincall"
+  },
+  {
+   "default": "0",
+   "fieldname": "application_usage",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Application Usage"
+  },
+  {
+   "default": "0",
+   "fieldname": "sales_person",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Sales Person"
+  },
+  {
+   "default": "0",
+   "fieldname": "disable_stop_button",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Disable stop button"
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.user_id",
+   "fieldname": "user_id",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User id",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nInactive"
+
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2024-08-12 17:44:00.656324",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "List of User",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
