@@ -91,7 +91,7 @@
   "mandatory_depends_on": null,
   "modified": "2024-11-07 10:34:46.124080",
   "module": "Productivity Next",
-  "name": "Auto Repeat-task_due_date_",
+  "name": "Auto Repeat-task_due_date",
   "no_copy": 0,
   "non_negative": 0,
   "options": "Auto Repeat Task Due",
