@@ -103,15 +103,19 @@ UserProfile = class UserProfile {
 		this.application_usage_time();
 		this.fetch_url_data();
 		this.type_of_calls();
-		frappe.db.get_single_value("Productify Subscription", "sales_person")
-			.then((result) => {
-				if (result == 1){
+		frappe.call({
+			method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_sales_person",
+			callback: (response) => {
+				const result = response.message;
+				if (result == 1) {
 					this.meetings_analysis();
-				}
-				else{
+				} else {
 					this.wrapper.find("#meetings-tab").hide();
 				}
-			})
+			}
+		});
+		
+		
 	
 		// JavaScript to handle tab switching
 		const tabs = document.querySelectorAll('.nav-link');

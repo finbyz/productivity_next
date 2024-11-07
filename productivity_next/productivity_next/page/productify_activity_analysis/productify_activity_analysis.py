@@ -1112,3 +1112,8 @@ def get_location_logs(user, start_date, end_date):
         'heading': log.heading,
         'duration': 0  # Since these are point-in-time logs, duration is 0
     } for log in logs]
+    
+@frappe.whitelist()
+def get_sales_person():
+    sales_person = frappe.db.get_single_value('Productify Subscription', 'sales_person')
+    return sales_person
