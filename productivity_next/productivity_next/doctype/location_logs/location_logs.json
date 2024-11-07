@@ -19,6 +19,7 @@
   "age",
   "is_moving",
   "is_stationary",
+  "is_stop",
   "column_break_qrqv",
   "activity_type",
   "confidence",
@@ -231,11 +232,19 @@
    "in_standard_filter": 1,
    "label": "Is Stationary",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_stop",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Stop",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-10-18 16:52:56.171280",
+ "modified": "2024-11-07 17:10:34.386619",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Location Logs",

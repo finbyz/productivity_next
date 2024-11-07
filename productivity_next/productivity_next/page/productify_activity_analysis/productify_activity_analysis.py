@@ -1016,167 +1016,99 @@ def get_project_enabled():
 
 @frappe.whitelist()
 def meetings_analysis(user, start_date=None, end_date=None):
-    try:
-        # Input validation
-        if not user:
-            return []
-        
-        if not start_date or not end_date:
-            frappe.throw("Start date and end date are required")
-            
-        # Ensure dates are in the correct format
-        date_format = "%Y-%m-%d"
-        start_datetime = f"{start_date} 00:00:00"
-        end_datetime = f"{end_date} 23:59:59"
-        
-        # Get meetings data with error handling for SQL query
-        meetings_data = frappe.db.sql("""
+    if not all([user, start_date, end_date]):
+        frappe.throw("User, start date and end date are required")
+
+    start_datetime = f"{start_date} 00:00:00"
+    end_datetime = f"{end_date} 23:59:59"
+
+    # Get all events
+    meetings = get_meetings(user, start_datetime, end_datetime)
+    location_logs = get_location_logs(user, start_date, end_date)
+
+    # Combine and sort all events
+    all_events = meetings + location_logs
+    return sorted(all_events, key=lambda x: x['start_time'], reverse=True)
+
+def get_meetings(user, start_datetime, end_datetime):
+    meetings = frappe.db.sql("""
         SELECT 
-            m.internal_meeting,
-            DATE(m.meeting_from) as date,
-            dur.total_duration,
-            m.meeting_from,
-            m.meeting_to,
-            m.party_type,
-            m.party as client,
-            m.meeting_arranged_by,
-            m.purpose,
-            m.discussion,
-            COALESCE(m.latitude, 0) as latitude,
-            COALESCE(m.longitude, 0) as longitude,
-            GROUP_CONCAT(DISTINCT mcr.employee_name ORDER BY mcr.employee_name SEPARATOR ', ') as company_representatives,
-            GROUP_CONCAT(DISTINCT mpr.contact ORDER BY mpr.contact SEPARATOR ', ') as party_representatives
-        FROM `tabMeeting` as m
-        LEFT JOIN (
-            SELECT 
-                name,
-                SUM(TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from))) as total_duration
-            FROM `tabMeeting`
-            WHERE meeting_from >= %s
-                AND meeting_to <= %s
-                AND docstatus = 1
-            GROUP BY name
-        ) as dur ON m.name = dur.name
-        LEFT JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        LEFT JOIN `tabMeeting Party Representative` as mpr ON m.name = mpr.parent
+            DATE(meeting_from) as date,
+            meeting_from as start_time,
+            meeting_to as end_time,
+            TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from)) as duration,
+            internal_meeting,
+            party_type,
+            party as client,
+            purpose,
+            discussion,
+            meeting_arranged_by,
+            latitude,
+            longitude
+        FROM `tabMeeting`
         WHERE 
-            m.meeting_from >= %s
-            AND m.meeting_to <= %s
-            AND m.docstatus = 1
+            meeting_from >= %(start_datetime)s
+            AND meeting_to <= %(end_datetime)s
+            AND docstatus = 1
             AND EXISTS (
-                SELECT 1 
-                FROM `tabMeeting Company Representative` mcr2
-                WHERE mcr2.parent = m.name
-                    AND mcr2.employee = %s
+                SELECT 1 FROM `tabMeeting Company Representative`
+                WHERE parent = `tabMeeting`.name
+                AND employee = %(user)s
             )
-        GROUP BY 
-            m.name,
-            m.internal_meeting,
-            m.meeting_from,
-            m.meeting_to,
-            m.party_type,
-            m.party,
-            m.meeting_arranged_by,
-            m.purpose,
-            m.discussion
-        ORDER BY m.meeting_from DESC
-        """, (start_datetime, end_datetime, start_datetime, end_datetime, user), as_dict=True)
+        ORDER BY meeting_from DESC
+    """, {
+        'start_datetime': start_datetime,
+        'end_datetime': end_datetime,
+        'user': user
+    }, as_dict=True)
+    
+    # Format meetings data
+    return [{
+        'type': 'meeting',
+        'start_time': m.start_time,
+        'end_time': m.end_time,
+        'date': m.date,
+        'duration': int(m.duration or 0),  # Ensure duration is integer seconds
+        'internal_meeting': m.internal_meeting,
+        'party_type': m.party_type,
+        'client': m.client,
+        'purpose': m.purpose,
+        'discussion': m.discussion,
+        'meeting_arranged_by': m.meeting_arranged_by,
+        'latitude': m.latitude,
+        'longitude': m.longitude
+    } for m in meetings]
 
-        from datetime import datetime, timedelta
-
-        all_events = []
-        
-        # Convert meetings to events with proper error handling
-        for meeting in meetings_data:
-            try:
-                # Handle potential NULL values for latitude/longitude
-                meeting_lat = float(meeting.get('latitude', 0) or 0)
-                meeting_long = float(meeting.get('longitude', 0) or 0)
-                
-                # Ensure meeting_from and meeting_to are datetime objects
-                meeting_from = meeting['meeting_from']
-                meeting_to = meeting['meeting_to']
-                
-                if isinstance(meeting_from, str):
-                    meeting_from = datetime.strptime(meeting_from, '%Y-%m-%d %H:%M:%S')
-                if isinstance(meeting_to, str):
-                    meeting_to = datetime.strptime(meeting_to, '%Y-%m-%d %H:%M:%S')
-                
-                event_data = {
-                    "type": "meeting",
-                    "meeting_from": meeting_from,
-                    "meeting_to": meeting_to,
-                    "date": meeting.get('date'),
-                    "internal_meeting": meeting.get('internal_meeting', 0),
-                    "total_duration": meeting.get('total_duration', 0),
-                    "party_type": meeting.get('party_type', ''),
-                    "client": meeting.get('client', ''),
-                    "meeting_arranged_by": meeting.get('meeting_arranged_by', ''),
-                    "purpose": meeting.get('purpose', ''),
-                    "discussion": meeting.get('discussion', ''),
-                    "latitude": meeting_lat,
-                    "longitude": meeting_long,
-                    "company_representatives": meeting.get('company_representatives', ''),
-                    "party_representatives": meeting.get('party_representatives', '')
-                }
-                all_events.append(event_data)
-
-                # Get stationary logs for the meeting date with error handling
-                if meeting.get('date'):
-                    stationary_logs = frappe.db.sql("""
-                        SELECT 
-                            COALESCE(l1.latitude, 0) as latitude,
-                            COALESCE(l1.longitude, 0) as longitude,
-                            l1.date, 
-                            l1.time as log_time,
-                            (
-                                SELECT l2.time 
-                                FROM `tabLocation Logs` l2 
-                                WHERE l2.employee = l1.employee 
-                                AND l2.date = l1.date 
-                                AND l2.time < l1.time 
-                                AND l2.is_stationary = 0
-                                ORDER BY l2.time DESC 
-                                LIMIT 1
-                            ) as last_movement_time
-                        FROM `tabLocation Logs` l1
-                        WHERE l1.employee = %(employee)s
-                            AND l1.date = %(log_date)s
-                            AND l1.is_stationary = 1
-                        ORDER BY l1.time DESC
-                    """, {
-                        'employee': user,
-                        'log_date': meeting.get('date')
-                    }, as_dict=True)
-
-                    for log in stationary_logs:
-                        if log.get('log_time') and log.get('last_movement_time'):
-                            try:
-                                duration = (log.log_time - log.last_movement_time).total_seconds()
-                                
-                                stop_data = {
-                                    "type": "stop",
-                                    "date": log.date,
-                                    "stop_time": log.log_time,
-                                    "duration": round(duration, 2),
-                                    "latitude": float(log.latitude or 0),
-                                    "longitude": float(log.longitude or 0)
-                                }
-                                all_events.append(stop_data)
-                            except Exception as e:
-                                frappe.log_error(f"Error processing stationary log: {str(e)}")
-                                continue
-                                
-            except Exception as e:
-                frappe.log_error(f"Error processing meeting: {str(e)}")
-                continue
-
-        # Sort all events by time
-        all_events.sort(key=lambda x: x['meeting_from'] if x['type'] == 'meeting' else x['stop_time'], reverse=True)
-        
-        return all_events
-
-    except Exception as e:
-        frappe.log_error(f"Meetings Analysis Error: {str(e)}")
-        frappe.throw(f"Error in meetings analysis: {str(e)}")
-        
+def get_location_logs(user, start_date, end_date):
+    logs = frappe.db.sql("""
+        SELECT 
+            date,
+            time as start_time,
+            time as end_time,
+            is_moving,
+            latitude,
+            longitude,
+            heading
+        FROM `tabLocation Logs`
+        WHERE 
+            employee = %(user)s
+            AND date BETWEEN %(start_date)s AND %(end_date)s
+        ORDER BY date, time
+    """, {
+        'user': user,
+        'start_date': start_date,
+        'end_date': end_date
+    }, as_dict=True)
+    
+    # Format each log as an individual event
+    return [{
+        'type': 'location_log',
+        'date': log.date,
+        'start_time': log.start_time,
+        'end_time': log.end_time,
+        'is_moving': log.is_moving,
+        'latitude': log.latitude,
+        'longitude': log.longitude,
+        'heading': log.heading,
+        'duration': 0  # Since these are point-in-time logs, duration is 0
+    } for log in logs]

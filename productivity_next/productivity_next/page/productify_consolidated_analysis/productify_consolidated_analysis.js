@@ -1412,7 +1412,7 @@ UserProfile = class UserProfile {
 		function goToActivitySummaryReport(employee,start_date, end_date) {
 			// console.log("Employee:", employee);
 			var baseUrl = window.location.origin;
-			var activityAnalysisUrl = baseUrl + "/app/query-report/Productify Weekly Summary?timespan=Yesterday";
+			var activityAnalysisUrl = baseUrl + "/app/query-report/Employee Productivity Matrix?timespan=Yesterday";
 			window.open(activityAnalysisUrl, '_blank');
 		}
 	};
@@ -1503,7 +1503,7 @@ UserProfile = class UserProfile {
 			wholedata += `
 				<tr>
 					<td align="left">
-						<a href="${employeeUrl}" target="_blank">${count}. ${app.employeeName}</a>
+						<a href="javascript:void(0);" onclick="setTimeout(() => { window.open('${employeeUrl}', '_blank'); }, 100);">${count}. ${app.employeeName}</a>
 					</td>
 					<td align="center" style="color:#6420AA;"><b>${this.score_}</b></td>
 					<td align="center" style="color:#00A6E0;">${this.convertSecondsToTime_(app.totalHours)}</td>

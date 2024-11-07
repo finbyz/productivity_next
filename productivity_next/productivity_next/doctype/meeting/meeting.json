@@ -9,6 +9,8 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "latitude",
+  "longitude",
   "internal_meeting",
   "purpose",
   "project",
@@ -29,6 +31,7 @@
   "email_id",
   "address",
   "address_display",
+  "location_log",
   "company_details",
   "turnover",
   "employees",
@@ -237,6 +240,7 @@
   {
    "fieldname": "meeting_company_representative",
    "fieldtype": "Table",
+   "ignore_user_permissions": 1,
    "label": "Meeting Company Representative",
    "options": "Meeting Company Representative"
   },
@@ -368,12 +372,31 @@
    "fieldtype": "Link",
    "label": "Project",
    "options": "Project"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "latitude",
+   "fieldtype": "Data",
+   "label": "Latitude"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "longitude",
+   "fieldtype": "Data",
+   "label": "Longitude"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "location_log",
+   "fieldtype": "Link",
+   "label": "Location Log",
+   "options": "Location Logs"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-09-22 12:36:23.617017",
+ "modified": "2024-10-25 17:32:33.099405",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

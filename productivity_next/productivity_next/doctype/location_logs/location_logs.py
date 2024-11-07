@@ -3,12 +3,61 @@
 
 import frappe
 from frappe.model.document import Document
-
+from datetime import datetime, timedelta
 
 class LocationLogs(Document):
-	pass
-
-
-# def on_doctype_update():
-#     frappe.db.add_unique("Location Logs", ["employee", "date", "uuid"])
-#     frappe.db.add_index("Location Logs", ["employee", "date", "time"])
+    def after_insert(self):
+        self.check_stationary_status()
+    
+    def check_stationary_status(self):
+        """
+        Optimized method to check and update stationary status
+        """
+        if not self.time or not self.employee or not self.date:
+            # frappe.log_error(f"Missing required fields - Time: {self.time}, Employee: {self.employee}, Date: {self.date}", "LocationLogs Validation")
+            return
+            
+        # Get last log with direct SQL for better performance
+        last_log = frappe.db.sql("""
+            SELECT name, time 
+            FROM `tabLocation Logs`
+            WHERE employee = %s 
+            AND date = %s 
+            AND name != %s
+            ORDER BY time DESC
+            LIMIT 1
+        """, (self.employee, self.date, self.name), as_dict=True)
+        
+        # frappe.log_error(f"Last log found: {last_log}", "LocationLogs Last Log")
+        
+        if not last_log:
+            return  
+            
+        try:
+            # Convert current_time string to datetime
+            current_time = datetime.strptime(self.time, '%Y-%m-%d %H:%M:%S')
+            last_time = last_log[0].time
+            
+            # frappe.log_error(f"Current time (after conversion): {current_time}, Last time: {last_time}", "LocationLogs Time/ Values")
+            
+            # Calculate minutes difference
+            time_diff = (current_time - last_time).total_seconds() / 60
+            
+            # frappe.log_error(f"Time difference in minutes: {time_diff}", "LocationLogs Time Diff")
+            
+            # Update stationary flag if gap > 10 minutes
+            if time_diff > 10:
+                # Update current log
+                frappe.db.set_value('Location Logs', self.name, 'is_stop', 1, update_modified=False)
+                
+                # Update previous log
+                frappe.db.set_value('Location Logs', last_log[0].name, 'is_stop', 1, update_modified=False)
+                
+                frappe.db.commit()
+                
+                # frappe.log_error(f"Marked as stationary. Time diff: {time_diff} minutes", "LocationLogs Status Update")
+                
+        except Exception as e:
+            frappe.log_error(f"Error in LocationLogs time calculation: {str(e)}\nCurrent Time: {self.time}\nLast Time: {last_log[0].time}", 
+                           "LocationLogs Error")
+            return

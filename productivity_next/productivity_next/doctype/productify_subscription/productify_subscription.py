@@ -5,7 +5,8 @@ import frappe
 from frappe.model.document import Document
 import requests
 import json
-
+import frappe.utils
+from productivity_next.api import organization_signup
 
 BASE_URL = "https://productivity.finbyz.tech"
 CALL_LOG_URL = f"{BASE_URL}/api/resource/Productivity Call log Organization"
@@ -183,3 +184,41 @@ class ProductifySubscription(Document):
             },
             headers=headers,
         )
+
+    def check_organization_exit(self):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
+        }
+        resp = requests.get(
+            f"{APPLICATION_ORG_URL}/{self.application_organization_name}",
+            headers=headers,
+        )
+    def before_save(self):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"token {self.api_key}:{self.get_password('api_secret')}",
+        }
+        resp = requests.get(
+            f"{APPLICATION_ORG_URL}/{self.application_organization_name}",
+            headers=headers,
+        )
+        if resp.status_code == 404:
+            resp = organization_signup(
+                domain=frappe.utils.get_url(),
+                organization_name=self.application_organization_name,
+                contact_person=self.name1,
+                email=self.email,
+                mobile_no=self.mobile_no,
+                fincall=self.fincall,
+                application_usage=self.application_usage,
+                sales_person=self.sales_person,
+                project=self.project,
+                issue=self.issue,
+            )
+            if resp.status_code != 200:
+                frappe.throw("Something went wrong while creating organization")
+            else:
+                frappe.msgprint("Organization created successfully")
+        frappe.local.flags.ignore_save = True
+        self.reload()
