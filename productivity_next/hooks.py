@@ -113,6 +113,7 @@ doctype_js = {
     "Customer": "public/js/doctype_js/customer.js",
     "Opportunity": "public/js/doctype_js/opportunity.js",
     "Auto Repeat": "public/js/doctype_js/auto_repeat.js",
+    "Notification": "public/js/doctype_js/notification.js",
 
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}

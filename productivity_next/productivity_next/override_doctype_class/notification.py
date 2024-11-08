@@ -80,8 +80,29 @@ class Notification(_Notification):
 		except Exception as e:
 			self.log_error(f"Failed to send Notification: {str(e)}")
 
+	def get_assign_to_user(self, doc, context):
+		assign_to_users = []
+		
+		for recipient in self.recipients:
+			if recipient.condition:
+				if not frappe.safe_eval(recipient.condition, None, context):
+					continue
+			if recipient.receiver_by_document_field:
+				fields = recipient.receiver_by_document_field.split(",")
+				# fields from child table
+				if len(fields) > 1:
+					for d in doc.get(fields[1]):
+						assign_to_users.append(d.get(fields[0]))
+				# field from parent doc
+				else:
+					assign_to_users.append(doc.get(fields[0]))
+
+		return set(assign_to_users)
+   
+     
 	def create_task(self, doc, context):
 		"""Create Task"""
+		assign_to_users = self.get_assign_to_user(doc, context)
 		try:
 			# Render subject and message using templates
 			task_subject_template = Template(self.subject)
@@ -109,20 +130,33 @@ class Notification(_Notification):
 			task.priority = self.priority
 			task.save(ignore_permissions=True)
 
-			if self.assignment:
-				for assignment in self.assignment:
-					assign_to.add(
-						dict(
-							assign_to= [assignment.assignment],
-							doctype="Task",
-							name=task.name,
-							description=formatted_message,
-							priority=self.priority,
-							notify=True,
-						),
-						ignore_permissions=True,
-					)
-
+			for assignment in self.assignment:
+				assign_to.add(
+					dict(
+						assign_to=[assignment.assignment],
+						doctype="Task",
+						name=task.name,
+						description=formatted_message,
+						priority=self.priority,
+						notify=True,
+					),
+					ignore_permissions=True,
+				)
+			for assign_to_user in assign_to_users:
+				if assign_to_user == "Guest" or not assign_to_user:
+					continue
+ 
+				assign_to.add(
+					dict(
+						assign_to=[assign_to_user],
+						doctype="Task",
+						name=task.name,
+						description=formatted_message,
+						priority=self.priority,
+						notify=True,
+					),
+					ignore_permissions=True,
+				)
 			frappe.msgprint("Task Created and Assigned Successfully")
 			return task
 		except Exception as e:
