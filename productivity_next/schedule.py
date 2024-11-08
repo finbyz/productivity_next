@@ -905,6 +905,7 @@ def set_challenge():
     }
 
     if not productify_subscription.token_updated_on or get_datetime(productify_subscription.token_updated_on) < get_datetime(nowdate()):
+        print(productify_subscription.token_updated_on)
         response = requests.post(
             "https://productivity.finbyz.tech/api/method/productivity_backend.api.get_challenge",
             data={"erpnext_url": productify_subscription.site_url},
@@ -916,15 +917,15 @@ def set_challenge():
             return
         
         data = response.json().get("message")
+
         if not data.get("token"):
             frappe.log_error(title="Productify Challenge Error", message=f"Failed to get challenge: {response.text}")
             return
-        productify_subscription.token = data.get("token")
-        productify_subscription.token_call = data.get("token_call")
-        productify_subscription.token_updated_on = nowdate()
-        productify_subscription.flags.ignore_permissions = True
-        productify_subscription.save()
         
+        frappe.db.set_value("Productify Subscription", "Productify Subscription", "token", data.get("token"))
+        frappe.db.set_value("Productify Subscription", "Productify Subscription", "token_call", data.get("token_call"))
+        frappe.db.set_value("Productify Subscription", "Productify Subscription", "token_updated_on", nowdate())
+
         date = get_datetime()
         for user in productify_subscription.list_of_users:
             expiration_time = date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=7)
