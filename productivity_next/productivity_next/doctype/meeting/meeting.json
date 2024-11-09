@@ -9,34 +9,28 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
-  "latitude",
-  "longitude",
   "internal_meeting",
-  "purpose",
-  "project",
-  "lead",
   "party_type",
   "party",
-  "scheduled_time",
   "organization",
+  "purpose",
+  "scheduled_time",
+  "project",
+  "posting_date",
   "meeting_from",
   "meeting_to",
   "column_break",
-  "posting_date",
   "meeting_arranged_by",
-  "salutation",
   "contact_person",
+  "salutation",
   "contact",
   "mobile_no",
   "email_id",
   "address",
   "address_display",
+  "longitude",
+  "latitude",
   "location_log",
-  "company_details",
-  "turnover",
-  "employees",
-  "column_break_17",
-  "business_specifics",
   "participants",
   "meeting_company_representative",
   "meeting_party_representative",
@@ -86,14 +80,6 @@
    "label": "Purpose",
    "options": "Meeting Purpose",
    "reqd": 1
-  },
-  {
-   "fieldname": "lead",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "in_standard_filter": 1,
-   "label": "Lead",
-   "options": "Lead"
   },
   {
    "depends_on": "eval:doc.internal_meeting != 1",
@@ -148,7 +134,7 @@
    "fieldname": "posting_date",
    "fieldtype": "Date",
    "hidden": 1,
-   "label": "Posting Date"
+   "label": "Meeting Date"
   },
   {
    "fieldname": "meeting_arranged_by",
@@ -206,31 +192,6 @@
    "fieldtype": "Small Text",
    "label": "Address Display",
    "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.internal_meeting != 1",
-   "fieldname": "company_details",
-   "fieldtype": "Section Break",
-   "label": "Company Details"
-  },
-  {
-   "fieldname": "turnover",
-   "fieldtype": "Currency",
-   "label": "Turnover (In Crs)"
-  },
-  {
-   "fieldname": "employees",
-   "fieldtype": "Int",
-   "label": "Employees"
-  },
-  {
-   "fieldname": "column_break_17",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "business_specifics",
-   "fieldtype": "Small Text",
-   "label": "Business Specifics"
   },
   {
    "fieldname": "participants",
@@ -299,6 +260,7 @@
    "label": "Next Contact Date"
   },
   {
+   "collapsible": 1,
    "depends_on": "eval:doc.internal_meeting != 1",
    "fieldname": "expenses",
    "fieldtype": "Section Break",
@@ -396,7 +358,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-10-25 17:32:33.099405",
+ "modified": "2024-11-09 10:45:20.137491",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
