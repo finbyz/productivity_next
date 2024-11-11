@@ -1078,13 +1078,12 @@ def get_meetings(user, start_datetime, end_datetime):
         'latitude': m.latitude,
         'longitude': m.longitude
     } for m in meetings]
-
 def get_location_logs(user, start_date, end_date):
     logs = frappe.db.sql("""
         SELECT 
             date,
             time as start_time,
-            time as end_time,
+            LEAD(time) OVER (ORDER BY time) as end_time,
             is_moving,
             is_stop,
             latitude,
@@ -1100,47 +1099,50 @@ def get_location_logs(user, start_date, end_date):
         'start_date': start_date,
         'end_date': end_date
     }, as_dict=True)
-    # frappe.throw(str(logs))
+    
     events = []
-    previous_log = None
     
     for log in logs:
-        # Create regular location log event
+        # If this is the last record, use the same time for end_time
+        if log.end_time is None:
+            log.end_time = log.start_time
+            
+        # Create location log event
         location_event = {
             'type': 'location_log',
             'date': log.date,
-            'start_time': log.start_time,
-            'end_time': log.end_time,
-            'is_moving': log.is_moving,
+            'start_time': log.end_time,
+            'end_time': log.start_time,
+            'is_moving': not log.is_stop,
+            'is_stop': log.is_stop,
             'latitude': log.latitude,
             'longitude': log.longitude,
-            'heading': log.heading,
-            'duration': 0  # Since these are point-in-time logs, duration is 0
+            'heading': log.heading
         }
+        
+        # Calculate duration for stop events
+        if log.is_stop:
+            try:
+                from datetime import datetime
+                if isinstance(log.start_time, str):
+                    start_time = datetime.strptime(log.start_time, '%Y-%m-%d %H:%M:%S')
+                else:
+                    start_time = log.start_time
+                    
+                if isinstance(log.end_time, str):
+                    end_time = datetime.strptime(log.end_time, '%Y-%m-%d %H:%M:%S')
+                else:
+                    end_time = log.end_time
+                
+                duration_minutes = int((end_time - start_time).total_seconds() / 60)
+                location_event['duration'] = duration_minutes
+            except Exception as e:
+                frappe.log_error(f"Error calculating duration: {str(e)}")
+                location_event['duration'] = 0
+        
         events.append(location_event)
-        
-        # Check if current log is a stop and we have a previous log
-        if log.is_stop and previous_log:
-            # Calculate duration in seconds
-            from_time = previous_log.end_time
-            to_time = log.end_time
-            
-            # Create stop event
-            stop_event = {
-                'type': 'stop',
-                'date': log.date,
-                'start_time': from_time,
-                'end_time': to_time,
-                'latitude': log.latitude,
-                'longitude': log.longitude,
-                'duration':  0
-            }
-            events.append(stop_event)
-        
-        previous_log = log
-    # frappe.throw(str(events))
-    return events
     
+    return events
 @frappe.whitelist()
 def get_sales_person():
     sales_person = frappe.db.get_single_value('Productify Subscription', 'sales_person')

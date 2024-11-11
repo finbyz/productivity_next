@@ -333,6 +333,7 @@ UserProfile = class UserProfile {
 			const locations = response
 			.filter(event => event && typeof event === 'object')
 			.map(event => {
+				// console.log("Meghwin",event)
 				try {
 					if (event.type === 'meeting') {
 						return {
@@ -342,13 +343,22 @@ UserProfile = class UserProfile {
 							name: event.location_name || `${event.client || 'Internal Meeting'}`,
 							type: 'meeting'
 						};
-					} else {
+					}else if (event.type == 'location_log' && event.is_moving == 0){
 						return {
 							lat: parseFloat(event.latitude) || 0,
 							lng: parseFloat(event.longitude) || 0,
 							heading: parseFloat(event.heading) || 0,  // Add heading
 							name: `Stop (${event.duration} mins)`,
 							type: 'stop'
+						};
+					}
+					else {
+						return {
+							lat: parseFloat(event.latitude) || 0,
+							lng: parseFloat(event.longitude) || 0,
+							heading: parseFloat(event.heading) || 0,  // Add heading
+							name: `Stop (${event.duration} mins)`,
+							type: 'moving'
 						};
 					}
 				} catch (err) {
@@ -390,151 +400,158 @@ UserProfile = class UserProfile {
 	}
 	renderMeetings(events) {
 		if (!events?.length) {
-		  console.warn("No events data to render");
-		  return;
+			console.warn("No events data to render");
+			return;
 		}
-	  
+		
 		const meetingsList = document.getElementById('meetings-list');
 		if (!meetingsList) {
-		  console.error("Meetings list container not found");
-		  return;
+			console.error("Meetings list container not found");
+			return;
 		}
-	  
+		
 		// Preprocess events to combine consecutive moving logs
 		const processedEvents = this.combineMovingLogs(events);
-	  
+		
 		const self = this;
 		meetingsList.className = 'position-relative px-4';
 		meetingsList.innerHTML = '';
-	  
+		
 		// Add timeline line
 		const timelineLine = document.createElement('div');
 		timelineLine.className = 'position-absolute';
 		timelineLine.style.cssText = `
-		  left: 2rem;
-		  top: 0;
-		  bottom: 0;
-		  width: 2px;
-		  background-color: #e9ecef;
-		  z-index: 1;
+			left: 2rem;
+			top: 0;
+			bottom: 0;
+			width: 2px;
+			background-color: #e9ecef;
+			z-index: 1;
 		`;
 		meetingsList.appendChild(timelineLine);
-	  
+		
 		processedEvents.forEach((event, index) => {
-		  if (!event) return;
-	  
-		  const formatDateTime = (dateStr) => {
-			if (!dateStr) return "N/A";
-			try {
-			  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-			  return date.toLocaleString();
-			} catch (e) {
-			  return "N/A";
-			}
-		  };
-	  
-		  const calculateDuration = (start, end) => {
-			return Math.floor((end.getTime() - start.getTime()) / 1000); // Duration in seconds
-		  };
-	  
-		  if (event.type === 'location_log') {
-			if (event.is_moving && event.isGrouped) {
-			  // Render combined moving logs
-			  const movingItem = document.createElement('div');
-			  movingItem.className = 'row mb-4 position-relative';
-	  
-			  // Calculate duration in hours
-			  const startTime = new Date(event.start_time);
-			  const endTime = new Date(event.end_time);
-			  const durationHours = this.convertSecondsToTime_(calculateDuration(endTime, startTime));
-	  
-			  movingItem.innerHTML = `
-				<div class="col-12 position-relative">
-				  <div class="position-absolute" style="
-					left: 1.5rem;
-					width: 1rem;
-					height: 1rem;
-					background-color: #6c757d;
-					border-radius: 50%;
-					transform: translateX(-50%);
-					z-index: 2;
-					top: 1.5rem;
-				  "></div>
-	  
-				  <div class="card shadow-sm ml-5" style="border-left: 4px solid #6c757d">
-					<div class="card-header position-relative" 
-					  style="background-color: rgba(108, 117, 125, 0.1);">
-					  <div class="d-flex justify-content-between align-items-center">
-						<div>
-						  <h5 class="mb-1 font-weight-bold">
-							<i class=""></i>
-							Driving Session  
-						  </h5>
-						  <p class="mb-2 text-muted">
-							Time: ${formatDateTime(event.end_time)} - ${formatDateTime(event.start_time)}
-						  </p>
+			if (!event) return;
+			
+			const formatDateTime = (dateStr) => {
+				if (!dateStr) return "N/A";
+				try {
+					const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+					return date.toLocaleString();
+				} catch (e) {
+					return "N/A";
+				}
+			};
+			
+			const calculateDuration = (start, end) => {
+				try {
+				  const startDate = typeof start === 'string' ? new Date(start) : start;
+				  const endDate = typeof end === 'string' ? new Date(end) : end;
+				  
+				  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+					console.warn('Invalid date in duration calculation');
+					return 0;
+				  }
+				  
+				  return Math.floor((endDate.getTime() - startDate.getTime()) / 1000);
+				} catch (e) {
+				  console.error(`Duration calculation error: ${e}`);
+				  return 0;
+				}
+			  };
+			
+			if (event.type === 'location_log') {
+				if (event.is_moving && event.isGrouped) {
+					// Render driving session
+					const duration = calculateDuration(event.start_time, event.end_time);
+					const durationStr = this.convertSecondsToTime_(duration);
+					
+					const movingItem = document.createElement('div');
+					movingItem.className = 'row mb-4 position-relative';
+					movingItem.innerHTML = `
+						<div class="col-12 position-relative">
+							<div class="position-absolute" style="
+								left: 1.5rem;
+								width: 1rem;
+								height: 1rem;
+								background-color: #6c757d;
+								border-radius: 50%;
+								transform: translateX(-50%);
+								z-index: 2;
+								top: 1.5rem;
+							"></div>
+							
+							<div class="card shadow-sm ml-5" style="border-left: 4px solid #6c757d">
+								<div class="card-header position-relative" 
+									style="background-color: rgba(108, 117, 125, 0.1);">
+									<div class="d-flex justify-content-between align-items-center">
+										<div>
+											<h5 class="mb-1 font-weight-bold">
+												Driving Session
+											</h5>
+											<p class="mb-2 text-muted">
+												${formatDateTime(event.start_time)} - ${formatDateTime(event.end_time)}
+											</p>
+										</div>
+										<div class="text-right">
+											<span class="badge badge-secondary">
+												${durationStr} H
+											</span>
+										</div>
+									</div>
+								</div>
+							</div>
 						</div>
-						<div class="text-right">
-						  <span class="badge badge-secondary">
-							${durationHours} H
-						  </span>
+					`;
+					meetingsList.appendChild(movingItem);
+				} else if (event.is_stop == 1) { // Only render explicit stops
+					// Render stop
+					console.log("Stop Event:", event);
+					const duration = calculateDuration(event.end_time, event.start_time);
+					const durationStr = this.convertSecondsToTime_(duration);
+					
+					const stopItem = document.createElement('div');
+					stopItem.className = 'row mb-4 position-relative';
+					stopItem.innerHTML = `
+						<div class="col-12 position-relative">
+							<div class="position-absolute" style="
+								left: 1.5rem;
+								width: 1rem;
+								height: 1rem;
+								background-color: #dc3545;
+								border-radius: 50%;
+								transform: translateX(-50%);
+								z-index: 2;
+								top: 1.5rem;
+							"></div>
+							
+							<div class="card shadow-sm ml-5" style="border-left: 4px solid #dc3545">
+								<div class="card-header position-relative" 
+									style="background-color: rgba(220, 53, 69, 0.1);">
+									<div class="d-flex justify-content-between align-items-center">
+										<div>
+											<h5 class="mb-1 font-weight-bold">Stopped</h5>
+											<p class="mb-2 text-muted">
+											${formatDateTime(event.end_time)} - ${formatDateTime(event.start_time)}
+											</p>
+										</div>
+										<div class="text-right">
+											<span class="badge badge-danger">
+												${durationStr} H
+											</span>
+										</div>
+										<button class="btn btn-primary btn-sm add-meeting-btn" 
+												data-from-time="${formatDateTime(event.to_time)}" 
+												data-to-time="${formatDateTime(event.from_time)}">
+											Add Meeting
+										</button>
+									</div>
+								</div>
+							</div>
 						</div>
-					  </div>
-					</div>
-				  </div>
-				</div>
-			  `;
-	  
-			  meetingsList.appendChild(movingItem);
-			} else if (!event.is_moving) {
-			  // Render individual stopped logs
-			  const locationItem = document.createElement('div');
-			  locationItem.className = 'row mb-4 position-relative';
-	  
-			  // Render individual stopped logs with from/to times
-			  const stopStartTime = new Date(event.from_time);
-			  const stopEndTime = new Date(event.to_time);
-			  const stopDuration = this.convertSecondsToTime_(calculateDuration(stopEndTime, stopStartTime));
-	  
-			  locationItem.innerHTML = `
-			  <div class="col-12 position-relative">
-				<div class="position-absolute" style="
-				  left: 1.5rem;
-				  width: 1rem;
-				  height: 1rem;
-				  background-color: #dc3545;
-				  border-radius: 50%;
-				  transform: translateX(-50%);
-				  z-index: 2;
-				  top: 1.5rem;
-				"></div>
-	  
-				<div class="card shadow-sm ml-5" style="border-left: 4px solid #dc3545">
-				  <div class="card-header position-relative" 
-					style="background-color: rgba(220, 53, 69, 0.1);">
-					<div class="d-flex justify-content-between align-items-center">
-					  <div>
-						<h5 class="mb-1 font-weight-bold">Stopped</h5>
-						<p class="mb-2 text-muted">
-						  Time: ${formatDateTime(event.to_time)} - ${formatDateTime(event.from_time)}
-						
-						  </p>
-					  </div>
-					  <div class="text-right">	
-					  <span class="badge badge-danger">
-							${stopDuration} H
-						  </span>
-					  </div>
-					  <button class="btn btn-primary btn-sm add-meeting-btn" data-from-time="${formatDateTime(event.to_time)}" data-to-time="${formatDateTime(event.from_time)}">
-						Add Meeting
-					  </button>
-					</div>
-				  </div>
-				</div>
-			  </div>
-			  `;
-	  
-			const addMeetingBtn = locationItem.querySelector('.add-meeting-btn');
+					`;
+					
+					const addMeetingBtn = stopItem.querySelector('.add-meeting-btn');
 			addMeetingBtn.addEventListener('click', function() {
 				// Ensure we're working with Date objects and format them correctly
 				const formatDateTimeForDialog = (dateStr) => {
@@ -848,163 +865,196 @@ UserProfile = class UserProfile {
 					frappe.msgprint("An error occurred while fetching data. Please try again.");
 				});
 			});
-  
-			  meetingsList.appendChild(locationItem);
-			}
-		  } else {
-			// Meeting event rendering (unchanged)
-			const isInternal = event.internal_meeting === 1;
-			const companyReps = event.company_representatives ?
-			  event.company_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
-			const partyReps = !isInternal && event.party_representatives ?
-			  event.party_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
-	  
-			const collapseId = `collapse-content-${index}`;
-			const timelineItem = document.createElement('div');
-			timelineItem.className = 'row mb-4 position-relative';
-	  
-			const primaryColor = isInternal ? '#6420AA' : '#6699FF';
-			const backgroundColor = isInternal ? 'rgba(100, 32, 170, 0.1)' : 'rgba(102, 153, 255, 0.1)';
-			const displayParty = isInternal ? "Internal Meeting" : (event.client || "N/A");
-			const displayPartyType = isInternal ? "Company" : (event.party_type || "N/A");
-	  
-			timelineItem.innerHTML = `
-			  <div class="col-12 position-relative">
-				<div class="position-absolute" style="
-				  left: 1.5rem;
-				  width: 1rem;
-				  height: 1rem;
-				  background-color: ${primaryColor};
-				  border-radius: 50%;
-				  transform: translateX(-50%);
-				  z-index: 2;
-				  top: 1.5rem;
-				"></div>
-				<div class="card shadow-sm ml-5" style="border-left: 4px solid ${primaryColor}">
-				  <div class="card-header" style="background-color: ${backgroundColor};" data-collapse-id="${collapseId}">
-					<div class="d-flex justify-content-between align-items-start">
-					  <h5 class="mb-1 font-weight-bold">
-						${displayParty}
-						<small class="d-block mt-1 text-muted">${displayPartyType}</small>
-					  </h5>
-					  <span class="toggle-icon">▼</span>
-					</div>
-					<div class="meeting-details mt-3">
-					  <p class="mb-2"><strong>Date:</strong> ${event.date || "N/A"}</p>
-					  <p class="mb-2">
-						<strong>Time:</strong> 
-						${formatDateTime(event.start_time)} - ${formatDateTime(event.end_time)} 
-						<span class="badge badge-info ml-2">
-						  ${this.convertSecondsToTime_(event.duration || 0)} H
-						</span>
-					  </p>
-					  <p class="mb-0"><strong>Arranged By:</strong> ${event.meeting_arranged_by || "Unknown"}</p>
-					</div>
-				  </div>
-				  <div id="${collapseId}" class="collapse">
-					<div class="card-body">
-					  <div class="mb-4">
-						<h6 class="font-weight-bold text-uppercase text-muted mb-2">Purpose</h6>
-						<p>${event.purpose || "N/A"}</p>
-					  </div>
-					  <div class="mb-4">
-						<h6 class="font-weight-bold text-uppercase text-muted mb-2">Discussion</h6>
-						<p>${event.discussion || "N/A"}</p>
-					  </div>
-					  <div class="row">
-						<div class="col-${isInternal ? '12' : '6'}">
-						  <h6 class="font-weight-bold text-uppercase text-muted mb-3">Internal Representatives</h6>
-						  <div class="list-group">
-							${companyReps.length ?
-							  companyReps.map(rep => `
-								<div class="list-group-item">${rep}</div>
-							  `).join('') :
-							  '<div class="text-muted">No internal representatives</div>'
-							}
-						  </div>
-						</div>
-						${!isInternal ? `
-						  <div class="col-6">
-							<h6 class="font-weight-bold text-uppercase text-muted mb-3">External Representatives</h6>
-							<div class="list-group">
-							  ${partyReps.length ?
-								partyReps.map(rep => `
-								  <div class="list-group-item">${rep}</div>
-								`).join('') :
-								'<div class="text-muted">No external representatives</div>'
-							  }
+					
+					meetingsList.appendChild(stopItem);
+				}
+			} else {
+				// Meeting event rendering
+				const isInternal = event.internal_meeting === 1;
+				const companyReps = event.company_representatives ?
+					event.company_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
+				const partyReps = !isInternal && event.party_representatives ?
+					event.party_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
+				
+				const collapseId = `collapse-content-${index}`;
+				const timelineItem = document.createElement('div');
+				timelineItem.className = 'row mb-4 position-relative';
+				
+				const primaryColor = isInternal ? '#6420AA' : '#6699FF';
+				const backgroundColor = isInternal ? 'rgba(100, 32, 170, 0.1)' : 'rgba(102, 153, 255, 0.1)';
+				const displayParty = isInternal ? "Internal Meeting" : (event.client || "N/A");
+				const displayPartyType = isInternal ? "Company" : (event.party_type || "N/A");
+				
+				timelineItem.innerHTML = `
+					<div class="col-12 position-relative">
+						<div class="position-absolute" style="
+							left: 1.5rem;
+							width: 1rem;
+							height: 1rem;
+							background-color: ${primaryColor};
+							border-radius: 50%;
+							transform: translateX(-50%);
+							z-index: 2;
+							top: 1.5rem;
+						"></div>
+						<div class="card shadow-sm ml-5" style="border-left: 4px solid ${primaryColor}">
+							<div class="card-header" style="background-color: ${backgroundColor};" data-collapse-id="${collapseId}">
+								<div class="d-flex justify-content-between align-items-start">
+									<h5 class="mb-1 font-weight-bold">
+										${displayParty}
+										<small class="d-block mt-1 text-muted">${displayPartyType}</small>
+									</h5>
+									<span class="toggle-icon">▼</span>
+								</div>
+								<div class="meeting-details mt-3">
+									<p class="mb-2"><strong>Date:</strong> ${event.date || "N/A"}</p>
+									<p class="mb-2">
+										<strong>Time:</strong> 
+										${formatDateTime(event.start_time)} - ${formatDateTime(event.end_time)} 
+										<span class="badge badge-info ml-2">
+											${this.convertSecondsToTime_(event.duration || 0)} H
+										</span>
+									</p>
+									<p class="mb-0"><strong>Arranged By:</strong> ${event.meeting_arranged_by || "Unknown"}</p>
+								</div>
 							</div>
-						  </div>
-						` : ''}
-					  </div>
+							<div id="${collapseId}" class="collapse">
+								<div class="card-body">
+									<div class="mb-4">
+										<h6 class="font-weight-bold text-uppercase text-muted mb-2">Purpose</h6>
+										<p>${event.purpose || "N/A"}</p>
+									</div>
+									<div class="mb-4">
+										<h6 class="font-weight-bold text-uppercase text-muted mb-2">Discussion</h6>
+										<p>${event.discussion || "N/A"}</p>
+									</div>
+									<div class="row">
+										<div class="col-${isInternal ? '12' : '6'}">
+											<h6 class="font-weight-bold text-uppercase text-muted mb-3">Internal Representatives</h6>
+											<div class="list-group">
+												${companyReps.length ?
+													companyReps.map(rep => `
+														<div class="list-group-item">${rep}</div>
+													`).join('') :
+													'<div class="text-muted">No internal representatives</div>'
+												}
+											</div>
+										</div>
+										${!isInternal ? `
+											<div class="col-6">
+												<h6 class="font-weight-bold text-uppercase text-muted mb-3">External Representatives</h6>
+												<div class="list-group">
+													${partyReps.length ?
+														partyReps.map(rep => `
+															<div class="list-group-item">${rep}</div>
+														`).join('') :
+														'<div class="text-muted">No external representatives</div>'
+													}
+												</div>
+											</div>
+										` : ''}
+									</div>
+								</div>
+							</div>
+						</div>
 					</div>
-				  </div>
-				</div>
-			  </div>
-			`;
-	  
-			const cardHeader = timelineItem.querySelector('.card-header');
-			cardHeader.addEventListener('click', function() {
-			  const collapseId = this.dataset.collapseId;
-			  self.toggleMeeting(collapseId, this, this.querySelector('.toggle-icon'));
-			});
-	  
-			meetingsList.appendChild(timelineItem);
-		  }
+				`;
+				
+				const cardHeader = timelineItem.querySelector('.card-header');
+				cardHeader.addEventListener('click', function() {
+					const collapseId = this.dataset.collapseId;
+					self.toggleMeeting(collapseId, this, this.querySelector('.toggle-icon'));
+				});
+				
+				meetingsList.appendChild(timelineItem);
+			}
 		});
-	  }
-	
+	}
 	combineMovingLogs(events) {
 		const processedEvents = [];
 		let currentMovingGroup = null;
-		let lastEndTime = null;
-	  
-		events.forEach((event, index) => {
-		  if (event.type === 'location_log') {
-			if (event.is_moving) {
-			  // Group consecutive moving logs
-			  if (!currentMovingGroup) {
-				currentMovingGroup = {
-				  ...event,
-				  isGrouped: true,
-				  end_time: event.end_time,
-				};
-			  } else {
-				// Extend the current moving group
-				currentMovingGroup.end_time = event.end_time;
-				currentMovingGroup.latitude = event.latitude;
-				currentMovingGroup.longitude = event.longitude;
-			  }
-	  
-			  // If the next event is not moving or is the last event, finalize the moving group
-			  const nextEvent = events[index + 1];
-			  if (!nextEvent || nextEvent.type !== 'location_log' || !nextEvent.is_moving) {
-				currentMovingGroup.from_time = lastEndTime ? new Date(lastEndTime) : new Date(currentMovingGroup.start_time); // Start from last end time if available
-				processedEvents.push(currentMovingGroup);
-				lastEndTime = currentMovingGroup.end_time;
-				currentMovingGroup = null;
-			  }
-			} else {
-			  // Non-moving log (Stopped event)
-			  const stopEvent = {
-				...event,
-				from_time: lastEndTime ? new Date(lastEndTime) : new Date(event.start_time),  // Start from the last end time if available
-				to_time: new Date(event.start_time),                    // Use the current log's start time as the end time for stop event
-			  };
-			  processedEvents.push(stopEvent);
-			  lastEndTime = stopEvent.to_time;
-			}
-		  } else {
-			// Non-location events (like meetings) should be added directly
-			processedEvents.push(event);
-			lastEndTime = event.end_time;  // Update last end time for the next event
-		  }
-		});
-	  
-		return processedEvents;
-	  }
+		
+		// First, sort events by start_time in descending order (newest first)
+		const sortedEvents = [...events].sort((a, b) => 
+			new Date(b.start_time) - new Date(a.start_time)
+		);
+		
+		for (let i = 0; i < sortedEvents.length; i++) {
+			const event = sortedEvents[i];
+			const nextEvent = sortedEvents[i + 1];
+			
+			if (event.type === 'location_log' || !event.type) {
+				if (event.is_moving) {
+					// Handle moving events
+					if (!currentMovingGroup) {
+						currentMovingGroup = {
+							...event,
+							isGrouped: true,
+							type: 'location_log',
+							start_time: event.start_time,
+							end_time: event.end_time
+						};
+					} else {
+						currentMovingGroup.start_time = event.start_time;
+					}
 	
-
+					if (!nextEvent || !nextEvent.is_moving) {
+						processedEvents.push(currentMovingGroup);
+						currentMovingGroup = null;
+					}
+				} else if (event.is_stop === 1) {
+					// Handle stop events
+					if (currentMovingGroup) {
+						processedEvents.push(currentMovingGroup);
+						currentMovingGroup = null;
+					}
+	
+					const stopEvent = {
+						...event,
+						type: 'location_log',
+						is_stop: 1,
+						is_moving: false
+					};
+	
+					// Find the next driving session's end time (which is chronologically before this stop)
+					const nextDrivingSession = sortedEvents.slice(i + 1).find(e => 
+						e.is_moving || (e.type === 'location_log' && e.is_moving)
+					);
+	
+					if (nextDrivingSession) {
+						stopEvent.from_time = nextDrivingSession.end_time;
+						stopEvent.to_time = event.start_time;
+						stopEvent.start_time = event.start_time;
+						stopEvent.end_time = nextDrivingSession.end_time;
+					} else {
+						stopEvent.from_time = event.start_time;
+						stopEvent.to_time = event.end_time;
+						stopEvent.start_time = event.start_time;
+						stopEvent.end_time = event.end_time;
+					}
+					
+					processedEvents.push(stopEvent);
+				}
+			} else {
+				// Handle non-location events (meetings)
+				if (currentMovingGroup) {
+					processedEvents.push(currentMovingGroup);
+					currentMovingGroup = null;
+				}
+				processedEvents.push(event);
+			}
+		}
+	
+		if (currentMovingGroup) {
+			processedEvents.push(currentMovingGroup);
+		}
+	
+		// Sort final events by start_time in descending order
+		return processedEvents.sort((a, b) => 
+			new Date(b.start_time) - new Date(a.start_time)
+		);
+	}
+	
 	toggleMeeting(collapseId, headerElement, toggleIcon) {
 		const content = document.getElementById(collapseId);
 		if (!content) return;
@@ -3908,7 +3958,7 @@ class MeetingsMap {
 		if (zoom >= 12 && zoom < 15) {
 			minArrowDistance = 200;  // More arrows for zoom levels between 12 and 14
 		} else if (zoom >= 15) {
-			minArrowDistance = 60;  // Even more arrows for zoom levels 15+
+			minArrowDistance = 80;  // Even more arrows for zoom levels 15+
 		}
 	
 		let lastArrowPoint = null;
@@ -4015,7 +4065,7 @@ class MeetingsMap {
         this.updateMapMarkers();
     }
 
-    updateMapMarkers() {
+	updateMapMarkers() {
 		// Clear existing markers and path
 		this.markers.forEach(marker => marker.remove());
 		this.markers = [];
@@ -4033,9 +4083,23 @@ class MeetingsMap {
 	
 		// Create path between markers
 		const pathCoordinates = [];
+		// console.log("Meghwin: ", this.locations);
+	
 		this.locations.forEach(location => {
 			bounds.extend([location.lat, location.lng]);
 			pathCoordinates.push([location.lat, location.lng]);
+	
+			// Add a small circle marker for stop points
+			if (location.type === 'stop') {
+				console.log("hello",location)
+				const stopMarker = L.circleMarker([location.lat, location.lng], {
+					color: 'red',
+					fillColor: 'red',
+					fillOpacity: 0.6,
+					radius: 6  // Small circle radius
+				}).addTo(this.map);
+				this.markers.push(stopMarker); // Add stop marker to markers
+			}
 		});
 	
 		// Draw a polyline with bidirectional arrows at both ends of each line
@@ -4079,5 +4143,7 @@ class MeetingsMap {
 			this.map.fitBounds(bounds, { padding: [50, 50] });
 		}
 	}
+	
+	
 	
 }
