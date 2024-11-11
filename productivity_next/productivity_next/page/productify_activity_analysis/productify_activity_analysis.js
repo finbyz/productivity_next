@@ -533,14 +533,321 @@ UserProfile = class UserProfile {
 			  </div>
 			  `;
 	  
-			  const addMeetingBtn = locationItem.querySelector('.add-meeting-btn');
-			  addMeetingBtn.addEventListener('click', () => {
-				// Original add meeting button logic...
-				console.log('Add meeting button clicked');
-				console.log('From time:', addMeetingBtn.dataset.fromTime);
-				console.log('To time:', addMeetingBtn.dataset.toTime);
-			  });
-	  
+			const addMeetingBtn = locationItem.querySelector('.add-meeting-btn');
+			addMeetingBtn.addEventListener('click', function() {
+				// Ensure we're working with Date objects and format them correctly
+				const formatDateTimeForDialog = (dateStr) => {
+					try {
+						const date = new Date(dateStr);
+						// Format date in YYYY-MM-DD HH:mm:ss
+						return date.getFullYear() + '-' + 
+							String(date.getMonth() + 1).padStart(2, '0') + '-' +
+							String(date.getDate()).padStart(2, '0') + ' ' +
+							String(date.getHours()).padStart(2, '0') + ':' +
+							String(date.getMinutes()).padStart(2, '0') + ':' +
+							String(date.getSeconds()).padStart(2, '0');
+					} catch (e) {
+						console.error('Date formatting error:', e);
+						return null;
+					}
+				};
+
+				// Format the dates properly
+				const startTime = formatDateTimeForDialog(event.to_time);
+				const endTime = formatDateTimeForDialog(event.from_time);
+
+				if (!startTime || !endTime) {
+					frappe.msgprint('Invalid date format. Please try again.');
+					return;
+				}
+
+				// Fetch employee data and project enabled status
+				Promise.all([
+					frappe.call({
+						method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_project_enabled",
+					}),
+					frappe.db.get_value('Employee', {user_id: frappe.session.user}, ['name', 'employee_name'])
+				]).then(([subscription_response, employee_response]) => {
+					const projectEnabled = subscription_response.message ? subscription_response.message : false;
+					const currentUserEmployee = employee_response.message;
+
+					const table_fields = [
+						{
+							label: "Employee",
+							fieldname: "employee",
+							fieldtype: "Link",
+							in_list_view: 1,
+							options: "Employee",
+							ignore_user_permissions: 1,
+							reqd: 1,
+						}
+					];
+					const party_fields = [
+						{
+							label: 'Contact',
+							fieldname: 'contact',
+							fieldtype: 'Link',
+							options: 'Contact',
+							in_list_view: 1,
+							get_query: function() {
+								const selectedParty = d.get_values().party;
+								const selectedPartyType = d.get_values().party_type;
+								return {
+									filters: {
+										link_doctype: selectedPartyType,
+										link_name: selectedParty
+									}
+								};
+							}
+						}
+					];
+					var fields = [
+						{
+							fieldtype: "HTML",
+							options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
+						},
+						{
+							fieldtype: 'Section Break',
+						},
+						{
+							label: "Internal Meeting",
+							fieldname: "internal_meeting",
+							fieldtype: "Check",
+							onchange: function() {
+								const companyRepField = d.fields_dict.meeting_company_representative;
+								if (this.get_value()) {
+									companyRepField.df.reqd = 1;
+									companyRepField.grid.min_rows = 2;
+								} else {
+									companyRepField.df.reqd = 0;
+									companyRepField.grid.min_rows = 0;
+								}
+								companyRepField.refresh();
+							}
+						},
+						{
+							fieldname: 'internal_meeting_note',
+							fieldtype: 'HTML',
+							options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+							depends_on: 'eval:doc.internal_meeting'
+						},
+						{
+							label: "Purpose",
+							fieldname: "purpose",
+							fieldtype: "Link",
+							options: "Meeting Purpose",
+							reqd: 1
+						},
+						{
+							label: __("Party Type"),
+							fieldtype: 'Link',
+							options: "DocType",
+							fieldname: 'party_type',
+							get_query: function () {
+								return {
+									filters: {
+										"name": ["in", ["Customer", "Supplier", "Lead"]]
+									}
+								};
+							},
+							depends_on: 'eval:!doc.internal_meeting',
+							mandatory_depends_on: 'eval:!doc.internal_meeting',
+						},
+						{
+							label: 'Party',
+							fieldname: 'party',
+							fieldtype: 'Dynamic Link',
+							options: 'party_type',
+							change: function() {
+								const selectedParty = d.get_value('party');
+								const selectedPartyType = d.get_value('party_type');
+						
+								if (selectedParty && selectedPartyType) {
+									d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+										return {
+											filters: {
+												link_doctype: selectedPartyType,
+												link_name: selectedParty
+											}
+										};
+									};
+									d.fields_dict['meeting_party_representative'].grid.refresh();
+								}
+							},
+							depends_on: 'eval:!doc.internal_meeting',
+							mandatory_depends_on: 'eval:!doc.internal_meeting',
+						},
+						{
+							label: "Meeting Arranged By",
+							fieldname: "meeting_arranged_by",
+							fieldtype: "Link",
+							options: "User",
+							default: frappe.session.user,
+							reqd: 1
+						},
+						{
+							fieldtype: 'Column Break',
+						},
+						{
+							label: 'Meeting From',
+							fieldname: 'meeting_from',
+							fieldtype: 'Datetime',
+							default: startTime,
+							reqd: 1
+						},
+						{
+							label: 'Meeting To',
+							fieldname: 'meeting_to',
+							fieldtype: 'Datetime',
+							default: endTime,
+							reqd: 1
+						},
+						{
+							fieldtype: 'Section Break',
+						},
+						{
+							label: 'Meeting Company Representative',
+							"allow_bulk_edit": 1,
+							fieldname: 'meeting_company_representative',
+							fieldtype: 'Table',
+							fields: table_fields,
+							options: 'Meeting Company Representative',
+							reqd: 1,
+							onchange: function() {
+								if (d.get_value('internal_meeting')) {
+									this.grid.min_rows = 2;
+								} else {
+									this.grid.min_rows = 0;
+								}
+							}
+						},
+						{
+							fieldtype: 'Section Break',
+						},
+						{
+							label: 'Meeting Party Representative',
+							fieldname: 'meeting_party_representative',
+							fieldtype: 'Table',
+							fields: party_fields,
+							options: 'Meeting Party Representative',
+							depends_on: 'eval:!doc.internal_meeting',
+						},
+						{
+							label: "Discussion",
+							fieldname: "discussion",
+							fieldtype: "Text Editor",
+							reqd: 1
+						},
+					];
+
+					// Add Project field if enabled in Productify Subscription
+					if (projectEnabled) {
+						fields.splice(9, 0, {
+							label: "Project",
+							fieldname: "project",
+							fieldtype: "Link",
+							options: "Project"
+						});
+					}
+
+					let d = new frappe.ui.Dialog({
+						title: 'Add Meeting',
+						fields: fields,
+						primary_action_label: 'Submit',
+						primary_action(values) {
+							this.disable_primary_action();
+							this.set_title('Submitting...');
+					
+							if (values.internal_meeting) {
+								const companyRepresentatives = values.meeting_company_representative || [];
+								if (companyRepresentatives.length < 2) {
+									frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+									this.enable_primary_action();
+									this.set_title('Submit');
+									return;
+								}
+							}
+					
+							frappe.call({
+								method: "productivity_next.api.add_meeting",
+								args: {
+									meeting_from: values.meeting_from,
+									meeting_to: values.meeting_to,
+									meeting_arranged_by: values.meeting_arranged_by,
+									internal_meeting: values.internal_meeting,
+									purpose: values.purpose,
+									party_type: values.party_type || null,
+									party: values.party || null,
+									discussion: values.discussion,
+									meeting_company_representative: values.meeting_company_representative || null,
+									meeting_party_representative: values.meeting_party_representative || null,
+									project: values.project || null  // Add project to the args
+								},
+								callback: (r) => {
+									if (r.message) {
+										frappe.msgprint({
+											title: __('Success'),
+											indicator: 'green',
+											message: __('Meeting added successfully')
+										});
+										this.hide();
+									} else {
+										frappe.msgprint({
+											title: __('Error'),
+											indicator: 'red',
+											message: __('Failed to add meeting. Please try again.')
+										});
+										this.enable_primary_action();
+										this.set_title('Submit');
+									}
+								},
+								error: (r) => {
+									frappe.msgprint({
+										title: __('Error'),
+										indicator: 'red',
+										message: __('An error occurred while adding the meeting. Please try again.')
+									});
+									this.enable_primary_action();
+									this.set_title('Submit');
+								}
+							});
+						}
+					});
+					
+					// Set up the purpose field filter
+					d.fields_dict.purpose.get_query = function () {
+						return {
+							filters: {
+								internal_meeting: d.get_value('internal_meeting')
+							}
+						};
+					};
+
+					if (currentUserEmployee) {
+						let company_representative = d.fields_dict.meeting_company_representative;
+						
+						// Force add a new row
+						company_representative.grid.add_new_row(null, null, true);
+						
+						// Set the value directly on the grid rows
+						company_representative.grid.grid_rows[0].doc.employee = currentUserEmployee.name;
+						
+						// Refresh the grid
+						company_representative.grid.refresh();
+						
+						// Log for debugging
+						console.log("Added row:", company_representative.grid.grid_rows[0].doc);
+					}
+
+					// Show the dialog
+					d.show();
+				})
+				.catch(err => {
+					console.error("Error:", err);
+					frappe.msgprint("An error occurred while fetching data. Please try again.");
+				});
+			});
+  
 			  meetingsList.appendChild(locationItem);
 			}
 		  } else {
@@ -3545,7 +3852,7 @@ class MeetingsMap {
 
         // Create map container
         const mapHtml = `
-            <div class="frappe-card chart-column-container">
+            <div class="frappe-card chart-column-container mt-4">
                 <div class="title-area">
                     <h4 class="card-title">Meeting Locations</h4>
                 </div>

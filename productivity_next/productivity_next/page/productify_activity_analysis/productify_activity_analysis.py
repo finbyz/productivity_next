@@ -1086,32 +1086,60 @@ def get_location_logs(user, start_date, end_date):
             time as start_time,
             time as end_time,
             is_moving,
+            is_stop,
             latitude,
             longitude,
             heading
         FROM `tabLocation Logs`
         WHERE 
             employee = %(user)s
-            AND date BETWEEN %(start_date)s AND %(end_date)s
+            AND DATE(time) BETWEEN %(start_date)s AND %(end_date)s
         ORDER BY date, time
     """, {
         'user': user,
         'start_date': start_date,
         'end_date': end_date
     }, as_dict=True)
+    # frappe.throw(str(logs))
+    events = []
+    previous_log = None
     
-    # Format each log as an individual event
-    return [{
-        'type': 'location_log',
-        'date': log.date,
-        'start_time': log.start_time,
-        'end_time': log.end_time,
-        'is_moving': log.is_moving,
-        'latitude': log.latitude,
-        'longitude': log.longitude,
-        'heading': log.heading,
-        'duration': 0  # Since these are point-in-time logs, duration is 0
-    } for log in logs]
+    for log in logs:
+        # Create regular location log event
+        location_event = {
+            'type': 'location_log',
+            'date': log.date,
+            'start_time': log.start_time,
+            'end_time': log.end_time,
+            'is_moving': log.is_moving,
+            'latitude': log.latitude,
+            'longitude': log.longitude,
+            'heading': log.heading,
+            'duration': 0  # Since these are point-in-time logs, duration is 0
+        }
+        events.append(location_event)
+        
+        # Check if current log is a stop and we have a previous log
+        if log.is_stop and previous_log:
+            # Calculate duration in seconds
+            from_time = previous_log.end_time
+            to_time = log.end_time
+            
+            # Create stop event
+            stop_event = {
+                'type': 'stop',
+                'date': log.date,
+                'start_time': from_time,
+                'end_time': to_time,
+                'latitude': log.latitude,
+                'longitude': log.longitude,
+                'duration':  0
+            }
+            events.append(stop_event)
+        
+        previous_log = log
+    # frappe.throw(str(events))
+    return events
     
 @frappe.whitelist()
 def get_sales_person():
