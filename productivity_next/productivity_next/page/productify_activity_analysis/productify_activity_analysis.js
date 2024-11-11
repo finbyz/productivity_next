@@ -331,31 +331,32 @@ UserProfile = class UserProfile {
 			console.log("Meetings Data:", response);
 			// Extract locations from meetings and stops
 			const locations = response
-				.filter(event => event && typeof event === 'object')
-				.map(event => {
-					try {
-						if (event.type === 'meeting') {
-							return {
-								lat: parseFloat(event.latitude) || 0,
-								lng: parseFloat(event.longitude) || 0,
-								name: event.location_name || `${event.client || 'Internal Meeting'}`,
-								type: 'meeting'
-							};
-						} else {
-							return {
-								lat: parseFloat(event.latitude) || 0,
-								lng: parseFloat(event.longitude) || 0,
-								name: `Stop (${event.duration} mins)`,
-								type: 'stop'
-							};
-						}
-					} catch (err) {
-						console.error('Error processing event:', err);
-						return null;
+			.filter(event => event && typeof event === 'object')
+			.map(event => {
+				try {
+					if (event.type === 'meeting') {
+						return {
+							lat: parseFloat(event.latitude) || 0,
+							lng: parseFloat(event.longitude) || 0,
+							heading: parseFloat(event.heading) || 0,  // Add heading
+							name: event.location_name || `${event.client || 'Internal Meeting'}`,
+							type: 'meeting'
+						};
+					} else {
+						return {
+							lat: parseFloat(event.latitude) || 0,
+							lng: parseFloat(event.longitude) || 0,
+							heading: parseFloat(event.heading) || 0,  // Add heading
+							name: `Stop (${event.duration} mins)`,
+							type: 'stop'
+						};
 					}
-				})
-				.filter(loc => loc && loc.lat && loc.lng);
-	
+				} catch (err) {
+					console.error('Error processing event:', err);
+					return null;
+				}
+			})
+			.filter(loc => loc && loc.lat && loc.lng);
 			// Render the map if locations are available
 			console.log("Locations:", locations.length);
 			if (locations.length) {
@@ -3796,8 +3797,9 @@ class MeetingsMap {
         this.container = container;
         this.locations = locations;
         this.map = null;
-        this.markerClusterGroup = null;
+        this.markers = [];
         this.path = null;
+        this.visibleMarkers = new Set();
         this.init();
     }
 
@@ -3811,40 +3813,33 @@ class MeetingsMap {
             document.head.appendChild(linkElement);
         }
 
-        // Add MarkerCluster CSS
-        if (!document.querySelector('#markercluster-css')) {
-            const clusterCssLink = document.createElement('link');
-            clusterCssLink.id = 'markercluster-css';
-            clusterCssLink.rel = 'stylesheet';
-            clusterCssLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css';
-            document.head.appendChild(clusterCssLink);
-        }
-
         // Add custom marker styles
         if (!document.querySelector('#custom-marker-styles')) {
             const styleElement = document.createElement('style');
             styleElement.id = 'custom-marker-styles';
             styleElement.textContent = `
-                .custom-marker {
+                .direction-marker {
                     background: none;
                     border: none;
                 }
-                .marker-icon {
-                    width: 12px;
-                    height: 12px;
+                .direction-arrow {
                     background: #6420AA;
-                    border-radius: 50%;
+                    clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
+                    transform-origin: center center;
+                    opacity: 0.8;
+                    transition: all 0.3s ease;
                 }
-                .marker-cluster {
-                    background: rgba(100, 32, 170, 0.6);
-                    border-radius: 50%;
-                    width: 20px !important;
-                    height: 20px !important;
-                    margin-left: -10px !important;
-                    margin-top: -10px !important;
+                .direction-arrow-small {
+                    width: 16px;
+                    height: 16px;
                 }
-                .marker-cluster div {
-                    display: none;
+                .direction-arrow-medium {
+                    width: 20px;
+                    height: 20px;
+                }
+                .direction-arrow-large {
+                    width: 24px;
+                    height: 24px;
                 }
             `;
             document.head.appendChild(styleElement);
@@ -3861,101 +3856,228 @@ class MeetingsMap {
         `;
         this.container.innerHTML = mapHtml;
 
-        // Load Leaflet JS and MarkerCluster plugin
+        // Load Leaflet JS
         if (!window.L) {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-            script.onload = () => {
-                const clusterScript = document.createElement('script');
-                clusterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js';
-                clusterScript.onload = () => this.initializeMap();
-                document.head.appendChild(clusterScript);
-            };
+            script.onload = () => this.initializeMap();
             document.head.appendChild(script);
         } else {
-            if (!window.L.MarkerClusterGroup) {
-                const clusterScript = document.createElement('script');
-                clusterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js';
-                clusterScript.onload = () => this.initializeMap();
-                document.head.appendChild(clusterScript);
-            } else {
-                this.initializeMap();
-            }
+            this.initializeMap();
         }
     }
 
+    getMarkerSize(zoom) {
+        if (zoom <= 8) return 'small';
+        if (zoom <= 12) return 'medium';
+        return 'large';
+    }
+
+    calculateIntermediatePoint(point1, point2, ratio) {
+        const lat = point1.lat + (point2.lat - point1.lat) * ratio;
+        const lng = point1.lng + (point2.lng - point1.lng) * ratio;
+        return L.latLng(lat, lng);
+    }
+
+    calculateHeading(point1, point2) {
+        const lat1 = point1.lat * Math.PI / 180;
+        const lat2 = point2.lat * Math.PI / 180;
+        const lng1 = point1.lng * Math.PI / 180;
+        const lng2 = point2.lng * Math.PI / 180;
+
+        const y = Math.sin(lng2 - lng1) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) -
+                 Math.sin(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1);
+        const bearing = Math.atan2(y, x) * 180 / Math.PI;
+        return (bearing + 360) % 360;
+    }
+
+	generateArrowPoints() {
+		const arrowPoints = [];
+		const uniquePairs = new Set(); // To track unique pairs of points
+	
+		if (this.locations.length < 2) return arrowPoints;
+	
+		const points = this.locations.map(loc => L.latLng(loc.lat, loc.lng));
+		
+		// Get the current zoom level
+		const zoom = this.map.getZoom();
+		
+		// Adjust the minimum distance between arrows based on zoom level
+		let minArrowDistance = 300; // Default for zoomed-out view
+		if (zoom >= 12 && zoom < 15) {
+			minArrowDistance = 200;  // More arrows for zoom levels between 12 and 14
+		} else if (zoom >= 15) {
+			minArrowDistance = 60;  // Even more arrows for zoom levels 15+
+		}
+	
+		let lastArrowPoint = null;
+	
+		for (let i = 0; i < points.length - 1; i++) {
+			const start = points[i];
+			const end = points[i + 1];
+			const heading = this.calculateHeading(start, end);
+			const distance = start.distanceTo(end);
+	
+			// Skip arrow generation if the segment is too short
+			if (distance < minArrowDistance) continue;
+	
+			const pairKey = `${start.lat},${start.lng}-${end.lat},${end.lng}`;
+			const reversePairKey = `${end.lat},${end.lng}-${start.lat},${start.lng}`;
+	
+			// Skip if the pair already exists in either direction
+			if (uniquePairs.has(pairKey) || uniquePairs.has(reversePairKey)) continue;
+	
+			// Add arrow in the middle of long segments
+			const midPoint = this.calculateIntermediatePoint(start, end, 0.5);
+			
+			// Ensure arrows are spaced out
+			if (!lastArrowPoint || lastArrowPoint.distanceTo(midPoint) > minArrowDistance) {
+				arrowPoints.push({
+					lat: midPoint.lat,
+					lng: midPoint.lng,
+					heading: heading
+				});
+				lastArrowPoint = midPoint;
+				uniquePairs.add(pairKey); // Mark this pair as processed
+			}
+		}
+	
+		// Ensure an arrow is present on the first segment
+		if (arrowPoints.length === 0 && points.length >= 2) {
+			const start = points[0];
+			const end = points[1];
+			const heading = this.calculateHeading(start, end);
+			const firstPoint = this.calculateIntermediatePoint(start, end, 0.3);
+			arrowPoints.push({
+				lat: firstPoint.lat,
+				lng: firstPoint.lng,
+				heading: heading
+			});
+		}
+	
+		return arrowPoints;
+	}
+
+    createDirectionMarker(location) {
+        const heading = parseFloat(location.heading) || 0;
+        const zoom = this.map.getZoom();
+        const size = this.getMarkerSize(zoom);
+        
+        const markerHtml = `
+            <div class="direction-arrow direction-arrow-${size}" 
+                 style="transform: rotate(${heading}deg)"></div>
+        `;
+
+        const iconSize = size === 'small' ? 24 : (size === 'medium' ? 28 : 32);
+
+        const marker = L.marker([location.lat, location.lng], {
+            icon: L.divIcon({
+                className: 'direction-marker',
+                html: markerHtml,
+                iconSize: [iconSize, iconSize],
+                iconAnchor: [iconSize/2, iconSize/2]
+            })
+        });
+
+        return marker;
+    }
+
+
+    updateMarkersVisibility() {
+        // Clear existing markers
+        this.markers.forEach(marker => marker.remove());
+        this.markers = [];
+        this.visibleMarkers.clear();
+
+        // Generate new arrow points with optimized spacing
+        const arrowPoints = this.generateArrowPoints();
+
+        // Create and add markers
+        arrowPoints.forEach(point => {
+            const marker = this.createDirectionMarker(point);
+            marker.addTo(this.map);
+            this.markers.push(marker);
+            this.visibleMarkers.add(marker);
+        });
+    }
+
     initializeMap() {
-        // Initialize the map
         const defaultCenter = [20.5937, 78.9629]; // Center of India
         this.map = L.map('map-container').setView(defaultCenter, 5);
 
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(this.map);
 
+        this.map.on('zoomend', () => this.updateMarkersVisibility());
+        
         this.updateMapMarkers();
     }
 
     updateMapMarkers() {
-        // Clear existing markers and path
-        if (this.markerClusterGroup) {
-            this.markerClusterGroup.clearLayers();
-            this.map.removeLayer(this.markerClusterGroup);
-        }
-        if (this.path) {
-            this.path.remove();
-        }
-
-        if (!this.locations || this.locations.length === 0) {
-            return;
-        }
-
-        // Initialize marker cluster group with custom settings
-        this.markerClusterGroup = L.markerClusterGroup({
-            maxClusterRadius: 40,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false,
-            zoomToBoundsOnClick: true,
-            iconCreateFunction: function(cluster) {
-                return L.divIcon({
-                    className: 'marker-cluster',
-                    html: '<div></div>'
-                });
-            }
-        });
-
-        // Add markers and create bounds
-        const bounds = L.latLngBounds();
-        this.locations.forEach((location) => {
-            const marker = L.marker([location.lat, location.lng], {
-                icon: L.divIcon({
-                    className: 'custom-marker',
-                    html: '<div class="marker-icon"></div>',
-                    iconSize: [12, 12],
-                    iconAnchor: [6, 6]
-                })
-            })
-            .bindPopup(location.name || 'Location');
-
-            this.markerClusterGroup.addLayer(marker);
-            bounds.extend([location.lat, location.lng]);
-        });
-
-        // Add the marker cluster group to the map
-        this.map.addLayer(this.markerClusterGroup);
-
-        // Create path between markers
-        const pathCoordinates = this.locations.map(loc => [loc.lat, loc.lng]);
-        this.path = L.polyline(pathCoordinates, {
-            color: '#6420AA',
-            weight: 3,
-            opacity: 0.8
-        }).addTo(this.map);
-
-        // Fit map to show all markers
-        if (this.locations.length > 0) {
-            this.map.fitBounds(bounds, { padding: [50, 50] });
-        }
-    }
+		// Clear existing markers and path
+		this.markers.forEach(marker => marker.remove());
+		this.markers = [];
+		this.visibleMarkers.clear();
+		if (this.path) {
+			this.path.remove();
+		}
+	
+		if (!this.locations || this.locations.length === 0) {
+			return;
+		}
+	
+		const bounds = L.latLngBounds();
+		const lines = new Set(); // To track lines and avoid duplicates
+	
+		// Create path between markers
+		const pathCoordinates = [];
+		this.locations.forEach(location => {
+			bounds.extend([location.lat, location.lng]);
+			pathCoordinates.push([location.lat, location.lng]);
+		});
+	
+		// Draw a polyline with bidirectional arrows at both ends of each line
+		const path = L.polyline(pathCoordinates, {
+			color: '#6420AA',
+			weight: 3,
+			opacity: 0.8
+		}).addTo(this.map);
+	
+		// Add arrows at both ends of each segment
+		for (let i = 0; i < this.locations.length - 1; i++) {
+			const start = this.locations[i];
+			const end = this.locations[i + 1];
+	
+			// Create two arrows: one at the start and one at the end of the segment
+			const startArrow = this.createDirectionMarker({
+				lat: start.lat,
+				lng: start.lng,
+				heading: this.calculateHeading(start, end)
+			});
+			const endArrow = this.createDirectionMarker({
+				lat: end.lat,
+				lng: end.lng,
+				heading: this.calculateHeading(end, start)
+			});
+	
+			startArrow.addTo(this.map);
+			endArrow.addTo(this.map);
+	
+			// Mark the line as processed in both directions
+			const lineKey = `${start.lat},${start.lng}-${end.lat},${end.lng}`;
+			const reverseLineKey = `${end.lat},${end.lng}-${start.lat},${start.lng}`;
+			lines.add(lineKey);
+			lines.add(reverseLineKey);
+	
+			this.markers.push(startArrow, endArrow); // Add arrows to markers
+		}
+	
+		// Fit map to show all markers
+		if (this.locations.length > 0) {
+			this.map.fitBounds(bounds, { padding: [50, 50] });
+		}
+	}
+	
 }

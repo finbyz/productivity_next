@@ -16,7 +16,7 @@ class LocationLogs(Document):
         if not self.time or not self.employee or not self.date:
             # frappe.log_error(f"Missing required fields - Time: {self.time}, Employee: {self.employee}, Date: {self.date}", "LocationLogs Validation")
             return
-            
+        time_difference = frappe.db.get_single_value('Productify Subscription', 'stop_duration_for_meetings') or 15
         # Get last log with direct SQL for better performance
         last_log = frappe.db.sql("""
             SELECT name, time 
@@ -46,7 +46,7 @@ class LocationLogs(Document):
             # frappe.log_error(f"Time difference in minutes: {time_diff}", "LocationLogs Time Diff")
             
             # Update stationary flag if gap > 10 minutes
-            if time_diff > 10:
+            if time_diff > time_difference:
                 # Update current log
                 frappe.db.set_value('Location Logs', self.name, 'is_stop', 1, update_modified=False)
                 

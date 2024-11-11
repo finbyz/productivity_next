@@ -19,6 +19,7 @@
   "enable_blurred_screenshot",
   "working_hours_per_day",
   "working_hours_on_saturday",
+  "stop_duration_for_meetings",
   "column_break_ipqe",
   "site_url",
   "email",
@@ -181,7 +182,7 @@
    "description": "Specify the number of days after which screenshots will be automatically deleted from the system. If not specified default is 60 days.",
    "fieldname": "keep_screen_shots_for_days",
    "fieldtype": "Data",
-   "label": "Keep Screen Shots For Days"
+   "label": "Keep Screenshots For Days"
   },
   {
    "default": "60",
@@ -190,6 +191,13 @@
    "fieldtype": "Data",
    "label": "Keep Application Logs for Days"
   },
+  {
+    "default": "15",
+    "description": "Specify the number of minutes at one single point after which user will be automatically considered stop while on meeting. If not specified default is 15 minutes.",
+    "fieldname": "stop_duration_for_meetings",
+    "fieldtype": "Data",
+    "label": "Stop Duration For Meetings"
+   },
   {
    "default": "0",
    "fieldname": "enable_blurred_screenshot",
