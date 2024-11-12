@@ -404,19 +404,130 @@ UserProfile = class UserProfile {
 			return;
 		}
 		
+		// First ensure all required DOM elements exist
 		const meetingsList = document.getElementById('meetings-list');
-		if (!meetingsList) {
-			console.error("Meetings list container not found");
+		// Get the specific meetings container element
+		const meetingsData = document.querySelector('.meetings');
+		
+		if (!meetingsList || !meetingsData) {
+			console.error("Required DOM elements not found:", {
+				meetingsList: !!meetingsList,
+				meetingsData: !!meetingsData
+			});
 			return;
 		}
 		
-		// Preprocess events to combine consecutive moving logs
-		const processedEvents = this.combineMovingLogs(events);
-		
-		const self = this;
+		// Clear existing content and set base styles
 		meetingsList.className = 'position-relative px-4';
 		meetingsList.innerHTML = '';
+		meetingsData.innerHTML = '';
+	
+		// Calculate metrics
+		const calculateMetrics = () => {
+			let drivingDuration = 0;
+			let stopDuration = 0;
+			let internalMeetingDuration = 0;
+			let externalMeetingDuration = 0;
+	
+			processedEvents.forEach(event => {
+				if (!event) return;
+	
+				const calculateDuration = (start, end) => {
+					try {
+						const startDate = typeof start === 'string' ? new Date(start) : start;
+						const endDate = typeof end === 'string' ? new Date(end) : end;
+						
+						if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+							return 0;
+						}
+						
+						return Math.floor((endDate.getTime() - startDate.getTime()) / 1000);
+					} catch (e) {
+						return 0;
+					}
+				};
+	
+				if (event.type === 'location_log') {
+					if (event.is_moving && event.isGrouped) {
+						const duration = calculateDuration(event.start_time, event.end_time);
+						if (duration > 0) {
+							drivingDuration += duration;
+						}
+					} else if (event.is_stop == 1) {
+						const duration = calculateDuration(event.end_time, event.start_time);
+						if (duration > 900) { // Only count stops longer than 15 minutes
+							stopDuration += duration;
+						}
+					}
+				} else {
+					const duration = event.duration || 0;
+					if (event.internal_meeting === 1) {
+						internalMeetingDuration += duration;
+					} else {
+						externalMeetingDuration += duration;
+					}
+				}
+			});
+	
+			return {
+				driving: drivingDuration,
+				stop: stopDuration,
+				internal: internalMeetingDuration,
+				external: externalMeetingDuration
+			};
+		};
+	
+		const formatDuration = (seconds) => {
+			const hours = Math.floor(seconds / 3600);
+			const minutes = Math.floor((seconds % 3600) / 60);
+			return `${hours}h ${minutes}m`;
+		};
+	
+		// Process events for timeline
+		const processedEvents = this.combineMovingLogs(events);
+		const self = this;
+	
+		// Create metrics cards
+		const metrics = calculateMetrics();
 		
+		// Create metrics container as a div element
+		const metricsContainer = document.createElement('div');
+		metricsContainer.style.cssText = `
+			display: flex;
+			gap: 1rem;
+			margin-bottom: 2rem;
+			width: 100%;
+		`;
+	
+		const cardStyle = `
+			flex: 1;
+			padding: 1rem;
+			border-radius: 8px;
+			text-align: center;
+		`;
+	
+		const cardHTML = (title, duration, bgColor, textColor) => `
+			<div style="${cardStyle}; background-color: ${bgColor};">
+				<h3 style="margin: 0 0 0.5rem 0; color: ${textColor}; font-size: 0.875rem; font-weight: 600;">
+					${title}
+				</h3>
+				<p style="margin: 0; color: ${textColor}; font-size: 1.25rem; font-weight: bold;">
+					${duration}
+				</p>
+			</div>
+		`;
+	
+		// Add metrics cards HTML
+		metricsContainer.innerHTML = `
+			${cardHTML('Driving Duration', formatDuration(metrics.driving), '#E3F2FD', '#1565C0')}
+			${cardHTML('Stop Duration', formatDuration(metrics.stop), '#FFEBEE', '#C62828')}
+			${cardHTML('Internal Meetings', formatDuration(metrics.internal), '#F3E5F5', '#6A1B9A')}
+			${cardHTML('External Meetings', formatDuration(metrics.external), '#E8F5E9', '#2E7D32')}
+		`;
+	
+		// Set the innerHTML of meetingsData instead of using appendChild
+		meetingsData.innerHTML = metricsContainer.outerHTML;
+	
 		// Add timeline line
 		const timelineLine = document.createElement('div');
 		timelineLine.className = 'position-absolute';
@@ -429,7 +540,7 @@ UserProfile = class UserProfile {
 			z-index: 1;
 		`;
 		meetingsList.appendChild(timelineLine);
-		
+	
 		processedEvents.forEach((event, index) => {
 			if (!event) return;
 			
@@ -525,7 +636,7 @@ UserProfile = class UserProfile {
 					}
 
 					// Skip if duration is 0 or negative
-					if (!duration || duration <= 0) {
+					if (!duration || duration <= 900) {
 						return;
 					}
 					const durationStr = this.convertSecondsToTime_(duration);
@@ -3925,7 +4036,6 @@ class MeetingsMap {
             </div>
         `;
         this.container.innerHTML = mapHtml;
-
         // Load Leaflet JS
         if (!window.L) {
             const script = document.createElement('script');
@@ -4028,7 +4138,6 @@ class MeetingsMap {
 	
 		return arrowPoints;
 	}
-
     createDirectionMarker(location) {
         const heading = parseFloat(location.heading) || 0;
         const zoom = this.map.getZoom();
@@ -4040,7 +4149,6 @@ class MeetingsMap {
         `;
 
         const iconSize = size === 'small' ? 24 : (size === 'medium' ? 28 : 32);
-
         const marker = L.marker([location.lat, location.lng], {
             icon: L.divIcon({
                 className: 'direction-marker',
@@ -4049,7 +4157,6 @@ class MeetingsMap {
                 iconAnchor: [iconSize/2, iconSize/2]
             })
         });
-
         return marker;
     }
 
@@ -4059,7 +4166,6 @@ class MeetingsMap {
         this.markers.forEach(marker => marker.remove());
         this.markers = [];
         this.visibleMarkers.clear();
-
         // Generate new arrow points with optimized spacing
         const arrowPoints = this.generateArrowPoints();
 
@@ -4163,6 +4269,4 @@ class MeetingsMap {
 			this.map.fitBounds(bounds, { padding: [50, 50] });
 		}
 	}
-	
-
 }
