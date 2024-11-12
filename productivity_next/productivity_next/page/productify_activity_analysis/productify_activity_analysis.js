@@ -571,8 +571,8 @@ UserProfile = class UserProfile {
 				};
 
 				// Format the dates properly
-				const startTime = formatDateTimeForDialog(event.to_time);
-				const endTime = formatDateTimeForDialog(event.from_time);
+				const startTime = formatDateTimeForDialog(event.from_time);
+				const endTime = formatDateTimeForDialog(event.to_time);
 
 				if (!startTime || !endTime) {
 					frappe.msgprint('Invalid date format. Please try again.');
@@ -4143,7 +4143,4 @@ class MeetingsMap {
 			this.map.fitBounds(bounds, { padding: [50, 50] });
 		}
 	}
-	
-	
-	
 }
