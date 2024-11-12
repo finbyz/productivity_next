@@ -61,31 +61,4 @@ class LocationLogs(Document):
             frappe.log_error(f"Error in LocationLogs time calculation: {str(e)}\nCurrent Time: {self.time}\nLast Time: {last_log[0].time}", 
                            "LocationLogs Error")
             return
-        
-# loop through all location logs and check if the current log time difference is greater than 15 minutes with the previous log time then mark current log is_stop = 1 
-employees = frappe.get_all("Employee", fields=["name"])
-for employee in employees:
-    docs = frappe.get_all("Location Logs", filters={"employee": employee.name}, fields=["name", "time", "employee", "date"], order_by="date asc, time asc")
-    previous_time = None
-    previous_date = None
-    for doc in docs:
-        location_log = frappe.get_doc("Location Logs", doc.name)
-        
-        # Initialize previous_time and previous_date on the first log
-        if previous_time and previous_date:
-            # Calculate time difference in minutes
-            time_difference = (location_log.time - previous_time).total_seconds() / 60
-            
-            # If the time difference exceeds 15 minutes, mark as stop
-            if time_difference > 15 and location_log.date == previous_date:
-                location_log.is_stop = 1
-                location_log.save()
-                print(f"Marked as stationary. Time diff: {time_difference} minutes")
-        
-        # Update previous_time and previous_date to current log's values
-        previous_time = location_log.time
-        previous_date = location_log.date
- 
-        
-    
     

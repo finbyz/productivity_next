@@ -463,7 +463,17 @@ UserProfile = class UserProfile {
 			if (event.type === 'location_log') {
 				if (event.is_moving && event.isGrouped) {
 					// Render driving session
-					const duration = calculateDuration(event.start_time, event.end_time);
+					let duration;
+					if (event.is_moving && event.isGrouped) {
+						duration = calculateDuration(event.start_time, event.end_time);
+					} else if (event.is_stop == 1) {
+						duration = calculateDuration(event.end_time, event.start_time);
+					}
+
+					// Skip if duration is 0 or negative
+					if (!duration || duration <= 0) {
+						return;
+					}
 					const durationStr = this.convertSecondsToTime_(duration);
 					
 					const movingItem = document.createElement('div');
@@ -507,7 +517,17 @@ UserProfile = class UserProfile {
 				} else if (event.is_stop == 1) { // Only render explicit stops
 					// Render stop
 					console.log("Stop Event:", event);
-					const duration = calculateDuration(event.end_time, event.start_time);
+					let duration;
+					if (event.is_moving && event.isGrouped) {
+						duration = calculateDuration(event.start_time, event.end_time);
+					} else if (event.is_stop == 1) {
+						duration = calculateDuration(event.end_time, event.start_time);
+					}
+
+					// Skip if duration is 0 or negative
+					if (!duration || duration <= 0) {
+						return;
+					}
 					const durationStr = this.convertSecondsToTime_(duration);
 					
 					const stopItem = document.createElement('div');
