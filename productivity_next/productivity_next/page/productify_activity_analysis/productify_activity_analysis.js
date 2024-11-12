@@ -1105,6 +1105,15 @@ UserProfile = class UserProfile {
 		const processedEvents = [];
 		let currentMovingGroup = null;
 		
+		// Helper function to check if two dates are the same day
+		const isSameDay = (date1, date2) => {
+			const d1 = new Date(date1);
+			const d2 = new Date(date2);
+			return d1.getFullYear() === d2.getFullYear() &&
+				   d1.getMonth() === d2.getMonth() &&
+				   d1.getDate() === d2.getDate();
+		};
+		
 		// First, sort events by start_time in descending order (newest first)
 		const sortedEvents = [...events].sort((a, b) => 
 			new Date(b.start_time) - new Date(a.start_time)
@@ -1126,10 +1135,26 @@ UserProfile = class UserProfile {
 							end_time: event.end_time
 						};
 					} else {
-						currentMovingGroup.start_time = event.start_time;
+						// Only combine if it's the same day
+						if (isSameDay(currentMovingGroup.start_time, event.start_time)) {
+							currentMovingGroup.start_time = event.start_time;
+						} else {
+							// If different day, push current group and start new one
+							processedEvents.push(currentMovingGroup);
+							currentMovingGroup = {
+								...event,
+								isGrouped: true,
+								type: 'location_log',
+								start_time: event.start_time,
+								end_time: event.end_time
+							};
+						}
 					}
 	
-					if (!nextEvent || !nextEvent.is_moving) {
+					// Check if next event exists and is either not moving or from a different day
+					if (!nextEvent || 
+						!nextEvent.is_moving || 
+						(nextEvent.is_moving && !isSameDay(event.start_time, nextEvent.start_time))) {
 						processedEvents.push(currentMovingGroup);
 						currentMovingGroup = null;
 					}
@@ -1148,15 +1173,26 @@ UserProfile = class UserProfile {
 					};
 	
 					// Find the next driving session's end time (which is chronologically before this stop)
+					// Only consider driving sessions from the same day
 					const nextDrivingSession = sortedEvents.slice(i + 1).find(e => 
-						e.is_moving || (e.type === 'location_log' && e.is_moving)
+						(e.is_moving || (e.type === 'location_log' && e.is_moving)) &&
+						isSameDay(e.end_time, event.start_time)
 					);
 	
 					if (nextDrivingSession) {
-						stopEvent.from_time = nextDrivingSession.end_time;
-						stopEvent.to_time = event.start_time;
-						stopEvent.start_time = event.start_time;
-						stopEvent.end_time = nextDrivingSession.end_time;
+						// Ensure we're only calculating duration within the same day
+						if (isSameDay(nextDrivingSession.end_time, event.start_time)) {
+							stopEvent.from_time = nextDrivingSession.end_time;
+							stopEvent.to_time = event.start_time;
+							stopEvent.start_time = event.start_time;
+							stopEvent.end_time = nextDrivingSession.end_time;
+						} else {
+							// If different days, just use the event's own times
+							stopEvent.from_time = event.start_time;
+							stopEvent.to_time = event.end_time;
+							stopEvent.start_time = event.start_time;
+							stopEvent.end_time = event.end_time;
+						}
 					} else {
 						stopEvent.from_time = event.start_time;
 						stopEvent.to_time = event.end_time;
@@ -4036,6 +4072,7 @@ class MeetingsMap {
             </div>
         `;
         this.container.innerHTML = mapHtml;
+
         // Load Leaflet JS
         if (!window.L) {
             const script = document.createElement('script');
@@ -4138,6 +4175,7 @@ class MeetingsMap {
 	
 		return arrowPoints;
 	}
+
     createDirectionMarker(location) {
         const heading = parseFloat(location.heading) || 0;
         const zoom = this.map.getZoom();
@@ -4149,6 +4187,7 @@ class MeetingsMap {
         `;
 
         const iconSize = size === 'small' ? 24 : (size === 'medium' ? 28 : 32);
+
         const marker = L.marker([location.lat, location.lng], {
             icon: L.divIcon({
                 className: 'direction-marker',
@@ -4157,6 +4196,7 @@ class MeetingsMap {
                 iconAnchor: [iconSize/2, iconSize/2]
             })
         });
+
         return marker;
     }
 
@@ -4166,6 +4206,7 @@ class MeetingsMap {
         this.markers.forEach(marker => marker.remove());
         this.markers = [];
         this.visibleMarkers.clear();
+
         // Generate new arrow points with optimized spacing
         const arrowPoints = this.generateArrowPoints();
 
