@@ -150,6 +150,13 @@ def get_columns(filters):
     # Default columns when no grouping is selected
     return [
         {
+            "fieldname": "employee_fincall",
+            "label": _("Employee Fincall"),
+            "fieldtype": "Link",
+            "options": "Employee Fincall",
+            "width": 200
+        },
+        {
             "fieldname": "employee",
             "label": _("Employee"),
             "fieldtype": "Link",
@@ -224,6 +231,7 @@ def get_data(filters):
     kwargs = {
         "filters": conditions_filters,
         "fields": [
+            "name as employee_fincall",
             "employee as employee",
             "employee_name as employee_name",
             "calltype",
