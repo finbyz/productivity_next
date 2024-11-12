@@ -480,7 +480,7 @@ UserProfile = class UserProfile {
 		const formatDuration = (seconds) => {
 			const hours = Math.floor(seconds / 3600);
 			const minutes = Math.floor((seconds % 3600) / 60);
-			return `${hours}h ${minutes}m`;
+			return `${hours}:${minutes} H`;
 		};
 	
 		// Process events for timeline
@@ -512,17 +512,17 @@ UserProfile = class UserProfile {
 					${title}
 				</h3>
 				<p style="margin: 0; color: ${textColor}; font-size: 1.25rem; font-weight: bold;">
-					${duration}
+					${duration} H
 				</p>
 			</div>
 		`;
 	
 		// Add metrics cards HTML
 		metricsContainer.innerHTML = `
-			${cardHTML('Driving Duration', formatDuration(metrics.driving), '#E3F2FD', '#1565C0')}
-			${cardHTML('Stop Duration', formatDuration(metrics.stop), '#FFEBEE', '#C62828')}
-			${cardHTML('Internal Meetings', formatDuration(metrics.internal), '#F3E5F5', '#6A1B9A')}
-			${cardHTML('External Meetings', formatDuration(metrics.external), '#E8F5E9', '#2E7D32')}
+			${cardHTML('Driving Duration', this.convertSecondsToTime_(metrics.driving), '#E3F2FD', '#1565C0')}
+			${cardHTML('Stop Duration', this.convertSecondsToTime_(metrics.stop), '#FFEBEE', '#C62828')}
+			${cardHTML('Internal Meetings', this.convertSecondsToTime_(metrics.internal), '#F3E5F5', '#6A1B9A')}
+			${cardHTML('External Meetings', this.convertSecondsToTime_(metrics.external), '#E8F5E9', '#2E7D32')}
 		`;
 	
 		// Set the innerHTML of meetingsData instead of using appendChild

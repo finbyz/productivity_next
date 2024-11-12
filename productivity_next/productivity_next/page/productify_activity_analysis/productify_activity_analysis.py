@@ -1033,29 +1033,38 @@ def meetings_analysis(user, start_date=None, end_date=None):
 def get_meetings(user, start_datetime, end_datetime):
     meetings = frappe.db.sql("""
         SELECT 
-            DATE(meeting_from) as date,
-            meeting_from as start_time,
-            meeting_to as end_time,
-            TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from)) as duration,
-            internal_meeting,
-            party_type,
-            party as client,
-            purpose,
-            discussion,
-            meeting_arranged_by,
-            latitude,
-            longitude
-        FROM `tabMeeting`
+            DATE(m.meeting_from) as date,
+            m.meeting_from as start_time,
+            m.meeting_to as end_time,
+            TIME_TO_SEC(TIMEDIFF(m.meeting_to, m.meeting_from)) as duration,
+            m.internal_meeting,
+            m.party_type,
+            m.party as client,
+            m.purpose,
+            m.discussion,
+            m.meeting_arranged_by,
+            m.latitude,
+            m.longitude,
+            GROUP_CONCAT(DISTINCT emp.employee_name) as company_representatives,
+            GROUP_CONCAT(DISTINCT c.name) as party_representatives
+        FROM `tabMeeting` m
+        LEFT JOIN `tabMeeting Company Representative` mcr ON mcr.parent = m.name
+        LEFT JOIN `tabEmployee` emp ON emp.name = mcr.employee
+        LEFT JOIN `tabMeeting Party Representative` mpr ON mpr.parent = m.name
+        LEFT JOIN `tabContact` c ON c.name = mpr.contact
         WHERE 
-            meeting_from >= %(start_datetime)s
-            AND meeting_to <= %(end_datetime)s
-            AND docstatus = 1
+            m.meeting_from >= %(start_datetime)s
+            AND m.meeting_to <= %(end_datetime)s
+            AND m.docstatus = 1
             AND EXISTS (
                 SELECT 1 FROM `tabMeeting Company Representative`
-                WHERE parent = `tabMeeting`.name
+                WHERE parent = m.name
                 AND employee = %(user)s
             )
-        ORDER BY meeting_from DESC
+        GROUP BY m.name, m.meeting_from, m.meeting_to, m.internal_meeting, 
+                 m.party_type, m.party, m.purpose, m.discussion, 
+                 m.meeting_arranged_by, m.latitude, m.longitude
+        ORDER BY m.meeting_from DESC
     """, {
         'start_datetime': start_datetime,
         'end_datetime': end_datetime,
@@ -1068,7 +1077,7 @@ def get_meetings(user, start_datetime, end_datetime):
         'start_time': m.start_time,
         'end_time': m.end_time,
         'date': m.date,
-        'duration': int(m.duration or 0),  # Ensure duration is integer seconds
+        'duration': int(m.duration or 0),
         'internal_meeting': m.internal_meeting,
         'party_type': m.party_type,
         'client': m.client,
@@ -1076,7 +1085,9 @@ def get_meetings(user, start_datetime, end_datetime):
         'discussion': m.discussion,
         'meeting_arranged_by': m.meeting_arranged_by,
         'latitude': m.latitude,
-        'longitude': m.longitude
+        'longitude': m.longitude,
+        'company_representatives': m.company_representatives,  # Added this field
+        'party_representatives': m.party_representatives      # Added this field
     } for m in meetings]
 def get_location_logs(user, start_date, end_date):
     logs = frappe.db.sql("""
