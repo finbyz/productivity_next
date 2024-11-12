@@ -599,7 +599,7 @@ def get_active_projects():
     return []
 
 
-@frappe.whitelist(allow_guest=False, methods=["GET"])
+@frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_employee_last_callTime(employee=None):
     if not employee:
         return {"message": "Something went wrong"}
@@ -614,7 +614,8 @@ def get_employee_last_callTime(employee=None):
     """,
         as_dict=True,
     )
-
+    if not last_call_data:
+        return {}
     return {
         "employee": last_call_data[0].employee,
         "employee_name": last_call_data[0].employee_name,

@@ -17,8 +17,10 @@
   "scheduled_time",
   "project",
   "posting_date",
+  "travel_from",
   "meeting_from",
   "meeting_to",
+  "travel_to",
   "column_break",
   "meeting_arranged_by",
   "contact_person",
@@ -123,7 +125,8 @@
   {
    "fieldname": "meeting_to",
    "fieldtype": "Datetime",
-   "label": "Meeting To"
+   "label": "Meeting To",
+   "reqd": 1
   },
   {
    "fieldname": "column_break",
@@ -353,12 +356,22 @@
    "fieldtype": "Link",
    "label": "Location Log",
    "options": "Location Logs"
+  },
+  {
+   "fieldname": "travel_to",
+   "fieldtype": "Datetime",
+   "label": "Travel To"
+  },
+  {
+   "fieldname": "travel_from",
+   "fieldtype": "Datetime",
+   "label": "Travel From"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-11-09 10:45:20.137491",
+ "modified": "2024-11-12 16:37:28.169007",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

@@ -1,7 +1,8 @@
 import frappe
 
 def validate(self, method):
-    normalize_and_check_duplicates(self)
+    if normalize_and_check_duplicates(self):
+        return
 
     frappe.enqueue(
         update_contacts,
@@ -26,7 +27,7 @@ def normalize_and_check_duplicates(doc):
             client_no.append(phone)
 
     if not client_no:
-        return
+        return True
 
     client_no_tuple = tuple(client_no)
 
@@ -50,7 +51,7 @@ def normalize_and_check_duplicates(doc):
         error_message = "Duplicate phone numbers found:\n"
         for dup in duplicates:
             error_message += f"Phone: {dup['phone']} - Duplicate Contacts: {', '.join(dup['duplicates'])}\n"
-        frappe.throw(error_message)
+        return False
 
 def update_contacts(contacts, phone_nos, links):
     # Collect and normalize the phone numbers
