@@ -3842,19 +3842,89 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 frappe.provide("frappe.ui");
 frappe.ui.UserProfile = UserProfile;
 
+/**
+ * MeetingsMap - A class for rendering interactive maps showing meeting locations and routes
+ * Requires Leaflet.js library
+ * @class
+ */
 class MeetingsMap {
-    constructor(container, locations) {
+    /**
+     * @param {HTMLElement} container - The DOM element to render the map in
+     * @param {Array<Object>} locations - Array of location objects with lat, lng properties
+     * @param {Object} options - Optional configuration parameters
+     */
+    constructor(container, locations, options = {}) {
+        // Validate inputs
+        if (!container || !(container instanceof HTMLElement)) {
+            throw new Error('Container must be a valid HTML element');
+        }
+        if (!Array.isArray(locations)) {
+            throw new Error('Locations must be an array');
+        }
+        if (!locations.every(loc => this.isValidLocation(loc))) {
+            throw new Error('Each location must have valid lat and lng properties');
+        }
+
+        // Initialize properties
         this.container = container;
         this.locations = locations;
+        this.options = {
+            pathColor: '#6420AA',
+            arrowColor: '#6420AA',
+            stopColor: '#6420AA',
+            mapZoom: 5,
+            defaultCenter: [20.5937, 78.9629], // India center
+            ...options
+        };
+
+        // Internal state
         this.map = null;
         this.markers = [];
         this.path = null;
-        this.visibleMarkers = new Set();
+        this.isInitialized = false;
+
+        // Initialize the map
         this.init();
     }
 
+    /**
+     * Validates a location object
+     * @private
+     * @param {Object} location - Location object to validate
+     * @returns {boolean} - Whether the location is valid
+     */
+    isValidLocation(location) {
+        return location 
+            && typeof location.lat === 'number' 
+            && typeof location.lng === 'number'
+            && location.lat >= -90 && location.lat <= 90
+            && location.lng >= -180 && location.lng <= 180;
+    }
+
+    /**
+     * Initializes the map and required resources
+     * @private
+     */
     init() {
-        // Add Leaflet CSS if not already added
+        try {
+            this.loadResources();
+            this.createMapContainer();
+            this.loadLeaflet();
+        } catch (error) {
+            console.error('Failed to initialize map:', error);
+            this.container.innerHTML = `
+                <div class="error-message" style="color: red; padding: 20px;">
+                    Failed to load map. Please try refreshing the page.
+                </div>`;
+        }
+    }
+
+    /**
+     * Loads required CSS resources
+     * @private
+     */
+    loadResources() {
+        // Add Leaflet CSS
         if (!document.querySelector('#leaflet-css')) {
             const linkElement = document.createElement('link');
             linkElement.id = 'leaflet-css';
@@ -3863,72 +3933,134 @@ class MeetingsMap {
             document.head.appendChild(linkElement);
         }
 
-        // Add custom marker styles
-        if (!document.querySelector('#custom-marker-styles')) {
+        // Add custom styles
+        if (!document.querySelector('#meetings-map-styles')) {
             const styleElement = document.createElement('style');
-            styleElement.id = 'custom-marker-styles';
+            styleElement.id = 'meetings-map-styles';
             styleElement.textContent = `
+                .meetings-map-container {
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 400px;
+                }
                 .direction-marker {
                     background: none;
                     border: none;
                 }
                 .direction-arrow {
-                    background: #6420AA;
+                    background: ${this.options.arrowColor};
                     clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
                     transform-origin: center center;
-                    opacity: 0.8;
+                    opacity: 1;
                     transition: all 0.3s ease;
+                    box-shadow: 0 0 4px rgba(0,0,0,0.3);
                 }
                 .direction-arrow-small {
-                    width: 16px;
-                    height: 16px;
-                }
-                .direction-arrow-medium {
                     width: 20px;
                     height: 20px;
                 }
-                .direction-arrow-large {
+                .direction-arrow-medium {
                     width: 24px;
                     height: 24px;
+                }
+                .direction-arrow-large {
+                    width: 28px;
+                    height: 28px;
+                }
+                .meetings-map-loading {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    padding: 10px 20px;
+                    background: rgba(255,255,255,0.9);
+                    border-radius: 4px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
             `;
             document.head.appendChild(styleElement);
         }
+    }
 
-        // Create map container
-        const mapHtml = `
+    /**
+     * Creates the map container element
+     * @private
+     */
+    createMapContainer() {
+        this.container.innerHTML = `
             <div class="frappe-card chart-column-container mt-4">
                 <div class="title-area">
                     <h4 class="card-title">Meeting Locations</h4>
                 </div>
-                <div id="map-container" style="height: 400px; margin-top: 16px; border-radius: 8px; overflow: hidden;"></div>
+                <div class="meetings-map-container" id="meetings-map">
+                    <div class="meetings-map-loading">Loading map...</div>
+                </div>
             </div>
         `;
-        this.container.innerHTML = mapHtml;
+    }
 
-        // Load Leaflet JS
-        if (!window.L) {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-            script.onload = () => this.initializeMap();
-            document.head.appendChild(script);
-        } else {
+    /**
+     * Loads Leaflet library and initializes the map
+     * @private
+     */
+    loadLeaflet() {
+        if (window.L) {
             this.initializeMap();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+        script.onload = () => this.initializeMap();
+        script.onerror = () => {
+            console.error('Failed to load Leaflet library');
+            this.container.querySelector('.meetings-map-loading').innerHTML = 
+                'Failed to load map library. Please check your internet connection.';
+        };
+        document.head.appendChild(script);
+    }
+
+    /**
+     * Initializes the Leaflet map
+     * @private
+     */
+    initializeMap() {
+        try {
+            const mapContainer = this.container.querySelector('#meetings-map');
+            this.map = L.map(mapContainer).setView(
+                this.options.defaultCenter, 
+                this.options.mapZoom
+            );
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(this.map);
+
+            this.map.on('zoomend', () => this.updateMapMarkers());
+            this.map.on('moveend', () => this.updateMapMarkers());
+
+            this.updateMapMarkers();
+            this.isInitialized = true;
+
+            // Remove loading indicator
+            const loadingElement = this.container.querySelector('.meetings-map-loading');
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+        } catch (error) {
+            console.error('Failed to initialize map:', error);
+            this.container.innerHTML = 'Failed to initialize map. Please try again.';
         }
     }
 
-    getMarkerSize(zoom) {
-        if (zoom <= 8) return 'small';
-        if (zoom <= 12) return 'medium';
-        return 'large';
-    }
-
-    calculateIntermediatePoint(point1, point2, ratio) {
-        const lat = point1.lat + (point2.lat - point1.lat) * ratio;
-        const lng = point1.lng + (point2.lng - point1.lng) * ratio;
-        return L.latLng(lat, lng);
-    }
-
+    /**
+     * Calculates the heading between two points
+     * @private
+     * @param {Object} point1 - Starting point with lat/lng
+     * @param {Object} point2 - Ending point with lat/lng
+     * @returns {number} - Heading in degrees
+     */
     calculateHeading(point1, point2) {
         const lat1 = point1.lat * Math.PI / 180;
         const lat2 = point2.lat * Math.PI / 180;
@@ -3942,205 +4074,141 @@ class MeetingsMap {
         return (bearing + 360) % 360;
     }
 
-	generateArrowPoints() {
-		const arrowPoints = [];
-		const uniquePairs = new Set(); // To track unique pairs of points
-	
-		if (this.locations.length < 2) return arrowPoints;
-	
-		const points = this.locations.map(loc => L.latLng(loc.lat, loc.lng));
-		
-		// Get the current zoom level
-		const zoom = this.map.getZoom();
-		
-		// Adjust the minimum distance between arrows based on zoom level
-		let minArrowDistance = 300; // Default for zoomed-out view
-		if (zoom >= 12 && zoom < 15) {
-			minArrowDistance = 200;  // More arrows for zoom levels between 12 and 14
-		} else if (zoom >= 15) {
-			minArrowDistance = 80;  // Even more arrows for zoom levels 15+
-		}
-	
-		let lastArrowPoint = null;
-	
-		for (let i = 0; i < points.length - 1; i++) {
-			const start = points[i];
-			const end = points[i + 1];
-			const heading = this.calculateHeading(start, end);
-			const distance = start.distanceTo(end);
-	
-			// Skip arrow generation if the segment is too short
-			if (distance < minArrowDistance) continue;
-	
-			const pairKey = `${start.lat},${start.lng}-${end.lat},${end.lng}`;
-			const reversePairKey = `${end.lat},${end.lng}-${start.lat},${start.lng}`;
-	
-			// Skip if the pair already exists in either direction
-			if (uniquePairs.has(pairKey) || uniquePairs.has(reversePairKey)) continue;
-	
-			// Add arrow in the middle of long segments
-			const midPoint = this.calculateIntermediatePoint(start, end, 0.5);
-			
-			// Ensure arrows are spaced out
-			if (!lastArrowPoint || lastArrowPoint.distanceTo(midPoint) > minArrowDistance) {
-				arrowPoints.push({
-					lat: midPoint.lat,
-					lng: midPoint.lng,
-					heading: heading
-				});
-				lastArrowPoint = midPoint;
-				uniquePairs.add(pairKey); // Mark this pair as processed
-			}
-		}
-	
-		// Ensure an arrow is present on the first segment
-		if (arrowPoints.length === 0 && points.length >= 2) {
-			const start = points[0];
-			const end = points[1];
-			const heading = this.calculateHeading(start, end);
-			const firstPoint = this.calculateIntermediatePoint(start, end, 0.3);
-			arrowPoints.push({
-				lat: firstPoint.lat,
-				lng: firstPoint.lng,
-				heading: heading
-			});
-		}
-	
-		return arrowPoints;
-	}
-
+    /**
+     * Creates a direction marker
+     * @private
+     * @param {Object} location - Location object with lat/lng/heading
+     * @returns {L.Marker} - Leaflet marker instance
+     */
     createDirectionMarker(location) {
-        const heading = parseFloat(location.heading) || 0;
         const zoom = this.map.getZoom();
-        const size = this.getMarkerSize(zoom);
-        
+        const size = zoom <= 8 ? 'small' : (zoom <= 12 ? 'medium' : 'large');
+        const iconSize = size === 'small' ? 28 : (size === 'medium' ? 32 : 36);
+
         const markerHtml = `
             <div class="direction-arrow direction-arrow-${size}" 
-                 style="transform: rotate(${heading}deg)"></div>
+                 style="transform: rotate(${location.heading}deg)"></div>
         `;
 
-        const iconSize = size === 'small' ? 24 : (size === 'medium' ? 28 : 32);
-
-        const marker = L.marker([location.lat, location.lng], {
+        return L.marker([location.lat, location.lng], {
             icon: L.divIcon({
                 className: 'direction-marker',
                 html: markerHtml,
                 iconSize: [iconSize, iconSize],
                 iconAnchor: [iconSize/2, iconSize/2]
-            })
+            }),
+            zIndexOffset: 1000
         });
-
-        return marker;
     }
 
+    /**
+     * Updates map markers and paths
+     * @public
+     */
+    updateMapMarkers() {
+        if (!this.isInitialized || !this.map) return;
 
-    updateMarkersVisibility() {
-        // Clear existing markers
+        // Clear existing markers and path
         this.markers.forEach(marker => marker.remove());
         this.markers = [];
-        this.visibleMarkers.clear();
+        if (this.path) {
+            this.path.remove();
+        }
 
-        // Generate new arrow points with optimized spacing
-        const arrowPoints = this.generateArrowPoints();
+        if (this.locations.length === 0) return;
 
-        // Create and add markers
-        arrowPoints.forEach(point => {
-            const marker = this.createDirectionMarker(point);
-            marker.addTo(this.map);
-            this.markers.push(marker);
-            this.visibleMarkers.add(marker);
+        const bounds = L.latLngBounds();
+        const pathCoordinates = [];
+
+        // Add locations to path and create bounds
+        this.locations.forEach(location => {
+            bounds.extend([location.lat, location.lng]);
+            pathCoordinates.push([location.lat, location.lng]);
+
+            // Add stop markers if specified
+            if (location.type === 'stop') {
+                const stopMarker = L.circleMarker([location.lat, location.lng], {
+                    color: this.options.stopColor,
+                    fillColor: this.options.stopColor,
+                    fillOpacity: 0.8,
+                    radius: 6,
+                    weight: 2
+                }).addTo(this.map);
+                this.markers.push(stopMarker);
+            }
         });
-    }
 
-    initializeMap() {
-        const defaultCenter = [20.5937, 78.9629]; // Center of India
-        this.map = L.map('map-container').setView(defaultCenter, 5);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+        // Create path
+        this.path = L.polyline(pathCoordinates, {
+            color: this.options.pathColor,
+            weight: 3,
+            opacity: 0.8
         }).addTo(this.map);
 
-        this.map.on('zoomend', () => this.updateMarkersVisibility());
-        
+        // Add direction arrows
+        for (let i = 0; i < this.locations.length - 1; i++) {
+            const start = this.locations[i];
+            const end = this.locations[i + 1];
+            
+            // Create arrow at midpoint
+            const midPoint = {
+                lat: (start.lat + end.lat) / 2,
+                lng: (start.lng + end.lng) / 2,
+                heading: this.calculateHeading(start, end)
+            };
+
+            const arrowMarker = this.createDirectionMarker(midPoint);
+            arrowMarker.addTo(this.map);
+            this.markers.push(arrowMarker);
+        }
+
+        // Fit bounds if needed
+        if (!this.map.getBounds().contains(bounds)) {
+            this.map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    /**
+     * Updates the locations and refreshes the map
+     * @public
+     * @param {Array<Object>} newLocations - New array of location objects
+     */
+    updateLocations(newLocations) {
+        if (!Array.isArray(newLocations)) {
+            throw new Error('Locations must be an array');
+        }
+        if (!newLocations.every(loc => this.isValidLocation(loc))) {
+            throw new Error('Each location must have valid lat and lng properties');
+        }
+
+        this.locations = newLocations;
         this.updateMapMarkers();
     }
 
-	updateMapMarkers() {
-		// Clear existing markers and path
-		this.markers.forEach(marker => marker.remove());
-		this.markers = [];
-		this.visibleMarkers.clear();
-		if (this.path) {
-			this.path.remove();
-		}
-	
-		if (!this.locations || this.locations.length === 0) {
-			return;
-		}
-	
-		const bounds = L.latLngBounds();
-		const lines = new Set(); // To track lines and avoid duplicates
-	
-		// Create path between markers
-		const pathCoordinates = [];
-		// console.log("Meghwin: ", this.locations);
-	
-		this.locations.forEach(location => {
-			bounds.extend([location.lat, location.lng]);
-			pathCoordinates.push([location.lat, location.lng]);
-	
-			// Add a small circle marker for stop points
-			if (location.type === 'stop') {
-				console.log("hello",location)
-				const stopMarker = L.circleMarker([location.lat, location.lng], {
-					color: 'red',
-					fillColor: 'red',
-					fillOpacity: 0.6,
-					radius: 6  // Small circle radius
-				}).addTo(this.map);
-				this.markers.push(stopMarker); // Add stop marker to markers
-			}
-		});
-	
-		// Draw a polyline with bidirectional arrows at both ends of each line
-		const path = L.polyline(pathCoordinates, {
-			color: '#6420AA',
-			weight: 3,
-			opacity: 0.8
-		}).addTo(this.map);
-	
-		// Add arrows at both ends of each segment
-		for (let i = 0; i < this.locations.length - 1; i++) {
-			const start = this.locations[i];
-			const end = this.locations[i + 1];
-	
-			// Create two arrows: one at the start and one at the end of the segment
-			const startArrow = this.createDirectionMarker({
-				lat: start.lat,
-				lng: start.lng,
-				heading: this.calculateHeading(start, end)
-			});
-			const endArrow = this.createDirectionMarker({
-				lat: end.lat,
-				lng: end.lng,
-				heading: this.calculateHeading(end, start)
-			});
-	
-			startArrow.addTo(this.map);
-			endArrow.addTo(this.map);
-	
-			// Mark the line as processed in both directions
-			const lineKey = `${start.lat},${start.lng}-${end.lat},${end.lng}`;
-			const reverseLineKey = `${end.lat},${end.lng}-${start.lat},${start.lng}`;
-			lines.add(lineKey);
-			lines.add(reverseLineKey);
-	
-			this.markers.push(startArrow, endArrow); // Add arrows to markers
-		}
-	
-		// Fit map to show all markers
-		if (this.locations.length > 0) {
-			this.map.fitBounds(bounds, { padding: [50, 50] });
-		}
-	}
+    /**
+     * Updates map options
+     * @public
+     * @param {Object} newOptions - New options object
+     */
+    updateOptions(newOptions) {
+        this.options = {
+            ...this.options,
+            ...newOptions
+        };
+        this.updateMapMarkers();
+    }
+
+    /**
+     * Cleans up the map instance
+     * @public
+     */
+    destroy() {
+        if (this.map) {
+            this.map.remove();
+        }
+        this.map = null;
+        this.markers = [];
+        this.path = null;
+        this.isInitialized = false;
+    }
 }
