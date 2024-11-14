@@ -1198,10 +1198,11 @@ def get_allowed_modules(employee=None):
 
 @frappe.whitelist(allow_guest=False, methods=["POST"])
 def create_location_log(location, cmd):
+    # return location
     for loc in location:
         doc = frappe.new_doc("Location Logs")
         doc.employee = loc.get("extras").get("employee")
-        doc.date = loc.get("extras").get("date")
+        doc.date = iso_to_date(loc.get("timestamp"))
         doc.time = convert_utc_to_ist(loc.get("timestamp"))
         # doc.time = loc.get("extras").get("timestamp")
         doc.event = loc.get("event")
@@ -1224,19 +1225,22 @@ def create_location_log(location, cmd):
         doc.altitude = loc.get("coords").get("altitude")
         doc.ellipsoidal_altitude = loc.get("coords").get("ellipsoidal_altitude")
         doc.altitude_accuracy = loc.get("coords").get("altitude_accuracy")
-        
+    
         doc.save()
         frappe.db.commit()
+    
     return location
     
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def map_route_line(start_date, end_date, employee):
+  
     location_logs = frappe.db.sql("""
     SELECT latitude, longitude, heading, is_stationary, time, uuid
     FROM `tabLocation Logs`
-    WHERE employee = %s AND date BETWEEN %s AND %s
+    WHERE employee = %s AND DATE(time) BETWEEN %s AND %s
     ORDER BY time DESC
     """, (employee, start_date, end_date), as_dict=True)
+    
     for log in location_logs:
         log["latitude"] = float(log["latitude"])
         log["longitude"] = float(log["longitude"])
@@ -1247,19 +1251,16 @@ def map_route_line(start_date, end_date, employee):
 
 
 def convert_utc_to_ist(iso_utc_timestamp):
-    # Define the UTC timezone
+    
     utc_timezone = pytz.utc
-
-    # Parse the ISO-8601 UTC timestamp
     utc_datetime = datetime.fromisoformat(iso_utc_timestamp.replace("Z", "+00:00"))
-
-    # Define the IST timezone
     ist_timezone = pytz.timezone('Asia/Kolkata')
-
-    # Convert UTC time to IST
     ist_datetime = utc_datetime.astimezone(ist_timezone)
-
-    # Format the IST time in 24-hour format
     ist_formatted = ist_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
     return ist_formatted
+
+def iso_to_date(iso_utc_timestamp):
+    
+    dt = datetime.fromisoformat(iso_utc_timestamp.replace("Z", "+00:00"))
+    date = dt.date()
+    return date
