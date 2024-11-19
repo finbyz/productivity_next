@@ -1200,80 +1200,34 @@ def get_allowed_modules(employee=None):
 def create_location_log(location, cmd):
     # try:
         # Check if location is a list
-        if not isinstance(location, list):
-            if not isinstance(location, dict):
-                return frappe.throw("Each location item must be a dictionary")
-                
-            doc = frappe.new_doc("Location Logs")
-            
-            doc.date = iso_to_date(location.get("timestamp"))
-            doc.time = convert_utc_to_ist(location.get("timestamp"))
-            
-            extras = location.get("extras", {}) 
-            doc.employee = extras.get("employee")
-            
-            doc.event = location.get("event") or location.get("extras").get("event") or "N/A"
-            doc.uuid = location.get("uuid")
-            doc.odometer = location.get("odometer")
-            doc.age = location.get("age")
-            doc.is_moving = location.get("is_moving")
-            
-            activity = location.get("activity", {})
-            doc.activity_type = activity.get("type")
-            doc.confidence = activity.get("confidence")
-            
-            battery = location.get("battery", {})
-            doc.battery_is_charging = battery.get("is_charging")
-            doc.level = battery.get("level")
-            
-            coords = location.get("coords", {})
-            doc.latitude = coords.get("latitude")
-            doc.longitude = coords.get("longitude")
-            doc.acurracy = coords.get("accuracy")
-            doc.speed = coords.get("speed")
-            doc.speed_accuracy = coords.get("speed_accuracy")
-            doc.heading = coords.get("heading")
-            doc.heading_accuracy = coords.get("heading_accuracy")
-            doc.altitude = coords.get("altitude")
-            doc.ellipsoidal_altitude = coords.get("ellipsoidal_altitude")
-            doc.altitude_accuracy = coords.get("altitude_accuracy")
-            
-            try:
-                doc.save()
-            except Exception as e:
-                return frappe.throw("Error in saving single location logs")
-            
-            frappe.db.commit()
-            return location
-        else:        
-            for loc in location:
-
-                if not isinstance(loc, dict):
+        try:
+            if not isinstance(location, list):
+                if not isinstance(location, dict):
                     return frappe.throw("Each location item must be a dictionary")
-                
+                    
                 doc = frappe.new_doc("Location Logs")
                 
-                doc.date = iso_to_date(loc.get("timestamp"))
-                doc.time = convert_utc_to_ist(loc.get("timestamp"))
+                doc.date = iso_to_date(location.get("timestamp"))
+                doc.time = convert_utc_to_ist(location.get("timestamp"))
                 
-                extras = loc.get("extras", {})
+                extras = location.get("extras", {}) 
                 doc.employee = extras.get("employee")
                 
-                doc.event = loc.get("event") or loc.get("extras").get("event") or "N/A"
-                doc.uuid = loc.get("uuid")
-                doc.odometer = loc.get("odometer")
-                doc.age = loc.get("age")
-                doc.is_moving = loc.get("is_moving")
+                doc.event = location.get("event") or location.get("extras").get("event") or "N/A"
+                doc.uuid = location.get("uuid")
+                doc.odometer = location.get("odometer")
+                doc.age = location.get("age")
+                doc.is_moving = location.get("is_moving")
                 
-                activity = loc.get("activity", {})
+                activity = location.get("activity", {})
                 doc.activity_type = activity.get("type")
                 doc.confidence = activity.get("confidence")
                 
-                battery = loc.get("battery", {})
+                battery = location.get("battery", {})
                 doc.battery_is_charging = battery.get("is_charging")
                 doc.level = battery.get("level")
                 
-                coords = loc.get("coords", {})
+                coords = location.get("coords", {})
                 doc.latitude = coords.get("latitude")
                 doc.longitude = coords.get("longitude")
                 doc.acurracy = coords.get("accuracy")
@@ -1284,20 +1238,63 @@ def create_location_log(location, cmd):
                 doc.altitude = coords.get("altitude")
                 doc.ellipsoidal_altitude = coords.get("ellipsoidal_altitude")
                 doc.altitude_accuracy = coords.get("altitude_accuracy")
+                
                 try:
                     doc.save()
                 except Exception as e:
-                    return frappe.throw("Error in saving multiple location logs")
-        frappe.db.commit()
-        return location
-        
-    # except Exception as e:
-    #     frappe.log_error(frappe.get_traceback(), f"Error in creating location logs: {e}")
-    #     return frappe.throw("Error in creating location logs")
+                    return frappe.throw("Error in saving single location logs")
+                
+                frappe.db.commit()
+                return location
+            else:        
+                for loc in location:
 
-@frappe.whitelist(allow_guest=False, methods=['POST'])
-def create_error_log (employee, device, user, reason):
-    frappe.log_error(f"Reviced from {employee} on device {device} user ID is {user} faced issue while {reason}")
+                    if not isinstance(loc, dict):
+                        return frappe.throw("Each location item must be a dictionary")
+                    
+                    doc = frappe.new_doc("Location Logs")
+                    
+                    doc.date = iso_to_date(loc.get("timestamp"))
+                    doc.time = convert_utc_to_ist(loc.get("timestamp"))
+                    
+                    extras = loc.get("extras", {})
+                    doc.employee = extras.get("employee")
+                    
+                    doc.event = loc.get("event") or loc.get("extras").get("event") or "N/A"
+                    doc.uuid = loc.get("uuid")
+                    doc.odometer = loc.get("odometer")
+                    doc.age = loc.get("age")
+                    doc.is_moving = loc.get("is_moving")
+                    
+                    activity = loc.get("activity", {})
+                    doc.activity_type = activity.get("type")
+                    doc.confidence = activity.get("confidence")
+                    
+                    battery = loc.get("battery", {})
+                    doc.battery_is_charging = battery.get("is_charging")
+                    doc.level = battery.get("level")
+                    
+                    coords = loc.get("coords", {})
+                    doc.latitude = coords.get("latitude")
+                    doc.longitude = coords.get("longitude")
+                    doc.acurracy = coords.get("accuracy")
+                    doc.speed = coords.get("speed")
+                    doc.speed_accuracy = coords.get("speed_accuracy")
+                    doc.heading = coords.get("heading")
+                    doc.heading_accuracy = coords.get("heading_accuracy")
+                    doc.altitude = coords.get("altitude")
+                    doc.ellipsoidal_altitude = coords.get("ellipsoidal_altitude")
+                    doc.altitude_accuracy = coords.get("altitude_accuracy")
+                    try:
+                        doc.save()
+                        frappe.db.commit()
+                        return location
+                    except Exception as e:
+                        return frappe.throw("Error in saving multiple location logs")
+                    
+        except(e):
+            return (type(location))
+        
     
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def map_route_line(start_date, end_date, employee):
