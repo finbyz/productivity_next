@@ -1295,6 +1295,13 @@ def create_location_log(location, cmd):
     #     frappe.log_error(frappe.get_traceback(), f"Error in creating location logs: {e}")
     #     return frappe.throw("Error in creating location logs")
 
+@frappe.whitelist(allow_guest=True, methods=['POST'])
+def create_error_log (employee, device, user, reason):
+    employee = "EMP/00092"
+    device = "Redmi Note 7 Pro"
+    user= "Nandu"
+    reason=  "Testing"
+    frappe.log_error(f"Reviced from {employee} on device {device} user ID is {user} faced issue while {reason}")
     
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def map_route_line(start_date, end_date, employee):
