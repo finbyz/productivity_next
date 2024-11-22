@@ -62,3 +62,7 @@ class LocationLogs(Document):
                            "LocationLogs Error")
             return
     
+    
+def on_doctype_update():
+    frappe.db.add_unique("Location Logs", ["date", "employee", "uuid"])
+    frappe.db.add_index("Location Logs", ["date", "employee", "event"])

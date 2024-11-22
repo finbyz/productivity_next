@@ -1099,11 +1099,14 @@ def get_location_logs(user, start_date, end_date):
             is_stop,
             latitude,
             longitude,
-            heading
+            heading,
+            event
         FROM `tabLocation Logs`
         WHERE 
             employee = %(user)s
-            AND DATE(time) BETWEEN %(start_date)s AND %(end_date)s
+            AND DATE BETWEEN %(start_date)s AND %(end_date)s
+            AND event != 'getCurrentPosition'
+            AND event != 'heartbeat'
         ORDER BY date, time
     """, {
         'user': user,
