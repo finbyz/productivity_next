@@ -881,17 +881,17 @@ def delete_productify_error_logs():
 
 
 def delete_screenshots():
-    time_for_screenshots = int(frappe.db.get_single_value("Productify Subscription", "keep_screen_shots_for_days")) or 60
+    time_for_screenshots = frappe.db.get_single_value("Productify Subscription", "keep_screen_shots_for_days") or 60
+    time_for_screenshots = int(time_for_screenshots)
     date_for_screenshots = get_datetime() - timedelta(days=time_for_screenshots)
     screenshots = frappe.get_all("Screen Screenshot Log", {"time": ("<", date_for_screenshots.strftime("%Y-%m-%d %H:%M:%S"))})
     for screenshot in screenshots:
         frappe.delete_doc("Screen Screenshot Log", screenshot.name)
 
 def delete_application_logs():
-    time_for_application_logs = int(frappe.db.get_single_value("Productify Subscription", "keep_application_logs_for_days")) or 60
-    
+    time_for_application_logs = frappe.db.get_single_value("Productify Subscription", "keep_application_logs_for_days") or 60
+    time_for_application_logs = int(time_for_application_logs)
     date_for_application_logs = get_datetime() - timedelta(days=time_for_application_logs)
-
     frappe.db.sql("""
         DELETE FROM `tabApplication Usage log`
         WHERE date < %s
