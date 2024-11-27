@@ -8,18 +8,18 @@ def before_save(self, method):
         self.completed_by = frappe.session.user
 
     if self.status == "Completed":
-        self.color = "#E4F5E9"
+        self.color = "#e4f5e9"
     elif self.status == "Cancelled":
-        self.color = "#F3F3F3"
+        self.color = "#f3f3f3"
     elif self.status == "Open":
-        self.color = "FFF1E7"
+        self.color = "#fff1e7"
     elif self.status == "Overdue":
-        self.color = "FFF0F0"
+        self.color = "#fff0f0"
     elif self.status == "Working":
-        self.color = "FFF7D3"
+        self.color = "#fff7d3"
     elif self.status == "Pending Review":
-        self.color = "F7FBFD"
-    
+        self.color = "#f7fbfd"
+
 
 def validate(self, method):        
     existing_assignment = frappe.get_all(

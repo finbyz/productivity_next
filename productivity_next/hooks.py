@@ -36,12 +36,6 @@ app_include_js = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-doctype_js = {
-    "Lead": "public/js/doctype_js/lead.js",
-    "Customer": "public/js/doctype_js/customer.js",
-    "Opportunity": "public/js/doctype_js/opportunity.js",
-    "Meeting": "apps/productivity_next/productivity_next/public/js/meeting_list.js"
-}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -115,6 +109,7 @@ doctype_js = {
     "Opportunity": "public/js/doctype_js/opportunity.js",
     "Auto Repeat": "public/js/doctype_js/auto_repeat.js",
     "Notification": "public/js/doctype_js/notification.js",
+    "Task": "public/js/doctype_js/task.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
