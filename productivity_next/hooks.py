@@ -398,16 +398,6 @@ after_install = "productivity_next.setup.install.after_install"
 # Document Events
 # ---------------
 # Hook on document methods and events
-before_migrate = ["productivity_next.schedule.create_auto_email_report","productivity_next.schedule.create_auto_email_report_weekly"]
-doc_events = {
-    "Contact": {
-        "validate": "productivity_next.productivity_next.doc_events.contact.validate",
-    },
-    "Task": {
-        "before_save": "productivity_next.productivity_next.doc_events.task.before_save",
-        "validate": "productivity_next.productivity_next.doc_events.task.validate",
-    },
-}
 
 # Scheduled Tasks
 # ---------------
