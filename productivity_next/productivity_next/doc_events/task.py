@@ -1,7 +1,7 @@
 from frappe.model.document import Document
 from frappe.utils import nowdate
 import frappe
-
+import json
 def before_save(self, method):
     if self.status == "Completed":
         self.completed_on = nowdate()
@@ -20,23 +20,36 @@ def before_save(self, method):
     elif self.status == "Pending Review":
         self.color = "#f7fbfd"
 
+import json
+import json
 
-def validate(self, method):        
+@frappe.whitelist()
+def validate(doc): 
+    # If `doc` is not already a dictionary, convert it from JSON string
+    if isinstance(doc, str):
+        doc_json = json.loads(doc)
+    else:
+        doc_json = doc
+
+    # Check if `doc_json` is now a dictionary
+    if not isinstance(doc_json, dict):
+        frappe.throw("Invalid document format!")
+
+    
     existing_assignment = frappe.get_all(
         'ToDo',
         filters={   
-            'reference_type': self.doctype,
-            'reference_name': self.name,
-            'allocated_to': self.task_owner_
+            'reference_type': "Task",
+            'reference_name': doc_json["name"],  # Use the `name` field from JSON
+            'allocated_to': doc_json["task_owner_"]  # Use the `task_owner_` field from JSON
         }
     )
 
     if not existing_assignment:
         frappe.desk.form.assign_to.add({
-            'assign_to': [self.task_owner_],
-            'doctype': self.doctype,
-            'name': self.name,
-            'description': f"Task assigned to {self.task_owner_}",
-            'assign_by': frappe.session.task_owner_
+            'assign_to': [doc_json["task_owner_"]],
+            'doctype': "Task",
+            'name': doc_json["name"],
+            'description': f"Task assigned to {doc_json['task_owner_']}",
+            'assign_by': frappe.session.user  # Correct user session reference
         })
-
