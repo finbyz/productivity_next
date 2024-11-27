@@ -40,6 +40,7 @@ doctype_js = {
     "Lead": "public/js/doctype_js/lead.js",
     "Customer": "public/js/doctype_js/customer.js",
     "Opportunity": "public/js/doctype_js/opportunity.js",
+    "Meeting": "apps/productivity_next/productivity_next/public/js/meeting_list.js"
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -114,7 +115,6 @@ doctype_js = {
     "Opportunity": "public/js/doctype_js/opportunity.js",
     "Auto Repeat": "public/js/doctype_js/auto_repeat.js",
     "Notification": "public/js/doctype_js/notification.js",
-
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -209,6 +209,10 @@ doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
+    "Task": {
+        "before_save": "productivity_next.productivity_next.doc_events.task.before_save",
+        "validate": "productivity_next.productivity_next.doc_events.task.validate",
+    },
 }
 
 # Scheduled Tasks
@@ -228,10 +232,11 @@ scheduler_events = {
             "productivity_next.schedule.delete_screenshots",
             "productivity_next.schedule.delete_application_logs",
             "productivity_next.schedule.create_auto_email_report",
-            "productivity_next.schedule.create_auto_email_report_weekly"
+            "productivity_next.schedule.create_auto_email_report_weekly",
         ],
         "0 0 * * *": [
             "productivity_next.schedule.submit_timesheet_created_by_productify",
+            "productivity_next.schedule.update_due_period",
         ],
         # "5 4 * * sun" :[
         #     "productivity_next.schedule.send_weekly_report",
@@ -397,6 +402,10 @@ before_migrate = ["productivity_next.schedule.create_auto_email_report","product
 doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
+    },
+    "Task": {
+        "before_save": "productivity_next.productivity_next.doc_events.task.before_save",
+        "validate": "productivity_next.productivity_next.doc_events.task.validate",
     },
 }
 

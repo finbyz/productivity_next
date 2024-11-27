@@ -1106,3 +1106,50 @@ def create_auto_email_report():
 def create_auto_email_report_weekly():
     """Creates or updates weekly auto email report."""
     setup_auto_email_report("Weekly")
+
+
+import frappe
+from datetime import datetime, timedelta
+from frappe.utils import getdate, nowdate, add_days, get_first_day, get_last_day
+
+def update_due_period():
+    today = getdate(nowdate())
+    start_of_week = today - timedelta(days=today.weekday() + 1)  # Sunday
+    end_of_week = start_of_week + timedelta(days=6)         # Saturday
+
+    start_of_next_month = get_first_day(today + timedelta(days=30))
+    end_of_next_month = get_last_day(today + timedelta(days=30))
+
+    start_of_this_month = get_first_day(today)
+    end_of_this_month = get_last_day(today)
+
+    # Fetch records with exp_start_date and exp_end_date
+    exclude_status = ["Completed","Cancelled"]
+    records = frappe.get_all(
+        "Task",
+        fields=["name", "exp_start_date", "exp_end_date", "status"],
+        filters={
+            "exp_start_date": ["is", "set"],
+            "exp_end_date": ["is", "set"],
+            "status":['not in',exclude_status]
+        }
+    )
+
+    for record in records:
+        exp_start_date = getdate(record.get("exp_start_date"))
+        exp_end_date = getdate(record.get("exp_end_date"))
+        due_period = None
+        if exp_end_date < today:
+            due_period = "Overdue"
+        elif exp_end_date == today:
+            due_period = "Today"
+        elif exp_end_date <= end_of_week:
+            due_period = "This Week"
+        elif exp_end_date <= end_of_this_month:
+            due_period = "This Month"
+        elif start_of_next_month <= exp_start_date or exp_end_date >= end_of_next_month:
+            due_period = "Next Month"
+
+        frappe.db.set_value("Task", record.get("name"), "due_period", due_period)
+
+    frappe.db.commit()
