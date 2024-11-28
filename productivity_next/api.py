@@ -1300,7 +1300,7 @@ def create_location_log(location, cmd):
 def map_route_line(start_date, end_date, employee):
   
     location_logs = frappe.db.sql("""
-    SELECT latitude, longitude, heading, is_stationary, time, uuid, activity_type, is_moving, is_stop
+    SELECT latitude, longitude, heading, is_stationary, time, uuid, activity_type, is_moving, is_stop, event
     FROM `tabLocation Logs`
     WHERE employee = %s 
     AND DATE(time) BETWEEN %s AND %s
@@ -1316,6 +1316,7 @@ def map_route_line(start_date, end_date, employee):
         log["is_stop"] = float(log["is_stop"])
         log["activity_type"] = str(log["activity_type"])
         log["time"] = datetime.strptime(str(log["time"]),"%Y-%m-%d %H:%M:%S")
+        log['event'] = str(log["event"])
     return location_logs
 
 
@@ -1333,3 +1334,66 @@ def iso_to_date(iso_utc_timestamp):
     dt = datetime.fromisoformat(iso_utc_timestamp.replace("Z", "+00:00"))
     date = dt.date()
     return date
+
+def get_meeting_id (startuuid , enduuid):
+
+    meeting_id = frappe.db.sql("""
+    SELECT name
+    FROM `tabMeeting`
+    WHERE start_uuid = %s 
+    AND end_uuid = %s 
+    ORDER BY time DESC;
+    """, (startuuid , enduuid), as_dict=True)
+
+    return meeting_id
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_meeting_data_for_map_timeline(user, start_datetime, end_datetime):
+    meetings = frappe.db.sql(f"""
+    SELECT
+        m.name, 
+        m.meeting_from AS start_time, 
+        m.meeting_to AS end_time, 
+        m.purpose, 
+        m.party, 
+        m.party_type, 
+        m.discussion, 
+        m.internal_meeting,
+        u.full_name AS meeting_arranged_by
+    FROM `tabMeeting` AS m
+    JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent
+    JOIN `tabUser` AS u ON u.name = m.meeting_arranged_by
+    WHERE m.meeting_from >= '{start_datetime}' 
+      AND m.meeting_to <= '{end_datetime}' 
+      AND m.docstatus = 1 
+      AND (mcr.employee = '{user}' OR mcr.employee IS NULL)
+    GROUP BY m.name
+    Order by m.meeting_from desc
+    """, as_dict=True)
+    company = []
+    party = []
+    for meet in meetings:
+        meet["discussion"] = re.sub(r'<[^>]+>', '', meet["discussion"])
+        company_representative = frappe.db.sql(f"""
+            SELECT employee_name
+            FROM `tabMeeting Company Representative`
+            WHERE parent = '{meet["name"]}'
+        """, as_dict=True)
+        for rep in company_representative:
+            company.append(rep["employee_name"])
+        party_representative = frappe.db.sql(f"""
+            SELECT c.full_name as contact_name
+            FROM `tabMeeting Party Representative` as mpr
+            JOIN `tabContact` as c ON mpr.contact = c.name
+            WHERE mpr.parent = '{meet["name"]}'
+        """, as_dict=True)
+        for rep in party_representative:
+            party.append(rep["contact_name"])
+        meet["company_representative"] = company
+        meet["party_representative"] = party
+        company = []
+        party = []
+    
+    return {"meetings": meetings}
+
