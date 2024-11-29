@@ -1105,8 +1105,7 @@ def get_location_logs(user, start_date, end_date):
         WHERE 
             employee = %(user)s
             AND DATE BETWEEN %(start_date)s AND %(end_date)s
-            AND event != 'getCurrentPosition'
-            AND event != 'heartbeat'
+            AND event not in ('getCurrentPosition', 'heartbeat')
         ORDER BY date, time
     """, {
         'user': user,
