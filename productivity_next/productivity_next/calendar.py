@@ -37,4 +37,6 @@ def get_custom_events(doctype, start, end, filters=None):
                 event['title'] = f"{event.get('subject', '')} ({first_name})"
             except Exception as e:
                 event['title'] = f"{event.get('subject', '')} ({event.get('task_owner_', 'No Owner')})"
+        else:
+            event['title'] = f"{event.get('subject')}"
     return events
