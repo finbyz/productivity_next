@@ -1103,8 +1103,8 @@ def get_location_logs(user, start_date, end_date):
             event
         FROM `tabLocation Logs`
         WHERE 
-            AND DATE BETWEEN %(start_date)s AND %(end_date)s
-            employee = %(user)s
+            DATE BETWEEN %(start_date)s AND %(end_date)s
+            AND employee = %(user)s
             AND event not in ('getCurrentPosition', 'heartbeat')
         ORDER BY date, time
     """, {
