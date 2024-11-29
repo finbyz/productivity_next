@@ -37,9 +37,9 @@ doctype_js = {
     "Task": "public/js/doctype_js/task.js",   
 }
 
-# doctype_calendar_js = {
-#     "Task": "public/js/doctype_js/task_calendar.js"
-# }
+doctype_calendar_js = {
+    "Task": "public/js/doctype_js/task_calendar.js"
+}
 
 override_doctype_class = {
 	"Notification": "productivity_next.productivity_next.override_doctype_class.notification.Notification",
@@ -99,6 +99,7 @@ fixtures = [
     },
     {"dt": "Role", "filters": [["name", "in", ["Productify Manager"]]]},
     {"dt": "Property Setter", "filters": [["module", "in", ["Productivity Next"]]]},
+    ["Task"],
 ]
 
 # Installation

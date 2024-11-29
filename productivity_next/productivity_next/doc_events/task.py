@@ -4,7 +4,8 @@ import frappe
 import json
 def before_save(self, method):
     if self.status == "Completed":
-        self.completed_on = nowdate()
+        if self.completed_on == None or self.completed_on == " ":
+            self.completed_on = nowdate()
         self.completed_by = frappe.session.user
 
     if self.status == "Completed":
@@ -20,9 +21,7 @@ def before_save(self, method):
     elif self.status == "Pending Review":
         self.color = "#e3a3ff"
 
-    # first_name = self.task_owner_.split('@')[0].split('.')[0].capitalize()
-    # self.calendar_title = f'{self.subject} ({first_name})'
-
+        
 @frappe.whitelist()
 def validate(self, method): 
     existing_assignment = frappe.get_all(
