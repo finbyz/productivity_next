@@ -19,7 +19,7 @@ def before_save(self, method):
     elif self.status == "Working":
         self.color = "#fff7d3"
     elif self.status == "Pending Review":
-        self.color = "#e3a3ff"
+        self.color = "#fcd4fc"
 
         
 @frappe.whitelist()
