@@ -34,11 +34,11 @@ doctype_js = {
     "Opportunity": "public/js/doctype_js/opportunity.js",
     "Auto Repeat": "public/js/doctype_js/auto_repeat.js",
     "Notification": "public/js/doctype_js/notification.js",
-    "Task": "public/js/doctype_js/task.js",   
+    "Task": "public/js/doctype_js/task.js",
 }
 
 doctype_calendar_js = {
-    "Task": "public/js/doctype_js/task_calendar.js"
+    "Task": "overrides/task/task_calendar.js"
 }
 
 override_doctype_class = {
