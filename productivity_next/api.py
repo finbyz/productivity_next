@@ -1303,6 +1303,7 @@ def map_route_line(start_date, end_date, employee):
     SELECT latitude, longitude, heading, is_stationary, time, uuid, activity_type, is_moving, is_stop, event
     FROM `tabLocation Logs`
     WHERE employee = %s 
+    AND event not in ('getCurrentPosition', 'heartbeat')
     AND DATE(time) BETWEEN %s AND %s
     ORDER BY time DESC;
     """, (employee, start_date, end_date), as_dict=True)
