@@ -358,7 +358,7 @@
    "fieldname": "location_log",
    "fieldtype": "Link",
    "label": "Location Log",
-   "options": "Location Logs"
+   "options": "Location History"
   },
   {
    "fieldname": "travel_to",
@@ -384,7 +384,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-11-27 16:19:47.344087",
+ "modified": "2024-12-04 18:23:23.578095",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
