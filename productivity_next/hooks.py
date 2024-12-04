@@ -56,10 +56,9 @@ doc_events = {
     },
     "Task": {
         "before_save": "productivity_next.productivity_next.doc_events.task.before_save",
-        "after_insert": "productivity_next.productivity_next.doc_events.task.after_insert"
+        "on_update": "productivity_next.productivity_next.doc_events.task.validate"
     },
 }
-
 
 # Scheduled Tasks
 # ---------------

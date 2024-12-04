@@ -23,7 +23,7 @@ def before_save(self, method):
 
         
 @frappe.whitelist()
-def after_insert(self, method): 
+def validate(self, method): 
     existing_assignment = frappe.get_all(
         'ToDo',
         filters={   
