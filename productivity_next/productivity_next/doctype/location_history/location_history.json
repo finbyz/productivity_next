@@ -54,12 +54,12 @@
  ],
  "fields": [
   {
-   "default": "LL-.YY.MM.DD.-",
+   "default": "LH-.YY.MM.DD.-",
    "fieldname": "naming_series",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": "LL-.YY.MM.DD.-",
+   "options": "LH-.YY.MM.DD.-",
    "read_only": 1,
    "reqd": 1
   },
@@ -341,7 +341,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-04 12:32:43.972325",
+ "modified": "2024-12-04 13:13:52.519079",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Location History",
