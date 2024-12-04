@@ -56,7 +56,7 @@ doc_events = {
     },
     "Task": {
         "before_save": "productivity_next.productivity_next.doc_events.task.before_save",
-        "onload": "productivity_next.productivity_next.doc_events.task.validate"
+        "on_update": "productivity_next.productivity_next.doc_events.task.validate"
     },
 }
 

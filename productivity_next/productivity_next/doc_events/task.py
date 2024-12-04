@@ -29,15 +29,15 @@ def validate(self, method):
         filters={   
             'reference_type': "Task",
             'reference_name': self.name,
-            'allocated_to': self.task_owner_
+            'allocated_to': self.task_owner
         }
     )
 
     if not existing_assignment:
         frappe.desk.form.assign_to.add({
-            'assign_to': [self.task_owner_],
+            'assign_to': [self.task_owner],
             'doctype': "Task",
             'name': self.name,
-            'description': f"Task assigned to {self.task_owner_}",
+            'description': f"Task assigned to {self.task_owner}",
             'assign_by': frappe.session.user  # Correct user session reference
         })

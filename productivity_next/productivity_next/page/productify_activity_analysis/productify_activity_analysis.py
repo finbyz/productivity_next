@@ -1089,6 +1089,7 @@ def get_meetings(user, start_datetime, end_datetime):
         'company_representatives': m.company_representatives,  # Added this field
         'party_representatives': m.party_representatives      # Added this field
     } for m in meetings]
+
 def get_location_logs(user, start_date, end_date):
     logs = frappe.db.sql("""
         SELECT 

@@ -141,6 +141,9 @@ class ProductifySubscription(Document):
             f"{CALL_LOG_URL}/{self.call_organization_name}",
             json={
                 "list_of_users": list_of_users,
+                "automatic_location_tracking": self.automatic_location_tracking,
+                "location_tracking_from_time": self.location_tracking_from_time,
+                "location_tracking_to_time": self.location_tracking_to_time,
             },
             headers=headers,
         )

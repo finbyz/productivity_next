@@ -87,6 +87,7 @@ frappe.ui.form.on('Meeting', {
 			},
 			callback: function(r){
 				if(r.message){
+					console.log(r.message)
 					frm.set_value('contact_person', r.message.contact_person)
 					frm.set_value('email_id', r.message.contact_email)
 					frm.set_value('mobile_no', r.message.contact_mobile)

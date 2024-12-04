@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "software_name",
+  "employee",
   "column_break_dkhd",
   "application_id"
  ],
@@ -24,11 +25,17 @@
    "fieldname": "application_id",
    "fieldtype": "Data",
    "label": "Application Id"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-11-02 14:39:59.333732",
+ "modified": "2024-11-12 15:31:10.619626",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Blocked Software",

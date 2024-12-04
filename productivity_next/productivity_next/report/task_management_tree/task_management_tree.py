@@ -129,7 +129,7 @@ def get_tasks(filters):
         conditions.append("status != 'Completed'")
     
     if filters.get("task_owner"):
-        conditions.append(f"task_owner_ = '{filters.get('task_owner')}'")
+        conditions.append(f"task_owner = '{filters.get('task_owner')}'")
     
     where_clause = " AND ".join(conditions) if conditions else "1=1"
     if task_condition:
@@ -142,7 +142,7 @@ def get_tasks(filters):
             IFNULL(parent_task, '') as parent_task,
             project,
             status,
-            task_owner_ as task_owner,
+            task_owner as task_owner,
             priority,
             description,
             exp_start_date,
@@ -444,7 +444,7 @@ def update_single_task(task_name, task_data):
     
     # Map of frontend field names to database field names
     field_mapping = {
-        'task_owner': 'task_owner_',
+        'task_owner': 'task_owner',
         'status': 'status',
         'priority': 'priority',
         'exp_start_date': 'exp_start_date',
@@ -752,7 +752,7 @@ def copy_single_task(task_name, new_project, new_task_owner, new_parent):
     new_task = frappe.new_doc('Task')
     
     # Copy all standard fields
-    exclude_fields = ['name', 'parent_task', 'project', 'task_owner_', 'creation', 
+    exclude_fields = ['name', 'parent_task', 'project', 'task_owner', 'creation', 
                      'modified', 'modified_by', 'owner', 'docstatus', 'idx','depends_on', 'status', 'exp_start_date'
                      'exp_end_date']
     for field in orig_task.meta.fields:
@@ -761,7 +761,7 @@ def copy_single_task(task_name, new_project, new_task_owner, new_parent):
     
     # Set new values
     new_task.project = new_project if new_project else None
-    new_task.task_owner_ = new_task_owner if new_task_owner else None
+    new_task.task_owner = new_task_owner if new_task_owner else None
     new_task.parent_task = new_parent if new_parent else None
     
     # If no new project specified, include project name in subject

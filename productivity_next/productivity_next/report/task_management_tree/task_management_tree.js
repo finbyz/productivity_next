@@ -602,7 +602,7 @@ function addSubtask(dialog, parentTaskData, report) {
                 subject: values.subject,
                 parent_task: values.parent_task,
                 project: values.project,
-                task_owner_: values.task_owner,
+                task_owner: values.task_owner,
                 status: values.status,
                 priority: values.priority,
                 exp_start_date: values.exp_start_date,

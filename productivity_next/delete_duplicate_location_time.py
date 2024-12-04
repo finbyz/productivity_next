@@ -1,31 +1,32 @@
-# If same Location Logs are created multiple then delete all duplicates
 import frappe
 
-
+# Find duplicate logs
 duplicate_application_location_logs = frappe.db.sql("""
-select min(name) as name_to_keep,employee, time, count(*) as count
-from `tabLocation Logs`
-group by employee, time
-having count(*) > 1
+    SELECT min(name) as name_to_keep, employee, timestamp, count(*) as count 
+    FROM `tabLocation Logs` 
+    GROUP BY employee, timestamp 
+    HAVING count(*) > 1
 """, as_dict=True)
 
+# Get names to keep
 names_to_keep = [row['name_to_keep'] for row in duplicate_application_location_logs]
+
+# Find and delete duplicate logs
 names_to_delete = frappe.db.sql("""
-select name
-from `tabLocation Logs`
-where (employee, time) in (
-    select employee, time
-    from `tabLocation Logs`
-    group by employee, time
-    having count(*) > 1
-) and name not in ({names})
+    SELECT name 
+    FROM `tabLocation Logs` 
+    WHERE (employee, timestamp) IN (
+        SELECT employee, timestamp 
+        FROM `tabLocation Logs` 
+        GROUP BY employee, timestamp 
+        HAVING count(*) > 1
+    ) AND name NOT IN ({names})
 """.format(names=", ".join(["%s"] * len(names_to_keep))), names_to_keep, as_dict=True)
 
-batch_size = 100
-for i in range(0, len(names_to_delete), batch_size):
-    batch = names_to_delete[i:i + batch_size]
-    for doc in batch:
-        frappe.delete_doc('Location Logs', doc['name'])
-        print(f"Deleted: {doc['name']}")
-    frappe.db.commit()
-    print(f"Committed batch {i // batch_size + 1}")
+frappe.db.sql("""
+    DELETE FROM `tabLocation Logs` 
+    WHERE name IN ({placeholders})
+""".format(placeholders=", ".join(["%s"] * len(names_to_delete))), 
+[doc['name'] for doc in names_to_delete])
+frappe.db.commit()
+print(f"Deleted {len(names_to_delete)} duplicate records")

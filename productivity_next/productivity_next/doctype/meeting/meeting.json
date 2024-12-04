@@ -33,6 +33,8 @@
   "longitude",
   "latitude",
   "location_log",
+  "start_uuid",
+  "end_uuid",
   "participants",
   "meeting_company_representative",
   "meeting_party_representative",
@@ -108,6 +110,7 @@
    "label": "Scheduled Time"
   },
   {
+   "fetch_from": "customer.customer_name",
    "fieldname": "organization",
    "fieldtype": "Data",
    "in_standard_filter": 1,
@@ -366,12 +369,22 @@
    "fieldname": "travel_from",
    "fieldtype": "Datetime",
    "label": "Travel From"
+  },
+  {
+   "fieldname": "start_uuid",
+   "fieldtype": "Data",
+   "label": "Start UUID"
+  },
+  {
+   "fieldname": "end_uuid",
+   "fieldtype": "Data",
+   "label": "End UUID"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-11-21 13:38:59.189805",
+ "modified": "2024-11-27 16:19:47.344087",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

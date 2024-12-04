@@ -22,6 +22,9 @@ from frappe.utils import (
     validate_email_address,
 )
 
+from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
+from geopy.distance import geodesic
+
 
 @frappe.whitelist(allow_guest=True)
 def login(username, password, purpose):
@@ -1197,204 +1200,256 @@ def get_allowed_modules(employee=None):
     modules["sales_person"] = data[2]
     return modules
 
-@frappe.whitelist(allow_guest=False, methods=["POST"])
-def create_location_log(location, cmd):
-    
-    try:
-        if not isinstance(location, list):
-            if not isinstance(location, dict):
-                return frappe.throw("Each location item must be a dictionary")
-                
-            doc = frappe.new_doc("Location Logs")
-            
-            doc.date = iso_to_date(location.get("timestamp"))
-            doc.time = convert_utc_to_ist(location.get("timestamp"))
-            
-            extras = location.get("extras", {}) 
-            doc.employee = extras.get("employee")
-            
-            doc.event = location.get("event") or location.get("extras").get("event") or "N/A"
-            doc.uuid = location.get("uuid")
-            doc.odometer = location.get("odometer")
-            doc.age = location.get("age")
-            doc.is_moving = location.get("is_moving")
-            
-            activity = location.get("activity", {})
-            doc.activity_type = activity.get("type")
-            doc.confidence = activity.get("confidence")
-            
-            battery = location.get("battery", {})
-            doc.battery_is_charging = battery.get("is_charging")
-            doc.level = battery.get("level")
-            
-            coords = location.get("coords", {})
-            doc.latitude = coords.get("latitude")
-            doc.longitude = coords.get("longitude")
-            doc.acurracy = coords.get("accuracy")
-            doc.speed = coords.get("speed")
-            doc.speed_accuracy = coords.get("speed_accuracy")
-            doc.heading = coords.get("heading")
-            doc.heading_accuracy = coords.get("heading_accuracy")
-            doc.altitude = coords.get("altitude")
-            doc.ellipsoidal_altitude = coords.get("ellipsoidal_altitude")
-            doc.altitude_accuracy = coords.get("altitude_accuracy")
-            
-            try:
-                doc.save()
-            except Exception as e:
-                return frappe.throw("Error in saving single location logs")
-            
-            frappe.db.commit()
-            return location
-        else:        
-            for loc in location:
 
-                if not isinstance(loc, dict):
-                    return frappe.throw("Each location item must be a dictionary")
-                
-                doc = frappe.new_doc("Location Logs")
-                
-                doc.date = iso_to_date(loc.get("timestamp"))
-                doc.time = convert_utc_to_ist(loc.get("timestamp"))
-                
-                extras = loc.get("extras", {})
-                doc.employee = extras.get("employee")
-                
-                doc.event = loc.get("event") or loc.get("extras").get("event") or ""
-                doc.uuid = loc.get("uuid")
-                doc.odometer = loc.get("odometer")
-                doc.age = loc.get("age")
-                doc.is_moving = loc.get("is_moving")
-                
-                activity = loc.get("activity", {})
-                doc.activity_type = activity.get("type")
-                doc.confidence = activity.get("confidence")
-                
-                battery = loc.get("battery", {})
-                doc.battery_is_charging = battery.get("is_charging")
-                doc.level = battery.get("level")
-                
-                coords = loc.get("coords", {})
-                doc.latitude = coords.get("latitude")
-                doc.longitude = coords.get("longitude")
-                doc.acurracy = coords.get("accuracy")
-                doc.speed = coords.get("speed")
-                doc.speed_accuracy = coords.get("speed_accuracy")
-                doc.heading = coords.get("heading")
-                doc.heading_accuracy = coords.get("heading_accuracy")
-                doc.altitude = coords.get("altitude")
-                doc.ellipsoidal_altitude = coords.get("ellipsoidal_altitude")
-                doc.altitude_accuracy = coords.get("altitude_accuracy")
-                try:
-                    doc.save()
-                    frappe.db.commit()
-                    return location
-                except Exception as e:
-                    return frappe.throw("Error in saving multiple location logs")
-                
-    except Exception as e:
-        return (type(location))
+# Mobile App APIs
+@frappe.whitelist(allow_guest=True, methods=['POST', 'GET'])
+def location():
+    if frappe.request.method == "POST":
+        data = json.loads(frappe.request.data)
+        if locations := data.get("location"):
+            if isinstance(locations, dict):
+                row = locations.copy()
+                location_log_create(row, data.get('employee') or (row.get("extras") or {}).get("employee"))
+
+            if isinstance(locations, list):
+                for row in data.get("location") or []:
+                    location_log_create(row, data.get('employee') or (row.get("extras") or {}).get("employee"))
+
+def location_log_create(row: dict, employee: str):
+    if frappe.db.exists("Location Logs", {"employee": employee, "uuid": row.get("uuid")}):
+        return
+    if row.get("timestamp"):
+        convert_utc_to_system_timezone(get_datetime(row['timestamp'])).replace(tzinfo=None)
+    else:
+        return
+    
+    if frappe.db.exists("Location Logs", {"employee": employee, "timestamp": row['timestamp']}):
+        if row['event'] == 'still':
+            return
+        else:
+            location_log_name = frappe.db.get_value("Location Logs", {"employee": employee, "timestamp": row['timestamp']}, "name")
+            doc = frappe.new_doc("Location Logs", location_log_name)
+    
+    doc = frappe.new_doc("Location Logs")
+    doc.employee = employee
+    doc.event = row.get('event') or row.get("extras", {}).get("event", "N/A")
+    doc.is_moving = row.get('is_moving') or False
+    doc.uuid = row.get("uuid")
+    doc.timestamp = row['timestamp']
+    doc.date = doc.timestamp.date()
+    doc.time = doc.timestamp.time().replace(microsecond=0)
+    doc.age = row.get("age") or 0
+    doc.odometer = row.get("odometer") or 0
+
+    for key, value in (row.get("coords") or {}).items():
+        setattr(doc, f"coords_{key}".lower(), value)
+    
+    for key, value in (row.get("activity") or {}).items():
+        setattr(doc, f"activity_{key}".lower(), value)
+    
+    for key, value in (row.get("battery") or {}).items():
+        setattr(doc, f"battery_{key}".lower(), value)
+    
+    for key, value in (row.get("provider") or {}).items():
+        setattr(doc, f"provider_{key}".lower(), value)
+    
+    doc.save()
+
+@frappe.whitelist(methods=['GET'])
+def get_map_plot(employee, start_date, end_date):
+    return frappe.get_list(
+        "Location Logs",
+        filters={
+            "employee": employee,
+            "date": ['between', (getdate(start_date), getdate(end_date))],
+            "event": ["not in", ('getCurrentPosition', 'heartbeat')],
+        },
+        fields=[
+            "CAST(timestamp AS DATETIME) AS timestamp",
+            "coords_latitude as latitude",
+            "coords_longitude as longitude",
+            "coords_heading as heading",
+        ]
+    )
+
+@frappe.whitelist(methods=['GET'])
+def get_timeline(employee, start_date, end_date):
+    data = frappe.get_list(
+        "Location Logs",
+        filters={
+            "employee": employee,
+            "date": ['between', (getdate(start_date), getdate(end_date))],
+            "event": ["not in", ('getCurrentPosition', 'heartbeat')],
+        },
+        fields=[
+            "date",
+            "time",
+            "event",
+            "timestamp",
+            "coords_latitude",
+            "coords_longitude",
+            "activity_type"
+        ],
+        order_by = "timestamp asc"
+    )
+
+    final_data = []
+    tracking_started = False
+    start_time = None
+    activity_type = None
+    lat_long = []
+
+    if not frappe.db.get_single_value("Productify Subscription", "automatic_location_tracking"):
+        for row in data:
+            if not tracking_started and row['event'] != "Tracking-Started":
+                continue
+
+            elif not tracking_started and row['event'] == "Tracking-Started":
+                tracking_started = True
+
+                start_time = row['timestamp']
+                activity_type = row['activity_type']
+                lat_long = [(row['coords_latitude'], row['coords_longitude'])]
+            
+            elif tracking_started and row['event'] != "Tracking-Stopped" and row['activity_type'] == activity_type:
+                lat_long.append((row['coords_latitude'], row['coords_longitude']))
+            
+            elif tracking_started and row['event'] != "Tracking-Stopped" and row['activity_type'] != activity_type:
+                lat_long.append((row['coords_latitude'], row['coords_longitude']))
+                final_data.append({
+                    "start_time": start_time,
+                    "end_time": row['timestamp'],
+                    "activity_type": activity_type,
+                    "lat_long_cordinates": lat_long,
+                })
+
+                start_time = row['timestamp']
+                activity_type = row['activity_type']
+                lat_long = [(row['coords_latitude'], row['coords_longitude'])]
+            
+            elif tracking_started and row['event'] == "Tracking-Stopped":
+                lat_long = [(row['coords_latitude'], row['coords_longitude'])]
+                final_data.append({
+                    "start_time": start_time,
+                    "end_time": row['timestamp'],
+                    "activity_type": activity_type,
+                    "lat_long_cordinates": lat_long,
+                })
+
+                tracking_started = False
+                start_time = None
+                activity_type = None
+                lat_long = []
         
+        if start_time is not None and activity_type is not None and data:
+            row = data[-1]
+            lat_long = [(row['coords_latitude'], row['coords_longitude'])]
+            final_data.append({
+                "start_time": start_time,
+                "end_time": row['timestamp'],
+                "activity_type": activity_type,
+                "lat_long_cordinates": lat_long,
+            })
+
+            start_time = None
+            activity_type = None
+            lat_long = []
+    else:
+        location_tracking_from_time = frappe.db.get_single_value("Productify Subscription", "location_tracking_from_time")
+        location_tracking_to_time = frappe.db.get_single_value("Productify Subscription", "location_tracking_to_time")
+        data = [row for row in data if row.time >= location_tracking_from_time and row.time <= location_tracking_to_time]
+
+        timestamp_data = {}
+
+        for row in data:
+            if not timestamp_data.get(row.date):
+                timestamp_data[row.date] = []
+            
+            timestamp_data[row.date].append(row)
+        
+        for date, date_data in timestamp_data.items():
+            for idx, row in enumerate(date_data):
+                if idx == 0:
+                    start_time = row['timestamp']
+                    activity_type = row['activity_type']
+                    lat_long = [(row['coords_latitude'], row['coords_longitude'])]
+                    continue
+                
+                lat_long.append((row['coords_latitude'], row['coords_longitude']))
+
+                if row['activity_type'] != activity_type:
+                    final_data.append({
+                        "start_time": start_time,
+                        "end_time": row['timestamp'],
+                        "activity_type": activity_type,
+                        "lat_long_cordinates": lat_long,
+                    })
+
+                    start_time = row['timestamp']
+                    activity_type = row['activity_type']
+                    lat_long = [(row['coords_latitude'], row['coords_longitude'])]
+            
+            if start_time != row['timestamp']:
+                final_data.append({
+                    "start_time": start_time,
+                    "end_time": row['timestamp'],
+                    "activity_type": activity_type,
+                    "lat_long_cordinates": lat_long,
+                })
     
-@frappe.whitelist(allow_guest=False, methods=["GET"])
-def map_route_line(start_date, end_date, employee):
-  
-    location_logs = frappe.db.sql("""
-    SELECT latitude, longitude, heading, is_stationary, time, uuid, activity_type, is_moving, is_stop, event
-    FROM `tabLocation Logs`
-    WHERE employee = %s 
-    AND event not in ('getCurrentPosition', 'heartbeat')
-    AND DATE(time) BETWEEN %s AND %s
-    ORDER BY time DESC;
-    """, (employee, start_date, end_date), as_dict=True)
+    total_distance = 0
+    total_duration = 0
     
-    for log in location_logs:
-        log["latitude"] = float(log["latitude"])
-        log["longitude"] = float(log["longitude"])
-        log["heading"] = float(log["heading"])
-        log["is_stationary"] = float(log["is_stationary"])
-        log["is_moving"] = float(log["is_moving"])
-        log["is_stop"] = float(log["is_stop"])
-        log["activity_type"] = str(log["activity_type"])
-        log["time"] = datetime.strptime(str(log["time"]),"%Y-%m-%d %H:%M:%S")
-        log['event'] = str(log["event"])
-    return location_logs
-
-
-def convert_utc_to_ist(iso_utc_timestamp):
-    
-    utc_timezone = pytz.utc
-    utc_datetime = datetime.fromisoformat(iso_utc_timestamp.replace("Z", "+00:00"))
-    ist_timezone = pytz.timezone('Asia/Kolkata')
-    ist_datetime = utc_datetime.astimezone(ist_timezone)
-    ist_formatted = ist_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    return ist_formatted
-
-def iso_to_date(iso_utc_timestamp):
-    
-    dt = datetime.fromisoformat(iso_utc_timestamp.replace("Z", "+00:00"))
-    date = dt.date()
-    return date
-
-def get_meeting_id (startuuid , enduuid):
-
-    meeting_id = frappe.db.sql("""
-    SELECT name
-    FROM `tabMeeting`
-    WHERE start_uuid = %s 
-    AND end_uuid = %s 
-    ORDER BY time DESC;
-    """, (startuuid , enduuid), as_dict=True)
-
-    return meeting_id
-
-
-@frappe.whitelist(allow_guest=True, methods=["GET"])
-def get_meeting_data_for_map_timeline(user, start_datetime, end_datetime):
-    meetings = frappe.db.sql(f"""
-    SELECT
-        m.name, 
-        m.meeting_from AS start_time, 
-        m.meeting_to AS end_time, 
-        m.purpose, 
-        m.party, 
-        m.party_type, 
-        m.discussion, 
-        m.internal_meeting,
-        u.full_name AS meeting_arranged_by
-    FROM `tabMeeting` AS m
-    JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent
-    JOIN `tabUser` AS u ON u.name = m.meeting_arranged_by
-    WHERE m.meeting_from >= '{start_datetime}' 
-      AND m.meeting_to <= '{end_datetime}' 
-      AND m.docstatus = 1 
-      AND (mcr.employee = '{user}' OR mcr.employee IS NULL)
-    GROUP BY m.name
-    Order by m.meeting_from desc
-    """, as_dict=True)
-    company = []
-    party = []
-    for meet in meetings:
-        meet["discussion"] = re.sub(r'<[^>]+>', '', meet["discussion"])
-        company_representative = frappe.db.sql(f"""
-            SELECT employee_name
-            FROM `tabMeeting Company Representative`
-            WHERE parent = '{meet["name"]}'
+    for row in final_data:
+        start_time = row['start_time']
+        end_time = row['end_time']
+        meeting_data = frappe.db.sql(f"""
+            SELECT 
+                m.name, 
+                m.party, 
+                m.party_type,
+                m.meeting_arranged_by,
+                CAST(m.meeting_from AS DATE) as date, 
+                CAST(m.meeting_from AS TIME) AS meeting_from, 
+                CAST(m.meeting_to AS TIME) AS meeting_to, 
+                m.internal_meeting,
+                TIMESTAMPDIFF(SECOND, m.meeting_from, m.meeting_to) AS duration
+            FROM `tabMeeting` AS m 
+            JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
+            WHERE mcr.employee = '{employee}' AND m.docstatus = 1 AND CAST(m.meeting_from AS DATETIME) BETWEEN CAST('{start_time}' AS DATETIME) AND CAST('{end_time}' AS DATETIME)
         """, as_dict=True)
-        for rep in company_representative:
-            company.append(rep["employee_name"])
-        party_representative = frappe.db.sql(f"""
-            SELECT c.full_name as contact_name
-            FROM `tabMeeting Party Representative` as mpr
-            JOIN `tabContact` as c ON mpr.contact = c.name
-            WHERE mpr.parent = '{meet["name"]}'
-        """, as_dict=True)
-        for rep in party_representative:
-            party.append(rep["contact_name"])
-        meet["company_representative"] = company
-        meet["party_representative"] = party
-        company = []
-        party = []
-    
-    return {"meetings": meetings}
 
+        row['duration'] = 0
+        row['distance'] = 0
+        
+        if row['activity_type'] != 'still':
+            row['duration'] = int((end_time - start_time).total_seconds())
+            row['distance'] = calculate_total_distance(row['lat_long_cordinates'])
+        
+        total_distance += row['distance']
+        total_duration += row['duration']
+
+        if meeting_data:
+            row['meetings'] = meeting_data
+        
+        else:
+            row['meetings'] = []
+
+    return {
+        "total_distance": total_distance,
+        "total_duration": total_duration,
+        "data": final_data
+    }
+
+
+# Function to calculate the total distance for the given route
+def calculate_total_distance(route):
+    total_distance = 0
+    # Iterate through the list and calculate the distance between consecutive points
+    for i in range(1, len(route)):
+        loc1 = route[i - 1]
+        loc2 = route[i]
+        # Calculate the geodesic distance between two consecutive points
+        distance = geodesic(loc1, loc2).kilometers
+        total_distance += distance
+    return total_distance

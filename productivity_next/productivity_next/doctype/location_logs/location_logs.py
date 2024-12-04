@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 
 class LocationLogs(Document):
     def after_insert(self):
-        self.check_stationary_status()
+        pass
+        # self.check_stationary_status()
     
     def check_stationary_status(self):
         """

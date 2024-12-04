@@ -115,6 +115,7 @@
    "fieldtype": "Section Break"
   },
   {
+   "allow_bulk_edit": 1,
    "fieldname": "used_softwares",
    "fieldtype": "Table",
    "label": "Used Softwares",
@@ -122,7 +123,7 @@
   }
  ],
  "links": [],
- "modified": "2024-11-06 10:06:54.341123",
+ "modified": "2024-11-12 16:04:01.287126",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",
