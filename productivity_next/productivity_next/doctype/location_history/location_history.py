@@ -5,7 +5,7 @@ import frappe
 from frappe.model.document import Document
 from datetime import datetime, timedelta
 
-class LocationLogs(Document):
+class LocationHistory(Document):
     def after_insert(self):
         pass
         # self.check_stationary_status()
@@ -21,7 +21,7 @@ class LocationLogs(Document):
         # Get last log with direct SQL for better performance
         last_log = frappe.db.sql("""
             SELECT name, time 
-            FROM `tabLocation Logs`
+            FROM `tabLocation History`
             WHERE employee = %s 
             AND date = %s 
             AND name != %s
@@ -49,10 +49,10 @@ class LocationLogs(Document):
             # Update stationary flag if gap > 10 minutes
             if time_diff > time_difference:
                 # Update current log
-                frappe.db.set_value('Location Logs', self.name, 'is_stop', 1, update_modified=False)
+                frappe.db.set_value('Location History', self.name, 'is_stop', 1, update_modified=False)
                 
                 # Update previous log
-                frappe.db.set_value('Location Logs', last_log[0].name, 'is_stop', 1, update_modified=False)
+                frappe.db.set_value('Location History', last_log[0].name, 'is_stop', 1, update_modified=False)
                 
                 frappe.db.commit()
                 
@@ -65,5 +65,5 @@ class LocationLogs(Document):
     
     
 def on_doctype_update():
-    frappe.db.add_unique("Location Logs", ["date", "employee", "uuid"])
-    frappe.db.add_index("Location Logs", ["date", "employee", "event"])
+    frappe.db.add_unique("Location History", ["date", "employee", "uuid"])
+    frappe.db.add_index("Location History", ["date", "employee", "event"])

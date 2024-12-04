@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "naming_series:",
  "creation": "2024-10-14 12:42:34.562075",
@@ -340,10 +341,10 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-12-02 15:56:51.269714",
+ "modified": "2024-12-04 12:32:43.972325",
  "modified_by": "Administrator",
  "module": "Productivity Next",
- "name": "Location Logs",
+ "name": "Location History",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [

@@ -1216,21 +1216,22 @@ def location():
                     location_log_create(row, data.get('employee') or (row.get("extras") or {}).get("employee"))
 
 def location_log_create(row: dict, employee: str):
-    if frappe.db.exists("Location Logs", {"employee": employee, "uuid": row.get("uuid")}):
+    if frappe.db.exists("Location History", {"employee": employee, "uuid": row.get("uuid")}):
         return
     if row.get("timestamp"):
-        convert_utc_to_system_timezone(get_datetime(row['timestamp'])).replace(tzinfo=None)
+        row['timestamp'] = convert_utc_to_system_timezone(get_datetime(row['timestamp'])).replace(tzinfo=None)
     else:
         return
-    
-    if frappe.db.exists("Location Logs", {"employee": employee, "timestamp": row['timestamp']}):
-        if row['event'] == 'still':
+
+    doc = frappe.new_doc("Location History")
+    if frappe.db.exists("Location History", {"employee": employee, "timestamp": row['timestamp']}):
+        if row['activity']['type'] == 'still':
             return
         else:
-            location_log_name = frappe.db.get_value("Location Logs", {"employee": employee, "timestamp": row['timestamp']}, "name")
-            doc = frappe.new_doc("Location Logs", location_log_name)
+            location_log_name = frappe.db.get_value("Location History", {"employee": employee, "timestamp": row['timestamp']}, "name")
+            doc = frappe.new_doc("Location History", location_log_name)
     
-    doc = frappe.new_doc("Location Logs")
+    
     doc.employee = employee
     doc.event = row.get('event') or row.get("extras", {}).get("event", "N/A")
     doc.is_moving = row.get('is_moving') or False
@@ -1258,7 +1259,7 @@ def location_log_create(row: dict, employee: str):
 @frappe.whitelist(methods=['GET'])
 def get_map_plot(employee, start_date, end_date):
     return frappe.get_list(
-        "Location Logs",
+        "Location History",
         filters={
             "employee": employee,
             "date": ['between', (getdate(start_date), getdate(end_date))],
@@ -1275,7 +1276,7 @@ def get_map_plot(employee, start_date, end_date):
 @frappe.whitelist(methods=['GET'])
 def get_timeline(employee, start_date, end_date):
     data = frappe.get_list(
-        "Location Logs",
+        "Location History",
         filters={
             "employee": employee,
             "date": ['between', (getdate(start_date), getdate(end_date))],
