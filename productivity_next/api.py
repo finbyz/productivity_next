@@ -1229,7 +1229,7 @@ def location_log_create(row: dict, employee: str):
             return
         else:
             location_log_name = frappe.db.get_value("Location History", {"employee": employee, "timestamp": row['timestamp']}, "name")
-            doc = frappe.new_doc("Location History", location_log_name)
+            doc = frappe.get_doc("Location History", location_log_name)
     
     
     doc.employee = employee
