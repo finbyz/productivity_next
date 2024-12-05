@@ -1372,8 +1372,8 @@ def get_timeline(employee, start_date, end_date):
             date_wise_final_data = []
             date_data_len = len(date_data)
             for idx, row in enumerate(date_data):
-                if date_data_len >= idx and row[idx + 1]['event'] == "activityChange":
-                    row['event'] = row[idx + 1]['event']
+                if date_data_len > idx + 1 and date_data[idx + 1]['event'] == "activityChange":
+                    row['activity_type'] = date_data[idx + 1]['activity_type']
 
                 if idx == 0:
                     start_time = row['timestamp']
