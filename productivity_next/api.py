@@ -1370,7 +1370,11 @@ def get_timeline(employee, start_date, end_date):
         
         for date, date_data in timestamp_data.items():
             date_wise_final_data = []
+            date_data_len = len(date_data)
             for idx, row in enumerate(date_data):
+                if date_data_len >= idx and row[idx + 1]['event'] == "activityChange":
+                    row['event'] = row[idx + 1]['event']
+
                 if idx == 0:
                     start_time = row['timestamp']
                     activity_type = row['activity_type']
