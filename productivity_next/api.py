@@ -1368,9 +1368,8 @@ def get_timeline(employee, start_date, end_date):
             
             timestamp_data[row.date].append(row)
         
-        date_wise_final_data = []
-        
         for date, date_data in timestamp_data.items():
+            date_wise_final_data = []
             for idx, row in enumerate(date_data):
                 if idx == 0:
                     start_time = row['timestamp']
