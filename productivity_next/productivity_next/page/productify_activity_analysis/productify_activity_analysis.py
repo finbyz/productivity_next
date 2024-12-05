@@ -1028,6 +1028,7 @@ def meetings_analysis(user, start_date=None, end_date=None):
 
     # Combine and sort all events
     all_events = meetings + location_logs
+    # frappe.throw(str(all_events))
     return sorted(all_events, key=lambda x: x['start_time'], reverse=True)
 
 def get_meetings(user, start_datetime, end_datetime):
@@ -1089,24 +1090,21 @@ def get_meetings(user, start_datetime, end_datetime):
         'company_representatives': m.company_representatives,  # Added this field
         'party_representatives': m.party_representatives      # Added this field
     } for m in meetings]
-
 def get_location_logs(user, start_date, end_date):
     logs = frappe.db.sql("""
         SELECT 
             date,
-            time as start_time,
-            LEAD(time) OVER (ORDER BY time) as end_time,
+            timestamp as start_time,
+            LEAD(timestamp) OVER (ORDER BY timestamp) as end_time,
             is_moving,
             is_stop,
-            latitude,
-            longitude,
-            heading,
-            event
-        FROM `tabLocation Logs`
+            coords_latitude as latitude,
+            coords_longitude as longitude,
+            heading
+        FROM `tabLocation History`
         WHERE 
-            DATE BETWEEN %(start_date)s AND %(end_date)s
-            AND employee = %(user)s
-            AND event not in ('getCurrentPosition', 'heartbeat')
+            employee = %(user)s
+            AND DATE(time) BETWEEN %(start_date)s AND %(end_date)s
         ORDER BY date, time
     """, {
         'user': user,

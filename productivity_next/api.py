@@ -1256,7 +1256,7 @@ def location_log_create(row: dict, employee: str):
     
     doc.save()
 
-@frappe.whitelist(methods=['GET'])
+@frappe.whitelist(methods=['GET','POST'])
 def get_map_plot(employee, start_date, end_date):
     return frappe.get_list(
         "Location History",
@@ -1273,7 +1273,7 @@ def get_map_plot(employee, start_date, end_date):
         ]
     )
 
-@frappe.whitelist(methods=['GET'])
+@frappe.whitelist(methods=['GET','POST'])
 def get_timeline(employee, start_date, end_date):
     data = frappe.get_list(
         "Location History",

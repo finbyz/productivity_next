@@ -294,969 +294,50 @@ UserProfile = class UserProfile {
 	}
 	// Change Employee Button Code Ends
 
-	meetings_analysis() {
-		const renderMeetingsBound = this.renderMeetings.bind(this);
-		const user = this.selected_employee || this.user_id;
-		
-		if (!user || !this.selected_start_date || !this.selected_end_date) {
-			frappe.msgprint({
-				title: __('Validation Error'),
-				indicator: 'red',
-				message: __('Please ensure all required fields are filled.')
-			});
-			return;
-		}
 	
-		// frappe.show_progress(__('Loading Meetings'), 0, 100);
-		
-		frappe.xcall("productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.meetings_analysis", {
-			user: user,
-			start_date: this.selected_start_date,
-			end_date: this.selected_end_date,
-		}).then((response) => {
-			frappe.hide_progress();
-			
-			if (!Array.isArray(response)) {
-				throw new Error('Invalid response format');
-			}
-	
-			if (response.length === 0) {
-				// frappe.msgprint({
-				// 	title: __('No Data'),
-				// 	indicator: 'blue',
-				// 	message: __('No meetings found for the selected period.')
-				// });
-				return;
-			}
-			console.log("Meetings Data:", response);
-			// Extract locations from meetings and stops
-			const locations = response
-			.filter(event => event && typeof event === 'object')
-			.map(event => {
-				// console.log("Meghwin",event)
-				try {
-					if (event.type === 'meeting') {
-						return {
-							lat: parseFloat(event.latitude) || 0,
-							lng: parseFloat(event.longitude) || 0,
-							heading: parseFloat(event.heading) || 0,  // Add heading
-							name: event.location_name || `${event.client || 'Internal Meeting'}`,
-							type: 'meeting'
-						};
-					}else if (event.type == 'location_log' && event.is_moving == 0){
-						return {
-							lat: parseFloat(event.latitude) || 0,
-							lng: parseFloat(event.longitude) || 0,
-							heading: parseFloat(event.heading) || 0,  // Add heading
-							name: `Stop (${event.duration} mins)`,
-							type: 'stop'
-						};
-					}
-					else {
-						return {
-							lat: parseFloat(event.latitude) || 0,
-							lng: parseFloat(event.longitude) || 0,
-							heading: parseFloat(event.heading) || 0,  // Add heading
-							name: `Stop (${event.duration} mins)`,
-							type: 'moving'
-						};
-					}
-				} catch (err) {
-					console.error('Error processing event:', err);
-					return null;
-				}
-			})
-			.filter(loc => loc && loc.lat && loc.lng);
-			// Render the map if locations are available
-			console.log("Locations:", locations.length);
-			if (locations.length) {
-				console.log("Rendering map...");
-				const mapContainer = document.querySelector('#meetings-map-container');
-				if (mapContainer) {
-					console.log("Map container found");
-					try {
-						new MeetingsMap(mapContainer, locations);
-					} catch (err) {
-						console.error('Error initializing map:', err);
-						frappe.msgprint({
-							title: __('Map Error'),
-							indicator: 'red',
-							message: __('Failed to initialize the map. Please try again.')
-						});
-					}
-				}
-			}
-	
-			renderMeetingsBound(response);
-		}).catch((error) => {
-			frappe.hide_progress();
-			console.error("Error fetching data:", error);
-			frappe.msgprint({
-				title: __('Error'),
-				indicator: 'red',
-				message: __('Failed to fetch meetings data. Please try again.')
-			});
-		});
-	}
-	renderMeetings(events) {
-		if (!events?.length) {
-			console.warn("No events data to render");
-			return;
-		}
-		
-		// First ensure all required DOM elements exist
-		const meetingsList = document.getElementById('meetings-list');
-		// Get the specific meetings container element
-		const meetingsData = document.querySelector('.meetings');
-		
-		if (!meetingsList || !meetingsData) {
-			console.error("Required DOM elements not found:", {
-				meetingsList: !!meetingsList,
-				meetingsData: !!meetingsData
-			});
-			return;
-		}
-		
-		// Clear existing content and set base styles
-		meetingsList.className = 'position-relative px-4';
-		meetingsList.innerHTML = '';
-		meetingsData.innerHTML = '';
-	
-		// Calculate metrics
-		const calculateMetrics = () => {
-			let drivingDuration = 0;
-			let stopDuration = 0;
-			let internalMeetingDuration = 0;
-			let externalMeetingDuration = 0;
-	
-			processedEvents.forEach(event => {
-				if (!event) return;
-	
-				const calculateDuration = (start, end) => {
-					try {
-						const startDate = typeof start === 'string' ? new Date(start) : start;
-						const endDate = typeof end === 'string' ? new Date(end) : end;
-						
-						if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-							return 0;
-						}
-						
-						return Math.floor((endDate.getTime() - startDate.getTime()) / 1000);
-					} catch (e) {
-						return 0;
-					}
-				};
-	
-				if (event.type === 'location_log') {
-					if (event.is_moving && event.isGrouped) {
-						const duration = calculateDuration(event.start_time, event.end_time);
-						if (duration > 0) {
-							drivingDuration += duration;
-						}
-					} else if (event.is_stop == 1) {
-						const duration = calculateDuration(event.end_time, event.start_time);
-						if (duration > 900) { // Only count stops longer than 15 minutes
-							stopDuration += duration;
-						}
-					}
-				} else {
-					const duration = event.duration || 0;
-					if (event.internal_meeting === 1) {
-						internalMeetingDuration += duration;
-					} else {
-						externalMeetingDuration += duration;
-					}
-				}
-			});
-	
-			return {
-				driving: drivingDuration,
-				stop: stopDuration,
-				internal: internalMeetingDuration,
-				external: externalMeetingDuration
-			};
-		};
-	
-		const formatDuration = (seconds) => {
-			const hours = Math.floor(seconds / 3600);
-			const minutes = Math.floor((seconds % 3600) / 60);
-			return `${hours}:${minutes} H`;
-		};
-	
-		// Process events for timeline
-		const processedEvents = this.combineMovingLogs(events);
-		const self = this;
-	
-		// Create metrics cards
-		const metrics = calculateMetrics();
-		
-		// Create metrics container as a div element
-		const metricsContainer = document.createElement('div');
-		metricsContainer.style.cssText = `
-			display: flex;
-			gap: 1rem;
-			margin-bottom: 2rem;
-			width: 100%;
-		`;
-	
-		const cardStyle = `
-			flex: 1;
-			padding: 1rem;
-			border-radius: 8px;
-			text-align: center;
-		`;
-	
-		const cardHTML = (title, duration, bgColor, textColor) => `
-			<div style="${cardStyle}; background-color: ${bgColor};">
-				<h3 style="margin: 0 0 0.5rem 0; color: ${textColor}; font-size: 0.875rem; font-weight: 600;">
-					${title}
-				</h3>
-				<p style="margin: 0; color: ${textColor}; font-size: 1.25rem; font-weight: bold;">
-					${duration} H
-				</p>
-			</div>
-		`;
-	
-		// Add metrics cards HTML
-		metricsContainer.innerHTML = `
-			${cardHTML('Driving Duration', this.convertSecondsToTime_(metrics.driving), '#E3F2FD', '#1565C0')}
-			${cardHTML('Stop Duration', this.convertSecondsToTime_(metrics.stop), '#FFEBEE', '#C62828')}
-			${cardHTML('Internal Meetings', this.convertSecondsToTime_(metrics.internal), '#F3E5F5', '#6A1B9A')}
-			${cardHTML('External Meetings', this.convertSecondsToTime_(metrics.external), '#E8F5E9', '#2E7D32')}
-		`;
-	
-		// Set the innerHTML of meetingsData instead of using appendChild
-		meetingsData.innerHTML = metricsContainer.outerHTML;
-	
-		// Add timeline line
-		const timelineLine = document.createElement('div');
-		timelineLine.className = 'position-absolute';
-		timelineLine.style.cssText = `
-			left: 2rem;
-			top: 0;
-			bottom: 0;
-			width: 2px;
-			background-color: #e9ecef;
-			z-index: 1;
-		`;
-		meetingsList.appendChild(timelineLine);
-	
-		processedEvents.forEach((event, index) => {
-			if (!event) return;
-			
-			const formatDateTime = (dateStr) => {
-				if (!dateStr) return "N/A";
-				try {
-					const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-					return date.toLocaleString();
-				} catch (e) {
-					return "N/A";
-				}
-			};
-			
-			const calculateDuration = (start, end) => {
-				try {
-				  const startDate = typeof start === 'string' ? new Date(start) : start;
-				  const endDate = typeof end === 'string' ? new Date(end) : end;
-				  
-				  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-					console.warn('Invalid date in duration calculation');
-					return 0;
-				  }
-				  
-				  return Math.floor((endDate.getTime() - startDate.getTime()) / 1000);
-				} catch (e) {
-				  console.error(`Duration calculation error: ${e}`);
-				  return 0;
-				}
-			  };
-			
-			if (event.type === 'location_log') {
-				if (event.is_moving && event.isGrouped) {
-					// Render driving session
-					let duration;
-					if (event.is_moving && event.isGrouped) {
-						duration = calculateDuration(event.start_time, event.end_time);
-					} else if (event.is_stop == 1) {
-						duration = calculateDuration(event.end_time, event.start_time);
-					}
+// Usage in meetings_analysis()
+meetings_analysis() {
+    const user = this.selected_employee || this.user_id;
+    
+    if (!user || !this.selected_start_date || !this.selected_end_date) {
+        frappe.msgprint({
+            title: __('Validation Error'),
+            indicator: 'red',
+            message: __('Please ensure all required fields are filled.')
+        });
+        return;
+    }
 
-					// Skip if duration is 0 or negative
-					if (!duration || duration <= 0) {
-						return;
-					}
-					const durationStr = this.convertSecondsToTime_(duration);
-					
-					const movingItem = document.createElement('div');
-					movingItem.className = 'row mb-4 position-relative';
-					movingItem.innerHTML = `
-						<div class="col-12 position-relative">
-							<div class="position-absolute" style="
-								left: 1.5rem;
-								width: 1rem;
-								height: 1rem;
-								background-color: #6c757d;
-								border-radius: 50%;
-								transform: translateX(-50%);
-								z-index: 2;
-								top: 1.5rem;
-							"></div>
-							
-							<div class="card shadow-sm ml-5" style="border-left: 4px solid #6c757d">
-								<div class="card-header position-relative" 
-									style="background-color: rgba(108, 117, 125, 0.1);">
-									<div class="d-flex justify-content-between align-items-center">
-										<div>
-											<h5 class="mb-1 font-weight-bold">
-												Driving Session
-											</h5>
-											<p class="mb-2 text-muted">
-												${formatDateTime(event.start_time)} - ${formatDateTime(event.end_time)}
-											</p>
-										</div>
-										<div class="text-right">
-											<span class="badge badge-secondary">
-												${durationStr} H
-											</span>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					`;
-					meetingsList.appendChild(movingItem);
-				} else if (event.is_stop == 1) { // Only render explicit stops
-					// Render stop
-					console.log("Stop Event:", event);
-					let duration;
-					if (event.is_moving && event.isGrouped) {
-						duration = calculateDuration(event.start_time, event.end_time);
-					} else if (event.is_stop == 1) {
-						duration = calculateDuration(event.end_time, event.start_time);
-					}
-
-					// Skip if duration is 0 or negative
-					if (!duration || duration <= 900) {
-						return;
-					}
-					const durationStr = this.convertSecondsToTime_(duration);
-					
-					const stopItem = document.createElement('div');
-					stopItem.className = 'row mb-4 position-relative';
-					stopItem.innerHTML = `
-						<div class="col-12 position-relative">
-							<div class="position-absolute" style="
-								left: 1.5rem;
-								width: 1rem;
-								height: 1rem;
-								background-color: #dc3545;
-								border-radius: 50%;
-								transform: translateX(-50%);
-								z-index: 2;
-								top: 1.5rem;
-							"></div>
-							
-							<div class="card shadow-sm ml-5" style="border-left: 4px solid #dc3545">
-								<div class="card-header position-relative" 
-									style="background-color: rgba(220, 53, 69, 0.1);">
-									<div class="d-flex justify-content-between align-items-center">
-										<div>
-											<h5 class="mb-1 font-weight-bold">Stopped</h5>
-											<p class="mb-2 text-muted">
-											${formatDateTime(event.end_time)} - ${formatDateTime(event.start_time)}
-											</p>
-										</div>
-										<div class="text-right">
-											<span class="badge badge-danger">
-												${durationStr} H
-											</span>
-										</div>
-										<button class="btn btn-primary btn-sm add-meeting-btn" 
-												data-from-time="${formatDateTime(event.to_time)}" 
-												data-to-time="${formatDateTime(event.from_time)}">
-											Add Meeting
-										</button>
-									</div>
-								</div>
-							</div>
-						</div>
-					`;
-					
-					const addMeetingBtn = stopItem.querySelector('.add-meeting-btn');
-			addMeetingBtn.addEventListener('click', function() {
-				// Ensure we're working with Date objects and format them correctly
-				const formatDateTimeForDialog = (dateStr) => {
-					try {
-						const date = new Date(dateStr);
-						// Format date in YYYY-MM-DD HH:mm:ss
-						return date.getFullYear() + '-' + 
-							String(date.getMonth() + 1).padStart(2, '0') + '-' +
-							String(date.getDate()).padStart(2, '0') + ' ' +
-							String(date.getHours()).padStart(2, '0') + ':' +
-							String(date.getMinutes()).padStart(2, '0') + ':' +
-							String(date.getSeconds()).padStart(2, '0');
-					} catch (e) {
-						console.error('Date formatting error:', e);
-						return null;
-					}
-				};
-
-				// Format the dates properly
-				const startTime = formatDateTimeForDialog(event.from_time);
-				const endTime = formatDateTimeForDialog(event.to_time);
-
-				if (!startTime || !endTime) {
-					frappe.msgprint('Invalid date format. Please try again.');
-					return;
-				}
-
-				// Fetch employee data and project enabled status
-				Promise.all([
-					frappe.call({
-						method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_project_enabled",
-					}),
-					frappe.db.get_value('Employee', {user_id: frappe.session.user}, ['name', 'employee_name'])
-				]).then(([subscription_response, employee_response]) => {
-					const projectEnabled = subscription_response.message ? subscription_response.message : false;
-					const currentUserEmployee = employee_response.message;
-
-					const table_fields = [
-						{
-							label: "Employee",
-							fieldname: "employee",
-							fieldtype: "Link",
-							in_list_view: 1,
-							options: "Employee",
-							ignore_user_permissions: 1,
-							reqd: 1,
-						}
-					];
-					const party_fields = [
-						{
-							label: 'Contact',
-							fieldname: 'contact',
-							fieldtype: 'Link',
-							options: 'Contact',
-							in_list_view: 1,
-							get_query: function() {
-								const selectedParty = d.get_values().party;
-								const selectedPartyType = d.get_values().party_type;
-								return {
-									filters: {
-										link_doctype: selectedPartyType,
-										link_name: selectedParty
-									}
-								};
-							}
-						}
-					];
-					var fields = [
-						{
-							fieldtype: "HTML",
-							options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
-						},
-						{
-							fieldtype: 'Section Break',
-						},
-						{
-							label: "Internal Meeting",
-							fieldname: "internal_meeting",
-							fieldtype: "Check",
-							onchange: function() {
-								const companyRepField = d.fields_dict.meeting_company_representative;
-								if (this.get_value()) {
-									companyRepField.df.reqd = 1;
-									companyRepField.grid.min_rows = 2;
-								} else {
-									companyRepField.df.reqd = 0;
-									companyRepField.grid.min_rows = 0;
-								}
-								companyRepField.refresh();
-							}
-						},
-						{
-							fieldname: 'internal_meeting_note',
-							fieldtype: 'HTML',
-							options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
-							depends_on: 'eval:doc.internal_meeting'
-						},
-						{
-							label: "Purpose",
-							fieldname: "purpose",
-							fieldtype: "Link",
-							options: "Meeting Purpose",
-							reqd: 1
-						},
-						{
-							label: __("Party Type"),
-							fieldtype: 'Link',
-							options: "DocType",
-							fieldname: 'party_type',
-							get_query: function () {
-								return {
-									filters: {
-										"name": ["in", ["Customer", "Supplier", "Lead"]]
-									}
-								};
-							},
-							depends_on: 'eval:!doc.internal_meeting',
-							mandatory_depends_on: 'eval:!doc.internal_meeting',
-						},
-						{
-							label: 'Party',
-							fieldname: 'party',
-							fieldtype: 'Dynamic Link',
-							options: 'party_type',
-							change: function() {
-								const selectedParty = d.get_value('party');
-								const selectedPartyType = d.get_value('party_type');
-						
-								if (selectedParty && selectedPartyType) {
-									d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
-										return {
-											filters: {
-												link_doctype: selectedPartyType,
-												link_name: selectedParty
-											}
-										};
-									};
-									d.fields_dict['meeting_party_representative'].grid.refresh();
-								}
-							},
-							depends_on: 'eval:!doc.internal_meeting',
-							mandatory_depends_on: 'eval:!doc.internal_meeting',
-						},
-						{
-							label: "Meeting Arranged By",
-							fieldname: "meeting_arranged_by",
-							fieldtype: "Link",
-							options: "User",
-							default: frappe.session.user,
-							reqd: 1
-						},
-						{
-							fieldtype: 'Column Break',
-						},
-						{
-							label: 'Travel From',
-							fieldname: 'travel_from',
-							fieldtype: 'Datetime',
-						},
-						{
-							label: 'Meeting From',
-							fieldname: 'meeting_from',
-							fieldtype: 'Datetime',
-							default: startTime,
-							reqd: 1
-						},
-						{
-							label: 'Meeting To',
-							fieldname: 'meeting_to',
-							fieldtype: 'Datetime',
-							default: endTime,
-							reqd: 1
-						},
-						{
-							label: 'Travel To',
-							fieldname: 'travel_to',
-							fieldtype: 'Datetime',
-		
-						},
-						{
-							fieldtype: 'Section Break',
-						},
-						{
-							label: 'Meeting Company Representative',
-							"allow_bulk_edit": 1,
-							fieldname: 'meeting_company_representative',
-							fieldtype: 'Table',
-							fields: table_fields,
-							options: 'Meeting Company Representative',
-							reqd: 1,
-							onchange: function() {
-								if (d.get_value('internal_meeting')) {
-									this.grid.min_rows = 2;
-								} else {
-									this.grid.min_rows = 0;
-								}
-							}
-						},
-						{
-							fieldtype: 'Section Break',
-						},
-						{
-							label: 'Meeting Party Representative',
-							fieldname: 'meeting_party_representative',
-							fieldtype: 'Table',
-							fields: party_fields,
-							options: 'Meeting Party Representative',
-							depends_on: 'eval:!doc.internal_meeting',
-						},
-						{
-							label: "Discussion",
-							fieldname: "discussion",
-							fieldtype: "Text Editor",
-							reqd: 1
-						},
-					];
-
-					// Add Project field if enabled in Productify Subscription
-					if (projectEnabled) {
-						fields.splice(9, 0, {
-							label: "Project",
-							fieldname: "project",
-							fieldtype: "Link",
-							options: "Project"
-						});
-					}
-
-					let d = new frappe.ui.Dialog({
-						title: 'Add Meeting',
-						fields: fields,
-						primary_action_label: 'Submit',
-						primary_action(values) {
-							this.disable_primary_action();
-							this.set_title('Submitting...');
-					
-							if (values.internal_meeting) {
-								const companyRepresentatives = values.meeting_company_representative || [];
-								if (companyRepresentatives.length < 2) {
-									frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
-									this.enable_primary_action();
-									this.set_title('Submit');
-									return;
-								}
-							}
-					
-							frappe.call({
-								method: "productivity_next.api.add_meeting",
-								args: {
-									meeting_from: values.meeting_from,
-									meeting_to: values.meeting_to,
-									meeting_arranged_by: values.meeting_arranged_by,
-									internal_meeting: values.internal_meeting,
-									purpose: values.purpose,
-									party_type: values.party_type || null,
-									party: values.party || null,
-									discussion: values.discussion,
-									meeting_company_representative: values.meeting_company_representative || null,
-									meeting_party_representative: values.meeting_party_representative || null,
-									project: values.project || null  // Add project to the args
-								},
-								callback: (r) => {
-									if (r.message) {
-										frappe.msgprint({
-											title: __('Success'),
-											indicator: 'green',
-											message: __('Meeting added successfully')
-										});
-										this.hide();
-									} else {
-										frappe.msgprint({
-											title: __('Error'),
-											indicator: 'red',
-											message: __('Failed to add meeting. Please try again.')
-										});
-										this.enable_primary_action();
-										this.set_title('Submit');
-									}
-								},
-								error: (r) => {
-									frappe.msgprint({
-										title: __('Error'),
-										indicator: 'red',
-										message: __('An error occurred while adding the meeting. Please try again.')
-									});
-									this.enable_primary_action();
-									this.set_title('Submit');
-								}
-							});
-						}
-					});
-					
-					// Set up the purpose field filter
-					d.fields_dict.purpose.get_query = function () {
-						return {
-							filters: {
-								internal_meeting: d.get_value('internal_meeting')
-							}
-						};
-					};
-
-					if (currentUserEmployee) {
-						let company_representative = d.fields_dict.meeting_company_representative;
-						
-						// Force add a new row
-						company_representative.grid.add_new_row(null, null, true);
-						
-						// Set the value directly on the grid rows
-						company_representative.grid.grid_rows[0].doc.employee = currentUserEmployee.name;
-						
-						// Refresh the grid
-						company_representative.grid.refresh();
-						
-						// Log for debugging
-						console.log("Added row:", company_representative.grid.grid_rows[0].doc);
-					}
-
-					// Show the dialog
-					d.show();
-				})
-				.catch(err => {
-					console.error("Error:", err);
-					frappe.msgprint("An error occurred while fetching data. Please try again.");
-				});
-			});
-					
-					meetingsList.appendChild(stopItem);
-				}
-			} else {
-				// Meeting event rendering
-				const isInternal = event.internal_meeting === 1;
-				const companyReps = event.company_representatives ?
-					event.company_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
-				const partyReps = !isInternal && event.party_representatives ?
-					event.party_representatives.split(',').filter(rep => rep.trim()).map(rep => rep.trim()) : [];
-				
-				const collapseId = `collapse-content-${index}`;
-				const timelineItem = document.createElement('div');
-				timelineItem.className = 'row mb-4 position-relative';
-				
-				const primaryColor = isInternal ? '#6420AA' : '#6699FF';
-				const backgroundColor = isInternal ? 'rgba(100, 32, 170, 0.1)' : 'rgba(102, 153, 255, 0.1)';
-				const displayParty = isInternal ? "Internal Meeting" : (event.client || "N/A");
-				const displayPartyType = isInternal ? "Company" : (event.party_type || "N/A");
-				
-				timelineItem.innerHTML = `
-					<div class="col-12 position-relative">
-						<div class="position-absolute" style="
-							left: 1.5rem;
-							width: 1rem;
-							height: 1rem;
-							background-color: ${primaryColor};
-							border-radius: 50%;
-							transform: translateX(-50%);
-							z-index: 2;
-							top: 1.5rem;
-						"></div>
-						<div class="card shadow-sm ml-5" style="border-left: 4px solid ${primaryColor}">
-							<div class="card-header" style="background-color: ${backgroundColor};" data-collapse-id="${collapseId}">
-								<div class="d-flex justify-content-between align-items-start">
-									<h5 class="mb-1 font-weight-bold">
-										${displayParty}
-										<small class="d-block mt-1 text-muted">${displayPartyType}</small>
-									</h5>
-									<span class="toggle-icon">▼</span>
-								</div>
-								<div class="meeting-details mt-3">
-									<p class="mb-2"><strong>Date:</strong> ${event.date || "N/A"}</p>
-									<p class="mb-2">
-										<strong>Time:</strong> 
-										${formatDateTime(event.start_time)} - ${formatDateTime(event.end_time)} 
-										<span class="badge badge-info ml-2">
-											${this.convertSecondsToTime_(event.duration || 0)} H
-										</span>
-									</p>
-									<p class="mb-0"><strong>Arranged By:</strong> ${event.meeting_arranged_by || "Unknown"}</p>
-								</div>
-							</div>
-							<div id="${collapseId}" class="collapse">
-								<div class="card-body">
-									<div class="mb-4">
-										<h6 class="font-weight-bold text-uppercase text-muted mb-2">Purpose</h6>
-										<p>${event.purpose || "N/A"}</p>
-									</div>
-									<div class="mb-4">
-										<h6 class="font-weight-bold text-uppercase text-muted mb-2">Discussion</h6>
-										<p>${event.discussion || "N/A"}</p>
-									</div>
-									<div class="row">
-										<div class="col-${isInternal ? '12' : '6'}">
-											<h6 class="font-weight-bold text-uppercase text-muted mb-3">Internal Representatives</h6>
-											<div class="list-group">
-												${companyReps.length ?
-													companyReps.map(rep => `
-														<div class="list-group-item">${rep}</div>
-													`).join('') :
-													'<div class="text-muted">No internal representatives</div>'
-												}
-											</div>
-										</div>
-										${!isInternal ? `
-											<div class="col-6">
-												<h6 class="font-weight-bold text-uppercase text-muted mb-3">External Representatives</h6>
-												<div class="list-group">
-													${partyReps.length ?
-														partyReps.map(rep => `
-															<div class="list-group-item">${rep}</div>
-														`).join('') :
-														'<div class="text-muted">No external representatives</div>'
-													}
-												</div>
-											</div>
-										` : ''}
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				`;
-				
-				const cardHeader = timelineItem.querySelector('.card-header');
-				cardHeader.addEventListener('click', function() {
-					const collapseId = this.dataset.collapseId;
-					self.toggleMeeting(collapseId, this, this.querySelector('.toggle-icon'));
-				});
-				
-				meetingsList.appendChild(timelineItem);
-			}
-		});
-	}
-	combineMovingLogs(events) {
-		const processedEvents = [];
-		let currentMovingGroup = null;
-		
-		// Helper function to check if two dates are the same day
-		const isSameDay = (date1, date2) => {
-			const d1 = new Date(date1);
-			const d2 = new Date(date2);
-			return d1.getFullYear() === d2.getFullYear() &&
-				   d1.getMonth() === d2.getMonth() &&
-				   d1.getDate() === d2.getDate();
-		};
-		
-		// First, sort events by start_time in descending order (newest first)
-		const sortedEvents = [...events].sort((a, b) => 
-			new Date(b.start_time) - new Date(a.start_time)
+    frappe.call({
+        method: "productivity_next.api.get_timeline",
+        args: {
+            employee: user,
+            start_date: this.selected_start_date,
+            end_date: this.selected_end_date,
+        }
+    }).then((r) => {
+		const locations = r.message.data.flatMap(item => 
+			item.lat_long_cordinates.map(([lat, lng]) => ({ lat, lng }))
 		);
-		
-		for (let i = 0; i < sortedEvents.length; i++) {
-			const event = sortedEvents[i];
-			const nextEvent = sortedEvents[i + 1];
-			
-			if (event.type === 'location_log' || !event.type) {
-				if (event.is_moving) {
-					// Handle moving events
-					if (!currentMovingGroup) {
-						currentMovingGroup = {
-							...event,
-							isGrouped: true,
-							type: 'location_log',
-							start_time: event.start_time,
-							end_time: event.end_time
-						};
-					} else {
-						// Only combine if it's the same day
-						if (isSameDay(currentMovingGroup.start_time, event.start_time)) {
-							currentMovingGroup.start_time = event.start_time;
-						} else {
-							// If different day, push current group and start new one
-							processedEvents.push(currentMovingGroup);
-							currentMovingGroup = {
-								...event,
-								isGrouped: true,
-								type: 'location_log',
-								start_time: event.start_time,
-								end_time: event.end_time
-							};
-						}
-					}
-	
-					// Check if next event exists and is either not moving or from a different day
-					if (!nextEvent || 
-						!nextEvent.is_moving || 
-						(nextEvent.is_moving && !isSameDay(event.start_time, nextEvent.start_time))) {
-						processedEvents.push(currentMovingGroup);
-						currentMovingGroup = null;
-					}
-				} else if (event.is_stop === 1) {
-					// Handle stop events
-					if (currentMovingGroup) {
-						processedEvents.push(currentMovingGroup);
-						currentMovingGroup = null;
-					}
-	
-					const stopEvent = {
-						...event,
-						type: 'location_log',
-						is_stop: 1,
-						is_moving: false
-					};
-	
-					// Find the next driving session's end time (which is chronologically before this stop)
-					// Only consider driving sessions from the same day
-					const nextDrivingSession = sortedEvents.slice(i + 1).find(e => 
-						(e.is_moving || (e.type === 'location_log' && e.is_moving)) &&
-						isSameDay(e.end_time, event.start_time)
-					);
-	
-					if (nextDrivingSession) {
-						// Ensure we're only calculating duration within the same day
-						if (isSameDay(nextDrivingSession.end_time, event.start_time)) {
-							stopEvent.from_time = nextDrivingSession.end_time;
-							stopEvent.to_time = event.start_time;
-							stopEvent.start_time = event.start_time;
-							stopEvent.end_time = nextDrivingSession.end_time;
-						} else {
-							// If different days, just use the event's own times
-							stopEvent.from_time = event.start_time;
-							stopEvent.to_time = event.end_time;
-							stopEvent.start_time = event.start_time;
-							stopEvent.end_time = event.end_time;
-						}
-					} else {
-						stopEvent.from_time = event.start_time;
-						stopEvent.to_time = event.end_time;
-						stopEvent.start_time = event.start_time;
-						stopEvent.end_time = event.end_time;
-					}
-					
-					processedEvents.push(stopEvent);
-				}
-			} else {
-				// Handle non-location events (meetings)
-				if (currentMovingGroup) {
-					processedEvents.push(currentMovingGroup);
-					currentMovingGroup = null;
-				}
-				processedEvents.push(event);
-			}
+		const mapContainer = document.querySelector('#meetings-map-container');
+		if (mapContainer) {
+			new MeetingsMap(mapContainer, locations);
 		}
-	
-		if (currentMovingGroup) {
-			processedEvents.push(currentMovingGroup);
-		}
-	
-		// Sort final events by start_time in descending order
-		return processedEvents.sort((a, b) => 
-			new Date(b.start_time) - new Date(a.start_time)
-		);
-	}
-	
-	toggleMeeting(collapseId, headerElement, toggleIcon) {
-		const content = document.getElementById(collapseId);
-		if (!content) return;
-	
-		// Toggle the collapse with animation
-		if (content.classList.contains('show')) {
-			content.style.maxHeight = '0px';
-			setTimeout(() => {
-				content.classList.remove('show');
-			}, 300);
-			toggleIcon.style.transform = 'rotate(0deg)';
-		} else {
-			content.classList.add('show');
-			content.style.maxHeight = content.scrollHeight + 'px';
-			toggleIcon.style.transform = 'rotate(180deg)';
-		}
-	
-		// Add visual feedback to the header
-		headerElement.classList.toggle('active');
-		
-		// Add transition styles
-		content.style.transition = 'max-height 0.3s ease-out';
-		toggleIcon.style.transition = 'transform 0.3s ease-out';
-	}
+        if (r.message && r.message.data) {
+            const container = document.querySelector('#meetings-list');
+            if (container) {
+                new LocationTimeline(container, r.message);
+            }
+        }
+    }).catch((error) => {
+        console.error("Error fetching data:", error);
+        frappe.msgprint({
+            title: __('Error'),
+            indicator: 'red',
+            message: __('Failed to fetch data: ' + error.message)
+        });
+    });
+}
 	// Work Intensity Code Starts
 	work_intensity() {
 		let user;
@@ -4041,7 +3122,7 @@ class MeetingsMap {
             document.head.appendChild(linkElement);
         }
 
-        // Add custom marker styles
+        // Add custom marker styles with smaller fixed size
         if (!document.querySelector('#custom-marker-styles')) {
             const styleElement = document.createElement('style');
             styleElement.id = 'custom-marker-styles';
@@ -4055,19 +3136,8 @@ class MeetingsMap {
                     clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
                     transform-origin: center center;
                     opacity: 0.8;
-                    transition: all 0.3s ease;
-                }
-                .direction-arrow-small {
-                    width: 16px;
-                    height: 16px;
-                }
-                .direction-arrow-medium {
-                    width: 20px;
-                    height: 20px;
-                }
-                .direction-arrow-large {
-                    width: 24px;
-                    height: 24px;
+                    width: 10px;
+                    height: 10px;
                 }
             `;
             document.head.appendChild(styleElement);
@@ -4095,12 +3165,6 @@ class MeetingsMap {
         }
     }
 
-    getMarkerSize(zoom) {
-        if (zoom <= 8) return 'small';
-        if (zoom <= 12) return 'medium';
-        return 'large';
-    }
-
     calculateIntermediatePoint(point1, point2, ratio) {
         const lat = point1.lat + (point2.lat - point1.lat) * ratio;
         const lng = point1.lng + (point2.lng - point1.lng) * ratio;
@@ -4120,114 +3184,24 @@ class MeetingsMap {
         return (bearing + 180) % 360;
     }
 
-	generateArrowPoints() {
-		const arrowPoints = [];
-		const uniquePairs = new Set(); // To track unique pairs of points
-	
-		if (this.locations.length < 2) return arrowPoints;
-	
-		const points = this.locations.map(loc => L.latLng(loc.lat, loc.lng));
-		
-		// Get the current zoom level
-		const zoom = this.map.getZoom();
-		
-		// Adjust the minimum distance between arrows based on zoom level
-		let minArrowDistance = 300; // Default for zoomed-out view
-		if (zoom >= 12 && zoom < 15) {
-			minArrowDistance = 200;  // More arrows for zoom levels between 12 and 14
-		} else if (zoom >= 15) {
-			minArrowDistance = 80;  // Even more arrows for zoom levels 15+
-		}
-	
-		let lastArrowPoint = null;
-	
-		for (let i = 0; i < points.length - 1; i++) {
-			const start = points[i];
-			const end = points[i + 1];
-			const heading = this.calculateHeading(start, end);
-			const distance = start.distanceTo(end);
-	
-			// Skip arrow generation if the segment is too short
-			if (distance < minArrowDistance) continue;
-	
-			const pairKey = `${start.lat},${start.lng}-${end.lat},${end.lng}`;
-			const reversePairKey = `${end.lat},${end.lng}-${start.lat},${start.lng}`;
-	
-			// Skip if the pair already exists in either direction
-			if (uniquePairs.has(pairKey) || uniquePairs.has(reversePairKey)) continue;
-	
-			// Add arrow in the middle of long segments
-			const midPoint = this.calculateIntermediatePoint(start, end, 0.5);
-			
-			// Ensure arrows are spaced out
-			if (!lastArrowPoint || lastArrowPoint.distanceTo(midPoint) > minArrowDistance) {
-				arrowPoints.push({
-					lat: midPoint.lat,
-					lng: midPoint.lng,
-					heading: heading
-				});
-				lastArrowPoint = midPoint;
-				uniquePairs.add(pairKey); // Mark this pair as processed
-			}
-		}
-	
-		// Ensure an arrow is present on the first segment
-		if (arrowPoints.length === 0 && points.length >= 2) {
-			const start = points[0];
-			const end = points[1];
-			const heading = this.calculateHeading(start, end);
-			const firstPoint = this.calculateIntermediatePoint(start, end, 0.3);
-			arrowPoints.push({
-				lat: firstPoint.lat,
-				lng: firstPoint.lng,
-				heading: heading
-			});
-		}
-	
-		return arrowPoints;
-	}
-
     createDirectionMarker(location) {
         const heading = parseFloat(location.heading) || 0;
-        const zoom = this.map.getZoom();
-        const size = this.getMarkerSize(zoom);
         
         const markerHtml = `
-            <div class="direction-arrow direction-arrow-${size}" 
+            <div class="direction-arrow" 
                  style="transform: rotate(${heading}deg)"></div>
         `;
-
-        const iconSize = size === 'small' ? 24 : (size === 'medium' ? 28 : 32);
 
         const marker = L.marker([location.lat, location.lng], {
             icon: L.divIcon({
                 className: 'direction-marker',
                 html: markerHtml,
-                iconSize: [iconSize, iconSize],
-                iconAnchor: [iconSize/2, iconSize/2]
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
             })
         });
 
         return marker;
-    }
-
-
-    updateMarkersVisibility() {
-        // Clear existing markers
-        this.markers.forEach(marker => marker.remove());
-        this.markers = [];
-        this.visibleMarkers.clear();
-
-        // Generate new arrow points with optimized spacing
-        const arrowPoints = this.generateArrowPoints();
-
-        // Create and add markers
-        arrowPoints.forEach(point => {
-            const marker = this.createDirectionMarker(point);
-            marker.addTo(this.map);
-            this.markers.push(marker);
-            this.visibleMarkers.add(marker);
-        });
     }
 
     initializeMap() {
@@ -4237,88 +3211,246 @@ class MeetingsMap {
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(this.map);
-
-        this.map.on('zoomend', () => this.updateMarkersVisibility());
         
         this.updateMapMarkers();
     }
 
-	updateMapMarkers() {
-		// Clear existing markers and path
-		this.markers.forEach(marker => marker.remove());
-		this.markers = [];
-		this.visibleMarkers.clear();
-		if (this.path) {
-			this.path.remove();
-		}
-	
-		if (!this.locations || this.locations.length === 0) {
-			return;
-		}
-	
-		const bounds = L.latLngBounds();
-		const lines = new Set(); // To track lines and avoid duplicates
-	
-		// Create path between markers
-		const pathCoordinates = [];
-		// console.log("Meghwin: ", this.locations);
-	
-		this.locations.forEach(location => {
-			bounds.extend([location.lat, location.lng]);
-			pathCoordinates.push([location.lat, location.lng]);
-	
-			// Add a small circle marker for stop points
-			if (location.type === 'stop') {
-				console.log("hello",location)
-				const stopMarker = L.circleMarker([location.lat, location.lng], {
-					color: 'red',
-					fillColor: 'red',
-					fillOpacity: 0.6,
-					radius: 6  // Small circle radius
-				}).addTo(this.map);
-				this.markers.push(stopMarker); // Add stop marker to markers
-			}
-		});
-	
-		// Draw a polyline with bidirectional arrows at both ends of each line
-		const path = L.polyline(pathCoordinates, {
-			color: '#6420AA',
-			weight: 3,
-			opacity: 0.8
-		}).addTo(this.map);
-	
-		// Add arrows at both ends of each segment
-		for (let i = 0; i < this.locations.length - 1; i++) {
-			const start = this.locations[i];
-			const end = this.locations[i + 1];
-	
-			// Create two arrows: one at the start and one at the end of the segment
-			const startArrow = this.createDirectionMarker({
-				lat: start.lat,
-				lng: start.lng,
-				heading: this.calculateHeading(start, end)
-			});
-			const endArrow = this.createDirectionMarker({
-				lat: end.lat,
-				lng: end.lng,
-				heading: this.calculateHeading(end, start)
-			});
-	
-			startArrow.addTo(this.map);
-			endArrow.addTo(this.map);
-	
-			// Mark the line as processed in both directions
-			const lineKey = `${start.lat},${start.lng}-${end.lat},${end.lng}`;
-			const reverseLineKey = `${end.lat},${end.lng}-${start.lat},${start.lng}`;
-			lines.add(lineKey);
-			lines.add(reverseLineKey);
-	
-			this.markers.push(startArrow, endArrow); // Add arrows to markers
-		}
-	
-		// Fit map to show all markers
-		if (this.locations.length > 0) {
-			this.map.fitBounds(bounds, { padding: [50, 50] });
-		}
-	}
+    updateMapMarkers() {
+        // Clear existing markers and path
+        this.markers.forEach(marker => marker.remove());
+        this.markers = [];
+        if (this.path) {
+            this.path.remove();
+        }
+
+        if (!this.locations || this.locations.length === 0) {
+            return;
+        }
+
+        const bounds = L.latLngBounds();
+        const pathCoordinates = [];
+
+        // Create path between markers
+        this.locations.forEach(location => {
+            bounds.extend([location.lat, location.lng]);
+            pathCoordinates.push([location.lat, location.lng]);
+        });
+
+        // Draw the path
+        const path = L.polyline(pathCoordinates, {
+            color: '#6420AA',
+            weight: 2,
+            opacity: 0.8
+        }).addTo(this.map);
+
+        // Add an arrow at each location point
+        for (let i = 0; i < this.locations.length; i++) {
+            const current = this.locations[i];
+            const next = this.locations[i + 1];
+            
+            if (next) {
+                const arrow = this.createDirectionMarker({
+                    lat: current.lat,
+                    lng: current.lng,
+                    heading: this.calculateHeading(current, next)
+                });
+                arrow.addTo(this.map);
+                this.markers.push(arrow);
+            }
+        }
+
+        // Fit map to show all markers
+        if (this.locations.length > 0) {
+            this.map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+}
+
+class LocationTimeline {
+    constructor(container, locations) {
+        this.container = container;
+        this.locations = locations;
+        this.init();
+    }
+
+    init() {
+        // Add custom styles
+        if (!document.getElementById('timeline-styles')) {
+            const styleElement = document.createElement('style');
+            styleElement.id = 'timeline-styles';
+            styleElement.textContent = `
+                .timeline-wrapper {
+                    position: relative;
+                    padding: 20px;
+                    width: 100%;
+                }
+                .center-line {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 2px;
+                    background: #E2E6E9;
+                    height: calc(100% - 120px);
+                    top: 120px;
+                }
+                .stats-wrapper {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 40px;
+                    margin-bottom: 40px;
+                }
+                .stat-item {
+                    text-align: center;
+                }
+                .stat-label {
+                    color: #1F272E;
+                    font-size: 13px;
+                    margin-bottom: 4px;
+                }
+                .stat-value {
+                    color: #505A62;
+                    font-size: 13px;
+                }
+                .timeline-item {
+                    display: flex;
+                    justify-content: center;
+                    margin-bottom: 24px;
+                    position: relative;
+                    min-height: 60px;
+                }
+                .timeline-point {
+                    width: 8px;
+                    height: 8px;
+                    background: #4C5A67;
+                    border-radius: 50%;
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    top: 24px;
+                }
+                .timeline-content {
+                    width: calc(50% - 30px);
+                    background: white;
+                    padding: 16px;
+                    border-radius: 8px;
+                    border: 1px solid #E2E6E9;
+                }
+                .timeline-content.left {
+                    margin-right: calc(50% + 30px);
+                }
+                .timeline-content.right {
+                    margin-left: calc(50% + 30px);
+                }
+                .time-range {
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: #1F272E;
+                    margin-bottom: 8px;
+                }
+                .activity-info {
+                    font-size: 13px;
+                    color: #505A62;
+                    margin-bottom: 8px;
+                }
+                .meeting-item {
+                    margin-top: 12px;
+                    padding-top: 12px;
+                    border-top: 1px solid #E2E6E9;
+                }
+                .meeting-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: #1F272E;
+                    margin-bottom: 4px;
+                }
+                .meeting-time {
+                    font-size: 12px;
+                    color: #505A62;
+                }
+            `;
+            document.head.appendChild(styleElement);
+        }
+        this.render();
+    }
+
+    formatTime(dateTimeStr) {
+        if (!dateTimeStr) return '';
+        const date = new Date(dateTimeStr);
+        return date.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        }).replace(':00', '');
+    }
+
+    formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        }
+        return `${minutes}m`;
+    }
+
+    getMeetingTime(meeting) {
+        if (meeting.meeting_from && meeting.meeting_to) {
+            return `${meeting.meeting_from} - ${meeting.meeting_to}`;
+        }
+        return '';
+    }
+
+    render() {
+        const html = `
+            <div class="timeline-wrapper">
+                <div class="stats-wrapper">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Distance</div>
+                        <div class="stat-value">${this.locations.total_distance.toFixed(2)} km</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Duration</div>
+                        <div class="stat-value">${this.formatDuration(this.locations.total_duration)}</div>
+                    </div>
+                </div>
+
+                <div class="center-line"></div>
+
+                ${this.locations.data.map((item, index) => `
+                    <div class="timeline-item">
+                        <div class="timeline-point"></div>
+                        <div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}">
+                            <div class="time-range">
+                                ${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}
+                            </div>
+                            <div class="activity-info">${item.activity_type.replace('_', ' ')}</div>
+                            ${item.activity_type !== 'still' ? 
+                                `<div class="activity-info">
+                                    Distance: ${item.distance.toFixed(2)} km
+                                    ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
+                                </div>` : ''
+                            }
+                            ${item.meetings?.length ? 
+                                item.meetings.map(meeting => `
+                                    <div class="meeting-item">
+                                        <div class="meeting-title">
+                                            <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
+                                            ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party || 'Meeting'}
+                                        </div>
+                                        <div class="meeting-time">
+                                            ${this.getMeetingTime(meeting)}
+                                        </div>
+                                    </div>
+                                `).join('') : ''
+                            }
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        this.container.innerHTML = html;
+    }
 }
