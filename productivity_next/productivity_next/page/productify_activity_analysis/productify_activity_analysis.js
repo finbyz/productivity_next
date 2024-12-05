@@ -3267,38 +3267,38 @@ class MeetingsMap {
 }
 
 class LocationTimeline {
-    constructor(container, locations) {
+    constructor(container, data) {
         this.container = container;
-        this.locations = locations;
+        this.data = data;
+        this.initStyles();
         this.init();
     }
 
-    init() {
-        // Add custom styles
+    initStyles() {
         if (!document.getElementById('timeline-styles')) {
             const styleElement = document.createElement('style');
             styleElement.id = 'timeline-styles';
             styleElement.textContent = `
                 .timeline-wrapper {
                     position: relative;
-                    padding: 20px;
+                    padding: 20px 40px;
                     width: 100%;
                 }
                 .center-line {
                     position: absolute;
                     left: 50%;
                     transform: translateX(-50%);
-                    width: 2px;
+                    width: 1px;
                     background: #E2E6E9;
-                    height: calc(100% - 120px);
-                    top: 120px;
+                    height: calc(100% - 80px);
+                    top: 80px;
                 }
                 .stats-wrapper {
                     display: flex;
-                    align-items: center;
                     justify-content: center;
-                    gap: 40px;
+                    gap: 100px;
                     margin-bottom: 40px;
+                    text-align: center;
                 }
                 .stat-item {
                     text-align: center;
@@ -3314,14 +3314,12 @@ class LocationTimeline {
                 }
                 .timeline-item {
                     display: flex;
-                    justify-content: center;
-                    margin-bottom: 24px;
+                    margin-bottom: 0;
                     position: relative;
-                    min-height: 60px;
                 }
                 .timeline-point {
-                    width: 8px;
-                    height: 8px;
+                    width: 6px;
+                    height: 6px;
                     background: #4C5A67;
                     border-radius: 50%;
                     position: absolute;
@@ -3330,23 +3328,29 @@ class LocationTimeline {
                     top: 24px;
                 }
                 .timeline-content {
-                    width: calc(50% - 30px);
+                    width: calc(50% - 20px);
                     background: white;
-                    padding: 16px;
-                    border-radius: 8px;
+                    padding: 12px 16px;
+                    border-radius: 6px;
                     border: 1px solid #E2E6E9;
+                    margin-bottom: 16px;
                 }
                 .timeline-content.left {
-                    margin-right: calc(50% + 30px);
+                    margin-right: calc(50% + 20px);
                 }
                 .timeline-content.right {
-                    margin-left: calc(50% + 30px);
+                    margin-left: calc(50% + 20px);
                 }
                 .time-range {
                     font-size: 13px;
                     font-weight: 500;
                     color: #1F272E;
-                    margin-bottom: 8px;
+                    margin-bottom: 6px;
+                }
+                .activity-type {
+                    font-size: 13px;
+                    color: #505A62;
+                    margin-bottom: 4px;
                 }
                 .activity-info {
                     font-size: 13px;
@@ -3354,103 +3358,102 @@ class LocationTimeline {
                     margin-bottom: 8px;
                 }
                 .meeting-item {
-                    margin-top: 12px;
-                    padding-top: 12px;
-                    border-top: 1px solid #E2E6E9;
+                    margin-top: 8px;
                 }
                 .meeting-title {
                     display: flex;
                     align-items: center;
                     gap: 8px;
                     font-size: 13px;
-                    font-weight: 500;
                     color: #1F272E;
-                    margin-bottom: 4px;
                 }
                 .meeting-time {
                     font-size: 12px;
                     color: #505A62;
+                    margin-top: 2px;
                 }
             `;
             document.head.appendChild(styleElement);
         }
-        this.render();
     }
 
-    formatTime(dateTimeStr) {
-        if (!dateTimeStr) return '';
-        const date = new Date(dateTimeStr);
-        return date.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: true 
-        }).replace(':00', '');
-    }
-
-    formatDuration(seconds) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        if (hours > 0) {
-            return `${hours}h ${minutes}m`;
-        }
-        return `${minutes}m`;
-    }
-
-    getMeetingTime(meeting) {
-        if (meeting.meeting_from && meeting.meeting_to) {
-            return `${meeting.meeting_from} - ${meeting.meeting_to}`;
-        }
-        return '';
-    }
-
-    render() {
-        const html = `
+    init() {
+        this.container.innerHTML = `
             <div class="timeline-wrapper">
                 <div class="stats-wrapper">
                     <div class="stat-item">
                         <div class="stat-label">Total Distance</div>
-                        <div class="stat-value">${this.locations.total_distance.toFixed(2)} km</div>
+                        <div class="stat-value">${this.data.total_distance.toFixed(2)} km</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Total Duration</div>
-                        <div class="stat-value">${this.formatDuration(this.locations.total_duration)}</div>
+                        <div class="stat-value">${this.formatDuration(this.data.total_duration)}</div>
                     </div>
                 </div>
 
                 <div class="center-line"></div>
 
-                ${this.locations.data.map((item, index) => `
-                    <div class="timeline-item">
-                        <div class="timeline-point"></div>
-                        <div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}">
-                            <div class="time-range">
-                                ${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}
-                            </div>
-                            <div class="activity-info">${item.activity_type.replace('_', ' ')}</div>
-                            ${item.activity_type !== 'still' ? 
-                                `<div class="activity-info">
-                                    Distance: ${item.distance.toFixed(2)} km
-                                    ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
-                                </div>` : ''
-                            }
-                            ${item.meetings?.length ? 
-                                item.meetings.map(meeting => `
-                                    <div class="meeting-item">
-                                        <div class="meeting-title">
-                                            <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
-                                            ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party || 'Meeting'}
-                                        </div>
-                                        <div class="meeting-time">
-                                            ${this.getMeetingTime(meeting)}
-                                        </div>
-                                    </div>
-                                `).join('') : ''
-                            }
-                        </div>
-                    </div>
-                `).join('')}
+                ${this.renderTimelineItems()}
             </div>
         `;
-        this.container.innerHTML = html;
     }
+
+    formatDateTime(dateTime) {
+        if (!dateTime) return '';
+        const date = new Date(dateTime);
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const day = date.getDate().toString().padStart(2, '0');
+        const time = date.toLocaleString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        });
+        return `${month} ${day} ${time}`;
+    }
+
+    formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours}h ${minutes}m`;
+    }
+
+    // Add this method to the LocationTimeline class
+openMeeting(name) {
+    frappe.set_route('Form', 'Meeting', name);
 }
+
+// Modify the meeting rendering part in renderTimelineItems method
+renderTimelineItems() {
+    return this.data.data.map((item, index) => `
+        <div class="timeline-item">
+            <div class="timeline-point"></div>
+            <div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}">
+                <div class="time-range">
+                    ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
+                </div>
+                <div class="activity-type">${item.activity_type}</div>
+                ${item.activity_type !== 'still' ? 
+                    `<div class="activity-info">
+                        Distance: ${item.distance.toFixed(2)} km
+                        ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
+                    </div>` : ''
+                }
+                ${item.meetings?.map(meeting => `
+                    <div class="meeting-item" 
+                         onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
+                         style="cursor: pointer; transition: background-color 0.2s;">
+                        <div class="meeting-title">
+                            <i class="fa fa-users"></i>
+                            ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
+                        </div>
+                        <div class="meeting-time">
+                            ${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
+                        </div>
+                    </div>
+                `).join('') || ''}
+            </div>
+        </div>
+    `).join('');
+}
+}
+

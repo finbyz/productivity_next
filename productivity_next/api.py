@@ -1433,7 +1433,10 @@ def get_timeline(employee, start_date, end_date):
         meeting_data = frappe.db.sql(f"""
             SELECT 
                 m.name, 
-                m.party, 
+                CASE 
+                    WHEN m.party_type = 'Lead' THEN m.organization 
+                    ELSE m.party 
+                END as party,
                 m.party_type,
                 m.meeting_arranged_by,
                 CAST(m.meeting_from AS DATE) as date, 
@@ -1443,7 +1446,9 @@ def get_timeline(employee, start_date, end_date):
                 TIMESTAMPDIFF(SECOND, m.meeting_from, m.meeting_to) AS duration
             FROM `tabMeeting` AS m 
             JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
-            WHERE mcr.employee = '{employee}' AND m.docstatus = 1 AND CAST(m.meeting_from AS DATETIME) BETWEEN CAST('{start_time}' AS DATETIME) AND CAST('{end_time}' AS DATETIME)
+            WHERE mcr.employee = '{employee}' 
+                AND m.docstatus = 1 
+                AND CAST(m.meeting_from AS DATETIME) BETWEEN CAST('{start_time}' AS DATETIME) AND CAST('{end_time}' AS DATETIME)
         """, as_dict=True)
 
         row['duration'] = 0
