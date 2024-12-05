@@ -1382,15 +1382,13 @@ def get_timeline(employee, start_date, end_date):
 
                 if row['activity_type'] != activity_type:
                     distance = calculate_total_distance(lat_long)
-                    update_previous_row = False
                     if distance < 0.1:
                         activity_type = 'still'
-                        update_previous_row = True
                     
-                    if update_previous_row and date_wise_final_data and date_wise_final_data[-1]['activity_type'] == activity_type:
+                    if date_wise_final_data and date_wise_final_data[-1]['activity_type'] == activity_type:
                         date_wise_final_data[-1]['end_time'] = row['timestamp']
                         date_wise_final_data[-1]['lat_long_cordinates'] = date_wise_final_data[-1]['lat_long_cordinates'] + lat_long
-                        date_wise_final_data[-1]['distance'] = 0
+                        date_wise_final_data[-1]['distance'] = 0 if date_wise_final_data[-1]['activity_type'] == "still" else calculate_total_distance(date_wise_final_data[-1]['lat_long_cordinates'])
                     else:
                         date_wise_final_data.append({
                             "start_time": start_time,
@@ -1406,14 +1404,12 @@ def get_timeline(employee, start_date, end_date):
             
             if start_time != row['timestamp']:
                 distance = calculate_total_distance(lat_long)
-                update_previous_row = False
                 if distance < 0.1:
                     activity_type = 'still'
-                    update_previous_row = True
-                if update_previous_row and date_wise_final_data and date_wise_final_data[-1]['activity_type'] == activity_type:
+                if date_wise_final_data and date_wise_final_data[-1]['activity_type'] == activity_type:
                     date_wise_final_data[-1]['end_time'] = row['timestamp']
                     date_wise_final_data[-1]['lat_long_cordinates'] = date_wise_final_data[-1]['lat_long_cordinates'] + lat_long
-                    date_wise_final_data[-1]['distance'] = 0
+                    date_wise_final_data[-1]['distance'] = 0 if date_wise_final_data[-1]['activity_type'] == "still" else calculate_total_distance(date_wise_final_data[-1]['lat_long_cordinates'])
                 else:
                     date_wise_final_data.append({
                         "start_time": start_time,
@@ -1422,6 +1418,8 @@ def get_timeline(employee, start_date, end_date):
                         "lat_long_cordinates": lat_long,
                         "distance": distance if activity_type != "still" else 0,
                     })
+            
+            final_data.extend(date_wise_final_data)
 
     total_distance = 0
     total_duration = 0
@@ -1446,7 +1444,6 @@ def get_timeline(employee, start_date, end_date):
         """, as_dict=True)
 
         row['duration'] = 0
-        row['distance'] = 0
         
         if row['activity_type'] != 'still':
             row['duration'] = int((end_time - start_time).total_seconds())
