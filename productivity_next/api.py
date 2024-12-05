@@ -1397,7 +1397,7 @@ def get_timeline(employee, start_date, end_date):
                             "end_time": row['timestamp'],
                             "activity_type": activity_type,
                             "lat_long_cordinates": lat_long,
-                            "distance": distance
+                            "distance": distance if activity_type != "still" else 0,
                         })
 
                     start_time = row['timestamp']
@@ -1420,7 +1420,7 @@ def get_timeline(employee, start_date, end_date):
                         "end_time": row['timestamp'],
                         "activity_type": activity_type,
                         "lat_long_cordinates": lat_long,
-                        "distance": distance,
+                        "distance": distance if activity_type != "still" else 0,
                     })
 
     total_distance = 0
