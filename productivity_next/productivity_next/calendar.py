@@ -2,11 +2,16 @@ import frappe
 import json
 
 @frappe.whitelist()
-def get_custom_events(doctype, start, end, filters=None):
-    conditions = [
-        f"exp_start_date <= '{end}'",
-        f"exp_end_date >= '{start}'"
-    ]    
+def get_custom_events(doctype, start=None, end=None, filters=None):
+    conditions = []
+    if start and end:
+        date_conditions = f"""
+            (exp_start_date IS NULL OR exp_end_date IS NULL OR 
+             (exp_start_date <= '{end}' AND exp_end_date >= '{start}'))
+        """
+        conditions.append(date_conditions)
+    else:
+        conditions.append("(exp_start_date IS NULL OR exp_end_date IS NULL)")
     if filters:
         if isinstance(filters, str):
             filters = json.loads(filters)
