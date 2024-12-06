@@ -3373,6 +3373,18 @@ class LocationTimeline {
                     margin-top: 2px;
                 }
             `;
+			styleElement.textContent += `
+    .activity-type {
+        display: flex;
+        align-items: center;
+        font-size: 13px;
+        color: #505A62;
+        margin-bottom: 8px;
+    }
+    .activity-type i {
+        font-size: 14px;
+    }
+`;
             document.head.appendChild(styleElement);
         }
     }
@@ -3423,6 +3435,20 @@ openMeeting(name) {
 }
 
 // Modify the meeting rendering part in renderTimelineItems method
+getActivityIcon(type) {
+    switch(type?.toLowerCase()) {
+        case 'still':
+            return '<i class="fa fa-clock" style="color: #505A62; margin-right: 6px;"></i>';
+        case 'walking':
+            return '<i class="fa-solid fa-person-walking" style="color: #2490EF; margin-right: 6px;"></i>';
+        case 'in_vehicle':
+            return '<i class="fa fa-car" style="color: #2490EF; margin-right: 6px;"></i>';
+        default:
+            return '<i class="fa fa-map-marker" style="color: #505A62; margin-right: 6px;"></i>';
+    }
+}
+
+// Then modify the renderTimelineItems method to include the icons
 renderTimelineItems() {
     return this.data.data.map((item, index) => `
         <div class="timeline-item">
@@ -3431,7 +3457,10 @@ renderTimelineItems() {
                 <div class="time-range">
                     ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
                 </div>
-                <div class="activity-type">${item.activity_type}</div>
+                <div class="activity-type">
+                    ${this.getActivityIcon(item.activity_type)}
+                    ${item.activity_type.replace('_', ' ')}
+                </div>
                 ${item.activity_type !== 'still' ? 
                     `<div class="activity-info">
                         Distance: ${item.distance.toFixed(2)} km
@@ -3441,9 +3470,9 @@ renderTimelineItems() {
                 ${item.meetings?.map(meeting => `
                     <div class="meeting-item" 
                          onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
-                         style="cursor: pointer; transition: background-color 0.2s;">
+                         style="cursor: pointer;">
                         <div class="meeting-title">
-                            <i class="fa fa-users"></i>
+                            <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
                             ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
                         </div>
                         <div class="meeting-time">
