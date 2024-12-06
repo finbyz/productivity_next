@@ -1,0 +1,155 @@
+<div class="container">
+    <div class="user-profile">
+        <div class="form-tabs-list">
+            <ul class="nav form-tabs" id="form-tabs" role="tablist">
+                <li class="nav-item show">
+                    <a class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" role="tab" aria-controls="summary" aria-selected="true">
+                        Summary
+                    </a>
+                </li>
+                <li class="nav-item show">
+                    <a class="nav-link" id="system-activity-tab" data-bs-toggle="tab" data-bs-target="#system-activity" role="tab" aria-controls="system-activity" aria-selected="false">
+                        System Activity
+                    </a>
+                </li>
+                <li class="nav-item show">
+                    <a class="nav-link" id="phone-calls-tab" data-bs-toggle="tab" data-bs-target="#phone-calls" role="tab" aria-controls="phone-calls" aria-selected="false">
+                        Calls Analysis
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="tab-content mt-4" id="myTabContent">
+            <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="frappe-card chart-column-container time-chart-container">
+                            <div class="title-area">
+                                <h4 class="card-title">
+                                    <a href="#" id="activity-summary-report-link" target="_blank">
+                                        Activity Summary <span style="font-size: 12px;"> (All Employees)</span>
+                                    </a>
+                                </h4>
+                            </div>
+                            <div style="display: flex; justify-content: center;">
+                                <ul class="row list-unstyled" style="display: flex; padding: 0; list-style: none;" id="overallChartLegends">
+                                    <li data-value="Inactive" class="row align-center" style="margin-right: 20px;"><span style="background-color: #E9EAEC; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Inactive</li>
+                                    <li data-value="Application" class="row align-center" style="margin-right: 20px;"><span style="background-color: #4BC0C0; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Application</li>
+                                    <li data-value="Idle" class="row align-center" style="margin-right: 20px;"><span style="background-color: #FF6666; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Idle</li>
+                                    <li data-value="Internal Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #9966FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Internal Meeting</li>
+                                    <li data-value="External Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #6699FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>External Meeting</li>
+                                    <li data-value="Call" class="row align-center"><span style="background-color: #FFCC66; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Call</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="chart-wrapper overall-performance-chart" style="width: 100%; min-height: 450px; max-height: 650px;">
+                                <div id="activity-summary-chart"></div>
+                                <div id="customLegend" style="margin-top: 20px; text-align: center;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12 mt-1">
+                        <div class="performance-graphs">
+                            <div class="frappe-card chart-column-container">
+                                <div class="title-area mb-0 pb-0">
+                                    <h4 class="card-title">
+                                        <a href="#" id="user-analysis-report-link" target="_blank">
+                                            User Analysis <span style="font-size: 12px;"> (User Productivity Stats)</span>
+                                        </a>
+                                        
+                                    </h4>
+                                </div>
+                                <div class="chart-wrapper mt-0 pt-0">
+                                    <div class="table-responsive">
+                                        <table class="table" width="100%">
+                                            <thead>
+                                                <tr align="center">
+                                                    <th width="100%" colspan="17" style="padding:15px !important;">All Users Of The Organization<span style="font-size: 12px;"> (Click on employee name to get brief data)</span></th>
+                                                </tr>
+                                                <tr align="center">
+                                                    <th width="15%">Employee</th>
+                                                    <th width="12%" style="color:#6420AA;">Productivity Score</th>
+                                                    <th width="19.5%" colspan="3" style="color:#00A6E0;">Activity Hours</th>
+                                                    <th width="25.25%" colspan="4" style="color:#62BA46;">Phone Calls</th>
+                                                    <th width="18.50%" colspan="3" style="color:#FF4001;">Work Intensity</th>
+                                                    <th width="10.0%" colspan="2" style="color:#6420AA;">Meetings</th>
+                                                </tr>
+                                                <tr align="center">
+                                                    <th></th>
+                                                    <th style="color:#6420AA;">Score</th>
+                                                    <th style="color:#00A6E0;">Total</th>
+                                                    <th style="color:#00A6E0;">Active</th>
+                                                    <th style="color:#00A6E0;">Idle</th>
+                                                    <th style="color:#62BA46;">Incoming</th>
+                                                    <th style="color:#62BA46;">Outgoing</th>
+                                                    <th style="color:#62BA46;">Missed</th>
+                                                    <th style="color:#62BA46;">Rejected</th>
+                                                    <th style="color:#FF4001;">Keyboard</th>
+                                                    <th style="color:#FF4001;">Mouse</th>
+                                                    <th style="color:#FF4001;">Scroll</th>
+                                                    <th style="color:#6420AA;">Nos</th>
+                                                    <th style="color:#6420AA;">Hours</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="user-analysis">
+                                                <!-- Placeholder for User Analysis Data -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="system-activity" role="tabpanel" aria-labelledby="system-activity-tab">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="frappe-card chart-column-container bar-chart-container">
+                            <div class="title-area">
+                                <h4 class="card-title">{%=__("Document Analysis") %}<span style="font-size: 12px;"> (Numbers Of Document Modified)</span></h4>
+                            </div>
+                            <div class="document-analysis-chart" style="min-height: 400px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="phone-calls" role="tabpanel" aria-labelledby="phone-calls-tab">
+                <div class="row">
+                    <div class="col-md-12" id="calls">
+                        <div class="frappe-card chart-column-container line-chart-container">
+                            <div class="title-area">
+                                <h4 class="card-title">
+                                    <a href="#" id="client-calls-analysis-link" target="_blank">
+                                        Top 10 Clients Call Analysis <span style="font-size: 12px;"> (In Minutes)</span>
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id="client-calls-chart" style="min-height: 555px;">
+                                <div id="client-calls-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12" id="employee-calls">
+                        <div class="frappe-card chart-column-container line-chart-container">
+                            <div class="title-area">
+                                <h4 class="card-title">
+                                    <a href="#" id="employee-calls-analysis-link" target="_blank">
+                                        Top 10 Employees Call Analysis <span style="font-size: 12px;"></span>
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id="employee-calls-chart" style="min-height: 355px;">
+                                <div id="employee-calls-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

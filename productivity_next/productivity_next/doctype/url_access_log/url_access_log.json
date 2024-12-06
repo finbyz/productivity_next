@@ -1,0 +1,180 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-06-16 21:06:46.841075",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee",
+  "employee_name",
+  "url",
+  "is_url",
+  "process_id",
+  "profile_id",
+  "domain",
+  "column_break_uaph",
+  "from_time",
+  "auto_start",
+  "to_time",
+  "auto_end",
+  "duration",
+  "window_id",
+  "current_title"
+ ],
+ "fields": [
+  {
+   "default": "UAL.YY.MM.DD.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "UAL.YY.MM.DD.",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Url",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_url",
+   "fieldtype": "Check",
+   "label": "Is Url",
+   "read_only": 1
+  },
+  {
+   "fieldname": "process_id",
+   "fieldtype": "Data",
+   "label": "Process Id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "profile_id",
+   "fieldtype": "Data",
+   "label": "Profile Id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "from_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "From Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_start",
+   "fieldtype": "Check",
+   "label": "Auto Start",
+   "read_only": 1
+  },
+  {
+   "fieldname": "to_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "To Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_end",
+   "fieldtype": "Check",
+   "label": "Auto End",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "in_list_view": 1,
+   "label": "Duration",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "window_id",
+   "fieldtype": "Data",
+   "label": "Window Id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_uaph",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "domain",
+   "fieldtype": "Data",
+   "label": "Domain",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "current_title",
+   "fieldtype": "Data",
+   "label": "Current Title",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-09-19 16:26:40.305469",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "URL Access Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,319 @@
+:root {
+    --color-chart-label: #F6F8FC;
+}
+
+[data-theme="dark"] {
+    --color-chart-label: #2b2e33;
+}
+
+
+.table-height{
+   max-height: 100%;
+   min-height: fit-content;
+   padding: 0 !important; /* changed from -20px to 0 */
+   border-collapse: collapse;
+}
+.time-cell span {
+    float: right;
+}
+.tooltip-custom .tooltip-inner {
+    background-color: black !important;
+    color: white !important;
+    max-width: 300px !important;
+    padding: 10px;
+    text-align: left;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+.dynamic-spacing {
+    padding: 2vh 2vw;
+    margin-bottom: 1rem;
+}
+
+.performance-graphs,
+.recent-activity {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 100%;
+}
+.sidebar-image-wrapper{
+    pointer-events: none;
+    width: 100%;
+    cursor: default;
+}
+.sidebar-image {
+    width: 100% !important; /* Ensure it covers the full width of the parent */
+    max-height: 250px; /* Adjust as needed */
+    height: auto; /* Maintain aspect ratio */
+    object-fit: cover; /* Ensure image covers the container */
+    cursor: default;
+    pointer-events: none;
+}
+
+@media (max-width: 480px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Full width for very small screens */
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for small to medium screens */
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for medium to large screens */
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for large screens */
+    }
+}
+
+@media (min-width: 1441px) {
+    .progress, .sidebar-image {
+        width: 100%; /* Adjust as needed for very large screens */
+    }
+}
+
+.form-sidebar .sidebar-image-section .sidebar-image {
+    max-height: fit-content;
+}
+.form-sidebar .sidebar-image-section {
+    width: min(100%);
+}
+.chart-column-container {
+    flex: 1;
+    margin-right: 0.5rem;
+}
+
+[data-unformatted] {
+    fill: var(--heading-color) !important;
+}
+
+@media (max-width: 768px) {
+    .short{
+        height: 450px;
+    }
+    .short .up{
+        margin-top: 0px;
+    }
+    .container {
+        padding-left: 21px;
+        padding-right: 2px;
+    }
+
+    .chart-column-container,
+    .dynamic-spacing {
+        padding: 1vh 1vw;
+    }
+
+    .performance-graphs,
+    .recent-activity {
+        flex-direction: column;
+    }
+
+    .chart-column-container {
+        margin-right: 0.5rem;
+        flex: auto;
+    }
+
+}
+
+.clickable-image {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.clickable-image:hover {
+    transform: scale(1.05);
+}
+
+#imageModal .modal-dialog {
+    width: 80% !important;
+    max-width: 80% !important;
+}
+
+.modal-dialog.modal-custom {
+    width: 80% !important;
+    max-width: 80% !important;
+}
+
+.meeting-hover {
+    position: relative;
+    display: inline-block;
+    justify-content: space-between;
+}
+
+.hover-text {
+    visibility: hidden;
+    width: 300px;
+    background-color: #000;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 80%;
+    left: 50%;
+    margin-left: -50px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.meeting-hover:hover .hover-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.calls-hover {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: relative;
+    padding: 10px;
+}
+
+.call-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.call-count {
+    padding-top: 10px;
+    font-size: 18px;
+}
+
+.hover-text-calls {
+    visibility: hidden;
+    width: 300px;
+    background-color: #000;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.calls-hover:hover .hover-text-calls {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Custom tooltip styles */
+.tooltip-custom {
+    width: 800px;
+    height: 40px;
+    justify-content: space-between !important;
+    padding: 5px;
+    font-size: 15px;
+    /* Increase font size to 18 */
+}
+
+.tooltip-inner {
+    max-width: 400px;
+
+}
+
+.tooltip-custom::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent white transparent transparent;
+}
+
+@media only screen and (max-width: 600px) {
+    .table {
+        font-size: 11px;
+    }
+}
+
+[dominant-baseline] {
+    fill: var(--heading-color) !important;
+
+}
+
+path[paint-order="stroke"] {
+    fill: var(--color-chart-label) !important;
+}
+.chart-wrapper {
+    width: 100%;
+    /* Ensure the chart wrapper occupies full width */
+    height: 100%;
+    /* Ensure the chart wrapper occupies full height */
+}
+
+.table-spacing {
+    font-size: medium !important;
+    width: 270px;
+}
+
+.heading-custom {
+    font-size: medium !important;
+}
+
+.w-max {
+    max-width: none;
+}
+
+.chart-container {
+    height: 400px; /* Set a fixed height or use a percentage */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.overall-performance-chart {
+    width: 100%;
+    min-height: 100%;
+}
+
+
+#overallChartLegends > li:not([selected='selected']) {
+    opacity: 0.5;
+}
+
+[data-theme="dark"] {
+    --card-bg-color: #2e2e2e;
+    --card-font-color: white;
+    --text-primary-color: white; /* Primary text color for dark theme */
+   
+
+}
+.card-body {
+    background-color: var(--card-bg-color);
+    color: var(--card-font-color);
+}
+
+.text-primary {
+    color: var(--text-primary-color) !important; /* Use the custom property */
+}
+
+.card-body .custom-table td {
+    color: var(--card-font-color);
+}
+
+.card-body .custom-table {
+    background-color: var(--card-bg-color);
+}

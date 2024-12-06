@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-11-25 11:57:52.864038",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "latitude",
+  "heading",
+  "start_time",
+  "isstationary",
+  "column_break_dsiv",
+  "longitude",
+  "end_time",
+  "istravelling",
+  "activity",
+  "section_break_gnng",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_gnng",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Map Timeline",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude"
+  },
+  {
+   "fieldname": "heading",
+   "fieldtype": "Float",
+   "label": "Heading"
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Datetime",
+   "label": "Start Time"
+  },
+  {
+   "default": "0",
+   "fieldname": "isstationary",
+   "fieldtype": "Check",
+   "label": "IsStationary"
+  },
+  {
+   "fieldname": "column_break_dsiv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude"
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Datetime",
+   "label": "End Time"
+  },
+  {
+   "default": "0",
+   "fieldname": "istravelling",
+   "fieldtype": "Check",
+   "label": "IsTravelling"
+  },
+  {
+   "fieldname": "activity",
+   "fieldtype": "Data",
+   "label": "Activity"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2024-11-25 12:12:54.101545",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Map Timeline",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

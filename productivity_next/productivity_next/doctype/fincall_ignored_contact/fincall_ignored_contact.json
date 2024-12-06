@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-01-27 12:55:29.361206",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_contact",
+  "ignored_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_contact",
+   "fieldtype": "Data",
+   "label": "Customer Contact",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "ignored_by",
+   "fieldtype": "Link",
+   "label": "Ignored By",
+   "options": "User"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-27 12:55:29.361206",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Fincall Ignored Contact",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

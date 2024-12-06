@@ -1,0 +1,88 @@
+:root {
+    --color-chart-label: #F6F8FC; /* Default light theme color */
+}
+
+[data-theme="dark"] {
+    --color-chart-label: #2b2e33; /* Dark theme color */
+}
+
+
+.dynamic-spacing {
+    padding: 2vh 2vw;
+    margin-bottom: 1rem;
+}
+
+.performance-graphs,
+.recent-activity {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 100%;
+}
+
+.chart-column-container {
+    flex: 1;
+    margin-right: 0.5rem;
+}
+
+[data-unformatted] {
+    fill: var(--heading-color) !important;
+}
+
+[dominant-baseline] {
+    fill: var(--heading-color) !important;
+}
+[paint-order] {
+    fill: var(--color-chart-label) !important;
+}
+
+@media (max-width: 768px) {
+    .chart-column-container,
+    .dynamic-spacing {
+        padding: 1vh 1vw;
+    }
+
+    .performance-graphs,
+    .recent-activity {
+        flex-direction: column;
+    }
+
+    .chart-column-container {
+        margin-right: 0;
+    }
+}
+
+.clickable-image {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.clickable-image:hover {
+    transform: scale(1.05);
+}
+
+#imageModal .modal-dialog {
+    width: 80% !important;
+    max-width: 80% !important;
+}
+
+.modal-dialog.modal-custom {
+    width: 80% !important;
+    max-width: 80% !important;
+}
+/* #customLegend {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #333;
+}
+#customLegend div {
+    margin-bottom: 5px;
+}
+#customLegend span {
+    vertical-align: middle;
+} */
+
+#overallChartLegends > li:not([selected='selected']) {
+    opacity: 0.5;
+}

@@ -1,0 +1,213 @@
+<!-- This is the sidebar of the page. It contains the user image, user location, and the number of calls and meetings the user has made. -->
+<style>
+    .calls-container {
+            margin-top: 20px;
+        }
+        .calls-hover {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .call-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .call-icon {
+            width: 40px;
+            height: 40px;
+        }
+        .call-count {
+            font-size: 20px;
+            font-weight: bold;
+        }
+       
+</style>
+<div class="form-sidebar overlay-sidebar hidden-xs hidden-sm">
+
+    <ul class="list-unstyled sidebar-menu user-actions hidden"></ul> 
+
+    <!-- User Profile Photo Code Starts-->
+    <ul class="list-unstyled sidebar-menu sidebar-image-section">
+        <li class="sidebar-image-wrapper"> 
+            {% if user_image %}
+            <img class="sidebar-image" src="{{ user_image }}" >
+            {% else %}
+            <img class="sidebar-image" src="/assets/productivity_next//user-profile.jpg" alt="Default Profile Image">
+            
+            {% endif %}
+            <div class="sidebar-image-actions">
+                <!-- <div class="dropdown"> <a href="#" class="dropdown-toggle" data-toggle="dropdown">Change</a>
+                    <div class="dropdown-menu" role="menu"> <a class="dropdown-item sidebar-image-change">Upload</a> <a
+                            class="dropdown-item sidebar-image-remove">Remove</a> </div>
+                </div> -->
+            </div>
+        </li>
+    </ul>
+    <!-- User Profile Photo Code Ends-->
+
+    <!-- User Location Code Starts -->
+    <div class="profile-details">
+        {% if user_location %}
+        <div class="detail-item">
+            <h5>{%=__("Intro") %}</h5>
+            <p class="user-location text-muted mt-3">
+                <span class="interest-icon">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12.4827 6.57143C12.4827 9.39265 7.91127 14 7.91127 14C7.91127 14 3.33984 9.39265 3.33984 6.57143C3.33984 3.67837 5.70197 2 7.91127 2C10.1206 2 12.4827 3.67837 12.4827 6.57143Z"
+                            stroke="#192734" stroke-miterlimit="10" stroke-linecap="square" stroke-linejoin="round" />
+                        <path
+                            d="M7.91354 7.87763C8.6349 7.87763 9.21967 7.29285 9.21967 6.5715C9.21967 5.85015 8.6349 5.26538 7.91354 5.26538C7.19219 5.26538 6.60742 5.85015 6.60742 6.5715C6.60742 7.29285 7.19219 7.87763 7.91354 7.87763Z"
+                            stroke="#192734" stroke-miterlimit="10" stroke-linecap="square" />
+                    </svg>
+                </span>
+                {{user_location}}
+            </p>
+        </div>
+        {% endif %}  
+    </div>
+    <!-- User Location Code Ends -->
+    
+    {% if numberCardData %}
+    <div id = "user-activity-hover"></div><br>
+    <!-- Activity On Hover Of Progress Bar Code Starts -->
+    <div id = "user-activity" ></div><br>
+    <!-- Activity On Hover Of Progress Bar Code Ends -->
+
+    <!-- Activity Shown By Default In Mobile View Code Starts -->
+    <div id = "user-activity-mobile"></div><br>
+    <!-- Activity Shown By Default In Mobile View Code Ends -->
+
+    <!-- Calls SVG and call data on hover code starts -->
+    <div class="calls-container">
+        <a href="{{employeeFincallUrl}}" target="_blank">
+            <div class="calls-hover">
+                <div class="call-item">
+                    <svg class="call-icon" fill="green" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+                        <path d="M763-145q-121-9-229.5-59.5T339-341q-86-86-136-194.5T144-765q-2-21 12.5-36.5T192-817h136q17 0 29.5 10.5T374-780l24 107q2 13-1.5 25T385-628l-97 98q20 38 46 73t58 66q30 30 64 55.5t72 45.5l99-96q8-8 20-11.5t25-1.5l107 23q17 5 27 17.5t10 29.5v136q0 21-16 35.5T763-145ZM528-528v-192h72v69l165-165 51 50-165 166h69v72H528Z" />
+                    </svg>
+                    <span class="call-count" style="color:green;">{{numberCardData.incoming_fincall_count + numberCardData.internal_incoming_fincall_count}}</span>
+                </div>
+                <div class="call-item">
+                    <svg class="call-icon" fill="rgb(23, 162, 184)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+                        <path d="M853.303 969.44q-153.337 0-302.995-66.855T277.981 713.06Q155.31 590.39 88.456 440.732T21.6 137.737q0-22.08 14.72-36.8t36.801-14.721h198.725q17.174 0 30.668 11.654t15.947 27.6l31.894 171.738q2.454 19.628-1.226 33.121t-13.494 23.308l-118.99 120.216q24.534 45.388 58.268 87.71t74.216 81.575q38.027 38.027 79.735 70.535t88.322 59.495l115.31-115.31q11.04-11.04 28.828-16.56t34.96-3.067l169.285 34.348q17.174 4.906 28.214 17.787t11.04 28.827V917.92q0 22.08-14.72 36.8t-36.8 14.721z" />
+                        <path d="M493.9 507.5l-1.4-1.4 11.6-11.6h-6.6v-2h10v10h-2v-6.6l-11.6 11.6z" />
+                        <path d="M480.808 507.491l-38.085-38.085 315.566-315.567H578.743V99.431h272.04v272.04h-54.408V191.925L480.808 507.491z" />
+                    </svg>
+                    <span class="call-count" style="color:rgb(23, 162, 184);">{{numberCardData.outgoing_fincall_count + numberCardData.internal_outgoing_fincall_count}}</span>
+                </div>
+                <div class="call-item">
+                    <svg class="call-icon" fill="#ffc107" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+                        <path d="m136-144-92-90q-12-12-12-28t12-28q88-95 203-142.5T480-480q118 0 232.5 47.5T916-290q12 12 12 28t-12 28l-92 90q-11 11-25.5 12t-26.5-8l-116-88q-8-6-12-14t-4-18v-114q-38-12-78-19t-82-7q-42 0-82 7t-78 19v114q0 10-4 18t-12 14l-116 88q-12 9-26.5 8T136-144Zm342-362L280-704v104h-80v-240h240v80H336l141 141 226-226 57 57-282 282Z" />
+                    </svg>
+                    <span class="call-count" style="color:#ffc107;">{{numberCardData.missed_fincall_count + numberCardData.internal_missed_fincall_count}}</span>
+                </div>
+                <div class="call-item">
+                    <svg class="call-icon" fill="rgb(224, 54, 54)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+                        <g transform="matrix(1.2626 0 0 1.2626 499.9905 499.9905)">
+                            <path transform="translate(-480, 480)" d="M 798 -120 q -125 0 -247 -54.5 T 329 -329 Q 229 -429 174.5 -551 T 120 -798 q 0 -18 12 -30 t 30 -12 h 162 q 14 0 25 9.5 t 13 22.5 l 26 140 q 2 16 -1 27 t -11 19 l -97 98 q 20 37 47.5 71.5 T 387 -386 q 31 31 65 57.5 t 72 48.5 l 94 -94 q 9 -9 23.5 -13.5 T 670 -390 l 138 28 q 14 4 23 14.5 t 9 23.5 v 162 q 0 18 -12 30 t -30 12 Z" />
+                        </g>
+                        <g transform="matrix(0.5193 0 0 0.5193 745.8186 234.0324)">
+                            <path transform="translate(-480, 480)" d="m 256 -200 l -56 -56 l 224 -224 l -224 -224 l 56 -56 l 224 224 l 224 -224 l 56 56 l -224 224 l 224 224 l -56 56 l -224 -224 l -224 224 Z" />
+                        </g>
+                    </svg>
+                    <span class="call-count" style="color:rgb(224, 54, 54);">{{numberCardData.rejected_fincall_count + numberCardData.internal_rejected_fincall_count}}</span>
+                </div>
+                <span class="hover-text-calls">
+                    <b>{{callsHoursIncoming}}</b> Incoming Calls Hours<br>
+                    <b>{{callsHoursOutgoing}}</b> Outgoing Calls Hours
+                </span>
+            </div>
+        </a>
+    </div>
+    <!-- Calls SVG and call data on hover code ends -->
+     
+    <!-- Meetings SVG and meetings data on hover code starts -->
+    <div class="meeting-container row">
+        <div class="col-md-12" style="text-align: center;">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+                y="0px" viewBox="0 0 1122 1122" style="enable-background:new 0 0 1122 1122;" width="90" height="90px"
+                xml:space="preserve">
+                <g id="Bg">
+                    <rect style="fill:none" width="1122" height="1122" />
+                </g>
+                <g id="Object">
+                    <g>
+                        <path style="fill:#616E7D;" d="M225.177,705.13c0,12.382-6.723,22.901-16.098,26.771l0.302,1.513h75.796
+                            c1.162,0.066,2.324,0.1,3.504,0.1c36.403,0,65.671-30.648,63.383-67.572c-1.979-31.615-27.706-57.361-59.322-59.319
+                            c-36.93-2.297-67.566,26.959-67.566,63.38l0.012,1.199h-0.012V705.13z" />
+                        <path style="fill:#616E7D;" d="M251.903,739.511c-32.965,0-59.697,26.726-59.697,59.695v28.968h192.928v-28.968
+                            c0-32.969-26.726-59.695-59.697-59.695H251.903z" />
+                        <path style="fill:#616E7D;" d="M823.847,588.863V327.817c0-18.737-14.622-33.992-32.597-33.992H326.247
+                            c-17.962,0-32.597,15.254-32.597,33.992v264.678c7.481,0.581,14.453,1.894,20.832,3.979V327.817
+                            c0-7.266,5.272-13.179,11.765-13.179H791.25c6.506,0,11.777,5.913,11.777,13.179v267.525
+                            C809.322,592.377,816.294,590.201,823.847,588.863z" />
+                        <path style="fill:#616E7D;" d="M386.053,679.998c0,26.088,21.146,47.24,47.218,47.24c26.109,0,47.273-21.152,47.273-47.24
+                            c0-26.099-21.164-47.261-47.273-47.261C407.199,632.738,386.053,653.899,386.053,679.998z" />
+                        <path style="fill:#616E7D;" d="M496.782,668.859c0,35.32,28.65,63.964,63.97,63.964c35.338,0,63.982-28.644,63.982-63.964
+                            c0-35.331-28.645-63.976-63.982-63.976C525.432,604.883,496.782,633.528,496.782,668.859z" />
+                        <path style="fill:#616E7D;" d="M523.725,738.864c-33.213,0-60.133,26.917-60.133,60.134v29.177h194.331v-29.177
+                            c0-33.217-26.907-60.134-60.145-60.134H523.725z" />
+                        <path style="fill:#616E7D;" d="M832.634,604.883c-35.332,0-63.97,28.645-63.97,63.976c0,35.32,28.638,63.964,63.97,63.964
+                            c35.332,0,63.977-28.644,63.977-63.964C896.611,633.528,867.966,604.883,832.634,604.883z" />
+                        <path style="fill:#616E7D;" d="M795.62,738.864c-33.214,0-60.145,26.917-60.145,60.134v29.177h194.32v-29.177
+                            c0-33.217-26.907-60.134-60.139-60.134H795.62z" />
+                        <path style="fill:#616E7D;"
+                            d="M660.877,731.698c-10.301,0-19.784,3.537-27.319,9.435c19.052,11.802,31.87,32.65,32.33,56.538
+                            h62.494c0.387-19.309,8.92-36.603,22.326-48.653c-8.128-10.518-20.825-17.321-35.138-17.321H660.877z" />
+                        <path style="fill:#616E7D;" d="M370.814,749.019c13.387,12.05,21.939,29.344,22.32,48.653h62.663
+                            c0.46-23.851,13.242-44.683,32.221-56.484c-7.553-5.925-17.03-9.489-27.379-9.489h-54.705
+                            C391.633,731.698,378.924,738.501,370.814,749.019z" />
+                        <path style="fill:#616E7D;" d="M684.74,632.922c-23.573,1.465-42.77,20.644-44.234,44.235
+                            c-1.719,27.528,20.105,50.38,47.242,50.38l2.615-0.073h56.52l0.218-1.135c-6.99-2.884-11.996-10.724-11.996-19.951v-25.304h-0.024
+                            l0.024-0.892C735.105,653.025,712.259,631.21,684.74,632.922z" />
+                        <path style="fill:#616E7D;"
+                            d="M636.814,362.973c-16.159-14.97-40.276-25.055-65.725-25.561l-0.605,93.922L636.814,362.973z" />
+                        <path style="fill:#616E7D;"
+                            d="M553.417,336.777c-66.494,0-115.595,53.909-115.595,120.396
+                            c0,66.485,53.888,120.397,120.394,120.397c46.607,0,89.97-27.537,105.947-63.059l-108.326-57.338V336.838L553.417,336.777z" />
+                        <polygon style="fill:#AAD4C8;"
+                            points="608.109,467.06 632.826,388.304 615.487,406.125 598.063,461.677" />
+                        <polygon style="fill:#AAD4C8;"
+                            points="595.067,460.07 610.355,411.402 593.009,429.213 585.002,454.687" />
+                        <path style="fill:#AAD4C8;"
+                            d="M647.23,488.009l24.383-77.696c-2.057-5.05-4.454-9.898-7.184-14.537l-27.27,86.85L647.23,488.009z" />
+                        <path style="fill:#AAD4C8;"
+                            d="M660.272,494.996l18.423-58.672c-1.022-7.193-2.778-14.232-5.156-21.001l-23.337,74.28L660.272,494.996z" />
+                        <path style="fill:#AAD4C8;" d="M669.144,499.753c7.565-14.631,10.567-31.813,10.567-49.409c0-1.891-0.061-3.771-0.188-5.646
+                            l-16.286,51.89L669.144,499.753z" />
+                        <path style="fill:#AAD4C8;" d="M611.08,468.655l10.071,5.377l30.212-96.252c-1.319-1.489-2.669-2.938-4.073-4.339l-9.332,9.59
+                            L611.08,468.655z" />
+                        <polygon style="fill:#AAD4C8;" points="587.877,434.5 573.982,448.774 582.031,453.095" />
+                        <path style="fill:#AAD4C8;"
+                            d="M634.188,481.028l27.936-89.017c-2.505-3.949-5.253-7.723-8.206-11.278l-29.8,94.911L634.188,481.028z" />
+                    </g>
+                </g>
+            </svg>
+        </div>
+        <div class="meeting-hover col-md-12" style="text-align: center;">
+            {% if numberCardData %}
+            <span class="hover-text">
+                <b>{{numberCardData.total_meeting_count_external}}</b> External Meetings For
+                <b>{{external_meeting_hours}}</b> H <br>
+                <b>{{numberCardData.total_meeting_count_internal}}</b> Internal Meetings For
+                <b>{{internal_meeting_hours}}</b> H <br>
+            </span>
+            {% endif %}
+            {% if numberCardData %}
+            <a style="padding-top:10px;font-size: 13px;" href={{employeeMeetingUrl}} target="_blank">
+                <span style="font-size: 18px;"><b>{{numberCardData.total_meeting_count_external + numberCardData.total_meeting_count_internal}} </b></span>
+                Meetings For
+                <span style="font-size: 18px;"><b>{{meeting_total_hours}} </b></span>
+                Hours</a>
+            {% endif %}
+        </div>
+    </div>
+    <!-- Meetings SVG and meetings data on hover code ends -->
+    {% endif %}
+
+</div>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile Dashboard</title>
+    <style>
+        .frappe-card {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            box-sizing: border-box; 
+        }
+        .frappe-card .card-title h4 {
+            margin-bottom: 10px;
+        }
+        #top-phone-calls,
+        #type-of-calls {
+            min-height: 500px;
+            min-width: 200px;
+        }
+        .frappe-card .card-title,
+        .frappe-card .chart-container,
+        .frappe-card .chart-container .chart-title {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+                
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tab-container mt-4">
+            <div class="form-tabs-list">
+                <ul class="nav form-tabs" id="form-tabs" role="tablist">
+                    <li class="nav-item show">
+                        <a class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" role="tab" aria-controls="summary" aria-selected="true">
+                            Summary
+                        </a>
+                    </li>
+                    <li class="nav-item show">
+                        <a class="nav-link" id="system-activity-tab" data-bs-toggle="tab" data-bs-target="#system-activity" role="tab" aria-controls="system-activity" aria-selected="true">
+                            System Activity
+                        </a>
+                    </li>
+                    <li class="nav-item show">
+                        <a class="nav-link" id="phone-calls-tab" data-bs-toggle="tab" data-bs-target="#phone-calls" role="tab" aria-controls="phone-calls" aria-selected="true">
+                            Calls Analysis
+                        </a>
+                    </li>
+                    <li class="nav-item show">
+                        <a class="nav-link" id="meetings-tab" data-bs-toggle="tab" data-bs-target="#meetings-analysis" role="tab" aria-controls="meetings-analysis" aria-selected="true">
+                            Meetings Analysis
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="tab-content" id="myTabContent">
+                <div class="tab-pane fade show" id="meetings-analysis" role="tabpanel" aria-labelledby="meetings-tab">
+                    <div id="meetings-map-container"></div>
+                    <div class="row g-0">
+                        <div class="meetings col-md-12" style="width: 100%;">
+                            <!-- Meetings Chart Container -->
+                        </div>
+                        <div class="frappe-card chart-column-container col-md-12 mt-4">
+                            <div class="title-area">
+                                <h4 class="card-title">Meetings</h4>
+                            </div>
+                            <div id="meetings-list" class="row" style="width: 100%; min-height: 350px">
+                                <!-- Meetings list content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+
+                <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container col-md-12">
+                            <div class="title-area">
+                                <a id="activity-summary-report-link"  href="#" target="_blank">
+                                <h4 class="card-title">Activity Summary</h4>
+                            </a>
+                            </div>
+                            <div style="display: flex; justify-content: center;">
+                                <ul class="row list-unstyled" style="display: flex; padding: 0; list-style: none;" id="overallChartLegends">
+                                    <li data-value="Inactive" class="row align-center" style="margin-right: 20px;"><span style="background-color: #E9EAEC; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Inactive</li>
+                                    <li data-value="Application" class="row align-center" style="margin-right: 20px;"><span style="background-color: #4BC0C0; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Application</li>
+                                    <li data-value="Idle" class="row align-center" style="margin-right: 20px;"><span style="background-color: #FF6666; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Idle</li>
+                                    <li data-value="Internal Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #9966FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Internal Meeting</li>
+                                    <li data-value="External Meeting" class="row align-center" style="margin-right: 20px;"><span style="background-color: #6699FF; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>External Meeting</li>
+                                    <li data-value="Call" class="row align-center"><span style="background-color: #FFCC66; width: 15px; height: 15px; display: inline-block; margin-right: 5px;"></span>Call</li>
+                                </ul>
+                            </div>
+                            <div class="overall-performance" style="width: 100%; min-height: 450px; max-height: 650px;">
+                                <!-- Overall Performance Chart Container -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="system-activity" role="tabpanel" aria-labelledby="system-activity-tab">
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container col-md-12">
+                            <div class="title-area">
+                                <h4 class="card-title">Work Intensity</h4>
+                            </div>
+                            <div class="work-intensity" style="width: 100%; min-height: 350px">
+                                <!-- Work Intensity Chart Container -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container col-sm-12 col-md-6 short" style="height: 500px;">
+                            <div class="card-title">
+                                <a href="#" id="application-analysis-link" target="_blank">
+                                <h4 class="card-title">Applications Used</h4>
+                                </a>
+                            </div>
+                            <div class="chart-wrapper" id="application-usage-time" style="width: 100%; min-height: 500px;">
+                                <!-- Application usage chart content -->
+                            </div>
+                        </div>
+                    
+                        <div class="frappe-card chart-column-container col-sm-12 col-md-6 short" style="height: 500px;">
+                            <div class="card-title">
+                                <a href="#" id="domain-analysis-link" target="_blank">
+                                <h4 class="card-title">Web Browsing Time</h4>
+                            </a>
+                            </div>
+                            <div class="chart-wrapper" id="web-browsing-time" style="width: 100%; min-height: 500px;">
+                                <!-- Web browsing time chart content -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container col-md-12">
+                            <div class="title-area">
+                                <h4 class="card-title">Top 7 Document Analysis <span style="font-size: 12px;">(Changes Per Doctype)</span></h4>
+                            </div>
+                            <div class="top-document-analysis" style="width: 100%; min-height: 350px">
+                                <!-- Top 7 document analysis chart content -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="chart-column-container" id="url-data">
+                            <div class="chart-wrapper">
+                                <!-- URL DATA HERE -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container user-activity-images">
+                            <div class="title-area">
+                                <h4 class="card-title">User Activity Images</h4>
+                            </div>
+                            <div class="image-wrapper recent-activity-list row">
+                                <!-- User Activity Images -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="phone-calls" role="tabpanel" aria-labelledby="phone-calls-tab">
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container col-sm-12 col-md-8">
+                            <div class="card-title">
+                                <a href="#" id="calls-analysis-link" target="_blank">
+                                <h4 class="card-title">Top Phone calls</h4>
+                            </a>
+                            </div>
+                            <div id="top-phone-calls" style="width: 100%; min-height: 500px">
+                                <!-- Phone Calls Chart Content -->
+                            </div>
+                        </div>
+                        <div class="frappe-card chart-column-container col-sm-12 col-md-4 short up">
+                            <div class="card-title">
+                                <h4 class="card-title">Type of Calls</h4>
+                            </div>
+                            <div id="type-of-calls" style="width: 100%; height: 500px; margin-top:0px;">
+                                <!-- Type of calls chart content -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="frappe-card chart-column-container col-md-12">
+                            <div class="title-area">
+                                <h4 class="card-title">Hourly Calls Analysis <span style="font-size: 12px;">(In Minutes)</span></h4>
+                            </div>
+                            <div class="hourly-calls-analysis" style="width: 100%; min-height: 350px">
+                                <!-- Hourly calls analysis content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

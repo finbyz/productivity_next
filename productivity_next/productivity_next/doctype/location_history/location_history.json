@@ -1,0 +1,378 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-10-14 12:42:34.562075",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "info_section",
+  "naming_series",
+  "event",
+  "is_moving",
+  "uuid",
+  "age",
+  "odometer",
+  "column_break_lv4m",
+  "employee",
+  "employee_name",
+  "is_stop",
+  "column_break_qrqv",
+  "date",
+  "time",
+  "timestamp",
+  "section_break_a4bx",
+  "coords_latitude",
+  "coords_longitude",
+  "coords_accuracy",
+  "coords_speed",
+  "coords_speed_accuracy",
+  "column_break_5rkf",
+  "coords_heading",
+  "coords_heading_accuracy",
+  "coords_altitude",
+  "coords_ellipsoidal_altitude",
+  "coords_altitude_accuracy",
+  "coords_age",
+  "activity_section",
+  "activity_type",
+  "column_break_vnym",
+  "activity_confidence",
+  "battery_section",
+  "battery_level",
+  "column_break_brub",
+  "battery_is_charging",
+  "provider_section",
+  "provider_network",
+  "provider_gps",
+  "provider_enabled",
+  "provider_airplane",
+  "column_break_khbc",
+  "provider_status",
+  "provider_accuracyauthorization"
+ ],
+ "fields": [
+  {
+   "default": "LH-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "LH-.YY.MM.DD.-",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_lv4m",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_qrqv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "event",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "uuid",
+   "fieldtype": "Data",
+   "label": "UUID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "age",
+   "fieldtype": "Data",
+   "label": "Age",
+   "read_only": 1
+  },
+  {
+   "fieldname": "odometer",
+   "fieldtype": "Data",
+   "label": "Odometer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_a4bx",
+   "fieldtype": "Section Break",
+   "label": "Coords"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_moving",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Moving",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_5rkf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "battery_is_charging",
+   "fieldtype": "Check",
+   "label": "Is Charging",
+   "read_only": 1
+  },
+  {
+   "fieldname": "info_section",
+   "fieldtype": "Section Break",
+   "label": "Info"
+  },
+  {
+   "fieldname": "activity_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Type",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_stop",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Stop",
+   "read_only": 1
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "label": "Timestamp",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "activity_section",
+   "fieldtype": "Section Break",
+   "label": "Activity"
+  },
+  {
+   "fieldname": "column_break_vnym",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "100",
+   "fieldname": "activity_confidence",
+   "fieldtype": "Percent",
+   "label": "Confidence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "battery_section",
+   "fieldtype": "Section Break",
+   "label": "Battery"
+  },
+  {
+   "default": "0",
+   "fieldname": "battery_level",
+   "fieldtype": "Percent",
+   "label": "Level",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_brub",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "provider_section",
+   "fieldtype": "Section Break",
+   "label": "Provider"
+  },
+  {
+   "default": "0",
+   "fieldname": "provider_network",
+   "fieldtype": "Check",
+   "label": "Network",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "provider_gps",
+   "fieldtype": "Check",
+   "label": "GPS",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "provider_enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "provider_status",
+   "fieldtype": "Int",
+   "label": "Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_khbc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "provider_accuracyauthorization",
+   "fieldtype": "Int",
+   "label": "Accuracy Authorization",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "provider_airplane",
+   "fieldtype": "Check",
+   "label": "Airplane",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "coords_latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "7",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "coords_longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "7",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "coords_speed_accuracy",
+   "fieldtype": "Percent",
+   "label": "Speed Accuracy",
+   "read_only": 1
+  },
+  {
+   "default": "-1",
+   "fieldname": "coords_heading",
+   "fieldtype": "Float",
+   "label": "Heading",
+   "read_only": 1
+  },
+  {
+   "fieldname": "coords_heading_accuracy",
+   "fieldtype": "Percent",
+   "label": "Heading Accuracy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "coords_altitude",
+   "fieldtype": "Float",
+   "label": "Altitude",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "coords_age",
+   "fieldtype": "Int",
+   "label": "Age",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "coords_accuracy",
+   "fieldtype": "Percent",
+   "label": "Accuracy",
+   "read_only": 1
+  },
+  {
+   "default": "-1",
+   "fieldname": "coords_speed",
+   "fieldtype": "Float",
+   "label": "Speed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "coords_ellipsoidal_altitude",
+   "fieldtype": "Float",
+   "label": "Ellipsoidal Altitude",
+   "read_only": 1
+  },
+  {
+   "fieldname": "coords_altitude_accuracy",
+   "fieldtype": "Percent",
+   "label": "Altitude Accuracy",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-12-04 13:13:52.519079",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Location History",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

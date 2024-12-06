@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Custom HTML Block",
+  "html": "<div class=\"widget shortcut-widget-box\" id=\"open_org_signup_form\" role=\"link\" tabindex=\"0\" aria-label=\"Customer\">\r\n  <div class=\"widget-head\">\r\n    <div class=\"widget-title\">\r\n      <span class=\"ellipsis\" title=\"Open Organization Signup form\">Open Organization Signup form</span>\r\n    </div>\r\n    <svg class=\"es-icon es-line icon-xs\" aria-hidden=\"true\">\r\n      <use href=\"#es-line-arrow-up-right\"></use>\r\n    </svg>\r\n  </div>\r\n</div>\r\n",
+  "modified": "2024-11-06 17:31:18.746848",
+  "name": "Signup Button",
+  "private": 0,
+  "roles": [],
+  "script": "let open_org_signup_form = root_element.querySelector('#open_org_signup_form');\r\n\r\nopen_org_signup_form.addEventListener('click', function() {\r\n    // Code to execute when the element is clicked\r\n    console.log(\"Sign-up form button clicked!\");\r\n    if(window.subscription && window.subscription.organization_name && subscription && window.subscription.organization_name && window.subscription.list_of_users.length === 0){\r\n        window.openUserDialog()\r\n        return\r\n    }\r\n    if(window.subscription && !window.subscription.organization_name){\r\n        window.openSignupDialog()\r\n        return\r\n    }\r\n    frappe.msgprint(\"You have already signup for productify. You can access productify settings <a href='https://productify15.finbyz.tech/app/productify-subscription/Productify%20Subscription'>Productify Subscription</a>\")\r\n});\r\n",
+  "style": null
+ }
+]

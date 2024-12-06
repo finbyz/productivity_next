@@ -1,0 +1,159 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-01-27 12:14:05.032867",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "employee_no",
+  "client_details",
+  "contact",
+  "party_type",
+  "party",
+  "column_break_vnska",
+  "salutation",
+  "first_name",
+  "client_no",
+  "client_email",
+  "last_name",
+  "create_contact",
+  "ignore_contact",
+  "contact_created"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "client_details",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Client Details",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "depends_on": "eval: doc.contact_created;",
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Contact",
+   "options": "Contact"
+  },
+  {
+   "columns": 1,
+   "fieldname": "party_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Party Type",
+   "options": "DocType"
+  },
+  {
+   "columns": 1,
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Party",
+   "options": "party_type"
+  },
+  {
+   "fieldname": "column_break_vnska",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "salutation",
+   "fieldtype": "Link",
+   "label": "Salutation",
+   "options": "Salutation"
+  },
+  {
+   "columns": 1,
+   "fetch_from": "contact.first_name",
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "First Name",
+   "read_only_depends_on": "eval: doc.contact_created;"
+  },
+  {
+   "columns": 1,
+   "fetch_from": "contact.last_name",
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Last Name",
+   "read_only_depends_on": "eval: doc.contact_created;"
+  },
+  {
+   "columns": 1,
+   "fieldname": "create_contact",
+   "fieldtype": "Button",
+   "in_list_view": 1,
+   "label": "Create Contact",
+   "read_only_depends_on": "eval: !doc.contact_created"
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "fieldname": "ignore_contact",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Ignore Contact",
+   "read_only_depends_on": "eval: doc.contact_created;"
+  },
+  {
+   "default": "0",
+   "fieldname": "contact_created",
+   "fieldtype": "Check",
+   "label": "Contact Created",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee_no",
+   "fieldtype": "Data",
+   "label": "Employee No",
+   "options": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "client_no",
+   "fieldtype": "Data",
+   "label": "Client No"
+  },
+  {
+   "fieldname": "client_email",
+   "fieldtype": "Data",
+   "label": "Client Email"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2024-03-18 12:11:34.477165",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Phone Reconciliation Call",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

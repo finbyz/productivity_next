@@ -1,0 +1,197 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "naming_series:",
+ "creation": "2023-11-09 12:18:58.156890",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee",
+  "employee_name",
+  "application_title",
+  "application_name",
+  "process_name",
+  "column_break_a0cjy",
+  "computer_name",
+  "ip_address",
+  "date",
+  "from_time",
+  "to_time",
+  "duration",
+  "column_break_hqfs",
+  "url",
+  "domain",
+  "project",
+  "issue",
+  "task"
+ ],
+ "fields": [
+  {
+   "default": "AL-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "AL-.YY.MM.DD.-",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "from_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "From Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "to_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "To Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_a0cjy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "computer_name",
+   "fieldtype": "Data",
+   "label": "Computer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "application_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Application Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "application_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Application Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Duration",
+   "read_only": 1
+  },
+  {
+   "fieldname": "domain",
+   "fieldtype": "Data",
+   "label": "Domain",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_hqfs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Small Text",
+   "label": "Url",
+   "read_only": 1
+  },
+  {
+   "fieldname": "process_name",
+   "fieldtype": "Data",
+   "label": "Process Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
+  }
+ ],
+ "links": [],
+ "modified": "2024-09-19 16:16:37.286694",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Application Usage log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

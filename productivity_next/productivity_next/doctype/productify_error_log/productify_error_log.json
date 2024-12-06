@@ -1,0 +1,113 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2024-05-30 09:42:15.210374",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "error_datetime",
+  "api_type",
+  "employee",
+  "employee_name",
+  "system_used",
+  "request_details",
+  "error_details"
+ ],
+ "fields": [
+  {
+   "fieldname": "error_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Error Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "api_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Api Type",
+   "options": "\nApplication Usage log\nScreenshot Log\nset_application_checkin_checkout\nset_user_idel_time\nupload_file\nget_user_idel_time\nget_usage_time\nlogin\nget_server_details\nvalidate_user\nWork Intensity\nTimesheet\nTask",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "fieldname": "system_used",
+   "fieldtype": "Data",
+   "label": "System Used",
+   "read_only": 1
+  },
+  {
+   "fieldname": "request_details",
+   "fieldtype": "Small Text",
+   "label": "Request Details",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_details",
+   "fieldtype": "Text",
+   "label": "Error Details",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "default": "PEL-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PEL-.YY.MM.DD.-",
+   "read_only": 1,
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-09-19 16:17:50.623319",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Error Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

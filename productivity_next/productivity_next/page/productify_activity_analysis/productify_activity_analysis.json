@@ -1,0 +1,23 @@
+{
+ "content": null,
+ "creation": "2024-07-17 09:39:38.979129",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 12,
+ "modified": "2024-09-19 16:33:33.256497",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Activity Analysis",
+ "owner": "Administrator",
+ "page_name": "Productify Activity Analysis",
+ "roles": [
+  {
+   "role": "Employee"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Productify Activity Analysis"
+}

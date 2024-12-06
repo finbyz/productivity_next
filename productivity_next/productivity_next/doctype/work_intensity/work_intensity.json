@@ -1,0 +1,159 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2024-06-10 11:45:20.571906",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee",
+  "employee_name",
+  "issue",
+  "task",
+  "project",
+  "column_break_nchj",
+  "time",
+  "key_strokes",
+  "mouse_clicks",
+  "mouse_scrolls",
+  "section_break_iuhm",
+  "used_softwares"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_nchj",
+   "fieldtype": "Column Break",
+   "read_only": 1
+  },
+  {
+   "default": "WI-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "WI-.YY.MM.DD.-",
+   "reqd": 1
+  },
+  {
+   "fieldname": "time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "key_strokes",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Key Strokes",
+   "non_negative": 1,
+   "options": "0",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "mouse_clicks",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Mouse Clicks",
+   "non_negative": 1,
+   "options": "0",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "mouse_scrolls",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Mouse Scrolls",
+   "non_negative": 1,
+   "options": "0",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_iuhm",
+   "fieldtype": "Section Break"
+  },
+  {
+   "allow_bulk_edit": 1,
+   "fieldname": "used_softwares",
+   "fieldtype": "Table",
+   "label": "Used Softwares",
+   "options": "Used Software"
+  }
+ ],
+ "links": [],
+ "modified": "2024-11-12 16:04:01.287126",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Work Intensity",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "sort_field": "time",
+ "sort_order": "DESC",
+ "states": []
+}

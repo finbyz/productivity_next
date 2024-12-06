@@ -1,0 +1,58 @@
+{
+ "actions": [],
+ "creation": "2017-11-20 17:45:11.708963",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "actionable",
+  "responsible",
+  "expected_completion_date",
+  "event_type"
+ ],
+ "fields": [
+  {
+   "columns": 3,
+   "fieldname": "actionable",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Actionable"
+  },
+  {
+   "columns": 3,
+   "fieldname": "responsible",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Responsible"
+  },
+  {
+   "columns": 2,
+   "fieldname": "expected_completion_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Expected Completion Date"
+  },
+  {
+   "columns": 2,
+   "default": "Public",
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Event Type",
+   "options": "\nPublic\nPrivate"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2024-07-09 12:57:14.306643",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Meeting Actionable",
+ "owner": "Administrator",
+ "permissions": [],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

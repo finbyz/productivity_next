@@ -1,0 +1,239 @@
+{
+ "charts": [
+  {
+   "chart_name": "Calls Analysis",
+   "label": "Calls Analysis"
+  },
+  {
+   "chart_name": "Domain Analysis",
+   "label": "Domain Analysis"
+  }
+ ],
+ "content": "[{\"id\":\"kTleKoHteR\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Calls Analysis\",\"col\":12}},{\"id\":\"3eQva58f3z\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Domain Analysis\",\"col\":12}},{\"id\":\"R7fg31EHP2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Productify Pages, Logs and Reports</b></span>\",\"col\":12}},{\"id\":\"cBU3BdUehf\",\"type\":\"card\",\"data\":{\"card_name\":\"Pages\",\"col\":4}},{\"id\":\"Vw51ZmjMj2\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"ynT1x747L9\",\"type\":\"card\",\"data\":{\"card_name\":\"Desktop Applications\",\"col\":4}},{\"id\":\"YStjTUAy_9\",\"type\":\"card\",\"data\":{\"card_name\":\"Mobile Applications\",\"col\":4}},{\"id\":\"_IY8wtCRHW\",\"type\":\"card\",\"data\":{\"card_name\":\"Productify\",\"col\":4}},{\"id\":\"FcJc7pgO-n\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Signup Button\",\"col\":4}}]",
+ "creation": "2024-05-28 16:11:12.552958",
+ "custom_blocks": [
+  {
+   "custom_block_name": "Signup Button",
+   "label": "Signup Button"
+  }
+ ],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "users",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Productify",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Application Checkin Checkout",
+   "link_count": 0,
+   "link_to": "Application Checkin Checkout",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mobile Applications",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Fincall Log",
+   "link_count": 0,
+   "link_to": "Employee Fincall",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fincall Log",
+   "link_count": 0,
+   "link_to": "Fincall Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Pages",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Consolidated Analysis",
+   "link_count": 0,
+   "link_to": "Productify Consolidated Analysis",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Activity Analysis",
+   "link_count": 0,
+   "link_to": "Productify Activity Analysis",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Desktop Applications",
+   "link_count": 5,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Application Usage Log",
+   "link_count": 0,
+   "link_to": "Application Usage log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Screenshot Log",
+   "link_count": 0,
+   "link_to": "Screen Screenshot Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Idle Time",
+   "link_count": 0,
+   "link_to": "Employee Idle Time",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Work Summary",
+   "link_count": 0,
+   "link_to": "Productify Work Summary",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Work Intensity",
+   "link_count": 0,
+   "link_to": "Work Intensity",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Productify Subscription",
+   "link_count": 0,
+   "link_to": "Productify Subscription",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 7,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Calls Analysis",
+   "link_count": 0,
+   "link_to": "Calls Analysis",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Domains Analysis",
+   "link_count": 0,
+   "link_to": "Domains Analysis",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Productify Activity Summary",
+   "link_count": 0,
+   "link_to": "Productify Activity Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Application Analysis",
+   "link_count": 0,
+   "link_to": "Application Analysis",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2024-11-06 19:52:53.493126",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 54.0,
+ "shortcuts": [],
+ "title": "Productify"
+}

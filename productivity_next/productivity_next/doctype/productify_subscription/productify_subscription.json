@@ -1,0 +1,282 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-07-20 13:20:58.160420",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "organization_name",
+  "status",
+  "valid_upto",
+  "keep_screen_shots_for_days",
+  "keep_application_logs_for_days",
+  "fincall",
+  "application_usage",
+  "sales_person",
+  "project",
+  "task",
+  "issue",
+  "enable_blurred_screenshot",
+  "working_hours_per_day",
+  "working_hours_on_saturday",
+  "stop_duration_for_meetings",
+  "column_break_ipqe",
+  "site_url",
+  "email",
+  "name1",
+  "mobile_no",
+  "api_key",
+  "api_secret",
+  "application_organization_name",
+  "call_organization_name",
+  "token",
+  "token_updated_on",
+  "location_tracking_section",
+  "automatic_location_tracking",
+  "column_break_ivyo",
+  "location_tracking_from_time",
+  "column_break_wanv",
+  "location_tracking_to_time",
+  "section_break_qria",
+  "get_users",
+  "list_of_users"
+ ],
+ "fields": [
+  {
+   "fieldname": "organization_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Organization Name",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Email",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "fincall",
+   "fieldtype": "Check",
+   "label": "Fincall"
+  },
+  {
+   "default": "0",
+   "fieldname": "application_usage",
+   "fieldtype": "Check",
+   "label": "Application Usage"
+  },
+  {
+   "default": "0",
+   "fieldname": "sales_person",
+   "fieldtype": "Check",
+   "label": "Sales Person"
+  },
+  {
+   "fieldname": "column_break_ipqe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mobile No",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "valid_upto",
+   "fieldtype": "Date",
+   "label": "Valid Upto",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_qria",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "list_of_users",
+   "fieldtype": "Table",
+   "label": "List of Users",
+   "options": "List of User"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nActive\nExpired"
+  },
+  {
+   "fieldname": "site_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Site Url",
+   "read_only": 1
+  },
+  {
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "get_users",
+   "fieldtype": "Button",
+   "label": "Get Users"
+  },
+  {
+   "default": "0",
+   "fieldname": "project",
+   "fieldtype": "Check",
+   "label": "Enable Project Analysis"
+  },
+  {
+   "default": "0",
+   "fieldname": "issue",
+   "fieldtype": "Check",
+   "label": "Enable Issue Analysis"
+  },
+  {
+   "default": "0",
+   "fieldname": "task",
+   "fieldtype": "Check",
+   "label": "Enable Task Analysis"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Api key"
+  },
+  {
+   "fieldname": "api_secret",
+   "fieldtype": "Password",
+   "hidden": 1,
+   "label": "Api Secret"
+  },
+  {
+   "fieldname": "application_organization_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Application Organization Name"
+  },
+  {
+   "fieldname": "call_organization_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Call Organization Name"
+  },
+  {
+   "description": "Enter the number of working hours per weekday (Monday to Friday) in the format 7, 7.5, 8, etc. If not filled, the default is 7.5 hours per weekday.",
+   "fieldname": "working_hours_per_day",
+   "fieldtype": "Data",
+   "label": "Working Hours Per Day"
+  },
+  {
+   "description": "Enter the number of working hours for Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 2.5 hours for Saturday.",
+   "fieldname": "working_hours_on_saturday",
+   "fieldtype": "Data",
+   "label": "Working Hours On Saturday"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which screenshots will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_screen_shots_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Screenshots For Days"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which application usage logs will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_application_logs_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Application Logs for Days"
+  },
+  {
+   "default": "15",
+   "description": "Specify the number of minutes at one single point after which user will be automatically considered stop while on meeting. If not specified default is 15 minutes.",
+   "fieldname": "stop_duration_for_meetings",
+   "fieldtype": "Data",
+   "label": "Stop Duration For Meetings"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_blurred_screenshot",
+   "fieldtype": "Check",
+   "label": "Enable Blurred Screenshot"
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "label": "Token",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "token_updated_on",
+   "fieldtype": "Date",
+   "label": "Token Updated On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "location_tracking_section",
+   "fieldtype": "Section Break",
+   "label": "Location Tracking"
+  },
+  {
+   "default": "0",
+   "fieldname": "automatic_location_tracking",
+   "fieldtype": "Check",
+   "label": "Automatic Location Tracking"
+  },
+  {
+   "fieldname": "column_break_ivyo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval: doc.automatic_location_tracking",
+   "fieldname": "location_tracking_from_time",
+   "fieldtype": "Time",
+   "label": "Location Tracking From Time",
+   "mandatory_depends_on": "eval: doc.automatic_location_tracking"
+  },
+  {
+   "fieldname": "column_break_wanv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval: doc.automatic_location_tracking",
+   "fieldname": "location_tracking_to_time",
+   "fieldtype": "Time",
+   "label": "Location Tracking To Time"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-12-03 13:44:51.011475",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Subscription",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

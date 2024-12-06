@@ -1,0 +1,175 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2024-01-27 11:38:11.660535",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee_mobile",
+  "customer_no",
+  "employee",
+  "client",
+  "calltype",
+  "employee_fincall_generated",
+  "ignore_contact",
+  "contact_created",
+  "duplicate_contact",
+  "column_break_9",
+  "duration",
+  "note",
+  "raw_log",
+  "call_datetime",
+  "date"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee_mobile",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Employee Mobile",
+   "options": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_9",
+   "fieldtype": "Column Break",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "employee",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "client",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Client",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "hide_days": 1,
+   "label": "Duration",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "calltype",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Call Type",
+   "options": "\nIncoming\nOutgoing\nMissed\nRejected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Data",
+   "label": "Note",
+   "read_only": 1
+  },
+  {
+   "fieldname": "raw_log",
+   "fieldtype": "Code",
+   "label": "Raw Log",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "ignore_contact",
+   "fieldtype": "Check",
+   "label": "Ignore Contact",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "contact_created",
+   "fieldtype": "Check",
+   "label": "Contact Created",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "call_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Call DateTime",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "employee_fincall_generated",
+   "fieldtype": "Check",
+   "label": "Employee Fincall Generated",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_no",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Customer No",
+   "options": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "AL-.YY.MM.DD.-"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "duplicate_contact",
+   "fieldtype": "Check",
+   "label": "Duplicate Contact",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-09-19 16:26:20.457438",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Fincall Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "role": "Employee",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

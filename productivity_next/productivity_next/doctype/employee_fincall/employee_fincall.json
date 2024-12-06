@@ -1,0 +1,210 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "EC-.######",
+ "creation": "2024-01-27 11:46:39.389291",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "employee_mobile",
+  "client",
+  "customer_no",
+  "call_datetime",
+  "duration",
+  "date",
+  "column_break_qqss0",
+  "link_to",
+  "link_name",
+  "contact",
+  "calltype",
+  "fincall_log_ref",
+  "create_contact",
+  "spoke_about",
+  "comment"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "no_copy": 1,
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "no_copy": 1,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "link_to",
+   "fieldtype": "Link",
+   "label": "Link To",
+   "no_copy": 1,
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "label": "Contact",
+   "no_copy": 1,
+   "options": "Contact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_qqss0",
+   "fieldtype": "Column Break",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "call_datetime",
+   "fieldtype": "Datetime",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Call DateTime",
+   "no_copy": 1,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "fincall_log_ref",
+   "fieldtype": "Link",
+   "label": "Fincall Log Ref",
+   "no_copy": 1,
+   "options": "Fincall Log",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "employee_mobile",
+   "fieldtype": "Data",
+   "label": "Employee Mobile",
+   "no_copy": 1,
+   "options": "Phone",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_no",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer No",
+   "no_copy": 1,
+   "options": "Phone",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Data",
+   "label": "Client",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Duration",
+   "label": "Duration",
+   "no_copy": 1,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "calltype",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Call Type",
+   "no_copy": 1,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "link_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Link Name",
+   "no_copy": 1,
+   "options": "link_to",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:!doc.contact && !doc.link_name",
+   "fieldname": "create_contact",
+   "fieldtype": "Button",
+   "label": "Create Contact"
+  },
+  {
+   "fieldname": "spoke_about",
+   "fieldtype": "Small Text",
+   "label": "Spoke About"
+  },
+  {
+   "fieldname": "comment",
+   "fieldtype": "Link",
+   "label": "Comment",
+   "options": "Comment",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-10-21 15:01:53.883964",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Employee Fincall",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

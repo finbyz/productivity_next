@@ -1,0 +1,33 @@
+{
+ "chart_name": "Domain Analysis",
+ "chart_type": "Report",
+ "creation": "2024-05-29 11:08:41.015486",
+ "custom_options": "{\"type\": \"bar\", \"colors\": [\"#7575ff\"], \"axisOptions\": { \"shortenYAxisNumbers\": 1}}",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart",
+ "dynamic_filters_json": "{}",
+ "filters_json": "{\"from_date\":\"2024-09-18\",\"to_date\":\"2024-09-18\"}",
+ "group_by_type": "Count",
+ "idx": 14,
+ "is_public": 1,
+ "is_standard": 1,
+ "modified": "2024-09-19 16:34:01.502024",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Domain Analysis",
+ "number_of_groups": 0,
+ "owner": "Administrator",
+ "report_name": "Domains Analysis",
+ "roles": [
+  {
+   "role": "Employee"
+  }
+ ],
+ "time_interval": "Yearly",
+ "timeseries": 0,
+ "timespan": "Last Year",
+ "type": "Bar",
+ "use_report_chart": 1,
+ "x_field": "",
+ "y_axis": []
+}

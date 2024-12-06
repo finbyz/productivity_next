@@ -1,0 +1,148 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2023-11-09 12:24:10.405245",
+ "default_view": "Image",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee",
+  "employee_name",
+  "active_app",
+  "computer_name",
+  "ip_address",
+  "column_break_btv1x",
+  "time",
+  "screenshot",
+  "blurred_screenshot",
+  "issue",
+  "task",
+  "project"
+ ],
+ "fields": [
+  {
+   "default": "SL-.YY.MM.DD.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "SL-.YY.MM.DD.-",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "screenshot",
+   "fieldtype": "Attach Image",
+   "label": "Screenshot",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_btv1x",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "active_app",
+   "fieldtype": "Data",
+   "label": "Active App",
+   "read_only": 1
+  },
+  {
+   "fieldname": "computer_name",
+   "fieldtype": "Data",
+   "label": "Computer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP Address",
+   "read_only": 1
+  },
+  {
+   "default": "now",
+   "fieldname": "time",
+   "fieldtype": "Datetime",
+   "label": "Time",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "blurred_screenshot",
+   "fieldtype": "Attach Image",
+   "label": "Blurred Screenshot",
+   "read_only": 1
+  }
+ ],
+ "image_field": "screenshot",
+ "links": [],
+ "modified": "2024-09-19 16:18:08.162550",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Screen Screenshot Log",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

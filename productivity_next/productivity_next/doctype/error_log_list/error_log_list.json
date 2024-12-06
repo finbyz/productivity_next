@@ -1,0 +1,59 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-04-22 15:38:42.603842",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "error_log",
+  "computer_name",
+  "date"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Data",
+   "label": "employee"
+  },
+  {
+   "fieldname": "error_log",
+   "fieldtype": "Small Text",
+   "label": "error_log"
+  },
+  {
+   "fieldname": "computer_name",
+   "fieldtype": "Data",
+   "label": "computer_name"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "date"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-04-22 15:40:26.827261",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Error Log List",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

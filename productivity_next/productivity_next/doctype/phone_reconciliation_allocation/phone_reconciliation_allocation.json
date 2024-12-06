@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2024-01-27 12:12:11.248173",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "client_details",
+  "employee_no",
+  "client_no",
+  "column_break_vnska",
+  "party_type",
+  "party",
+  "contact",
+  "first_name",
+  "last_name",
+  "ignore_contact"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "client_details",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Client Details",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_vnska",
+   "fieldtype": "Column Break",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "party_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Party Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Party",
+   "options": "party_type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "label": "Contact",
+   "options": "Contact",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "First Name",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Last Name",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "ignore_contact",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "ignore_contact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee_no",
+   "fieldtype": "Data",
+   "label": "Employee No",
+   "options": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "client_no",
+   "fieldtype": "Data",
+   "label": "Client No"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2024-03-14 17:18:07.422465",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Phone Reconciliation Allocation",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
