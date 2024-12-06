@@ -295,49 +295,160 @@ UserProfile = class UserProfile {
 	// Change Employee Button Code Ends
 
 	
-// Usage in meetings_analysis()
-meetings_analysis() {
-    const user = this.selected_employee || this.user_id;
-    
-    if (!user || !this.selected_start_date || !this.selected_end_date) {
-        frappe.msgprint({
-            title: __('Validation Error'),
-            indicator: 'red',
-            message: __('Please ensure all required fields are filled.')
-        });
-        return;
-    }
-
-    frappe.call({
-        method: "productivity_next.api.get_timeline",
-        args: {
-            employee: user,
-            start_date: this.selected_start_date,
-            end_date: this.selected_end_date,
-        }
-    }).then((r) => {
-		const locations = r.message.data.flatMap(item => 
-			item.lat_long_cordinates.map(([lat, lng]) => ({ lat, lng }))
-		);
-		const mapContainer = document.querySelector('#meetings-map-container');
-		if (mapContainer) {
-			new MeetingsMap(mapContainer, locations);
+	// Usage in meetings_analysis()
+	meetings_analysis() {
+		const user = this.selected_employee || this.user_id;
+		
+		// Comprehensive validation with more specific error messages
+		if (!user) {
+			frappe.msgprint({
+				title: __('Missing Employee'),
+				indicator: 'red',
+				message: __('Please select an employee.')
+			});
+			return;
 		}
-        if (r.message && r.message.data) {
-            const container = document.querySelector('#meetings-list');
-            if (container) {
-                new LocationTimeline(container, r.message);
-            }
-        }
-    }).catch((error) => {
-        console.error("Error fetching data:", error);
-        frappe.msgprint({
-            title: __('Error'),
-            indicator: 'red',
-            message: __('Failed to fetch data: ' + error.message)
-        });
-    });
-}
+	
+		if (!this.selected_start_date) {
+			frappe.msgprint({
+				title: __('Missing Start Date'),
+				indicator: 'red',
+				message: __('Please select a start date.')
+			});
+			return;
+		}
+	
+		if (!this.selected_end_date) {
+			frappe.msgprint({
+				title: __('Missing End Date'),
+				indicator: 'red',
+				message: __('Please select an end date.')
+			});
+			return;
+		}
+	
+		// Date range validation
+		if (new Date(this.selected_start_date) > new Date(this.selected_end_date)) {
+			frappe.msgprint({
+				title: __('Invalid Date Range'),
+				indicator: 'red',
+				message: __('Start date cannot be later than end date.')
+			});
+			return;
+		}
+	
+		// Show loading indicator
+		frappe.show_progress(__('Fetching Data'), 0, 100, __('Retrieving meeting and location data...'));
+	
+		frappe.call({
+			method: "productivity_next.api.get_timeline",
+			args: {
+				employee: user,
+				start_date: this.selected_start_date,
+				end_date: this.selected_end_date,
+			},
+			// Add timeout to handle slow network conditions
+			timeout: 60
+		}).then((r) => {
+			if (!r.message || !r.message.data || r.message.data.length === 0) {
+				frappe.msgprint({
+					title: __('No Data'),
+					indicator: 'yellow',
+					message: __('No meeting or location data found for the selected period.')
+				});
+				return;
+			}
+	
+			// Process locations with error handling
+			const locations = r.message.data.flatMap(item => 
+				item.lat_long_cordinates.map(([lat, lng], index) => ({ 
+					lat, 
+					lng, 
+					timestamp: item.start_time 
+				}))
+			);
+	
+			// Declare meetingsMap in a broader scope
+			let meetingsMap = null;
+	
+			// Render map
+			const mapContainer = document.querySelector('#meetings-map-container');
+			if (mapContainer) {
+				try {
+					meetingsMap = new MeetingsMap(mapContainer, locations);
+				} catch (mapError) {
+					console.error('Map initialization error:', mapError);
+					frappe.msgprint({
+						title: __('Map Error'),
+						indicator: 'red',
+						message: __('Unable to initialize map: ') + mapError.message
+					});
+				}
+			}
+	
+			// Render timeline
+			const container = document.querySelector('#meetings-list');
+			if (container) {
+				try {
+					// Pass meetingsMap to LocationTimeline
+					const locationTimeline = new LocationTimeline(container, r.message, meetingsMap);
+				} catch (timelineError) {
+					console.error('Timeline initialization error:', timelineError);
+					frappe.msgprint({
+						title: __('Timeline Error'),
+						indicator: 'red',
+						message: __('Unable to initialize timeline: ') + timelineError.message
+					});
+				}
+			}
+			// Render meetings overview
+			try {
+				new MeetingsOverview(document.querySelector('.meetings'), {
+					driving: { 
+						duration: this.convertSecondsToTime(r.message.total_driving_time), 
+						total: 'Travel Time' 
+					},
+					stop: { 
+						duration: this.convertSecondsToTime(r.message.total_stop_time), 
+						total: 'Idle Time' 
+					},
+					internalMeeting: { 
+						duration: this.convertSecondsToTime(r.message.total_internal_meeting_duration), 
+						total: 'Team Meetings' 
+					},
+					externalMeeting: { 
+						duration: this.convertSecondsToTime(r.message.total_external_meeting_duration), 
+						total: 'Client Meetings' 
+					}
+				});
+			} catch (overviewError) {
+				console.error('Meetings overview initialization error:', overviewError);
+				frappe.msgprint({
+					title: __('Overview Error'),
+					indicator: 'red',
+					message: __('Unable to initialize meetings overview: ') + overviewError.message
+				});
+			}
+	
+		}).catch((error) => {
+			// Hide progress and show detailed error
+			frappe.hide_progress();
+			
+			console.error("Error fetching data:", error);
+			
+			// More informative error handling
+			let errorMessage = __('Failed to fetch data');
+			if (error.status) {
+				errorMessage += ` (${error.status} ${error.statusText})`;
+			}
+			
+			frappe.msgprint({
+				title: __('Fetch Error'),
+				indicator: 'red',
+				message: errorMessage + ': ' + (error.message || __('Unknown error'))
+			});
+		});
+	}
 	// Work Intensity Code Starts
 	work_intensity() {
 		let user;
@@ -3108,6 +3219,7 @@ class MeetingsMap {
         this.map = null;
         this.markers = [];
         this.path = null;
+        this.highlightedPath = null;
         this.visibleMarkers = new Set();
         this.init();
     }
@@ -3264,12 +3376,61 @@ class MeetingsMap {
             this.map.fitBounds(bounds, { padding: [50, 50] });
         }
     }
+	highlightRouteSegment(startTime, endTime) {
+        // Remove any previously highlighted path
+        if (this.highlightedPath) {
+            this.map.removeLayer(this.highlightedPath);
+        }
+
+        // Filter locations within the time range
+        const segmentLocations = this.locations.filter(loc => 
+            new Date(loc.timestamp) >= new Date(startTime) && 
+            new Date(loc.timestamp) <= new Date(endTime)
+        );
+
+        if (segmentLocations.length > 1) {
+            // Draw highlighted path
+            this.highlightedPath = L.polyline(
+                segmentLocations.map(loc => [loc.lat, loc.lng]), 
+                {
+                    color: '#FF4500', // Bright orange-red for highlight
+                    weight: 4,
+                    opacity: 0.8
+                }
+            ).addTo(this.map);
+
+            // Fit map to the highlighted segment
+            const bounds = L.latLngBounds(
+                segmentLocations.map(loc => [loc.lat, loc.lng])
+            );
+            this.map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    // Method to reset map to original view
+    resetMapView() {
+        // Remove highlighted path
+        if (this.highlightedPath) {
+            this.map.removeLayer(this.highlightedPath);
+            this.highlightedPath = null;
+        }
+
+        // Reset map view to original
+        if (this.locations && this.locations.length > 0) {
+            const bounds = L.latLngBounds(
+                this.locations.map(loc => [loc.lat, loc.lng])
+            );
+            this.map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
 }
 
 class LocationTimeline {
-    constructor(container, data) {
+    constructor(container, data, mapInstance) {
         this.container = container;
         this.data = data;
+        this.mapInstance = mapInstance;
+        this.currentHighlightedItem = null;
         this.initStyles();
         this.init();
     }
@@ -3283,15 +3444,17 @@ class LocationTimeline {
                     position: relative;
                     padding: 20px 40px;
                     width: 100%;
+                    background-color: #f7f9fc;
                 }
                 .center-line {
                     position: absolute;
                     left: 50%;
                     transform: translateX(-50%);
-                    width: 1px;
-                    background: #E2E6E9;
+                    width: 2px;
+                    background: linear-gradient(to bottom, #3498db, #2980b9);
                     height: calc(100% - 80px);
                     top: 80px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 .stats-wrapper {
                     display: flex;
@@ -3300,40 +3463,38 @@ class LocationTimeline {
                     margin-bottom: 40px;
                     text-align: center;
                 }
-                .stat-item {
-                    text-align: center;
-                }
-                .stat-label {
-                    color: #1F272E;
-                    font-size: 13px;
-                    margin-bottom: 4px;
-                }
-                .stat-value {
-                    color: #505A62;
-                    font-size: 13px;
-                }
                 .timeline-item {
                     display: flex;
                     margin-bottom: 0;
                     position: relative;
                 }
                 .timeline-point {
-                    width: 6px;
-                    height: 6px;
-                    background: #4C5A67;
+                    width: 12px;
+                    height: 12px;
+                    background: linear-gradient(135deg, #3498db, #2980b9);
                     border-radius: 50%;
                     position: absolute;
                     left: 50%;
                     transform: translateX(-50%);
                     top: 24px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                 }
                 .timeline-content {
                     width: calc(50% - 20px);
                     background: white;
-                    padding: 12px 16px;
-                    border-radius: 6px;
-                    border: 1px solid #E2E6E9;
-                    margin-bottom: 16px;
+                    padding: 16px;
+                    border-radius: 8px;
+                    border: 1px solid #e0e6ed;
+                    margin-bottom: 24px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    transition: transform 0.3s ease;
+                }
+                .timeline-content:hover {
+                    transform: scale(1.02);
+                }
+                .timeline-content.highlighted {
+                    border: 2px solid #6420AA;
+                    box-shadow: 0 0 10px rgba(100, 32, 170, 0.3);
                 }
                 .timeline-content.left {
                     margin-right: calc(50% + 20px);
@@ -3343,48 +3504,78 @@ class LocationTimeline {
                 }
                 .time-range {
                     font-size: 13px;
-                    font-weight: 500;
-                    color: #1F272E;
-                    margin-bottom: 6px;
+                    font-weight: 600;
+                    color: #2c3e50;
+                    margin-bottom: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .time-range i {
+                    color: #3498db;
                 }
                 .activity-type {
+                    display: flex;
+                    align-items: center;
                     font-size: 13px;
-                    color: #505A62;
-                    margin-bottom: 4px;
+                    color: #34495e;
+                    margin-bottom: 8px;
+                    font-weight: 500;
+                }
+                .activity-type i {
+                    font-size: 16px;
+                    margin-right: 8px;
+                    width: 20px;
+                    text-align: center;
                 }
                 .activity-info {
                     font-size: 13px;
-                    color: #505A62;
+                    color: #7f8c8d;
                     margin-bottom: 8px;
+                    background-color: #f1f4f8;
+                    padding: 6px 8px;
+                    border-radius: 4px;
                 }
                 .meeting-item {
-                    margin-top: 8px;
+                    margin-top: 12px;
+                    border-radius: 6px;
+                    padding: 10px;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                }
+                .meeting-item:hover {
+                    opacity: 0.9;
+                }
+                .meetings-box-blue {
+                    background-color: #e3f2fd;
+                    color: #2196f3;
+                }
+                .meetings-box-green {
+                    background-color: #f8d7da;
+                    color: #e53935;
+                }
+                .meetings-box-purple- {
+                    color: #9c27b0;
+                }
+                .meetings-box-orange- {
+                    color: #ff9800;
                 }
                 .meeting-title {
                     display: flex;
                     align-items: center;
                     gap: 8px;
                     font-size: 13px;
-                    color: #1F272E;
+                    font-weight: 500;
+                }
+                .meeting-title i {
+                    font-size: 14px;
                 }
                 .meeting-time {
                     font-size: 12px;
-                    color: #505A62;
-                    margin-top: 2px;
+                    margin-top: 4px;
+                    opacity: 0.7;
                 }
             `;
-			styleElement.textContent += `
-    .activity-type {
-        display: flex;
-        align-items: center;
-        font-size: 13px;
-        color: #505A62;
-        margin-bottom: 8px;
-    }
-    .activity-type i {
-        font-size: 14px;
-    }
-`;
             document.head.appendChild(styleElement);
         }
     }
@@ -3393,14 +3584,6 @@ class LocationTimeline {
         this.container.innerHTML = `
             <div class="timeline-wrapper">
                 <div class="stats-wrapper">
-                    <div class="stat-item">
-                        <div class="stat-label">Total Distance</div>
-                        <div class="stat-value">${this.data.total_distance.toFixed(2)} km</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Total Duration</div>
-                        <div class="stat-value">${this.formatDuration(this.data.total_duration)}</div>
-                    </div>
                 </div>
 
                 <div class="center-line"></div>
@@ -3408,6 +3591,9 @@ class LocationTimeline {
                 ${this.renderTimelineItems()}
             </div>
         `;
+
+        // Add event listeners to timeline items
+        this.addTimelineItemListeners();
     }
 
     formatDateTime(dateTime) {
@@ -3429,60 +3615,253 @@ class LocationTimeline {
         return `${hours}h ${minutes}m`;
     }
 
-    // Add this method to the LocationTimeline class
-openMeeting(name) {
-    frappe.set_route('Form', 'Meeting', name);
-}
+    getActivityIcon(type) {
+        switch(type?.toLowerCase()) {
+            case 'still':
+                return '<i class="fa fa-clock-o" style="color: #e53935;"></i>';
+            case 'walking':
+                return '<i class="fa fa-male" style="color: #2ecc71;"></i>';
+            case 'in_vehicle':
+                return '<i class="fa fa-car" style="color: #2196f3;"></i>';
+            default:
+                return '<i class="fa fa-map-marker" style="color: #3498db;"></i>';
+        }
+    }
 
-// Modify the meeting rendering part in renderTimelineItems method
-getActivityIcon(type) {
-    switch(type?.toLowerCase()) {
-        case 'still':
-            return '<i class="fa fa-clock" style="color: #505A62; margin-right: 6px;"></i>';
-        case 'walking':
-            return '<i class="fa-solid fa-person-walking" style="color: #2490EF; margin-right: 6px;"></i>';
-        case 'in_vehicle':
-            return '<i class="fa fa-car" style="color: #2490EF; margin-right: 6px;"></i>';
-        default:
-            return '<i class="fa fa-map-marker" style="color: #505A62; margin-right: 6px;"></i>';
+    addTimelineItemListeners() {
+        const timelineItems = this.container.querySelectorAll('.timeline-content');
+        
+        timelineItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Remove highlight from previously clicked item
+                if (this.currentHighlightedItem) {
+                    this.currentHighlightedItem.classList.remove('highlighted');
+                }
+
+                // Add highlight to current item
+                item.classList.add('highlighted');
+                this.currentHighlightedItem = item;
+
+                // Extract start and end times from data attributes
+                const startTime = item.getAttribute('data-start-time');
+                const endTime = item.getAttribute('data-end-time');
+                
+                if (this.mapInstance && startTime && endTime) {
+                    this.mapInstance.highlightRouteSegment(startTime, endTime);
+                }
+            });
+        });
+
+        // Add a global click listener to reset when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!this.container.contains(event.target)) {
+                this.resetHighlight();
+            }
+        });
+    }
+
+    resetHighlight() {
+        if (this.currentHighlightedItem) {
+            this.currentHighlightedItem.classList.remove('highlighted');
+            this.currentHighlightedItem = null;
+        }
+
+        if (this.mapInstance) {
+            this.mapInstance.resetMapView();
+        }
+    }
+
+    renderTimelineItems() {
+        return this.data.data.map((item, index) => `
+            <div class="timeline-item">
+                <div class="timeline-point"></div>
+                <div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}" 
+                     data-start-time="${item.start_time}" 
+                     data-end-time="${item.end_time}">
+                    <div class="time-range">
+                        <i class="fa fa-clock"></i>
+                        ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
+                    </div>
+                    <div class="activity-type">
+                        ${this.getActivityIcon(item.activity_type)}
+                        ${item.activity_type.replace('_', ' ')}
+                    </div>
+                    ${item.activity_type !== 'still' ? 
+                        `<div class="activity-info">
+                            <i class="fa fa-route" style="margin-right: 6px;"></i>
+                            Distance: ${item.distance.toFixed(2)} km
+                            ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
+                        </div>` : ''
+                    }
+                    ${item.meetings?.map(meeting => `
+                        <div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
+                             onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
+                             style="cursor: pointer;">
+                            <div class="meeting-title">
+                                <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
+                                ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
+                            </div>
+                            <div class="meeting-time">
+                                ${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
+                            </div>
+                        </div>
+                    `).join('') || ''}
+                </div>
+            </div>
+        `).join('');
     }
 }
 
-// Then modify the renderTimelineItems method to include the icons
-renderTimelineItems() {
-    return this.data.data.map((item, index) => `
-        <div class="timeline-item">
-            <div class="timeline-point"></div>
-            <div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}">
-                <div class="time-range">
-                    ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
-                </div>
-                <div class="activity-type">
-                    ${this.getActivityIcon(item.activity_type)}
-                    ${item.activity_type.replace('_', ' ')}
-                </div>
-                ${item.activity_type !== 'still' ? 
-                    `<div class="activity-info">
-                        Distance: ${item.distance.toFixed(2)} km
-                        ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
-                    </div>` : ''
-                }
-                ${item.meetings?.map(meeting => `
-                    <div class="meeting-item" 
-                         onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
-                         style="cursor: pointer;">
-                        <div class="meeting-title">
-                            <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
-                            ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
-                        </div>
-                        <div class="meeting-time">
-                            ${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
-                        </div>
-                    </div>
-                `).join('') || ''}
-            </div>
-        </div>
-    `).join('');
-}
-}
-
+class MeetingsOverview {
+	constructor(container, data) {
+	  this.container = container;
+	  this.data = data || {
+		driving: { duration: '2h 15m', total: 0 },
+		stop: { duration: '1h 30m', total: 0 },
+		internalMeeting: { duration: '3h 45m', total: 0 },
+		externalMeeting: { duration: '2h 00m', total: 0 }
+	  };
+	  this.init();
+	}
+  
+	init() {
+	  // Add styles
+	  this.addStyles();
+  
+	  // Create boxes container
+	  const boxesContainer = document.createElement('div');
+	  boxesContainer.className = 'meetings-overview-boxes';
+  
+	  // Define box configurations
+	  const boxes = [
+		{
+		  type: 'Driving',
+		  icon: 'fa-car',
+		  color: 'blue',
+		  duration: this.data.driving.duration,
+		  total: this.data.driving.total
+		},
+		{
+		  type: 'Stop',
+		  icon: 'fa-clock-o',
+		  color: 'green',
+		  duration: this.data.stop.duration,
+		  total: this.data.stop.total
+		},
+		{
+		  type: 'Internal Meeting',
+		  icon: 'fa-users',
+		  color: 'purple',
+		  duration: this.data.internalMeeting.duration,
+		  total: this.data.internalMeeting.total
+		},
+		{
+		  type: 'External Meeting',
+		  icon: 'fa-building',
+		  color: 'orange',
+		  duration: this.data.externalMeeting.duration,
+		  total: this.data.externalMeeting.total
+		}
+	  ];
+  
+	  // Render boxes
+	  boxes.forEach(box => {
+		const boxElement = document.createElement('div');
+		boxElement.className = `meetings-box meetings-box-${box.color}`;
+		boxElement.innerHTML = `
+		  <div style = "background-color : #fff !important;" class="meetings-box-icon">
+			<i class="fa ${box.icon}"></i>
+		  </div>
+		  <div class="meetings-box-content">
+			<h3>${box.type}</h3>
+			<p class="duration">${box.duration}</p>
+			<p class="total">${box.total}</p>
+		  </div>
+		`;
+		boxesContainer.appendChild(boxElement);
+	  });
+  
+	  // Clear and append to container
+	  this.container.innerHTML = '';
+	  this.container.appendChild(boxesContainer);
+	}
+  
+	addStyles() {
+	  const styleElement = document.createElement('style');
+	  styleElement.textContent = `
+		.meetings-overview-boxes {
+		  display: flex;
+		  justify-content: space-around;
+		  gap: 20px;
+		  width: 100%;
+		  font-family: Arial, sans-serif;
+		}
+  
+		.meetings-box {
+		  flex: 1;
+		  display: flex;
+		  align-items: center;
+		  padding: 20px;
+		  border-radius: 10px;
+		  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		  transition: transform 0.3s ease;
+		}
+  
+		.meetings-box:hover {
+		  transform: scale(1.05);
+		}
+  
+		.meetings-box-icon {
+		  font-size: 2.5rem;
+		  margin-right: 20px;
+		  display: flex;
+		  align-items: center;
+		  justify-content: center;
+		  width: 80px;
+		  height: 80px;
+		  border-radius: 50%;
+		}
+  
+		.meetings-box-blue  {
+		  background-color: #e3f2fd;
+		  color: #2196f3;
+		}
+  
+		.meetings-box-green  {
+		  background-color: #f8d7da;
+		  color: #e53935;
+		}
+  
+		.meetings-box-purple  {
+		  background-color: #f3e5f5;
+		  color: #9c27b0;
+		}
+  
+		.meetings-box-orange {
+		  background-color: #fff3e0;
+		  color: #ff9800;
+		}
+  
+		.meetings-box-content h3 {
+		  margin: 0 0 5px 0;
+		  font-size: 1.2rem;
+		  font-weight: bold;
+		  color: #333;
+		}
+  
+		.meetings-box-content .duration {
+		  margin: 0 0 5px 0;
+		  font-size: 1.4rem;
+		  font-weight: bold;
+		  color: #333;
+		}
+  
+		.meetings-box-content .total {
+		  margin: 0;
+		  font-size: 1rem;
+		  color: #666;
+		}
+	  `;
+	  document.head.appendChild(styleElement);
+	}
+  }

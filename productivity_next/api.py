@@ -1426,7 +1426,10 @@ def get_timeline(employee, start_date, end_date):
 
     total_distance = 0
     total_duration = 0
-    
+    total_internal_meeting_duration = 0
+    total_external_meeting_duration = 0
+    total_stop_time = 0
+    total_driving_time = 0
     for row in final_data:
         start_time = row['start_time']
         end_time = row['end_time']
@@ -1464,11 +1467,26 @@ def get_timeline(employee, start_date, end_date):
         
         else:
             row['meetings'] = []
+            
+        if 'meetings' in row:
+            for meeting in row['meetings']:
+                if meeting['internal_meeting']:
+                    total_internal_meeting_duration += meeting['duration']
+                else:
+                    total_external_meeting_duration += meeting['duration']
+        if row['activity_type'] == 'still':
+            total_stop_time += int((end_time - start_time).total_seconds())
+        elif row['activity_type'] != 'still':
+            total_driving_time += int((end_time - start_time).total_seconds())
 
     return {
         "total_distance": total_distance,
         "total_duration": total_duration,
-        "data": final_data
+        "data": final_data,
+        "total_driving_time": total_driving_time,
+        "total_stop_time": total_stop_time,
+        "total_internal_meeting_duration": total_internal_meeting_duration,
+        "total_external_meeting_duration": total_external_meeting_duration
     }
 
 
