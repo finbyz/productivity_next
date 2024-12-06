@@ -3181,7 +3181,7 @@ class MeetingsMap {
         const x = Math.cos(lat1) * Math.sin(lat2) -
                  Math.sin(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1);
         const bearing = Math.atan2(y, x) * 180 / Math.PI;
-        return (bearing + 180) % 360;
+        return (bearing + 360) % 360;
     }
 
     createDirectionMarker(location) {
