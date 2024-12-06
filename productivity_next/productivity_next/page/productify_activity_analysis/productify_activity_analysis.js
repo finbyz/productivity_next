@@ -337,8 +337,6 @@ UserProfile = class UserProfile {
 			return;
 		}
 	
-		// Show loading indicator
-		frappe.show_progress(__('Fetching Data'), 0, 100, __('Retrieving meeting and location data...'));
 	
 		frappe.call({
 			method: "productivity_next.api.get_timeline",
@@ -3376,10 +3374,11 @@ class MeetingsMap {
             this.map.fitBounds(bounds, { padding: [50, 50] });
         }
     }
-	highlightRouteSegment(startTime, endTime) {
-        // Remove any previously highlighted path
+	highlightRouteSegment(startTime, endTime, activityType) {
+        // Remove any previously highlighted path or marker
         if (this.highlightedPath) {
             this.map.removeLayer(this.highlightedPath);
+            this.highlightedPath = null;
         }
 
         // Filter locations within the time range
@@ -3388,30 +3387,70 @@ class MeetingsMap {
             new Date(loc.timestamp) <= new Date(endTime)
         );
 
-        if (segmentLocations.length > 1) {
-            // Draw highlighted path
-            this.highlightedPath = L.polyline(
-                segmentLocations.map(loc => [loc.lat, loc.lng]), 
-                {
-                    color: '#FF4500', // Bright orange-red for highlight
-                    weight: 4,
-                    opacity: 0.8
-                }
-            ).addTo(this.map);
+        if (segmentLocations.length > 0) {
+            if (activityType === 'still') {
+                // For 'still' activity, create a marker with a red circle
+                const center = segmentLocations[0];
+                
+                // Red circle marker
+                this.highlightedPath = L.circleMarker(
+                    [center.lat, center.lng], 
+                    {
+                        color: '#FF0000',
+                        fillColor: '#FF0000',
+                        fillOpacity: 0.2,
+                        radius: 50  // Adjust size as needed
+                    }
+                ).addTo(this.map);
 
-            // Fit map to the highlighted segment
-            const bounds = L.latLngBounds(
-                segmentLocations.map(loc => [loc.lat, loc.lng])
-            );
-            this.map.fitBounds(bounds, { padding: [50, 50] });
+                // Center of the circle
+                const centerMarker = L.marker(
+                    [center.lat, center.lng], 
+                    {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: '<div style="background-color: red; width: 10px; height: 10px; border-radius: 50%;"></div>',
+                            iconSize: [10, 10],
+                            iconAnchor: [5, 5]
+                        })
+                    }
+                ).addTo(this.map);
+
+                // Store both the circle and center marker
+                this.highlightedPath.centerMarker = centerMarker;
+
+                // Fit map to the point
+                this.map.setView([center.lat, center.lng], 15);
+            } else {
+                // Draw highlighted path for non-still activities (previous behavior)
+                this.highlightedPath = L.polyline(
+                    segmentLocations.map(loc => [loc.lat, loc.lng]), 
+                    {
+                        color: '#FF4500', // Bright orange-red for highlight
+                        weight: 4,
+                        opacity: 0.8
+                    }
+                ).addTo(this.map);
+
+                // Fit map to the highlighted segment
+                const bounds = L.latLngBounds(
+                    segmentLocations.map(loc => [loc.lat, loc.lng])
+                );
+                this.map.fitBounds(bounds, { padding: [50, 50] });
+            }
         }
     }
 
-    // Method to reset map to original view
     resetMapView() {
-        // Remove highlighted path
+        // Remove highlighted path or markers
         if (this.highlightedPath) {
             this.map.removeLayer(this.highlightedPath);
+            
+            // Remove center marker for still activity if it exists
+            if (this.highlightedPath.centerMarker) {
+                this.map.removeLayer(this.highlightedPath.centerMarker);
+            }
+            
             this.highlightedPath = null;
         }
 
@@ -3645,9 +3684,10 @@ class LocationTimeline {
                 // Extract start and end times from data attributes
                 const startTime = item.getAttribute('data-start-time');
                 const endTime = item.getAttribute('data-end-time');
+                const activityType = item.getAttribute('data-activity-type');
                 
                 if (this.mapInstance && startTime && endTime) {
-                    this.mapInstance.highlightRouteSegment(startTime, endTime);
+                    this.mapInstance.highlightRouteSegment(startTime, endTime, activityType);
                 }
             });
         });
@@ -3672,12 +3712,13 @@ class LocationTimeline {
     }
 
     renderTimelineItems() {
-        return this.data.data.map((item, index) => `
-            <div class="timeline-item">
-                <div class="timeline-point"></div>
-                <div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}" 
-                     data-start-time="${item.start_time}" 
-                     data-end-time="${item.end_time}">
+		return this.data.data.map((item, index) => `
+		<div class="timeline-item">
+			<div class="timeline-point"></div>
+			<div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}" 
+				 data-start-time="${item.start_time}" 
+				 data-end-time="${item.end_time}"
+				 data-activity-type="${item.activity_type}">
                     <div class="time-range">
                         <i class="fa fa-clock"></i>
                         ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
