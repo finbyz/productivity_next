@@ -3242,7 +3242,7 @@ class MeetingsMap {
                     border: none;
                 }
                 .direction-arrow {
-                    background: #6420AA;
+                    background: #0f53ff;
                     clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
                     transform-origin: center center;
                     opacity: 0.8;
@@ -3348,7 +3348,7 @@ class MeetingsMap {
 
         // Draw the path
         const path = L.polyline(pathCoordinates, {
-            color: '#6420AA',
+            color: '#0f53ff',
             weight: 2,
             opacity: 0.8
         }).addTo(this.map);
@@ -3375,93 +3375,144 @@ class MeetingsMap {
         }
     }
 	highlightRouteSegment(startTime, endTime, activityType) {
-        // Remove any previously highlighted path or marker
-        if (this.highlightedPath) {
-            this.map.removeLayer(this.highlightedPath);
-            this.highlightedPath = null;
-        }
-
-        // Filter locations within the time range
-        const segmentLocations = this.locations.filter(loc => 
-            new Date(loc.timestamp) >= new Date(startTime) && 
-            new Date(loc.timestamp) <= new Date(endTime)
-        );
-
-        if (segmentLocations.length > 0) {
-            if (activityType === 'still') {
-                // For 'still' activity, create a marker with a red circle
-                const center = segmentLocations[0];
-                
-                // Red circle marker
-                this.highlightedPath = L.circleMarker(
-                    [center.lat, center.lng], 
-                    {
-                        color: '#FF0000',
-                        fillColor: '#FF0000',
-                        fillOpacity: 0.2,
-                        radius: 50  // Adjust size as needed
-                    }
-                ).addTo(this.map);
-
-                // Center of the circle
-                const centerMarker = L.marker(
-                    [center.lat, center.lng], 
-                    {
-                        icon: L.divIcon({
-                            className: 'custom-div-icon',
-                            html: '<div style="background-color: red; width: 10px; height: 10px; border-radius: 50%;"></div>',
-                            iconSize: [10, 10],
-                            iconAnchor: [5, 5]
-                        })
-                    }
-                ).addTo(this.map);
-
-                // Store both the circle and center marker
-                this.highlightedPath.centerMarker = centerMarker;
-
-                // Fit map to the point
-                this.map.setView([center.lat, center.lng], 15);
-            } else {
-                // Draw highlighted path for non-still activities (previous behavior)
-                this.highlightedPath = L.polyline(
-                    segmentLocations.map(loc => [loc.lat, loc.lng]), 
-                    {
-                        color: '#FF4500', // Bright orange-red for highlight
-                        weight: 4,
-                        opacity: 0.8
-                    }
-                ).addTo(this.map);
-
-                // Fit map to the highlighted segment
-                const bounds = L.latLngBounds(
-                    segmentLocations.map(loc => [loc.lat, loc.lng])
-                );
-                this.map.fitBounds(bounds, { padding: [50, 50] });
-            }
-        }
-    }
-
-    resetMapView() {
-        // Remove highlighted path or markers
-        if (this.highlightedPath) {
-            this.map.removeLayer(this.highlightedPath);
-            
-            // Remove center marker for still activity if it exists
-            if (this.highlightedPath.centerMarker) {
-                this.map.removeLayer(this.highlightedPath.centerMarker);
-            }
-            
-            this.highlightedPath = null;
-        }
-
-        // Reset map view to original
-        if (this.locations && this.locations.length > 0) {
-            const bounds = L.latLngBounds(
-                this.locations.map(loc => [loc.lat, loc.lng])
-            );
-            this.map.fitBounds(bounds, { padding: [50, 50] });
-        }
-    }
+		// Remove any previously highlighted path or marker
+		if (this.highlightedPath) {
+			this.map.removeLayer(this.highlightedPath);
+			this.highlightedPath = null;
+		}
+	
+		// Remove previously styled arrows
+		this.markers.forEach(marker => {
+			if (marker.originalIcon) {
+				marker.setIcon(marker.originalIcon);
+			}
+		});
+	
+		// Filter locations within the time range
+		const segmentLocations = this.locations.filter(loc => 
+			new Date(loc.timestamp) >= new Date(startTime) && 
+			new Date(loc.timestamp) <= new Date(endTime)
+		);
+	
+		if (segmentLocations.length > 0) {
+			if (activityType === 'still') {
+				// For 'still' activity, create a marker with a red circle
+				const center = segmentLocations[0];
+				
+				// Red circle marker
+				this.highlightedPath = L.circleMarker(
+					[center.lat, center.lng], 
+					{
+						color: '#FF0000',
+						fillColor: '#FF0000',
+						fillOpacity: 0.2,
+						radius: 50  // Adjust size as needed
+					}
+				).addTo(this.map);
+	
+				// Center of the circle
+				const centerMarker = L.marker(
+					[center.lat, center.lng], 
+					{
+						icon: L.divIcon({
+							className: 'custom-div-icon',
+							html: '<div style="background-color: red; width: 10px; height: 10px; border-radius: 50%;"></div>',
+							iconSize: [10, 10],
+							iconAnchor: [5, 5]
+						})
+					}
+				).addTo(this.map);
+	
+				// Store both the circle and center marker
+				this.highlightedPath.centerMarker = centerMarker;
+	
+				// Fit map to the point
+				this.map.setView([center.lat, center.lng], 15);
+			} else {
+				// Draw highlighted path for non-still activities
+				this.highlightedPath = L.polyline(
+					segmentLocations.map(loc => [loc.lat, loc.lng]), 
+					{
+						color: '#8A2BE2', // Bright orange-red for highlight
+						weight: 4,
+						opacity: 0.8
+					}
+				).addTo(this.map);
+	
+				// Highlight arrows for the specific segment
+				for (let i = 0; i < segmentLocations.length - 1; i++) {
+					const current = segmentLocations[i];
+					const next = segmentLocations[i + 1];
+					
+					// Find the matching marker
+					const matchingMarker = this.markers.find(marker => 
+						marker.getLatLng().lat === current.lat && 
+						marker.getLatLng().lng === current.lng
+					);
+	
+					if (matchingMarker) {
+						// Store original icon if not already stored
+						if (!matchingMarker.originalIcon) {
+							matchingMarker.originalIcon = matchingMarker.options.icon;
+						}
+	
+						// Create a highlighted arrow icon
+						const highlightedArrowHtml = `
+							<div class="direction-arrow" 
+								 style="transform: rotate(${this.calculateHeading(current, next)}deg); 
+										background: #8A2BE2; 
+										opacity: 1;"></div>
+						`;
+	
+						const highlightedIcon = L.divIcon({
+							className: 'direction-marker',
+							html: highlightedArrowHtml,
+							iconSize: [12, 12],
+							iconAnchor: [6, 6]
+						});
+	
+						// Set the new highlighted icon
+						matchingMarker.setIcon(highlightedIcon);
+					}
+				}
+	
+				// Fit map to the highlighted segment
+				const bounds = L.latLngBounds(
+					segmentLocations.map(loc => [loc.lat, loc.lng])
+				);
+				this.map.fitBounds(bounds, { padding: [50, 50] });
+			}
+		}
+	}
+	
+	resetMapView() {
+		// Remove highlighted path or markers
+		if (this.highlightedPath) {
+			this.map.removeLayer(this.highlightedPath);
+			
+			// Remove center marker for still activity if it exists
+			if (this.highlightedPath.centerMarker) {
+				this.map.removeLayer(this.highlightedPath.centerMarker);
+			}
+			
+			this.highlightedPath = null;
+		}
+	
+		// Reset arrow colors
+		this.markers.forEach(marker => {
+			if (marker.originalIcon) {
+				marker.setIcon(marker.originalIcon);
+			}
+		});
+	
+		// Reset map view to original
+		if (this.locations && this.locations.length > 0) {
+			const bounds = L.latLngBounds(
+				this.locations.map(loc => [loc.lat, loc.lng])
+			);
+			this.map.fitBounds(bounds, { padding: [50, 50] });
+		}
+	}
 }
 
 class LocationTimeline {
