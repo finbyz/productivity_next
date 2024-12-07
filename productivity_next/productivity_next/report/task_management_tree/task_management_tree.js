@@ -398,7 +398,7 @@ function updateTask(dialog, taskData, report, update_mode) {
     }
 
     frappe.call({
-        method: 'task_management.task_management.report.task_analysis.task_analysis.update_task',
+        method: 'productivity_next.productivity_next.report.task_management_tree.task_management_tree.update_task',
         args: {
             task_data: values,
             update_mode: update_mode
