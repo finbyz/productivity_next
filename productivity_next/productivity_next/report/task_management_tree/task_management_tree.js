@@ -546,6 +546,13 @@ function showAddSubtaskDialog(taskData, report) {
                 default: 'Open'
             },
             {
+                label: __('Task Type'),
+                fieldname: 'task_type',
+                fieldtype: 'Link',
+                options: 'Task Type',
+                reqd: 1
+            },
+            {
                 label: __('Priority'),
                 fieldname: 'priority',
                 fieldtype: 'Select',
@@ -602,6 +609,7 @@ function addSubtask(dialog, parentTaskData, report) {
                 subject: values.subject,
                 parent_task: values.parent_task,
                 project: values.project,
+                type:values.task_type,
                 task_owner: values.task_owner,
                 status: values.status,
                 priority: values.priority,
