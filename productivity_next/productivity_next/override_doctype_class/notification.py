@@ -128,6 +128,7 @@ class Notification(_Notification):
 			task.exp_end_date = exp_end_date
 			task.type = self.type
 			task.priority = self.priority
+			task.flags.ignore_mandatory = True 
 			task.save(ignore_permissions=True)
 
 			for assignment in self.assignment:
