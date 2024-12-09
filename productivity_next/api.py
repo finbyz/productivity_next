@@ -1383,7 +1383,7 @@ def get_timeline(employee, start_date, end_date):
                 
                 lat_long.append((row['coords_latitude'], row['coords_longitude']))
 
-                if row['activity_type'] != activity_type or row['event'] == "activityChange":
+                if row['activity_type'] != activity_type or row['event'] in ["activityChange", "motionchange"]:
                     distance = calculate_total_distance(lat_long)
                     if distance < 0.1:
                         activity_type = 'still'
