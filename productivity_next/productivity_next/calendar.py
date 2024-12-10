@@ -19,7 +19,8 @@ def get_custom_events(doctype, start=None, end=None, filters=None):
             if len(filters) > 0 and len(filters[0]) == 5:
                 field = filters[0][1]
                 value = filters[0][3]
-                conditions.append(f"`{field}` = '{value}'")
+                conditions.append(f"`{field}` BETWEEN '{value[0]}' AND '{value[1]}'")
+
             elif len(filters) > 0 and len(filters[0]) == 3:
                 field = filters[0][0]
                 value = filters[0][2]
