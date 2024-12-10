@@ -39,9 +39,9 @@ def get_custom_events(doctype, start=None, end=None, filters=None):
         if event.get('task_owner'):
             try:
                 first_name = event['task_owner'].split('@')[0].split('.')[0].capitalize()
-                event['title'] = f"{event.get('subject', '')} ({first_name})"
+                event['title'] = f"({first_name}) {event.get('subject', '')} "
             except Exception as e:
-                event['title'] = f"{event.get('subject', '')} ({event.get('task_owner', 'No Owner')})"
+                event['title'] = f"({event.get('task_owner', 'No Owner')}) {event.get('subject', '')} ({event.get('task_owner', 'No Owner')})"
         else:
             event['title'] = f"{event.get('subject')}"
     return events
