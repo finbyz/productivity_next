@@ -90,16 +90,7 @@ scheduler_events = {
 }
 
 fixtures = [
-    {"dt": "Custom Field", "filters": [["module", "in", "Productivity Next"]]},
-    {
-        "dt": "Activity Type",
-        "filters": [
-            ["name", "in", ["Project", "Task", "Issue"]]
-        ]
-    },
-    {"dt": "Role", "filters": [["name", "in", ["Productify Manager"]]]},
     {"dt": "Property Setter", "filters": [["module", "in", ["Productivity Next"]]]},
-    ["Task"],
 ]
 
 # Installation
