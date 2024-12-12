@@ -45,4 +45,7 @@ def get_custom_events(doctype, start=None, end=None, filters=None):
                 event['title'] = f"({event.get('task_owner', 'No Owner')}) {event.get('subject', '')} ({event.get('task_owner', 'No Owner')})"
         else:
             event['title'] = f"{event.get('subject')}"
+
+        if event.get('completed_on'):
+            event['exp_start_date'] = event.get('completed_on')
     return events
