@@ -863,10 +863,16 @@ def submit_timesheet_created_by_productify():
         fields=["name"],
     )
     for timesheet in timesheets:
-        doc = frappe.get_doc("Timesheet", timesheet.name)
-        doc.submit()
-        frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
-        frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
+        try:
+            doc = frappe.get_doc("Timesheet", timesheet.name)
+            doc.submit()
+            frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
+            frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
+        except Exception as e:
+            frappe.log_error(
+                title=f"auto timesheet submit by productivity next {timesheet.name}",
+                message=e
+            )
 
 
 def delete_productify_error_logs():
