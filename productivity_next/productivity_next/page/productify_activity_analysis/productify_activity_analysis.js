@@ -349,11 +349,7 @@ UserProfile = class UserProfile {
 			timeout: 60
 		}).then((r) => {
 			if (!r.message || !r.message.data || r.message.data.length === 0) {
-				frappe.msgprint({
-					title: __('No Data'),
-					indicator: 'yellow',
-					message: __('No meeting or location data found for the selected period.')
-				});
+				this.wrapper.find("#meetings-tab").hide();
 				return;
 			}
 	
@@ -3665,6 +3661,26 @@ class LocationTimeline {
                     margin-top: 4px;
                     opacity: 0.7;
                 }
+				.date-separator {
+					display: flex;
+					align-items: center;
+					margin: 20px 0;
+					width: 100%;
+				}
+
+				.date-line {
+					flex-grow: 1;
+					height: 1px;
+					background-color: #ddd;
+					border-top: 1px dashed #999;
+				}
+
+				.date-text {
+					margin: 0 15px;
+					color: #666;
+					font-weight: bold;
+					white-space: nowrap;
+				}
             `;
             document.head.appendChild(styleElement);
         }
@@ -3761,47 +3777,115 @@ class LocationTimeline {
             this.mapInstance.resetMapView();
         }
     }
-
-    renderTimelineItems() {
-		return this.data.data.map((item, index) => `
-		<div class="timeline-item">
-			<div class="timeline-point"></div>
-			<div class="timeline-content ${index % 2 === 0 ? 'left' : 'right'}" 
-				 data-start-time="${item.start_time}" 
-				 data-end-time="${item.end_time}"
-				 data-activity-type="${item.activity_type}">
-                    <div class="time-range">
-                        <i class="fa fa-clock"></i>
-                        ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
-                    </div>
-                    <div class="activity-type">
-                        ${this.getActivityIcon(item.activity_type)}
-                        ${item.activity_type.replace('_', ' ')}
-                    </div>
-                    ${item.activity_type !== 'still' ? 
-                        `<div class="activity-info">
-                            <i class="fa fa-route" style="margin-right: 6px;"></i>
-                            Distance: ${item.distance.toFixed(2)} km
-                            ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
-                        </div>` : ''
-                    }
-                    ${item.meetings?.map(meeting => `
-                        <div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
-                             onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
-                             style="cursor: pointer;">
-                            <div class="meeting-title">
-                                <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
-                                ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
-                            </div>
-                            <div class="meeting-time">
-                                ${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
-                            </div>
-                        </div>
-                    `).join('') || ''}
-                </div>
-            </div>
-        `).join('');
-    }
+	renderTimelineItems() {
+		// Clone the meetings to avoid mutating the original data
+		const allMeetings = this.data.data.flatMap(item => 
+			(item.meetings || []).map(meeting => ({
+				...meeting,
+				start_time: item.start_time,
+				end_time: item.end_time,
+				activity_type: item.activity_type,
+				displayed: false
+			}))
+		);
+	
+		// Track displayed meetings to ensure comprehensive coverage
+		const displayedMeetings = new Set();
+	
+		// Helper function to extract date from timestamp
+		const getDate = (timestamp) => new Date(timestamp).toISOString().split('T')[0];
+	
+		// Helper function to format date in DD-MM-YYYY
+		const formatDate = (timestamp) => {
+			const date = new Date(timestamp);
+			return date.toLocaleDateString('en-GB', {
+				day: '2-digit',
+				month: '2-digit', 
+				year: 'numeric'
+			});
+		};
+	
+		let previousDate = null;
+	
+		return this.data.data.reduce((accumulator, item, index) => {
+			const currentDate = getDate(item.start_time);
+	
+			// Add date separator if date changes
+			if (previousDate !== null && currentDate !== previousDate) {
+				accumulator.push(`
+					<div class="date-separator">
+						<div class="date-line"></div>
+						<div class="date-text">${formatDate(item.start_time)}</div>
+						<div class="date-line"></div>
+					</div>
+				`);
+			}
+	
+			const isStill = item.activity_type === 'still';
+			const side = isStill ? 'left' : 'right';
+	
+			// Find meetings that overlap with this time segment
+			const overlapMeetings = allMeetings.filter(meeting => 
+				!displayedMeetings.has(meeting.name) &&
+				new Date(meeting.start_time) <= new Date(item.end_time) && 
+				new Date(meeting.end_time) >= new Date(item.start_time)
+			);
+	
+			// Mark these meetings as displayed
+			overlapMeetings.forEach(meeting => {
+				displayedMeetings.add(meeting.name);
+			});
+	
+			// Timeline item HTML
+			const timelineItem = `
+			<div class="timeline-item">
+				<div class="timeline-point"></div>
+				<div class="timeline-content ${side}" 
+					 data-start-time="${item.start_time}" 
+					 data-end-time="${item.end_time}"
+					 data-activity-type="${item.activity_type}">
+					<div class="time-range">
+						<i class="fa fa-clock"></i>
+						${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
+					</div>
+					<div class="activity-type">
+						${this.getActivityIcon(item.activity_type)}
+						${item.activity_type.replace('_', ' ')}
+					</div>
+					${item.activity_type !== 'still' ? 
+						`<div class="activity-info">
+							<i class="fa fa-route" style="margin-right: 6px;"></i>
+							Distance: ${item.distance.toFixed(2)} km
+							${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
+						</div>` : ''
+					}
+					${(overlapMeetings.length > 0) ? 
+						overlapMeetings.map(meeting => `
+						<div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
+							 onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
+							 style="cursor: pointer;">
+							<div class="meeting-title">
+								<i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
+								${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
+							</div>
+							<div class="meeting-time">
+								${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
+							</div>
+						</div>
+						`).join('') : ''
+					}
+				</div>
+			</div>
+			`;
+	
+			accumulator.push(timelineItem);
+			
+			// Update previous date
+			previousDate = currentDate;
+	
+			return accumulator;
+		}, []).join('');
+	}
 }
 
 class MeetingsOverview {
