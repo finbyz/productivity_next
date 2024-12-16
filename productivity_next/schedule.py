@@ -834,23 +834,6 @@ def send_weekly_report():
     for employee in employees:
         send_email(employee.user_id, employee.employee_name, html_table)
         return data
-   
-
-def submit_timesheet_created_by_productify():
-    if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
-        frappe.throw("Custom Field 'is_created_by_productify' not found")
-    yeasterday = get_datetime() - timedelta(days=1)
-    timesheets = frappe.get_all(
-        "Timesheet",
-        filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">", yeasterday)},
-        fields=["name"],
-    )
-
-    for timesheet in timesheets:
-        doc = frappe.get_doc("Timesheet", timesheet.name)
-        doc.submit()
-        frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
-        frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
 
 
 def submit_timesheet_created_by_productify():
@@ -862,17 +845,19 @@ def submit_timesheet_created_by_productify():
         filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">=", yeasterday)},
         fields=["name"],
     )
+    errors = ""
     for timesheet in timesheets:
         try:
             doc = frappe.get_doc("Timesheet", timesheet.name)
             doc.submit()
-            frappe.db.set_value("Timesheet", doc.name, "status", "Submitted")
-            frappe.db.set_value("Timesheet", doc.name, "docstatus", 1)
         except Exception as e:
-            frappe.log_error(
-                title=f"auto timesheet submit by productivity next {timesheet.name}",
-                message=e
-            )
+            errors += f'error {timesheet.name} {e}\n'
+    if errors:
+        frappe.log_error(
+            title="Error while timesheet auto submission",
+            message=errors
+        )
+
 
 
 def delete_productify_error_logs():
