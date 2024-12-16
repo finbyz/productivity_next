@@ -3843,7 +3843,8 @@ class LocationTimeline {
 				<div class="timeline-content ${side}" 
 					 data-start-time="${item.start_time}" 
 					 data-end-time="${item.end_time}"
-					 data-activity-type="${item.activity_type}">
+					 data-activity-type="${item.activity_type}"
+					 onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
 					<div class="time-range">
 						<i class="fa fa-clock"></i>
 						${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
