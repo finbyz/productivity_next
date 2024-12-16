@@ -127,6 +127,10 @@ class Meeting(Document):
 					})
 				new_event.save(ignore_permissions=True)
 		self.check_min_participants()
+  
+		if self.longitude and self.latitude and self.address:
+			frappe.db.set_value("Address",self.address,"latitude",self.latitude)
+			frappe.db.set_value("Address",self.address,"longitude",self.longitude)
 
 
 	def check_min_participants(self):
