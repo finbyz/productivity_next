@@ -3824,12 +3824,14 @@ class LocationTimeline {
 			const isStill = item.activity_type === 'still';
 			const side = isStill ? 'left' : 'right';
 	
-			// Find meetings that overlap with this time segment
-			const overlapMeetings = allMeetings.filter(meeting => 
-				!displayedMeetings.has(meeting.name) &&
-				new Date(meeting.start_time) <= new Date(item.end_time) && 
-				new Date(meeting.end_time) >= new Date(item.start_time)
-			);
+			// Find meetings that overlap with this time segment (ONLY for "still" items)
+			const overlapMeetings = isStill 
+				? allMeetings.filter(meeting => 
+					!displayedMeetings.has(meeting.name) &&
+					new Date(meeting.start_time) <= new Date(item.end_time) && 
+					new Date(meeting.end_time) >= new Date(item.start_time)
+				)
+				: [];
 	
 			// Mark these meetings as displayed
 			overlapMeetings.forEach(meeting => {
@@ -3860,7 +3862,7 @@ class LocationTimeline {
 							${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
 						</div>` : ''
 					}
-					${(overlapMeetings.length > 0) ? 
+					${(isStill && overlapMeetings.length > 0) ? 
 						overlapMeetings.map(meeting => `
 						<div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
 							 onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
