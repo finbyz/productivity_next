@@ -385,7 +385,7 @@ UserProfile = class UserProfile {
 			if (container) {
 				try {
 					// Pass meetingsMap to LocationTimeline
-					const locationTimeline = new LocationTimeline(container, r.message, meetingsMap);
+					window.locationTimeline = new LocationTimeline(container, r.message, meetingsMap);
 				} catch (timelineError) {
 					console.error('Timeline initialization error:', timelineError);
 					frappe.msgprint({
@@ -3681,6 +3681,105 @@ class LocationTimeline {
 					font-weight: bold;
 					white-space: nowrap;
 				}
+				.timeline-content {
+    display: flex;
+    flex-direction: column;
+    position: relative; /* Maintain control over button positioning */
+}
+
+.add-activity-btn {
+    position: absolute;
+    top: 50%; /* Vertically center */
+    right: 10px; /* Distance from the right edge */
+    transform: translateY(-50%); /* Adjust for perfect center alignment */
+    background: #6c5ce7; /* Purple color */
+    color: #fff; /* Icon color */
+    border: none;
+    padding: 8px 12px;
+    border-radius: 50%; /* Makes it circular */
+    cursor: pointer;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Adds subtle shadow */
+}
+
+.add-activity-btn:hover {
+    background: #5a4ccf; /* Slightly darker on hover */
+}
+
+                .dialog-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                }
+
+                .dialog-box {
+                    background-color: white;
+                    border-radius: 10px;
+                    width: 400px;
+                    padding: 20px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                }
+
+                .dialog-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                }
+
+                .dialog-close {
+                    background: none;
+                    border: none;
+                    font-size: 20px;
+                    cursor: pointer;
+                    color: #666;
+                }
+
+                .dialog-form {
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .dialog-form label {
+                    margin-bottom: 5px;
+                    font-weight: 600;
+                }
+
+                .dialog-form input, 
+                .dialog-form select {
+                    margin-bottom: 15px;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                }
+
+                .dialog-actions {
+                    gap: 10px;
+                    margin-top: 15px;
+                }
+
+                .dialog-btn {
+                    padding: 8px 15px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+
+                .dialog-btn-cancel {
+                    background-color: #f1f3f5;
+                    color: #495057;
+                }
+
+                .dialog-btn-save {
+                    background-color: #6420AA;
+                    color: white;
+                }
             `;
             document.head.appendChild(styleElement);
         }
@@ -3777,118 +3876,470 @@ class LocationTimeline {
             this.mapInstance.resetMapView();
         }
     }
+	
 	renderTimelineItems() {
-		// Clone the meetings to avoid mutating the original data
-		const allMeetings = this.data.data.flatMap(item => 
-			(item.meetings || []).map(meeting => ({
-				...meeting,
-				start_time: item.start_time,
-				end_time: item.end_time,
-				activity_type: item.activity_type,
-				displayed: false
-			}))
-		);
+        // Clone the meetings to avoid mutating the original data
+        const allMeetings = this.data.data.flatMap(item => 
+            (item.meetings || []).map(meeting => ({
+                ...meeting,
+                start_time: item.start_time,
+                end_time: item.end_time,
+                activity_type: item.activity_type,
+                displayed: false
+            }))
+        );
+    
+        // Track displayed meetings to ensure comprehensive coverage
+        const displayedMeetings = new Set();
+    
+        // Helper function to extract date from timestamp
+        const getDate = (timestamp) => new Date(timestamp).toISOString().split('T')[0];
+    
+        // Helper function to format date in DD-MM-YYYY
+        const formatDate = (timestamp) => {
+            const date = new Date(timestamp);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric'
+            });
+        };
+    
+        let previousDate = null;
+    
+        return this.data.data.reduce((accumulator, item, index) => {
+            const currentDate = getDate(item.start_time);
+    
+            // Add date separator if date changes
+            if (previousDate !== null && currentDate !== previousDate) {
+                accumulator.push(`
+                    <div class="date-separator">
+                        <div class="date-line"></div>
+                        <div class="date-text">${formatDate(item.start_time)}</div>
+                        <div class="date-line"></div>
+                    </div>
+                `);
+            }
+    
+            const isStill = item.activity_type === 'still';
+            const side = isStill ? 'left' : 'right';
+    
+            // Find meetings that overlap with this time segment (ONLY for "still" items)
+            const overlapMeetings = isStill 
+                ? allMeetings.filter(meeting => 
+                    !displayedMeetings.has(meeting.name) &&
+                    new Date(meeting.start_time) <= new Date(item.end_time) && 
+                    new Date(meeting.end_time) >= new Date(item.start_time)
+                )
+                : [];
+    
+            // Mark these meetings as displayed
+            overlapMeetings.forEach(meeting => {
+                displayedMeetings.add(meeting.name);
+            });
+    
+            // Safely handle company details
+            const companyDetails = (item.near_company && item.company_address) ? 
+                `<div class="activity-info company-info">
+                    <i class="fa fa-building" style="margin-right: 6px;"></i>
+                    ${item.company_address || 'Company Location'}
+                    ${item.company_name ? `• ${item.company_name}` : ''}
+                </div>` : '';
+    
+            // Timeline item HTML
+            const timelineItem = `
+            <div class="timeline-item">
+                <div class="timeline-point"></div>
+                <div class="timeline-content ${side}" 
+                     data-start-time="${item.start_time}" 
+                     data-end-time="${item.end_time}"
+                     data-activity-type="${item.activity_type}"
+                     onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                    <div class="time-range">
+                        <i class="fa fa-clock"></i>
+                        ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
+                    </div>
+                    <div class="activity-type">
+                        ${this.getActivityIcon(item.activity_type)}
+                        ${item.activity_type.replace('_', ' ')}
+                    </div>
+                    ${!isStill ? 
+                        `<div class="activity-info">
+                            <i class="fa fa-route" style="margin-right: 6px;"></i>
+                            Distance: ${item.distance.toFixed(2)} km
+                            ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
+                        </div>` : (companyDetails || '')
+                    }
+                    ${(isStill && !item.near_company) ? `
+						<button class="add-activity-btn" onclick="event.stopPropagation(); 
+							(function(start, end) {
+								if (window.locationTimeline) {
+									window.locationTimeline.openAddActivityDialog(start, end);
+								} else {
+									console.error('Location Timeline not initialized');
+								}
+							})('${item.start_time}', '${item.end_time}')">
+							<i class="fa fa-plus"></i>
+						</button>
+					` : ''}
+                    ${(isStill && overlapMeetings.length > 0) ? 
+                        overlapMeetings.map(meeting => `
+                        <div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
+                             onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
+                             style="cursor: pointer;">
+                            <div class="meeting-title">
+                                <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
+                                ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
+                            </div>
+                            <div class="meeting-time">
+                                ${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
+                            </div>
+                        </div>
+                        `).join('') : ''
+                    }
+                </div>
+            </div>
+            `;
+    
+            accumulator.push(timelineItem);
+            
+            // Update previous date
+            previousDate = currentDate;
+    
+            return accumulator;
+        }, []).join('');
+    }
+
+    openAddActivityDialog(startTime, endTime) {
+		// Ensure start and end times are valid
+		startTime = startTime || new Date().toISOString();
+		endTime = endTime || new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString(); // Default 1 hour later
 	
-		// Track displayed meetings to ensure comprehensive coverage
-		const displayedMeetings = new Set();
+		// Fetch employee data and project enabled status
+		Promise.all([
+			frappe.call({
+				method: "productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis.get_project_enabled",
+			}),
+			frappe.db.get_value('Employee', {user_id: frappe.session.user}, ['name', 'employee_name'])
+		]).then(([subscription_response, employee_response]) => {
+			const projectEnabled = subscription_response.message ? subscription_response.message : false;
+			const currentUserEmployee = employee_response.message;
+			
+			// Define table fields
+			const table_fields = [
+				{
+					label: "Employee",
+					fieldname: "employee",
+					fieldtype: "Link",
+					in_list_view: 1,
+					options: "Employee",
+					ignore_user_permissions: 1,
+					reqd: 1,
+				}
+			];
 	
-		// Helper function to extract date from timestamp
-		const getDate = (timestamp) => new Date(timestamp).toISOString().split('T')[0];
+			const party_fields = [
+				{
+					label: 'Contact',
+					fieldname: 'contact',
+					fieldtype: 'Link',
+					options: 'Contact',
+					in_list_view: 1,
+					get_query: function() {
+						const selectedParty = d.get_values().party;
+						const selectedPartyType = d.get_values().party_type;
+						return {
+							filters: {
+								link_doctype: selectedPartyType,
+								link_name: selectedParty
+							}
+						};
+					}
+				}
+			];
 	
-		// Helper function to format date in DD-MM-YYYY
-		const formatDate = (timestamp) => {
-			const date = new Date(timestamp);
-			return date.toLocaleDateString('en-GB', {
-				day: '2-digit',
-				month: '2-digit', 
-				year: 'numeric'
-			});
-		};
+			var fields = [
+				{
+					fieldtype: "HTML",
+					options: "<div style='color:red; margin-top: 10px;'><b>Note: This meeting will be submitted and no changes permitted after submission.</b></div>"
+				},
+				{
+					fieldtype: 'Section Break',
+				},
+				{
+					label: "Internal Meeting",
+					fieldname: "internal_meeting",
+					fieldtype: "Check",
+					onchange: function() {
+						const companyRepField = d.fields_dict.meeting_company_representative;
+						if (this.get_value()) {
+							companyRepField.df.reqd = 1;
+							companyRepField.grid.min_rows = 2;
+						} else {
+							companyRepField.df.reqd = 0;
+							companyRepField.grid.min_rows = 0;
+						}
+						companyRepField.refresh();
+					}
+				},
+				{
+					fieldname: 'internal_meeting_note',
+					fieldtype: 'HTML',
+					options: '<div class="text-muted">Note: Internal meetings require at least two company representatives.</div>',
+					depends_on: 'eval:doc.internal_meeting'
+				},
+				{
+					label: "Purpose",
+					fieldname: "purpose",
+					fieldtype: "Link",
+					options: "Meeting Purpose",
+					reqd: 1,
+					get_query: function() {
+						return {
+							filters: {
+								internal_meeting: d.get_value('internal_meeting')
+							}
+						};
+					}
+				},
+				{
+					label: __("Party Type"),
+					fieldtype: 'Link',
+					options: "DocType",
+					fieldname: 'party_type',
+					get_query: function () {
+						return {
+							filters: {
+								"name": ["in", ["Customer", "Supplier", "Lead"]]
+							}
+						};
+					},
+					depends_on: 'eval:!doc.internal_meeting',
+					mandatory_depends_on: 'eval:!doc.internal_meeting',
+				},
+				{
+					label: 'Party',
+					fieldname: 'party',
+					fieldtype: 'Dynamic Link',
+					options: 'party_type',
+					change: function() {
+						const selectedParty = d.get_value('party');
+						const selectedPartyType = d.get_value('party_type');
+				
+						if (selectedParty && selectedPartyType) {
+							d.fields_dict['meeting_party_representative'].grid.get_field('contact').get_query = function() {
+								return {
+									filters: {
+										link_doctype: selectedPartyType,
+										link_name: selectedParty
+									}
+								};
+							};
+							d.fields_dict['meeting_party_representative'].grid.refresh();
+						}
+					},
+					depends_on: 'eval:!doc.internal_meeting',
+					mandatory_depends_on: 'eval:!doc.internal_meeting',
+				},
+				{
+					label: "Meeting Arranged By",
+					fieldname: "meeting_arranged_by",
+					fieldtype: "Link",
+					options: "User",
+					default: frappe.session.user,
+					reqd: 1
+				},
+				{
+					fieldtype: 'Column Break',
+				},
+				{
+					label: 'Meeting From',
+					fieldname: 'meeting_from',
+					fieldtype: 'Datetime',
+					default: startTime,
+					reqd: 1
+				},
+				{
+					label: 'Meeting To',
+					fieldname: 'meeting_to',
+					fieldtype: 'Datetime',
+					default: endTime,
+					reqd: 1
+				},
+				{
+					fieldtype: 'Section Break',
+				},
+				{
+					label: 'Meeting Company Representative',
+					allow_bulk_edit: 1,
+					fieldname: 'meeting_company_representative',
+					fieldtype: 'Table',
+					fields: table_fields,
+					options: 'Meeting Company Representative',
+					reqd: 1,
+					onchange: function() {
+						if (d.get_value('internal_meeting')) {
+							this.grid.min_rows = 2;
+						} else {
+							this.grid.min_rows = 0;
+						}
+					}
+				},
+				{
+					fieldtype: 'Section Break',
+				},
+				{
+					label: 'Meeting Party Representative',
+					fieldname: 'meeting_party_representative',
+					fieldtype: 'Table',
+					fields: party_fields,
+					options: 'Meeting Party Representative',
+					depends_on: 'eval:!doc.internal_meeting',
+				},
+				{
+					label: "Discussion",
+					fieldname: "discussion",
+					fieldtype: "Text Editor",
+					reqd: 1
+				},
+			];
 	
-		let previousDate = null;
-	
-		return this.data.data.reduce((accumulator, item, index) => {
-			const currentDate = getDate(item.start_time);
-	
-			// Add date separator if date changes
-			if (previousDate !== null && currentDate !== previousDate) {
-				accumulator.push(`
-					<div class="date-separator">
-						<div class="date-line"></div>
-						<div class="date-text">${formatDate(item.start_time)}</div>
-						<div class="date-line"></div>
-					</div>
-				`);
+			// Add Project field if enabled in Productify Subscription
+			if (projectEnabled) {
+				fields.splice(8, 0, {
+					label: "Project",
+					fieldname: "project",
+					fieldtype: "Link",
+					options: "Project"
+				});
 			}
 	
-			const isStill = item.activity_type === 'still';
-			const side = isStill ? 'left' : 'right';
+			let d = new frappe.ui.Dialog({
+				title: 'Add Meeting',
+				fields: fields,
+				primary_action_label: 'Submit',
+				primary_action(values) {
+					this.disable_primary_action();
+					this.set_title('Submitting...');
 	
-			// Find meetings that overlap with this time segment (ONLY for "still" items)
-			const overlapMeetings = isStill 
-				? allMeetings.filter(meeting => 
-					!displayedMeetings.has(meeting.name) &&
-					new Date(meeting.start_time) <= new Date(item.end_time) && 
-					new Date(meeting.end_time) >= new Date(item.start_time)
-				)
-				: [];
+					// Validate meeting times
+					const meetingFrom = new Date(values.meeting_from);
+					const meetingTo = new Date(values.meeting_to);
 	
-			// Mark these meetings as displayed
-			overlapMeetings.forEach(meeting => {
-				displayedMeetings.add(meeting.name);
+					if (meetingTo <= meetingFrom) {
+						frappe.msgprint({
+							title: __('Invalid Time'),
+							indicator: 'red',
+							message: __('Meeting end time must be after start time.')
+						});
+						this.enable_primary_action();
+						this.set_title('Submit');
+						return;
+					}
+	
+					// Validate internal meeting representatives
+					if (values.internal_meeting) {
+						const companyRepresentatives = values.meeting_company_representative || [];
+						if (companyRepresentatives.length < 2) {
+							frappe.msgprint(__('For internal meetings, at least two company representatives are required.'));
+							this.enable_primary_action();
+							this.set_title('Submit');
+							return;
+						}
+					}
+	
+					// Validate external meeting party
+					if (!values.internal_meeting) {
+						if (!values.party_type || !values.party) {
+							frappe.msgprint(__('For external meetings, Party Type and Party are required.'));
+							this.enable_primary_action();
+							this.set_title('Submit');
+							return;
+						}
+					}
+	
+					frappe.call({
+						method: "productivity_next.api.add_meeting",
+						args: {
+							meeting_from: values.meeting_from,
+							meeting_to: values.meeting_to,
+							meeting_arranged_by: values.meeting_arranged_by,
+							internal_meeting: values.internal_meeting,
+							purpose: values.purpose,
+							party_type: values.internal_meeting ? null : values.party_type,
+							party: values.internal_meeting ? null : values.party,
+							discussion: values.discussion,
+							meeting_company_representative: values.meeting_company_representative,
+							meeting_party_representative: values.meeting_party_representative,
+							project: values.project || null
+						},
+						callback: (r) => {
+							if (r.message) {
+								frappe.msgprint({
+									title: __('Success'),
+									indicator: 'green',
+									message: __('Meeting added successfully')
+								});
+								this.hide();
+							} else {
+								frappe.msgprint({
+									title: __('Error'),
+									indicator: 'red',
+									message: __('Failed to add meeting. Please try again.')
+								});
+								this.enable_primary_action();
+								this.set_title('Submit');
+							}
+						},
+						error: (r) => {
+							frappe.msgprint({
+								title: __('Error'),
+								indicator: 'red',
+								message: __('An error occurred while adding the meeting. Please try again.')
+							});
+							this.enable_primary_action();
+							this.set_title('Submit');
+						}
+					});
+				}
 			});
 	
-			// Timeline item HTML
-			const timelineItem = `
-			<div class="timeline-item">
-				<div class="timeline-point"></div>
-				<div class="timeline-content ${side}" 
-					 data-start-time="${item.start_time}" 
-					 data-end-time="${item.end_time}"
-					 data-activity-type="${item.activity_type}"
-					 onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-					<div class="time-range">
-						<i class="fa fa-clock"></i>
-						${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
-					</div>
-					<div class="activity-type">
-						${this.getActivityIcon(item.activity_type)}
-						${item.activity_type.replace('_', ' ')}
-					</div>
-					${item.activity_type !== 'still' ? 
-						`<div class="activity-info">
-							<i class="fa fa-route" style="margin-right: 6px;"></i>
-							Distance: ${item.distance.toFixed(2)} km
-							${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
-						</div>` : ''
+			// Ensure current user is pre-filled as company representative
+			if (currentUserEmployee) {
+				try {
+					let company_representative = d.fields_dict.meeting_company_representative;
+					
+					// Force add a new row
+					company_representative.grid.add_new_row(null, null, true);
+					
+					// Safely set the value on the grid row
+					if (company_representative.grid.grid_rows && 
+						company_representative.grid.grid_rows.length > 0) {
+						company_representative.grid.grid_rows[0].doc.employee = currentUserEmployee.name;
+						company_representative.grid.refresh();
 					}
-					${(isStill && overlapMeetings.length > 0) ? 
-						overlapMeetings.map(meeting => `
-						<div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
-							 onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
-							 style="cursor: pointer;">
-							<div class="meeting-title">
-								<i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
-								${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
-							</div>
-							<div class="meeting-time">
-								${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
-							</div>
-						</div>
-						`).join('') : ''
-					}
-				</div>
-			</div>
-			`;
+				} catch (error) {
+					console.error("Error adding company representative:", error);
+				}
+			}
 	
-			accumulator.push(timelineItem);
-			
-			// Update previous date
-			previousDate = currentDate;
-	
-			return accumulator;
-		}, []).join('');
+			// Show the dialog
+			d.show();
+		})
+		.catch(err => {
+			console.error("Error:", err);
+			frappe.msgprint("An error occurred while fetching data. Please try again.");
+		});
 	}
+	
+	// Remove the previous saveActivityFromDialog method as it's no longer needed
+    // Helper method to format datetime for input field
+    formatDateTimeForInput(timestamp) {
+        const date = new Date(timestamp);
+        // Format to YYYY-MM-DDTHH:MM for datetime-local input
+        return date.toISOString().slice(0, 16);
+    }
+
 }
 
 class MeetingsOverview {

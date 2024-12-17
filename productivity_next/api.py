@@ -1283,108 +1283,78 @@ def get_timeline(employee, start_date, end_date):
     :param end_date: End date for tracking
     :return: Detailed location and activity tracking
     """
-    # Fetch location history
-    data = frappe.get_list(
-        "Location History",
-        filters={
-            "employee": employee,
-            "date": ['between', (frappe.utils.getdate(start_date), frappe.utils.getdate(end_date))],
-            "event": ["not in", ('getCurrentPosition', 'heartbeat')],
-        },
-        fields=[
-            "date",
-            "time",
-            "event",
-            "timestamp",
-            "coords_latitude",
-            "coords_longitude",
-            "activity_type"
-        ],
-        order_by = "timestamp asc"
-    )
+    import math
+    import traceback
+    from geopy.distance import geodesic
 
-    # Fetch company locations for stop time filtering
-    company_locations = frappe.db.sql("""
-        select a.latitude, a.longitude
-        from `tabAddress` as a
-        join `tabDynamic Link` as dl on dl.parent = a.name
-        where dl.link_doctype = 'Company'
-    """, as_dict=True)
-    company_coords = [
-        (float(loc['latitude']), float(loc['longitude'])) 
-        for loc in company_locations 
-        if loc['latitude'] and loc['longitude']
-    ]
+    def calculate_total_distance(coordinates):
+        """
+        Calculate total distance traveled for a set of coordinates
+        """
+        total_distance = 0
+        for i in range(1, len(coordinates)):
+            point1 = coordinates[i-1]
+            point2 = coordinates[i]
+            total_distance += geodesic(point1, point2).kilometers
+        return total_distance
 
-    # Process location tracking based on subscription settings
-    final_data = []
-    
-    # Tracking mode selection
-    if not frappe.db.get_single_value("Productify Subscription", "automatic_location_tracking"):
-        # Non-automatic tracking logic
-        tracking_started = False
-        start_time = None
-        activity_type = None
-        lat_long = []
+    try:
+        # Fetch location history
+        data = frappe.get_list(
+            "Location History",
+            filters={
+                "employee": employee,
+                "date": ['between', (frappe.utils.getdate(start_date), frappe.utils.getdate(end_date))],
+                "event": ["not in", ('getCurrentPosition', 'heartbeat')],
+            },
+            fields=[
+                "date",
+                "time",
+                "event",
+                "timestamp",
+                "coords_latitude",
+                "coords_longitude",
+                "activity_type"
+            ],
+            order_by = "timestamp asc"
+        )
 
-        for row in data:
-            if not tracking_started and row['event'] != "Tracking-Started":
-                continue
+        # Validate data
+        if not data:
+            return {
+                "total_distance": 0,
+                "total_duration": 0,
+                "data": [],
+                "total_driving_time": 0,
+                "total_stop_time": 0,
+                "total_company_stop_time": 0,
+                "total_internal_meeting_duration": 0,
+                "total_external_meeting_duration": 0
+            }
 
-            elif not tracking_started and row['event'] == "Tracking-Started":
-                tracking_started = True
-                start_time = row['timestamp']
-                activity_type = row['activity_type']
-                lat_long = [(row['coords_latitude'], row['coords_longitude'])]
-            
-            elif tracking_started and row['event'] != "Tracking-Stopped" and row['activity_type'] == activity_type:
-                lat_long.append((row['coords_latitude'], row['coords_longitude']))
-            
-            elif tracking_started and row['event'] != "Tracking-Stopped" and row['activity_type'] != activity_type:
-                lat_long.append((row['coords_latitude'], row['coords_longitude']))
-                final_data.append({
-                    "start_time": start_time,
-                    "end_time": row['timestamp'],
-                    "activity_type": activity_type,
-                    "lat_long_cordinates": lat_long,
-                })
-
-                start_time = row['timestamp']
-                activity_type = row['activity_type']
-                lat_long = [(row['coords_latitude'], row['coords_longitude'])]
-            
-            elif tracking_started and row['event'] == "Tracking-Stopped":
-                lat_long = [(row['coords_latitude'], row['coords_longitude'])]
-                final_data.append({
-                    "start_time": start_time,
-                    "end_time": row['timestamp'],
-                    "activity_type": activity_type,
-                    "lat_long_cordinates": lat_long,
-                })
-
-                tracking_started = False
-                start_time = None
-                activity_type = None
-                lat_long = []
+        # Fetch company locations for stop time filtering
+        company_locations = frappe.db.sql("""
+            select a.latitude, a.longitude, a.address_line1, a.city, a.state, dl.link_name as company_name
+            from `tabAddress` as a
+            join `tabDynamic Link` as dl on dl.parent = a.name
+            where dl.link_doctype = 'Company'
+        """, as_dict=True)
         
-        if start_time is not None and activity_type is not None and data:
-            row = data[-1]
-            lat_long = [(row['coords_latitude'], row['coords_longitude'])]
-            final_data.append({
-                "start_time": start_time,
-                "end_time": row['timestamp'],
-                "activity_type": activity_type,
-                "lat_long_cordinates": lat_long,
-            })
+        company_coords = [
+            {
+                'coords': (float(loc['latitude']), float(loc['longitude'])),
+                'address': f"{loc['address_line1']}, {loc['city']}, {loc['state']}",
+                'company_name': loc['company_name']
+            }
+            for loc in company_locations 
+            if loc['latitude'] and loc['longitude']
+        ]
 
-    else:
         # Automatic tracking implementation
-        location_tracking_from_time = frappe.db.get_single_value("Productify Subscription", "location_tracking_from_time")
-        location_tracking_to_time = frappe.db.get_single_value("Productify Subscription", "location_tracking_to_time")
-        data = [row for row in data if row['time'] >= location_tracking_from_time and row['time'] <= location_tracking_to_time]
-
+        final_data = []
         timestamp_data = {}
 
+        # Organize data by date
         for row in data:
             if not timestamp_data.get(row['date']):
                 timestamp_data[row['date']] = []
@@ -1412,19 +1382,22 @@ def get_timeline(employee, start_date, end_date):
                         activity_type = 'still'
                     
                     # Check if current point is near a company location
-                    is_near_company = any(
-                        geodesic(lat_long[-1], company_loc).kilometers <= 0.05 
-                        for company_loc in company_coords
-                    )
+                    nearest_company = None
+                    for company in company_coords:
+                        if geodesic(lat_long[-1], company['coords']).kilometers <= 0.05:
+                            nearest_company = company
+                            break
                     
-                    # Add to date-wise data, handling company location proximity
+                    # Add to date-wise data
                     entry = {
                         "start_time": start_time,
                         "end_time": row['timestamp'],
                         "activity_type": activity_type,
                         "lat_long_cordinates": lat_long,
                         "distance": distance if activity_type != "still" else 0,
-                        "near_company": is_near_company
+                        "near_company": nearest_company is not None,
+                        "company_address": nearest_company['address'] if nearest_company else None,
+                        "company_name": nearest_company['company_name'] if nearest_company else None
                     }
                     
                     # If not the first entry and activity is the same, merge
@@ -1444,16 +1417,17 @@ def get_timeline(employee, start_date, end_date):
                     lat_long = [(row['coords_latitude'], row['coords_longitude'])]
             
             # Handle the last segment
-            if start_time != row['timestamp']:
+            if lat_long:
                 distance = calculate_total_distance(lat_long)
                 if distance < 0.1:
                     activity_type = 'still'
                 
                 # Check if current point is near a company location
-                is_near_company = any(
-                    geodesic(lat_long[-1], company_loc).kilometers <= 0.05 
-                    for company_loc in company_coords
-                )
+                nearest_company = None
+                for company in company_coords:
+                    if geodesic(lat_long[-1], company['coords']).kilometers <= 0.05:
+                        nearest_company = company
+                        break
                 
                 entry = {
                     "start_time": start_time,
@@ -1461,7 +1435,9 @@ def get_timeline(employee, start_date, end_date):
                     "activity_type": activity_type,
                     "lat_long_cordinates": lat_long,
                     "distance": distance if activity_type != "still" else 0,
-                    "near_company": is_near_company
+                    "near_company": nearest_company is not None,
+                    "company_address": nearest_company['address'] if nearest_company else None,
+                    "company_name": nearest_company['company_name'] if nearest_company else None
                 }
                 
                 if date_wise_final_data and date_wise_final_data[-1]['activity_type'] == activity_type:
@@ -1476,81 +1452,95 @@ def get_timeline(employee, start_date, end_date):
             
             final_data.extend(date_wise_final_data)
 
-    # Calculate totals with company location stop time filtering
-    total_distance = 0
-    total_duration = 0
-    total_internal_meeting_duration = 0
-    total_external_meeting_duration = 0
-    total_stop_time = 0
-    total_company_stop_time = 0
-    total_driving_time = 0
+        # Calculate totals
+        total_distance = 0
+        total_duration = 0
+        total_internal_meeting_duration = 0
+        total_external_meeting_duration = 0
+        total_stop_time = 0
+        total_company_stop_time = 0
+        total_driving_time = 0
 
-    for row in final_data:
-        start_time = row['start_time']
-        end_time = row['end_time']
-        
-        # Calculate duration
-        row['duration'] = 0
-        if row['activity_type'] != 'still':
-            row['duration'] = int((end_time - start_time).total_seconds())
-        
-        # Aggregate distances and times
-        total_distance += row['distance']
-        total_duration += row['duration']
-
-        # Handle stop times
-        if row['activity_type'] == 'still':
-            stop_duration = int((end_time - start_time).total_seconds())
-            total_stop_time += stop_duration
+        for row in final_data:
+            start_time = row['start_time']
+            end_time = row['end_time']
             
-            # Separate company stop time
-            if row.get('near_company', False):
-                total_company_stop_time += stop_duration
-        elif row['activity_type'] != 'still':
-            total_driving_time += int((end_time - start_time).total_seconds())
+            # Calculate duration
+            row['duration'] = 0
+            if row['activity_type'] != 'still':
+                row['duration'] = int((end_time - start_time).total_seconds())
+            
+            # Aggregate distances and times
+            total_distance += row['distance']
+            total_duration += row['duration']
 
-        # Fetch and process meeting data
-        meeting_data = frappe.db.sql(f"""
-            SELECT 
-                m.name, 
-                CASE 
-                    WHEN m.party_type = 'Lead' THEN m.organization 
-                    ELSE m.party 
-                END as party,
-                m.party_type,
-                m.meeting_arranged_by,
-                CAST(m.meeting_from AS DATE) as date, 
-                CAST(m.meeting_from AS TIME) AS meeting_from, 
-                CAST(m.meeting_to AS TIME) AS meeting_to, 
-                m.internal_meeting,
-                TIMESTAMPDIFF(SECOND, m.meeting_from, m.meeting_to) AS duration
-            FROM `tabMeeting` AS m 
-            JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
-            WHERE mcr.employee = '{employee}' 
-                AND m.docstatus = 1 
-                AND CAST(m.meeting_from AS DATETIME) BETWEEN CAST('{start_time}' AS DATETIME) AND CAST('{end_time}' AS DATETIME)
-        """, as_dict=True)
+            # Handle stop times
+            if row['activity_type'] == 'still':
+                stop_duration = int((end_time - start_time).total_seconds())
+                total_stop_time += stop_duration
+                
+                # Separate company stop time
+                if row.get('near_company', False):
+                    total_company_stop_time += stop_duration
+            elif row['activity_type'] != 'still':
+                total_driving_time += int((end_time - start_time).total_seconds())
 
-        row['meetings'] = meeting_data if meeting_data else []
-        
-        # Calculate meeting durations
-        for meeting in row['meetings']:
-            if meeting['internal_meeting']:
-                total_internal_meeting_duration += meeting['duration']
-            else:
-                total_external_meeting_duration += meeting['duration']
+            # Fetch and process meeting data
+            meeting_data = frappe.db.sql(f"""
+                SELECT 
+                    m.name, 
+                    CASE 
+                        WHEN m.party_type = 'Lead' THEN m.organization 
+                        ELSE m.party 
+                    END as party,
+                    m.party_type,
+                    m.meeting_arranged_by,
+                    CAST(m.meeting_from AS DATE) as date, 
+                    CAST(m.meeting_from AS TIME) AS meeting_from, 
+                    CAST(m.meeting_to AS TIME) AS meeting_to, 
+                    m.internal_meeting,
+                    TIMESTAMPDIFF(SECOND, m.meeting_from, m.meeting_to) AS duration
+                FROM `tabMeeting` AS m 
+                JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
+                WHERE mcr.employee = '{employee}' 
+                    AND m.docstatus = 1 
+                    AND CAST(m.meeting_from AS DATETIME) BETWEEN CAST('{start_time}' AS DATETIME) AND CAST('{end_time}' AS DATETIME)
+            """, as_dict=True)
 
-    return {
-        "total_distance": total_distance,
-        "total_duration": total_duration,
-        "data": final_data,
-        "total_driving_time": total_driving_time,
-        "total_stop_time": total_stop_time - total_company_stop_time,
-        "total_company_stop_time": total_company_stop_time,
-        "total_internal_meeting_duration": total_internal_meeting_duration,
-        "total_external_meeting_duration": total_external_meeting_duration
-    }
+            row['meetings'] = meeting_data if meeting_data else []
+            
+            # Calculate meeting durations
+            for meeting in row['meetings']:
+                if meeting['internal_meeting']:
+                    total_internal_meeting_duration += meeting['duration']
+                else:
+                    total_external_meeting_duration += meeting['duration']
 
+        return {
+            "total_distance": total_distance,
+            "total_duration": total_duration,
+            "data": final_data,
+            "total_driving_time": total_driving_time,
+            "total_stop_time": total_stop_time - total_company_stop_time,
+            "total_company_stop_time": total_company_stop_time,
+            "total_internal_meeting_duration": total_internal_meeting_duration,
+            "total_external_meeting_duration": total_external_meeting_duration
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Timeline generation error: {traceback.format_exc()}")
+        frappe.msgprint(f"Error generating timeline: {str(e)}")
+        return {
+            "error": str(e),
+            "total_distance": 0,
+            "total_duration": 0,
+            "data": [],
+            "total_driving_time": 0,
+            "total_stop_time": 0,
+            "total_company_stop_time": 0,
+            "total_internal_meeting_duration": 0,
+            "total_external_meeting_duration": 0
+        }
 
 # Function to calculate the total distance for the given route
 def calculate_total_distance(route):
