@@ -3682,28 +3682,28 @@ class LocationTimeline {
 					white-space: nowrap;
 				}
 				.timeline-content {
-    display: flex;
-    flex-direction: column;
-    position: relative; /* Maintain control over button positioning */
-}
+					display: flex;
+					flex-direction: column;
+					position: relative; /* Maintain control over button positioning */
+				}
 
-.add-activity-btn {
-    position: absolute;
-    top: 50%; /* Vertically center */
-    right: 10px; /* Distance from the right edge */
-    transform: translateY(-50%); /* Adjust for perfect center alignment */
-    background: #6c5ce7; /* Purple color */
-    color: #fff; /* Icon color */
-    border: none;
-    padding: 8px 12px;
-    border-radius: 50%; /* Makes it circular */
-    cursor: pointer;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Adds subtle shadow */
-}
+				.add-activity-btn {
+					position: absolute;
+					top: 50%; /* Vertically center */
+					right: 10px; /* Distance from the right edge */
+					transform: translateY(-50%); /* Adjust for perfect center alignment */
+					background: #6c5ce7; /* Purple color */
+					color: #fff; /* Icon color */
+					border: none;
+					padding: 8px 12px;
+					border-radius: 50%; /* Makes it circular */
+					cursor: pointer;
+					box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Adds subtle shadow */
+				}
 
-.add-activity-btn:hover {
-    background: #5a4ccf; /* Slightly darker on hover */
-}
+				.add-activity-btn:hover {
+					background: #5a4ccf; /* Slightly darker on hover */
+				}
 
                 .dialog-overlay {
                     position: fixed;
@@ -4270,7 +4270,7 @@ class LocationTimeline {
 							party: values.internal_meeting ? null : values.party,
 							discussion: values.discussion,
 							meeting_company_representative: values.meeting_company_representative,
-							meeting_party_representative: values.meeting_party_representative,
+							meeting_party_representative: values.meeting_party_representative || "",
 							project: values.project || null
 						},
 						callback: (r) => {
@@ -4331,7 +4331,6 @@ class LocationTimeline {
 			frappe.msgprint("An error occurred while fetching data. Please try again.");
 		});
 	}
-	
 	// Remove the previous saveActivityFromDialog method as it's no longer needed
     // Helper method to format datetime for input field
     formatDateTimeForInput(timestamp) {
