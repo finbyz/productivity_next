@@ -1673,6 +1673,8 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 								id: 'flightData',
 								type: 'custom',
 								renderItem: function (params, api) {
+                                    console.log("Dimenssion",_rawData.flight.data)
+
 									var dateIndex = api.value(1);
 									var xValue = new Date(api.value(2));
 									var xEndValue = new Date(api.value(3));
@@ -3930,161 +3932,179 @@ class LocationTimeline {
     }
 	
 	renderTimelineItems() {
-        // Clone the meetings to avoid mutating the original data
-        const allMeetings = this.data.data.flatMap(item => 
-            (item.meetings || []).map(meeting => ({
-                ...meeting,
-                start_time: item.start_time,
-                end_time: item.end_time,
-                activity_type: item.activity_type,
-                displayed: false
-            }))
-        );
-    
-        // Track displayed meetings to ensure comprehensive coverage
-        const displayedMeetings = new Set();
-    
-        // Helper function to extract date from timestamp
-        const getDate = (timestamp) => new Date(timestamp).toISOString().split('T')[0];
-    
-        // Helper function to format date in DD-MM-YYYY
-        const formatDate = (timestamp) => {
-            const date = new Date(timestamp);
-            return date.toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit', 
-                year: 'numeric'
-            });
-        };
-    
-        let previousDate = null;
-    
-        return this.data.data.reduce((accumulator, item, index) => {
-            const currentDate = getDate(item.start_time);
-    
-            // Add date separator if date changes
-            if (previousDate !== null && currentDate !== previousDate) {
-                accumulator.push(`
-                    <div class="date-separator">
-                        <div class="date-line"></div>
-                        <div class="date-text">${formatDate(item.start_time)}</div>
-                        <div class="date-line"></div>
-                    </div>
-                `);
-            }
-    
-            const isStill = item.activity_type === 'still';
-            const side = isStill ? 'left' : 'right';
-    
-            // Find meetings that overlap with this time segment (ONLY for "still" items)
-            const overlapMeetings = isStill 
-                ? allMeetings.filter(meeting => 
-                    !displayedMeetings.has(meeting.name) &&
-                    new Date(meeting.start_time) <= new Date(item.end_time) && 
-                    new Date(meeting.end_time) >= new Date(item.start_time)
-                )
-                : [];
-    
-            // Mark these meetings as displayed
-            overlapMeetings.forEach(meeting => {
-                displayedMeetings.add(meeting.name);
-            });
-    
-            // Safely handle company details
-            const companyDetails = (item.near_company && item.company_address) ?                 
+		// Clone the meetings to avoid mutating the original data
+		const allMeetings = this.data.data.flatMap(item => 
+			(item.meetings || []).map(meeting => ({
+				...meeting,
+				start_time: item.start_time,
+				end_time: item.end_time,
+				activity_type: item.activity_type,
+				displayed: false
+			}))
+		);
+	
+		// Track displayed meetings to ensure comprehensive coverage
+		const displayedMeetings = new Set();
+	
+		// Helper function to extract date from timestamp
+		const getDate = (timestamp) => new Date(timestamp).toISOString().split('T')[0];
+	
+		// Helper function to format date in DD-MM-YYYY
+		const formatDate = (timestamp) => {
+			const date = new Date(timestamp);
+			return date.toLocaleDateString('en-GB', {
+				day: '2-digit',
+				month: '2-digit', 
+				year: 'numeric'
+			});
+		};
+	
+		let previousDate = null;
+	
+		return this.data.data.reduce((accumulator, item, index, array) => {
+			const currentDate = getDate(item.start_time);
+	
+			// Add date separator if date changes
+			if (previousDate !== null && currentDate !== previousDate) {
+				accumulator.push(`
+					<div class="date-separator">
+						<div class="date-line"></div>
+						<div class="date-text">${formatDate(item.start_time)}</div>
+						<div class="date-line"></div>
+					</div>
+				`);
+			}
+	
+			const isStill = item.activity_type === 'still';
+			const side = isStill ? 'left' : 'right';
+	
+			// Find meetings that overlap with this time segment (ONLY for "still" items)
+			const overlapMeetings = isStill 
+				? allMeetings.filter(meeting => {
+					// Check if this is the first or last "still" item
+					const prevItem = index > 0 ? array[index - 1] : null;
+					const nextItem = index < array.length - 1 ? array[index + 1] : null;
+	
+					// Conditions for displaying meetings
+					const meetingStartsAfterPreviousStop = !prevItem || 
+						(prevItem.activity_type !== 'still' || 
+						 new Date(meeting.start_time) > new Date(prevItem.end_time));
+	
+					const meetingEndsBeforeNextStart = !nextItem || 
+						(nextItem.activity_type !== 'still' || 
+						 new Date(meeting.end_time) < new Date(nextItem.start_time));
+	
+					// Additional check to ensure meeting is within current still segment
+					const withinCurrentSegment = 
+						new Date(meeting.start_time) >= new Date(item.start_time) && 
+						new Date(meeting.end_time) <= new Date(item.end_time);
+	
+					return !displayedMeetings.has(meeting.name) && 
+						   meetingStartsAfterPreviousStop && 
+						   meetingEndsBeforeNextStart && 
+						   withinCurrentSegment;
+				})
+				: [];
+	
+			// Mark these meetings as displayed
+			overlapMeetings.forEach(meeting => {
+				displayedMeetings.add(meeting.name);
+			});
+	
+			// Safely handle company details
+			const companyDetails = (item.near_company && item.company_address) ?                 
 				`<div class="activity-info company-info">                     
 					<i class="fa fa-building" style="margin-right: 6px;"></i>                     
 					${item.company_name ? `<strong>${item.company_name}</strong> <br>` : ''} ${item.company_address || 'Company Location'}                     
-					                 
 				</div>` : '';
-
-    
-            // Determine if we need to show buttons and add ignored location message
-            const hasCompanyDetails = item.near_company && item.company_address;
-            const hasOverlapMeetings = overlapMeetings.length > 0;
-            const isIgnoredLocation = item.ignored_location_description;
-            // Timeline item HTML
-            const timelineItem = `
-            <div class="timeline-item">
-                <div class="timeline-point"></div>
-                <div class="timeline-content ${side}" 
-                     data-start-time="${item.start_time}" 
-                     data-end-time="${item.end_time}"
-                     data-activity-type="${item.activity_type}"
-                     onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-                    <div class="time-range">
-                        <i class="fa fa-clock"></i>
-                        ${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
-                    </div>
-                    <div class="activity-type">
-                        ${this.getActivityIcon(item.activity_type)}
-                        ${item.activity_type.replace('_', ' ')}
-                    </div>
-                    ${!isStill ? 
-                        `<div class="activity-info">
-                            <i class="fa fa-route" style="margin-right: 6px;"></i>
-                            Distance: ${item.distance.toFixed(2)} km
-                            ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
-                        </div>` : (companyDetails || '')
-                    }
-                    ${(isStill && !isIgnoredLocation) ? `
-                        <div class="timeline-action-buttons">
-                            ${!hasCompanyDetails && !hasOverlapMeetings ? `
-                            <button class="ignore-location-btn" onclick="event.stopPropagation(); 
-                                (function(start, end, lat, lon) {
-                                    if (window.locationTimeline) {
-                                        window.locationTimeline.openIgnoreLocationDialog(start, end, lat, lon);
-                                    } else {
-                                        console.error('Location Timeline not initialized');
-                                    }
-                                })('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
-                                <i class="fa fa-times"></i>
-                            </button>
-                                <button class="add-activity-btn" onclick="event.stopPropagation(); 
-                                    (function(start, end, lat, lon) {
-                                        if (window.locationTimeline) {
-                                            window.locationTimeline.openAddActivityDialog(start, end, lat, lon);
-                                        } else {
-                                            console.error('Location Timeline not initialized');
-                                        }
-                                    })('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
-                                    <i class="fa fa-plus"></i>
-                                </button>
-                            ` : ''}
-                        </div>
-                    ` : ''}
+	
+			// Determine if we need to show buttons and add ignored location message
+			const hasCompanyDetails = item.near_company && item.company_address;
+			const hasOverlapMeetings = overlapMeetings.length > 0;
+			const isIgnoredLocation = item.ignored_location_description;
+	
+			// Timeline item HTML
+			const timelineItem = `
+			<div class="timeline-item">
+				<div class="timeline-point"></div>
+				<div class="timeline-content ${side}" 
+					 data-start-time="${item.start_time}" 
+					 data-end-time="${item.end_time}"
+					 data-activity-type="${item.activity_type}"
+					 onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+					<div class="time-range">
+						<i class="fa fa-clock"></i>
+						${this.formatDateTime(item.start_time)} - ${this.formatDateTime(item.end_time)}
+					</div>
+					<div class="activity-type">
+						${this.getActivityIcon(item.activity_type)}
+						${item.activity_type.replace('_', ' ')}
+					</div>
+					${!isStill ? 
+						`<div class="activity-info">
+							<i class="fa fa-route" style="margin-right: 6px;"></i>
+							Distance: ${item.distance.toFixed(2)} km
+							${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
+						</div>` : (companyDetails || '')
+					}
+					${(isStill && !isIgnoredLocation) ? `
+						<div class="timeline-action-buttons">
+							${!hasCompanyDetails && !hasOverlapMeetings ? `
+							<button class="ignore-location-btn" onclick="event.stopPropagation(); 
+								(function(start, end, lat, lon) {
+									if (window.locationTimeline) {
+										window.locationTimeline.openIgnoreLocationDialog(start, end, lat, lon);
+									} else {
+										console.error('Location Timeline not initialized');
+									}
+								})('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
+								<i class="fa fa-times"></i>
+							</button>
+								<button class="add-activity-btn" onclick="event.stopPropagation(); 
+									(function(start, end, lat, lon) {
+										if (window.locationTimeline) {
+											window.locationTimeline.openAddActivityDialog(start, end, lat, lon);
+										} else {
+											console.error('Location Timeline not initialized');
+										}
+									})('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
+									<i class="fa fa-plus"></i>
+								</button>
+							` : ''}
+						</div>
+					` : ''}
 					${(isStill && isIgnoredLocation) ? `
 						<div class="activity-info" style="color: red; background-color: #ffebee;">
 							This Location is Ignored: ${item.ignored_location_description}
 						</div>
 					` : ''}
-                    ${(isStill && overlapMeetings.length > 0) ? 
-                        overlapMeetings.map(meeting => `
-                        <div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
-                             onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
-                             style="cursor: pointer;">
-                            <div class="meeting-title">
-                                <i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
-                                ${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
-                            </div>
-                            <div class="meeting-time">
-                                ${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
-                            </div>
-                        </div>
-                        `).join('') : ''
-                    }
-                </div>
-            </div>
-            `;
-    
-            accumulator.push(timelineItem);
-            
-            // Update previous date
-            previousDate = currentDate;
-    
-            return accumulator;
-        }, []).join('');
-    }
+					${(isStill && overlapMeetings.length > 0) ? 
+						overlapMeetings.map(meeting => `
+						<div class="meeting-item ${meeting.internal_meeting ? 'meetings-box-purple-' : 'meetings-box-orange-'}" 
+							 onclick="frappe.set_route('Form', 'Meeting', '${meeting.name}')" 
+							 style="cursor: pointer;">
+							<div class="meeting-title">
+								<i class="fa fa-${meeting.internal_meeting ? 'users' : 'building'}"></i>
+								${meeting.internal_meeting ? 'Internal Meeting' : meeting.party}
+							</div>
+							<div class="meeting-time">
+								${meeting.date} ${meeting.meeting_from} - ${meeting.meeting_to}
+							</div>
+						</div>
+						`).join('') : ''
+					}
+				</div>
+			</div>
+			`;
+	
+			accumulator.push(timelineItem);
+			
+			// Update previous date
+			previousDate = currentDate;
+	
+			return accumulator;
+		}, []).join('');
+	}
 
 	openIgnoreLocationDialog(startTime, endTime, lat, lon) {
         let d = new frappe.ui.Dialog({
