@@ -1596,9 +1596,9 @@ def calculate_total_distance(route):
     return total_distance
 
 @frappe.whitelist()
-def ignore_location(latitude,longitude,description):
+def ignore_location(latitude,longitude,user,description):
     doc = frappe.new_doc("Ignore Locations")
-    doc.user = frappe.session.user
+    doc.user = user
     doc.latitude = latitude
     doc.longitude = longitude
     doc.description = description

@@ -4114,6 +4114,13 @@ class LocationTimeline {
                     fieldtype: "HTML", 
                     options: `<p>You're about to mark this location as irrelevant. Please provide a reason.</p>`
                 },
+				{
+					label: "User",
+					fieldname: "user",
+					fieldtype: "Link",
+					options: "User",
+					default: frappe.session.user,
+				},
                 {
                     label: "Location Description",
                     fieldname: "location_description",
@@ -4144,6 +4151,7 @@ class LocationTimeline {
                     args: {
                         latitude: lat,
                         longitude: lon,
+						user: values.user,
                         description: values.location_description,
                     },
                     callback: (r) => {
