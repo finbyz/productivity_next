@@ -3686,25 +3686,6 @@ class LocationTimeline {
 					flex-direction: column;
 					position: relative; /* Maintain control over button positioning */
 				}
-
-				.add-activity-btn {
-					position: absolute;
-					top: 50%; /* Vertically center */
-					right: 10px; /* Distance from the right edge */
-					transform: translateY(-50%); /* Adjust for perfect center alignment */
-					background: #6c5ce7; /* Purple color */
-					color: #fff; /* Icon color */
-					border: none;
-					padding: 8px 12px;
-					border-radius: 50%; /* Makes it circular */
-					cursor: pointer;
-					box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Adds subtle shadow */
-				}
-
-				.add-activity-btn:hover {
-					background: #5a4ccf; /* Slightly darker on hover */
-				}
-
                 .dialog-overlay {
                     position: fixed;
                     top: 0;
@@ -3780,6 +3761,77 @@ class LocationTimeline {
                     background-color: #6420AA;
                     color: white;
                 }
+					.timeline-action-buttons {
+                position: absolute;
+                top: 50%;
+                right: 10px;
+                transform: translateY(-50%);
+                display: flex;
+                gap: 10px;
+            }
+
+            .add-activity-btn, .ignore-location-btn {
+                border: none;
+                border-radius: 50%;
+                width: 35px;
+                height: 35px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                transition: background-color 0.3s ease;
+            }
+
+            .add-activity-btn {
+                background-color: #6c5ce7; /* Purple color */
+                color: white;
+            }
+
+            .add-activity-btn:hover {
+                background-color: #5a4ccf;
+            }
+
+            .ignore-location-btn {
+                background-color: #e74c3c; /* Red color */
+                color: white;
+            }
+
+            .ignore-location-btn:hover {
+                background-color: #c0392b;
+            }
+					.ignore-location-btn {
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    position: absolute;
+                    top: 50%;
+                    right: 40px;
+                    transform: translateY(-50%);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+
+                .ignore-location-btn:hover {
+                    background-color: #c0392b;
+                }
+
+                .ignore-location-dialog-box {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                }
+
+                .ignore-location-dialog-box input,
+                .ignore-location-dialog-box textarea {
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                }
+			
             `;
             document.head.appendChild(styleElement);
         }
@@ -3939,14 +3991,19 @@ class LocationTimeline {
             });
     
             // Safely handle company details
-            const companyDetails = (item.near_company && item.company_address) ? 
-                `<div class="activity-info company-info">
-                    <i class="fa fa-building" style="margin-right: 6px;"></i>
-                    ${item.company_address || 'Company Location'}
-                    ${item.company_name ? `• ${item.company_name}` : ''}
-                </div>` : '';
+            const companyDetails = (item.near_company && item.company_address) ?                 
+				`<div class="activity-info company-info">                     
+					<i class="fa fa-building" style="margin-right: 6px;"></i>                     
+					${item.company_name ? `<strong>${item.company_name}</strong> <br>` : ''} ${item.company_address || 'Company Location'}                     
+					                 
+				</div>` : '';
+
+    
+            // Determine if we need to show buttons and add ignored location message
+            const hasCompanyDetails = item.near_company && item.company_address;
+            const hasOverlapMeetings = overlapMeetings.length > 0;
+            const isIgnoredLocation = item.ignored_location_description;
             // Timeline item HTML
-			console.log("mefggggg",item.lat_long_cordinates[0][1])
             const timelineItem = `
             <div class="timeline-item">
                 <div class="timeline-point"></div>
@@ -3970,17 +4027,36 @@ class LocationTimeline {
                             ${item.duration > 0 ? ` • Duration: ${this.formatDuration(item.duration)}` : ''}
                         </div>` : (companyDetails || '')
                     }
-                    ${(isStill && !item.near_company) ? `
-						<button class="add-activity-btn" onclick="event.stopPropagation(); 
-							(function(start, end, lat, lon) {
-								if (window.locationTimeline) {
-									window.locationTimeline.openAddActivityDialog(start, end, lat, lon);
-								} else {
-									console.error('Location Timeline not initialized');
-								}
-							})('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
-							<i class="fa fa-plus"></i>
-						</button>
+                    ${(isStill && !isIgnoredLocation) ? `
+                        <div class="timeline-action-buttons">
+                            ${!hasCompanyDetails && !hasOverlapMeetings ? `
+                            <button class="ignore-location-btn" onclick="event.stopPropagation(); 
+                                (function(start, end, lat, lon) {
+                                    if (window.locationTimeline) {
+                                        window.locationTimeline.openIgnoreLocationDialog(start, end, lat, lon);
+                                    } else {
+                                        console.error('Location Timeline not initialized');
+                                    }
+                                })('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
+                                <i class="fa fa-times"></i>
+                            </button>
+                                <button class="add-activity-btn" onclick="event.stopPropagation(); 
+                                    (function(start, end, lat, lon) {
+                                        if (window.locationTimeline) {
+                                            window.locationTimeline.openAddActivityDialog(start, end, lat, lon);
+                                        } else {
+                                            console.error('Location Timeline not initialized');
+                                        }
+                                    })('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+					${(isStill && isIgnoredLocation) ? `
+						<div class="activity-info" style="color: red; background-color: #ffebee;">
+							This Location is Ignored: ${item.ignored_location_description}
+						</div>
 					` : ''}
                     ${(isStill && overlapMeetings.length > 0) ? 
                         overlapMeetings.map(meeting => `
@@ -4008,6 +4084,85 @@ class LocationTimeline {
     
             return accumulator;
         }, []).join('');
+    }
+
+	openIgnoreLocationDialog(startTime, endTime, lat, lon) {
+        let d = new frappe.ui.Dialog({
+            title: 'Ignore Location',
+            fields: [
+                {
+                    fieldtype: "HTML", 
+                    options: `<p>You're about to mark this location as irrelevant. Please provide a reason.</p>`
+                },
+                {
+                    label: "Location Description",
+                    fieldname: "location_description",
+                    fieldtype: "Text",
+                    reqd: 1
+                },
+                {
+                    fieldtype: "HTML",
+                    options: `
+                        <div class="text-muted">
+                            <small>
+                                This will help improve location tracking accuracy. 
+                                Your feedback is valuable for refining the system.
+                            </small>
+                        </div>
+                    `
+                }
+            ],
+            primary_action_label: 'Ignore Location',
+            primary_action(values) {
+                // Disable the primary action to prevent multiple submissions
+                this.disable_primary_action();
+                this.set_title('Submitting...');
+
+                // Call the API to record the ignored location
+                frappe.call({
+                    method: "productivity_next.api.ignore_location",
+                    args: {
+                        latitude: lat,
+                        longitude: lon,
+                        description: values.location_description,
+                    },
+                    callback: (r) => {
+                        if (r.message) {
+                            frappe.msgprint({
+                                title: __('Success'),
+                                indicator: 'green',
+                                message: __('Location marked as ignored successfully')
+                            });
+                            this.hide();
+                            
+                            // Optional: Trigger a refresh of the timeline or location data
+                            if (window.locationTimeline && window.locationTimeline.refreshData) {
+                                window.locationTimeline.refreshData();
+                            }
+                        } else {
+                            frappe.msgprint({
+                                title: __('Error'),
+                                indicator: 'red',
+                                message: __('Failed to ignore location. Please try again.')
+                            });
+                            this.enable_primary_action();
+                            this.set_title('Ignore Location');
+                        }
+                    },
+                    error: (r) => {
+                        frappe.msgprint({
+                            title: __('Error'),
+                            indicator: 'red',
+                            message: __('An error occurred while processing your request.')
+                        });
+                        this.enable_primary_action();
+                        this.set_title('Ignore Location');
+                    }
+                });
+            }
+        });
+
+        d.show();
     }
 
     openAddActivityDialog(startTime, endTime, lat, lon) {

@@ -1344,6 +1344,15 @@ def get_timeline(employee, start_date, end_date):
             join `tabDynamic Link` as dl on dl.parent = a.name
             where dl.link_doctype = 'Company'
         """, as_dict=True)
+
+        user = frappe.db.sql(f"""select user_id from `tabEmployee` where name = '{employee}'""", as_dict=True)
+        
+        # Modify the ignored locations query to use correct user comparison
+        ignored_locations = frappe.db.sql(f"""
+            select description, latitude, longitude
+            from `tabIgnore Locations`
+            where user = '{user[0]['user_id']}'
+        """, as_dict=True)
         
         company_coords = [
             {
@@ -1352,6 +1361,15 @@ def get_timeline(employee, start_date, end_date):
                 'company_name': loc['company_name']
             }
             for loc in company_locations 
+            if loc['latitude'] and loc['longitude']
+        ]
+
+        ignored_coords = [
+            {
+                'coords': (float(loc['latitude']), float(loc['longitude'])),
+                'description': loc['description']
+            }
+            for loc in ignored_locations
             if loc['latitude'] and loc['longitude']
         ]
 
@@ -1393,6 +1411,13 @@ def get_timeline(employee, start_date, end_date):
                             nearest_company = company
                             break
                     
+                    # Check if current point is near an ignored location
+                    ignored_location_desc = None
+                    for ignored_loc in ignored_coords:
+                        if geodesic(lat_long[-1], ignored_loc['coords']).kilometers <= 0.05:
+                            ignored_location_desc = ignored_loc['description']
+                            break
+                    
                     # Add to date-wise data
                     entry = {
                         "start_time": start_time,
@@ -1402,7 +1427,8 @@ def get_timeline(employee, start_date, end_date):
                         "distance": distance if activity_type != "still" else 0,
                         "near_company": nearest_company is not None,
                         "company_address": nearest_company['address'] if nearest_company else None,
-                        "company_name": nearest_company['company_name'] if nearest_company else None
+                        "company_name": nearest_company['company_name'] if nearest_company else None,
+                        "ignored_location_description": ignored_location_desc
                     }
                     
                     # If not the first entry and activity is the same, merge
@@ -1421,7 +1447,7 @@ def get_timeline(employee, start_date, end_date):
                     activity_type = row['activity_type']
                     lat_long = [(row['coords_latitude'], row['coords_longitude'])]
             
-            # Handle the last segment
+            # Handle the last segment (similar modifications as above)
             if lat_long:
                 distance = calculate_total_distance(lat_long)
                 if distance < 0.1:
@@ -1434,6 +1460,13 @@ def get_timeline(employee, start_date, end_date):
                         nearest_company = company
                         break
                 
+                # Check if current point is near an ignored location
+                ignored_location_desc = None
+                for ignored_loc in ignored_coords:
+                    if geodesic(lat_long[-1], ignored_loc['coords']).kilometers <= 0.05:
+                        ignored_location_desc = ignored_loc['description']
+                        break
+                
                 entry = {
                     "start_time": start_time,
                     "end_time": row['timestamp'],
@@ -1442,7 +1475,8 @@ def get_timeline(employee, start_date, end_date):
                     "distance": distance if activity_type != "still" else 0,
                     "near_company": nearest_company is not None,
                     "company_address": nearest_company['address'] if nearest_company else None,
-                    "company_name": nearest_company['company_name'] if nearest_company else None
+                    "company_name": nearest_company['company_name'] if nearest_company else None,
+                    "ignored_location_description": ignored_location_desc
                 }
                 
                 if date_wise_final_data and date_wise_final_data[-1]['activity_type'] == activity_type:
@@ -1482,7 +1516,10 @@ def get_timeline(employee, start_date, end_date):
             # Handle stop times
             if row['activity_type'] == 'still':
                 stop_duration = int((end_time - start_time).total_seconds())
-                total_stop_time += stop_duration
+                
+                # Skip stop time if it's near an ignored location
+                if not row.get('ignored_location_description'):
+                    total_stop_time += stop_duration
                 
                 # Separate company stop time
                 if row.get('near_company', False):
@@ -1490,7 +1527,7 @@ def get_timeline(employee, start_date, end_date):
             elif row['activity_type'] != 'still':
                 total_driving_time += int((end_time - start_time).total_seconds())
 
-            # Fetch and process meeting data
+            # Fetch and process meeting data (rest of the code remains the same)
             meeting_data = frappe.db.sql(f"""
                 SELECT 
                     m.name, 
@@ -1526,7 +1563,7 @@ def get_timeline(employee, start_date, end_date):
             "total_duration": total_duration,
             "data": final_data,
             "total_driving_time": total_driving_time,
-            "total_stop_time": total_stop_time - (total_company_stop_time+total_internal_meeting_duration+total_external_meeting_duration) ,
+            "total_stop_time": total_stop_time - (total_company_stop_time+total_internal_meeting_duration+total_external_meeting_duration),
             "total_company_stop_time": total_company_stop_time,
             "total_internal_meeting_duration": total_internal_meeting_duration,
             "total_external_meeting_duration": total_external_meeting_duration
@@ -1546,7 +1583,6 @@ def get_timeline(employee, start_date, end_date):
             "total_internal_meeting_duration": 0,
             "total_external_meeting_duration": 0
         }
-
 # Function to calculate the total distance for the given route
 def calculate_total_distance(route):
     total_distance = 0
@@ -1558,3 +1594,13 @@ def calculate_total_distance(route):
         distance = geodesic(loc1, loc2).kilometers
         total_distance += distance
     return total_distance
+
+@frappe.whitelist()
+def ignore_location(latitude,longitude,description):
+    doc = frappe.new_doc("Ignore Locations")
+    doc.user = frappe.session.user
+    doc.latitude = latitude
+    doc.longitude = longitude
+    doc.description = description
+    doc.save()
+    return "Success"
