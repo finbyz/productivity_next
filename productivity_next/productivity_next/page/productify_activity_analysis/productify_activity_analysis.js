@@ -3520,8 +3520,8 @@ class LocationTimeline {
         this.initStyles();
         this.init();
     }
-
     initStyles() {
+		console.log(this.data)
         if (!document.getElementById('timeline-styles')) {
             const styleElement = document.createElement('style');
             styleElement.id = 'timeline-styles';
@@ -3945,8 +3945,8 @@ class LocationTimeline {
                     ${item.company_address || 'Company Location'}
                     ${item.company_name ? `• ${item.company_name}` : ''}
                 </div>` : '';
-    
             // Timeline item HTML
+			console.log("mefggggg",item.lat_long_cordinates[0][1])
             const timelineItem = `
             <div class="timeline-item">
                 <div class="timeline-point"></div>
@@ -3972,13 +3972,13 @@ class LocationTimeline {
                     }
                     ${(isStill && !item.near_company) ? `
 						<button class="add-activity-btn" onclick="event.stopPropagation(); 
-							(function(start, end) {
+							(function(start, end, lat, lon) {
 								if (window.locationTimeline) {
-									window.locationTimeline.openAddActivityDialog(start, end);
+									window.locationTimeline.openAddActivityDialog(start, end, lat, lon);
 								} else {
 									console.error('Location Timeline not initialized');
 								}
-							})('${item.start_time}', '${item.end_time}')">
+							})('${item.start_time}', '${item.end_time}', ${item.lat_long_cordinates[0][0]}, ${item.lat_long_cordinates[0][1]})">
 							<i class="fa fa-plus"></i>
 						</button>
 					` : ''}
@@ -4010,7 +4010,10 @@ class LocationTimeline {
         }, []).join('');
     }
 
-    openAddActivityDialog(startTime, endTime) {
+    openAddActivityDialog(startTime, endTime, lat, lon) {
+		console.log("text",lat,lon)
+		const latitude = lat;
+    	const longitude = lon;
 		// Ensure start and end times are valid
 		startTime = startTime || new Date().toISOString();
 		endTime = endTime || new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString(); // Default 1 hour later
@@ -4257,7 +4260,8 @@ class LocationTimeline {
 							return;
 						}
 					}
-	
+					console.log("latitude",latitude)
+					console.log("longitude",longitude)
 					frappe.call({
 						method: "productivity_next.api.add_meeting",
 						args: {
@@ -4271,7 +4275,9 @@ class LocationTimeline {
 							discussion: values.discussion,
 							meeting_company_representative: values.meeting_company_representative,
 							meeting_party_representative: values.meeting_party_representative || "",
-							project: values.project || null
+							project: values.project || null,
+							latitude: latitude,
+							longitude: longitude
 						},
 						callback: (r) => {
 							if (r.message) {

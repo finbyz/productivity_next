@@ -399,6 +399,8 @@ def add_meeting(
     meeting_company_representative,
     meeting_party_representative,
     project=None,
+    latitude=None,
+    longitude=None
 ):
     meeting_company_representative = json.loads(meeting_company_representative)
     
@@ -433,6 +435,9 @@ def add_meeting(
                 "contact": row.get("contact"),
             },
         )
+    if latitude and longitude:
+        meeting.latitude = latitude
+        meeting.longitude = longitude
     meeting.save()
     meeting.submit()
 
@@ -1521,7 +1526,7 @@ def get_timeline(employee, start_date, end_date):
             "total_duration": total_duration,
             "data": final_data,
             "total_driving_time": total_driving_time,
-            "total_stop_time": total_stop_time - total_company_stop_time,
+            "total_stop_time": total_stop_time - (total_company_stop_time+total_internal_meeting_duration+total_external_meeting_duration) ,
             "total_company_stop_time": total_company_stop_time,
             "total_internal_meeting_duration": total_internal_meeting_duration,
             "total_external_meeting_duration": total_external_meeting_duration
