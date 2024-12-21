@@ -99,30 +99,3 @@ fixtures = [
 
 # before_install = "productivity_next.install.before_install"
 after_install = "productivity_next.setup.install.after_install"
-
-
-scheduler_events = {
-    "all": [
-        "productivity_next.schedule.bg_employee_log_generation",
-        "productivity_next.schedule.schedule_comments",
-        "productivity_next.schedule.create_productify_work_summary_today",
-        "productivity_next.schedule.set_challenge",
-    ],
-    "cron": {
-        "0 1 * * *": [
-            "productivity_next.schedule.create_productify_work_summary",
-            "productivity_next.schedule.delete_productify_error_logs",
-            "productivity_next.schedule.delete_screenshots",
-            "productivity_next.schedule.delete_application_logs",
-            "productivity_next.schedule.create_auto_email_report",
-            "productivity_next.schedule.create_auto_email_report_weekly"
-        ],
-        "0 0 * * *": [
-            "productivity_next.schedule.submit_timesheet_created_by_productify",
-        ],
-        # "5 4 * * sun" :[
-        #     "productivity_next.schedule.send_weekly_report",
-        # ]
-    },
-}
-
