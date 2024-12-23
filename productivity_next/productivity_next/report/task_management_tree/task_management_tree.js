@@ -438,7 +438,7 @@ function deleteTask(dialog, taskData, report) {
     }
 
     frappe.call({
-        method: 'task_management.task_management.report.task_analysis.task_analysis.delete_task',
+        method: 'productivity_next.productivity_next.report.task_management_tree.task_management_tree.delete_task',
         args: {
             task_data: values,
             delete_mode: values.delete_mode || 'single'
@@ -473,7 +473,7 @@ function copyTaskHierarchy(dialog, taskData, report) {
     let values = dialog.get_values();
     
     frappe.call({
-        method: 'task_management.task_management.report.task_analysis.task_analysis.copy_task_hierarchy',
+        method: 'productivity_next.productivity_next.report.task_management_tree.task_management_tree.copy_task_hierarchy',
         args: {
             task_data: taskData,
             new_project: values.new_project,
