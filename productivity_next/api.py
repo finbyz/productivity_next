@@ -1516,14 +1516,7 @@ def get_timeline(employee, start_date, end_date):
             # Handle stop times
             if row['activity_type'] == 'still':
                 stop_duration = int((end_time - start_time).total_seconds())
-                
-                # Skip stop time if it's near an ignored location
-                if not row.get('ignored_location_description'):
-                    total_stop_time += stop_duration
-                
-                # Separate company stop time
-                if row.get('near_company', False):
-                    total_company_stop_time += stop_duration
+            
             elif row['activity_type'] != 'still':
                 total_driving_time += int((end_time - start_time).total_seconds())
 
@@ -1550,7 +1543,15 @@ def get_timeline(employee, start_date, end_date):
             """, as_dict=True)
 
             row['meetings'] = meeting_data if meeting_data else []
-            
+            if row['activity_type'] == 'still':
+                stop_duration = int((end_time - start_time).total_seconds())
+                # Skip stop time if it's near an ignored location
+                if not row.get('ignored_location_description') and row.get("near_company")!= True and not row.get("meeting_from"):
+                    total_stop_time += stop_duration
+                
+                # Separate company stop time
+                if row.get('near_company', False):
+                    total_company_stop_time += stop_duration
             # Calculate meeting durations
             for meeting in row['meetings']:
                 if meeting['internal_meeting']:
@@ -1563,7 +1564,7 @@ def get_timeline(employee, start_date, end_date):
             "total_duration": total_duration,
             "data": final_data,
             "total_driving_time": total_driving_time,
-            "total_stop_time": total_stop_time - (total_company_stop_time+total_internal_meeting_duration+total_external_meeting_duration),
+            "total_stop_time": total_stop_time ,
             "total_company_stop_time": total_company_stop_time,
             "total_internal_meeting_duration": total_internal_meeting_duration,
             "total_external_meeting_duration": total_external_meeting_duration
@@ -1583,6 +1584,7 @@ def get_timeline(employee, start_date, end_date):
             "total_internal_meeting_duration": 0,
             "total_external_meeting_duration": 0
         }
+
 # Function to calculate the total distance for the given route
 def calculate_total_distance(route):
     total_distance = 0
