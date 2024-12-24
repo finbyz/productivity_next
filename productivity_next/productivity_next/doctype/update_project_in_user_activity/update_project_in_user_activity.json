@@ -45,7 +45,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-28 16:09:37.013236",
+ "modified": "2024-12-24 15:52:13.187562",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Update Project In User Activity",
@@ -67,7 +67,7 @@
    "email": 1,
    "print": 1,
    "read": 1,
-   "role": "Productify Manager",
+   "role": "Projects User",
    "share": 1,
    "write": 1
   }
