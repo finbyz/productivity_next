@@ -146,7 +146,13 @@ def get_data(filters):
         else:
             frappe.throw("Invalid frequency")
  
-        
+        # Get holidays within the date range
+        holidays = frappe.db.sql("""
+            SELECT holiday_date 
+            FROM `tabHoliday` 
+            WHERE holiday_date BETWEEN %s AND %s
+        """, (from_date, to_date), as_dict=True)
+        holiday_dates = set(holiday.holiday_date for holiday in holidays)
         for start, end in date_ranges:
             current_filters = filters.copy()
             current_filters["from_date"] = start.strftime("%Y-%m-%d")
@@ -176,7 +182,7 @@ def get_data(filters):
                 "meetings_hours": 0
             }
             
-            for employee in user_analysis.get("total_hours_per_employee", {}):
+            for employee in user_analysis.get("productivity_score", {}):
                 employee_data = user_analysis.get("employee_fincall_data", {}).get(employee, {})
                 total_hours = user_analysis.get("total_hours_per_employee", {}).get(employee, 0)
                 total_idle_time = user_analysis.get("total_idle_time", {}).get(employee, 0)
@@ -207,7 +213,7 @@ def get_data(filters):
                         "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
                         "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
                     }
-                else:
+                elif current_filters["from_date"] not in holiday_dates:
                     employee_record = {
                         "employee": frappe.get_value("Employee", employee, "employee_name"),
                         "starting_date": current_filters["from_date"],
