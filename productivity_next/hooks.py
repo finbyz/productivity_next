@@ -37,6 +37,10 @@ doctype_js = {
     "Task": "public/js/doctype_js/task.js",
 }
 
+doctype_list_js = {
+    "Task": "public/js/list_js/task.js",
+}
+
 doctype_calendar_js = {
     "Task": "overrides/task/task_calendar.js"
 }
