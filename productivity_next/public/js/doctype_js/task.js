@@ -26,22 +26,16 @@ frappe.ui.form.on("Task", {
             frm.set_df_property("process_flow_steps", "cannot_add_rows", true);
             frm.set_df_property("process_flow_steps", "cannot_delete_rows", true);
             frm.set_df_property("process_flow_steps", "cannot_delete_all_rows", true);
-            frm.get_field("process_flow_steps").grid.static_rows = true;
             frm.set_df_property("process_flow_checks", "cannot_add_rows", true);
             frm.set_df_property("process_flow_checks", "cannot_delete_rows", true);
             frm.set_df_property("process_flow_checks", "cannot_delete_all_rows", true);
-            frm.get_field("process_flow_checks").grid.static_rows = true;
         } else {
             frm.set_df_property("process_flow_steps", "cannot_add_rows", false);
             frm.set_df_property("process_flow_steps", "cannot_delete_rows", false);
             frm.set_df_property("process_flow_steps", "cannot_delete_all_rows", false);
-            frm.get_field("process_flow_steps").grid.static_rows = false;
-            frm.get_field("process_flow_steps").grid.setup_toolbar()
             frm.set_df_property("process_flow_checks", "cannot_add_rows", false);
             frm.set_df_property("process_flow_checks", "cannot_delete_rows", false);
             frm.set_df_property("process_flow_checks", "cannot_delete_all_rows", false);
-            frm.get_field("process_flow_checks").grid.static_rows = false;
-            frm.get_field("process_flow_checks").grid.setup_toolbar()
         }
     },
     fetch_process_steps: function (frm) {
