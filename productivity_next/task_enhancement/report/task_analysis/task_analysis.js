@@ -418,7 +418,7 @@ function copyProjectTasks(dialog, projectData, report) {
     }
 
     frappe.call({
-        method: 'task_enhancement.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks',
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks',
         args: {
             original_project: values.original_project,
             new_project_name: values.new_project_name,
@@ -516,7 +516,7 @@ function updateTask(dialog, taskData, report, update_mode) {
     }
 
     frappe.call({
-        method: 'task_enhancement.task_enhancement.report.task_analysis.task_analysis.update_task',
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.update_task',
         args: {
             task_id: taskData.task_id,
             task_data: values,
@@ -557,7 +557,7 @@ function deleteTask(dialog, taskData, report) {
     }
 
     frappe.call({
-        method: 'task_enhancement.task_enhancement.report.task_analysis.task_analysis.delete_task',
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.delete_task',
         args: {
             task_data: values,
             delete_mode: values.delete_mode || 'single'
@@ -592,7 +592,7 @@ function copyTaskHierarchy(dialog, taskData, report) {
     let values = dialog.get_values();
     
     frappe.call({
-        method: 'task_enhancement.task_enhancement.report.task_analysis.task_analysis.copy_task_hierarchy',
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_task_hierarchy',
         args: {
             task_data: taskData,
             new_project: values.new_project,
