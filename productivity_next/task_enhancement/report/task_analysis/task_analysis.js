@@ -27,7 +27,7 @@ frappe.query_reports["Task Analysis"] = {
         },
         {
             fieldname: "assignee",
-            label: __("Task Owner"),
+            label: __("Assignee"),
             fieldtype: "Link",
             options: "User",
         },
