@@ -22,20 +22,20 @@ frappe.ui.form.on("Task", {
         ]);
     },
     hide_and_show_add_remove_button: function (frm) {
-        if (frm.doc.process_flow != null && frm.doc.process_flow != "") {
-            frm.set_df_property("process_flow_steps", "cannot_add_rows", true);
-            frm.set_df_property("process_flow_steps", "cannot_delete_rows", true);
-            frm.set_df_property("process_flow_steps", "cannot_delete_all_rows", true);
-            frm.set_df_property("process_flow_checks", "cannot_add_rows", true);
-            frm.set_df_property("process_flow_checks", "cannot_delete_rows", true);
-            frm.set_df_property("process_flow_checks", "cannot_delete_all_rows", true);
-        } else {
+        if (!frm.doc.process_flow) {
             frm.set_df_property("process_flow_steps", "cannot_add_rows", false);
             frm.set_df_property("process_flow_steps", "cannot_delete_rows", false);
             frm.set_df_property("process_flow_steps", "cannot_delete_all_rows", false);
             frm.set_df_property("process_flow_checks", "cannot_add_rows", false);
             frm.set_df_property("process_flow_checks", "cannot_delete_rows", false);
             frm.set_df_property("process_flow_checks", "cannot_delete_all_rows", false);
+        } else {
+            frm.set_df_property("process_flow_steps", "cannot_add_rows", true);
+            frm.set_df_property("process_flow_steps", "cannot_delete_rows", true);
+            frm.set_df_property("process_flow_steps", "cannot_delete_all_rows", true);
+            frm.set_df_property("process_flow_checks", "cannot_add_rows", true);
+            frm.set_df_property("process_flow_checks", "cannot_delete_rows", true);
+            frm.set_df_property("process_flow_checks", "cannot_delete_all_rows", true);
         }
     },
     fetch_process_steps: function (frm) {
