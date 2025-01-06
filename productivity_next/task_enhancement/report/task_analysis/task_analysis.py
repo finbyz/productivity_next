@@ -10,6 +10,7 @@ from frappe.utils import cstr, getdate
 def execute(filters=None):
     columns = get_columns()
     data = get_data(filters)
+	
     return columns, data
 
 def get_columns():
@@ -27,7 +28,7 @@ def get_columns():
             "width": 70
         },
         {
-            "fieldname": "task_owner",
+            "fieldname": "assignee",
             "label": _("Task Owner"),
             "fieldtype": "Link",
             "options": "User",
@@ -104,14 +105,14 @@ def get_projects(filters):
     """.format(conditions=conditions), as_dict=True)
 
 @frappe.whitelist()
-def copy_project_tasks(original_project, new_project_name, new_task_owner=None):
+def copy_project_tasks(original_project, new_project_name, new_assignee=None):
     """
     Copy all tasks from an original project to a new project, maintaining task hierarchy
     
     Args:
         original_project (str): Name of the source project
         new_project_name (str): Name of the destination project
-        new_task_owner (str, optional): New owner for copied tasks. Defaults to original task owners.
+        new_assignee (str, optional): New owner for copied tasks. Defaults to original task owners.
     
     Returns:
         dict: Information about the new project and copied tasks
@@ -123,7 +124,7 @@ def copy_project_tasks(original_project, new_project_name, new_task_owner=None):
     # Use a more efficient query to get tasks
     original_tasks = frappe.get_list('Task', 
         filters={'project': original_project},
-        fields=['name', 'subject', 'description', 'priority', 'parent_task', 'task_owner'],
+        fields=['name', 'subject', 'description', 'priority', 'parent_task', 'assignee'],
         order_by='lft'  # Ensures parent tasks are processed before children
     )
     
@@ -151,7 +152,7 @@ def copy_project_tasks(original_project, new_project_name, new_task_owner=None):
                 'status': 'Unplanned',  # Reset status for new project
                 'priority': task.priority,
                 'project': new_project_name,
-                'task_owner': new_task_owner or task.task_owner,
+                'assignee': new_assignee or task.assignee,
                 # Reset date fields
                 'exp_start_date': None,
                 'exp_end_date': None,
@@ -213,8 +214,8 @@ def get_tasks(filters):
     if not filters.get('show_completed_tasks'):
         conditions.append("status != 'Completed'")
     
-    if filters.get("task_owner"):
-        conditions.append(f"task_owner = '{filters.get('task_owner')}'")
+    if filters.get("assignee"):
+        conditions.append(f"assignee = '{filters.get('assignee')}'")
     
     where_clause = " AND ".join(conditions) if conditions else "1=1"
     if task_condition:
@@ -227,7 +228,7 @@ def get_tasks(filters):
             IFNULL(parent_task, '') as parent_task,
             project,
             status,
-            task_owner as task_owner,
+            assignee as assignee,
             priority,
             description,
             exp_start_date,
@@ -346,7 +347,7 @@ def prepare_data(filters, projects, tasks):
                 "status":project.status,
                 "priority": project.priority,
                 "description": "",
-                "task_owner": "",
+                "assignee": "",
                 "indent": 0,
                 "exp_start_date": project.expected_start_date,
                 "exp_end_date": project.expected_end_date,
@@ -381,7 +382,7 @@ def prepare_data(filters, projects, tasks):
                     task_data = frappe._dict({
                         "task": task_name,
                         "progress": progress_display,
-                        "task_owner": task.task_owner,
+                        "assignee": task.assignee,
                         "exp_start_date": task.exp_start_date,
                         "exp_end_date": task.exp_end_date,
                         "status": task.status,
@@ -414,7 +415,7 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
     data.append(frappe._dict({
         "task": task_name,
         "progress": progress_display,
-        "task_owner": task.task_owner,
+        "assignee": task.assignee,
         "exp_start_date": task.exp_start_date,
         "exp_end_date": task.exp_end_date,
         "status": task.status,
@@ -596,7 +597,7 @@ def update_single_task(task_name, task_data, update_description):
     if update_description:
         task.description = task_data.get('description')
     
-    task.task_owner = task_data.get('task_owner')
+    task.assignee = task_data.get('assignee')
     task.exp_start_date = task_data.get('exp_start_date')
     task.exp_end_date = task_data.get('exp_end_date')
     # Validate task dates
@@ -813,14 +814,14 @@ def validate_project_permissions(project_name):
         frappe.throw(_("No permission to modify tasks in project: {0}").format(project_name))
 
 @frappe.whitelist()
-def copy_task_hierarchy(task_data, new_project=None, new_task_owner=None):
+def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
     """
     Copy a task and its entire hierarchy with attachments and descriptions
     
     Args:
         task_data (dict): Original task data
         new_project (str): Project to assign copied tasks to
-        new_task_owner (str): User to assign as task owner for copied tasks
+        new_assignee (str): User to assign as task owner for copied tasks
     """
     if not isinstance(task_data, dict):
         task_data = frappe.parse_json(task_data)
@@ -833,7 +834,7 @@ def copy_task_hierarchy(task_data, new_project=None, new_task_owner=None):
         task_id_mapping = {}
         
         # Copy main task and get its children
-        new_task = copy_single_task(actual_task_name, new_project, new_task_owner, None)
+        new_task = copy_single_task(actual_task_name, new_project, new_assignee, None)
         task_id_mapping[actual_task_name] = new_task.name
         
         # Get and copy all child tasks
@@ -844,7 +845,7 @@ def copy_task_hierarchy(task_data, new_project=None, new_task_owner=None):
                 frappe.db.get_value('Task', child.name, 'parent_task')
             )
             # Copy the child task, assigning it to the new project
-            new_child = copy_single_task(child.name, new_project, new_task_owner, new_parent)
+            new_child = copy_single_task(child.name, new_project, new_assignee, new_parent)
             task_id_mapping[child.name] = new_child.name
         
         frappe.db.commit()
@@ -859,14 +860,14 @@ def copy_task_hierarchy(task_data, new_project=None, new_task_owner=None):
         frappe.log_error(frappe.get_traceback(), _("Task Copy Error"))
         frappe.throw(_("Error copying task: {0}").format(str(e)))
 
-def copy_single_task(task_name, new_project, new_task_owner, new_parent):
+def copy_single_task(task_name, new_project, new_assignee, new_parent):
     """
     Copy a single task with its attachments
     
     Args:
         task_name (str): Name of the task to copy
         new_project (str): New project to assign
-        new_task_owner (str): New task owner to assign
+        new_assignee (str): New task owner to assign
         new_parent (str): New parent task name
     
     Returns:
@@ -879,7 +880,7 @@ def copy_single_task(task_name, new_project, new_task_owner, new_parent):
     new_task = frappe.new_doc('Task')
     
     # Copy all standard fields
-    exclude_fields = ['name', 'parent_task', 'project', 'task_owner', 'creation', 
+    exclude_fields = ['name', 'parent_task', 'project', 'assignee', 'creation', 
                      'modified', 'modified_by', 'owner', 'docstatus', 'idx','depends_on', 'status', 'exp_start_date'
                      'exp_end_date','workflow_state']
     for field in orig_task.meta.fields:
@@ -888,7 +889,7 @@ def copy_single_task(task_name, new_project, new_task_owner, new_parent):
     
     # Set new values
     new_task.project = new_project if new_project else None
-    new_task.task_owner = new_task_owner if new_task_owner else None
+    new_task.assignee = new_assignee if new_assignee else None
     new_task.parent_task = new_parent if new_parent else None
     new_task.exp_start_date = None
     new_task.exp_end_date = None

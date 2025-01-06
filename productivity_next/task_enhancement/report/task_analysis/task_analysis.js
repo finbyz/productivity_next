@@ -10,6 +10,7 @@ function htmlEscape(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 }
+
 frappe.query_reports["Task Analysis"] = {
     "filters": [
         {
@@ -25,7 +26,7 @@ frappe.query_reports["Task Analysis"] = {
             options: "Task"
         },
         {
-            fieldname: "task_owner",
+            fieldname: "assignee",
             label: __("Task Owner"),
             fieldtype: "Link",
             options: "User",
@@ -241,10 +242,10 @@ function showEditDialog(taskData, report) {
             },
             {
                 label: __('Task Owner'),
-                fieldname: 'task_owner',
+                fieldname: 'assignee',
                 fieldtype: 'Link',
                 options: 'User',
-                default: taskDataWithoutProgress.task_owner
+                default: taskDataWithoutProgress.assignee
             },
             {
                 label: __('Status'),
@@ -326,7 +327,7 @@ function showCopyDialog(taskData, report) {
             },
             {
                 label: __('New Task Owner'),
-                fieldname: 'new_task_owner',
+                fieldname: 'new_assignee',
                 fieldtype: 'Link',
                 options: 'User',
                 description: __('Leave empty to keep original task owners')
@@ -379,7 +380,7 @@ function showCopyProjectDialog(projectData, report) {
             },
             {
                 label: __('New Task Owner'),
-                fieldname: 'new_task_owner',
+                fieldname: 'new_assignee',
                 fieldtype: 'Link',
                 options: 'User',
                 description: __('Leave empty to keep original task owners')
@@ -421,7 +422,7 @@ function copyProjectTasks(dialog, projectData, report) {
         args: {
             original_project: values.original_project,
             new_project_name: values.new_project_name,
-            new_task_owner: values.new_task_owner
+            new_assignee: values.new_assignee
         },
         freeze: true,
         freeze_message: __('Copying Project Tasks...'),
@@ -595,7 +596,7 @@ function copyTaskHierarchy(dialog, taskData, report) {
         args: {
             task_data: taskData,
             new_project: values.new_project,
-            new_task_owner: values.new_task_owner
+            new_assignee: values.new_assignee
         },
         freeze: true,
         freeze_message: __('Copying Task Hierarchy...'),
@@ -674,10 +675,10 @@ function showTaskDialog(taskData, report) {
                 },
                 {
                     label: __('Task Owner'),
-                    fieldname: 'task_owner',
+                    fieldname: 'assignee',
                     fieldtype: 'Link',
                     options: 'User',
-                    default: taskData.task_owner
+                    default: taskData.assignee
                 },
                 {
                     label: __('Priority'),
@@ -757,11 +758,11 @@ function showTaskDialog(taskData, report) {
                         },
                         {
                             label: __('Task Owner'),
-                            fieldname: 'task_owner',
+                            fieldname: 'assignee',
                             fieldtype: 'Link',
                             options: 'User',
                             in_list_view: 1,
-                            default: taskData.task_owner
+                            default: taskData.assignee
                         },
                         {
                             label: __('Priority'),
@@ -851,7 +852,7 @@ function showTaskDialog(taskData, report) {
                     subject: values.subject,
                     parent_task: values.parent_task,
                     project: values.project,
-                    task_owner: values.task_owner,
+                    assignee: values.assignee,
                     priority: values.priority,
                     exp_start_date: values.exp_start_date,
                     exp_end_date: values.exp_end_date,
@@ -897,7 +898,7 @@ function showTaskDialog(taskData, report) {
                         parent_task: values.parent_task,
                         project: values.project,
                         task: values.task,
-                        task_owner: task.task_owner,
+                        assignee: task.assignee,
                         priority: task.priority,
                         exp_start_date: task.exp_start_date,
                         exp_end_date: task.exp_end_date,
