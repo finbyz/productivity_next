@@ -37,9 +37,18 @@ class Task(_Task):
 	
 	def validate(self):
 		super().validate()
+		self.validate_status()
 	
 	def on_update(self):
 		self.assign_to_assignee_and_task_approver()
+	
+	def validate_status(self):
+		if self.status == "Scheduled" and (not self.exp_start_date or not self.exp_end_date):
+			frappe.throw("Expected Start Date and Expected End Date are required to set this task's status to Scheduled.")
+		
+		if self.exp_start_date and self.exp_end_date and self.status in ["Unplanned", "Open"]:
+			self.workflow_state = "Scheduled"
+			self.status = "Scheduled"
 	
 	def assign_to_assignee_and_task_approver(self):
 		if self.assignee and not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': self.assignee, 'status': ['!=', 'Cancelled']}):
@@ -49,7 +58,7 @@ class Task(_Task):
 				'name': self.name,
 				'description': f"Task assigned to {self.assignee}",
 				'assign_by': frappe.session.user  # Correct user session reference
-        	})
+			})
 		
 		for row in self.approver:
 			if not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': row.user, 'status': ['!=', 'Cancelled']}):
@@ -59,7 +68,7 @@ class Task(_Task):
 				'name': self.name,
 				'description': f"Task Approver assigned to {row.user}",
 				'assign_by': frappe.session.user  # Correct user session reference
-        	})
+			})
 		
 	
 	def set_completed_on_and_completed_by(self):
