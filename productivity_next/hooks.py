@@ -86,11 +86,6 @@ scheduler_events = {
     },
 }
 
-fixtures = [
-    {"dt": "Custom Field", "filters": [["dt", "in", ["Auto Repeat"]]]},
-    {"dt": "Property Setter", "filters": [["module", "in", ["Productivity Next"]]]},
-]
-
 # Installation
 # ------------
 
