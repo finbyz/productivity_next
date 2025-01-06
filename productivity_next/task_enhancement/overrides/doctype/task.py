@@ -37,10 +37,12 @@ class Task(_Task):
 	
 	def validate(self):
 		super().validate()
+	
+	def on_update(self):
 		self.assign_to_assignee_and_task_approver()
 	
 	def assign_to_assignee_and_task_approver(self):
-		if self.assignee and not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': self.assignee}):
+		if self.assignee and not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': self.assignee, 'status': ['!=', 'Cancelled']}):
 			frappe.desk.form.assign_to.add({
 				'assign_to': [self.assignee],
 				'doctype': "Task",
@@ -50,7 +52,7 @@ class Task(_Task):
         	})
 		
 		for row in self.approver:
-			if not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': row.user}):
+			if not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': row.user, 'status': ['!=', 'Cancelled']}):
 				frappe.desk.form.assign_to.add({
 				'assign_to': [row.user],
 				'doctype': "Task",
@@ -89,7 +91,7 @@ class Task(_Task):
 
 	@frappe.whitelist()
 	def fetch_process_flow_steps(self):
-		return frappe.get_list(
+		return frappe.get_all(
 			"Process Flow Step", 
 			filters={"parenttype": "Process Flow", "parent": self.process_flow}, 
 			order_by="idx", 
@@ -98,7 +100,7 @@ class Task(_Task):
 
 	@frappe.whitelist()
 	def fetch_process_flow_checks(self):
-		return frappe.get_list(
+		return frappe.get_all(
 			"Process Flow Check", 
 			filters={"parenttype": "Process Flow", "parent": self.process_flow}, 
 			order_by="idx", 
