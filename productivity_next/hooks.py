@@ -42,6 +42,7 @@ doctype_calendar_js = {
 }
 
 override_doctype_class = {
+    "Task": "productivity_next.task_enhancement.overrides.doctype.task.Task",
 	"Notification": "productivity_next.productivity_next.override_doctype_class.notification.Notification",
 	"Auto Repeat": "productivity_next.productivity_next.override_doctype_class.auto_repeat.AutoRepeat",
 }
@@ -53,10 +54,6 @@ before_migrate = ["productivity_next.schedule.create_auto_email_report","product
 doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
-    },
-    "Task": {
-        "before_save": "productivity_next.productivity_next.doc_events.task.before_save",
-        "on_update": "productivity_next.productivity_next.doc_events.task.validate"
     },
 }
 

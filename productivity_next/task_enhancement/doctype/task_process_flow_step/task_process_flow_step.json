@@ -1,0 +1,58 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-01-05 21:21:24.717733",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "process_step",
+  "description",
+  "document_url",
+  "status"
+ ],
+ "fields": [
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Description",
+   "read_only_depends_on": "eval: ((parent.process_flow != null) && (parent.process_flow != \"\"));"
+  },
+  {
+   "fieldname": "document_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Document Url",
+   "read_only_depends_on": "eval: ((parent.process_flow != null) && (parent.process_flow != \"\"));"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nIn Progress\nCompleted"
+  },
+  {
+   "fieldname": "process_step",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Process Step",
+   "read_only_depends_on": "eval: ((parent.process_flow != null) && (parent.process_flow != \"\"));",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-01-05 22:21:05.142881",
+ "modified_by": "Administrator",
+ "module": "Task Enhancement",
+ "name": "Task Process Flow Step",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

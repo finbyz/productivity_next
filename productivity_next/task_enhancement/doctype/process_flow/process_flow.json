@@ -1,0 +1,89 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:process_name",
+ "creation": "2025-01-03 16:46:57.533749",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "process_name",
+  "process_type",
+  "column_break_ekun",
+  "document_url",
+  "section_break_dtov",
+  "process_flow_step",
+  "process_flow_check"
+ ],
+ "fields": [
+  {
+   "fieldname": "process_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Process Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "process_flow_step",
+   "fieldtype": "Table",
+   "label": "Process Flow Step",
+   "options": "Process Flow Step",
+   "reqd": 1
+  },
+  {
+   "fieldname": "process_flow_check",
+   "fieldtype": "Table",
+   "label": "Process Flow Check",
+   "options": "Process Flow Check",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_ekun",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "document_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Document Url",
+   "options": "URL"
+  },
+  {
+   "fieldname": "section_break_dtov",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "process_type",
+   "fieldtype": "Link",
+   "label": "Process Type",
+   "options": "Process Type",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-01-05 22:47:58.288847",
+ "modified_by": "Administrator",
+ "module": "Task Enhancement",
+ "name": "Process Flow",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Projects User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "process_name"
+}
