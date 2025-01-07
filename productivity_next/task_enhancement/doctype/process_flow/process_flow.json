@@ -7,7 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "process_name",
-  "process_type",
+  "type",
   "column_break_ekun",
   "document_url",
   "section_break_dtov",
@@ -53,16 +53,16 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "process_type",
+   "fieldname": "type",
    "fieldtype": "Link",
-   "label": "Process Type",
-   "options": "Process Type",
+   "label": "Type",
+   "options": "Task Type",
    "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-06 13:15:05.438491",
+ "modified": "2025-01-07 10:36:46.549819",
  "modified_by": "Administrator",
  "module": "Task Enhancement",
  "name": "Process Flow",
