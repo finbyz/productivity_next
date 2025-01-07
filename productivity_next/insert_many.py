@@ -45,7 +45,7 @@ def bulk_insert_docs(
 	)
 
 @frappe.whitelist(methods=["POST"])
-def bulk_insert_documents():
+def bulk_insert_documents(doctype:str,documents:list):
 	"""
 	Bulk insert API endpoint for specific doctypes.
 	Method: POST
@@ -54,25 +54,6 @@ def bulk_insert_documents():
 		- documents: list of document objects
 	"""
 	try:
-		# Get the request data
-		if not frappe.request or not frappe.request.data:
-			frappe.throw(_("No data provided"))
-
-		data = json.loads(frappe.request.data)
-
-		if not isinstance(data, dict):
-			frappe.throw(_("Invalid data format. Expected a dictionary"))
-
-		# Required fields in the request
-		required_fields = ["doctype", "documents"]
-		for field in required_fields:
-			if field not in data:
-				frappe.throw(_("Missing required field: {0}").format(field))
-
-		doctype = data["doctype"]
-		documents = data["documents"]
-
-		# Restrict to specific doctypes
 		allowed_doctypes = ['Application Usage log']
 		if doctype not in allowed_doctypes:
 			frappe.throw(_("Bulk insert is only allowed for: {0}").format(', '.join(allowed_doctypes)))
@@ -96,6 +77,7 @@ def bulk_insert_documents():
 			if not isinstance(doc_data, dict):
 				failed_documents.append({
 					"idx": idx,
+					"id": doc_data.get("id"),
 					"data": doc_data,
 					"error": _("Invalid document format")
 				})
@@ -115,10 +97,14 @@ def bulk_insert_documents():
 				doc._validate_code_fields()
 				doc._sanitize_content()
 				doc._save_passwords()
-				successful_documents.append(doc)
+				successful_documents.append({
+					"id": doc_data.get("id"),
+					"doc": doc
+				})
 			except Exception as e:
 				failed_documents.append({
 					"idx": idx,
+					"id": doc_data.get("id"),
 					"data": doc_data,
 					"error": str(e)
 				})
@@ -128,23 +114,25 @@ def bulk_insert_documents():
 			try:
 				bulk_insert_docs(
 					doctype,
-					[doc for doc in successful_documents],
+					[doc["doc"] for doc in successful_documents],
 					ignore_duplicates=True
 				)
 				frappe.db.commit()
 			except frappe.DuplicateEntryError as e:
 				# Handle duplicate entries
 				for doc in successful_documents:
-					if frappe.db.exists(doctype, doc.name):
+					if frappe.db.exists(doctype, doc["doc"].name):
 						failed_documents.append({
 							"idx": idx,
-							"data": doc.as_dict(),
+							"id": doc["id"],
+							"data": doc["doc"].as_dict(),
 							"error": "Duplicate entry"
 						})
 					else:
 						failed_documents.append({
 							"idx": idx,
-							"data": {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in doc.as_dict().items()},
+							"id": doc["id"],
+							"data": {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in doc["doc"].as_dict().items()},
 							"error": str(e)
 						})
 				successful_documents = []
@@ -155,7 +143,8 @@ def bulk_insert_documents():
 			"total_documents": len(documents),
 			"inserted": len(successful_documents),
 			"failed": len(failed_documents),
-			"failed_documents": failed_documents
+			"failed_documents": failed_documents,
+			"successful_documents": [{"id": doc["id"], "data": doc["doc"].as_dict()} for doc in successful_documents]
 		}
 
 		return response
