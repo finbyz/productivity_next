@@ -167,5 +167,5 @@ def get_events(start, end, filters=None):
 
 	return frappe.db.get_list("Meeting",
 		{ "name": ("in", data), "docstatus":1 },
-		["name", "meeting_from", "meeting_to", "organization", "party"]
+		["name", "meeting_from", "meeting_to", "organizations", "party"]
 	)
