@@ -149,7 +149,7 @@ def get_events(start, end, filters=None):
 
 	data = frappe.db.sql("""
 			select 
-				name, meeting_from, meeting_to, organisation, party
+				name, meeting_from, meeting_to, organization, party
 			from 
 				`tabMeeting`
 			where
@@ -167,5 +167,5 @@ def get_events(start, end, filters=None):
 
 	return frappe.db.get_list("Meeting",
 		{ "name": ("in", data), "docstatus":1 },
-		["name", "meeting_from", "meeting_to", "organisation", "party"]
+		["name", "meeting_from", "meeting_to", "organization", "party"]
 	)
