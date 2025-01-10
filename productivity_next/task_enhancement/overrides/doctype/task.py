@@ -5,6 +5,8 @@ from frappe.desk.form.assign_to import set_status
 
 from erpnext.projects.doctype.task.task import Task as _Task
 
+from frappe.model.workflow import set_workflow_state_on_action, WorkflowPermissionError, get_workflow, get_transitions
+
 
 class Task(_Task):
 
@@ -16,6 +18,16 @@ class Task(_Task):
 		approver: DF.Link
 		assignee: DF.Link
 		process_flow = DF.Link
+	
+	def validate_workflow(self):
+		"""Validate if the workflow transition is valid"""
+		if frappe.flags.in_install == "frappe":
+			return
+		workflow = self.meta.get_workflow()
+		if workflow:
+			validate_workflow(self)
+			if not self._action == "save":
+				set_workflow_state_on_action(self, workflow, self._action)
 	
 	def before_validate(self):
 		self.set_completed_on_and_completed_by()
@@ -137,3 +149,54 @@ def clomplete_all_assignments(doctype, name, ignore_permissions=False):
 		)
 
 	return True
+
+def validate_workflow(doc):
+	"""Validate Workflow State and Transition for the current user.
+
+	- Check if user is allowed to edit in current state
+	- Check if user is allowed to transition to the next state (if changed)
+	"""
+	workflow = get_workflow(doc.doctype)
+
+	current_state = None
+	if getattr(doc, "_doc_before_save", None):
+		current_state = doc._doc_before_save.get(workflow.workflow_state_field)
+	next_state = doc.get(workflow.workflow_state_field)
+
+	if not next_state:
+		next_state = workflow.states[0].state
+		doc.set(workflow.workflow_state_field, next_state)
+
+	if not current_state:
+		current_state = workflow.states[0].state
+
+	state_row = [d for d in workflow.states if d.state == current_state]
+	if not state_row:
+		frappe.throw(
+			_("{0} is not a valid Workflow State. Please update your Workflow and try again.").format(
+				frappe.bold(current_state)
+			)
+		)
+	state_row = state_row[0]
+
+	# if transitioning, check if user is allowed to transition
+	if current_state != next_state:
+		bold_current = frappe.bold(current_state)
+		bold_next = frappe.bold(next_state)
+
+		if not doc._doc_before_save:
+			# transitioning directly to a state other than the first
+			# e.g from data import
+			return
+			# frappe.throw(
+			# 	_("Workflow State transition not allowed from {0} to {1}").format(bold_current, bold_next),
+			# 	WorkflowPermissionError,
+			# )
+
+		transitions = get_transitions(doc._doc_before_save)
+		transition = [d for d in transitions if d.next_state == next_state]
+		if not transition:
+			frappe.throw(
+				_("Workflow State transition not allowed from {0} to {1}").format(bold_current, bold_next),
+				WorkflowPermissionError,
+			)
