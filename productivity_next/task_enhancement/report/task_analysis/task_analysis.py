@@ -22,6 +22,12 @@ def get_columns():
             "width": 300
         },
         {
+            "fieldname": "type",
+            "label": _("Type"),
+            "fieldtype": "Data",
+            "width": 100
+        },
+        {
             "fieldname": "progress",
             "label": _(""),
             "fieldtype": "Data",  # Changed to Data to allow custom formatting
@@ -29,7 +35,7 @@ def get_columns():
         },
         {
             "fieldname": "assignee",
-            "label": _("Task Owner"),
+            "label": _("Assignee"),
             "fieldtype": "Link",
             "options": "User",
             "width": 200
@@ -112,7 +118,7 @@ def copy_project_tasks(original_project, new_project_name, new_assignee=None):
     Args:
         original_project (str): Name of the source project
         new_project_name (str): Name of the destination project
-        new_assignee (str, optional): New owner for copied tasks. Defaults to original task owners.
+        new_assignee (str, optional): New owner for copied tasks. Defaults to original Assignees.
     
     Returns:
         dict: Information about the new project and copied tasks
@@ -216,7 +222,9 @@ def get_tasks(filters):
     
     if filters.get("assignee"):
         conditions.append(f"assignee = '{filters.get('assignee')}'")
-    
+
+    if filters.get("exp_start_date"):
+        conditions.append(f"exp_start_date Between '{filters.get('exp_start_date')[0]}' AND '{filters.get('exp_start_date')[1]}'")
     where_clause = " AND ".join(conditions) if conditions else "1=1"
     if task_condition:
         where_clause += f" AND {task_condition}"
@@ -233,6 +241,7 @@ def get_tasks(filters):
             description,
             exp_start_date,
             exp_end_date,
+            type,
             CASE WHEN EXISTS (
                 SELECT 1 FROM `tabTask` t2 
                 WHERE t2.parent_task = `tabTask`.name
@@ -348,6 +357,7 @@ def prepare_data(filters, projects, tasks):
                 "priority": project.priority,
                 "description": "",
                 "assignee": "",
+                "type":"",
                 "indent": 0,
                 "exp_start_date": project.expected_start_date,
                 "exp_end_date": project.expected_end_date,
@@ -381,6 +391,7 @@ def prepare_data(filters, projects, tasks):
                     
                     task_data = frappe._dict({
                         "task": task_name,
+                        "type":task.type,
                         "progress": progress_display,
                         "assignee": task.assignee,
                         "exp_start_date": task.exp_start_date,
@@ -414,6 +425,7 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
     
     data.append(frappe._dict({
         "task": task_name,
+        "type":task.type,
         "progress": progress_display,
         "assignee": task.assignee,
         "exp_start_date": task.exp_start_date,
@@ -600,6 +612,7 @@ def update_single_task(task_name, task_data, update_description):
     task.assignee = task_data.get('assignee')
     task.exp_start_date = task_data.get('exp_start_date')
     task.exp_end_date = task_data.get('exp_end_date')
+    task.type = task_data.get('type')
     # Validate task dates
     if task.exp_start_date and task.exp_end_date and task.exp_start_date > task.exp_end_date:
         frappe.throw(_("Expected End Date cannot be before Expected Start Date"))
@@ -821,7 +834,7 @@ def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
     Args:
         task_data (dict): Original task data
         new_project (str): Project to assign copied tasks to
-        new_assignee (str): User to assign as task owner for copied tasks
+        new_assignee (str): User to assign as Assignee for copied tasks
     """
     if not isinstance(task_data, dict):
         task_data = frappe.parse_json(task_data)
@@ -867,7 +880,7 @@ def copy_single_task(task_name, new_project, new_assignee, new_parent):
     Args:
         task_name (str): Name of the task to copy
         new_project (str): New project to assign
-        new_assignee (str): New task owner to assign
+        new_assignee (str): New Assignee to assign
         new_parent (str): New parent task name
     
     Returns:

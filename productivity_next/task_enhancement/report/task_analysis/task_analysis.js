@@ -26,6 +26,11 @@ frappe.query_reports["Task Analysis"] = {
             options: "Task"
         },
         {
+            fieldname: "exp_start_date",
+            label: __("Expected Start Date"),
+            fieldtype: "DateRange"
+        },
+        {
             fieldname: "assignee",
             label: __("Assignee"),
             fieldtype: "Link",
@@ -237,11 +242,17 @@ function showEditDialog(taskData, report) {
                 label: __('Task Name'),
                 fieldname: 'task',
                 fieldtype: 'Data',
-                read_only: 1,
                 default: taskDataWithoutProgress.task.trim()
             },
             {
-                label: __('Task Owner'),
+                label: __('Type'),
+                fieldname: 'type',
+                fieldtype: 'Link',
+                options: 'Task Type',
+                default: taskDataWithoutProgress.type
+            },
+            {
+                label: __('Assignee'),
                 fieldname: 'assignee',
                 fieldtype: 'Link',
                 options: 'User',
@@ -326,11 +337,11 @@ function showCopyDialog(taskData, report) {
                 description: __('Leave empty to copy without project assignment')
             },
             {
-                label: __('New Task Owner'),
+                label: __('New Assignee'),
                 fieldname: 'new_assignee',
                 fieldtype: 'Link',
                 options: 'User',
-                description: __('Leave empty to keep original task owners')
+                description: __('Leave empty to keep original Assignees')
             },
             {
                 fieldname: 'copy_info',
@@ -379,11 +390,11 @@ function showCopyProjectDialog(projectData, report) {
                 description: __('Name of the new project to copy tasks to')
             },
             {
-                label: __('New Task Owner'),
+                label: __('New Assignee'),
                 fieldname: 'new_assignee',
                 fieldtype: 'Link',
                 options: 'User',
-                description: __('Leave empty to keep original task owners')
+                description: __('Leave empty to keep original Assignees')
             },
             {
                 fieldname: 'copy_info',
@@ -395,7 +406,7 @@ function showCopyProjectDialog(projectData, report) {
                             <li>${__('This will copy all tasks from the current project')}</li>
                             <li>${__('- All task details will be copied')}</li>
                             <li>${__('- Attachments and descriptions will be preserved')}</li>
-                            <li>${__('- Task owners can be optionally changed')}</li>
+                            <li>${__('- Assignees can be optionally changed')}</li>
                         </ul>
                     </div>`
             }
@@ -674,7 +685,13 @@ function showTaskDialog(taskData, report) {
                     reqd: 1
                 },
                 {
-                    label: __('Task Owner'),
+                    label: __('Type'),
+                    fieldname: 'type',
+                    fieldtype: 'Link',
+                    options: 'Task Type'
+                },
+                {
+                    label: __('Assignee'),
                     fieldname: 'assignee',
                     fieldtype: 'Link',
                     options: 'User',
@@ -757,7 +774,14 @@ function showTaskDialog(taskData, report) {
                             reqd: 1
                         },
                         {
-                            label: __('Task Owner'),
+                            label: __('Type'),
+                            fieldname: 'type',
+                            fieldtype: 'Link',
+                            options: 'Task Type',
+                            in_list_view: 1,
+                        },
+                        {
+                            label: __('Assignee'),
                             fieldname: 'assignee',
                             fieldtype: 'Link',
                             options: 'User',
@@ -856,7 +880,8 @@ function showTaskDialog(taskData, report) {
                     priority: values.priority,
                     exp_start_date: values.exp_start_date,
                     exp_end_date: values.exp_end_date,
-                    description: values.description
+                    description: values.description,
+                    type:values.type
                 }
             },
             callback: function(r) {
@@ -902,7 +927,8 @@ function showTaskDialog(taskData, report) {
                         priority: task.priority,
                         exp_start_date: task.exp_start_date,
                         exp_end_date: task.exp_end_date,
-                        description: task.description
+                        description: task.description,
+                        type:task.type
                     }
                 },
                 callback: function(r) {
