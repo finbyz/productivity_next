@@ -388,7 +388,7 @@ def prepare_data(filters, projects, tasks):
                     task_name = '  ' * level + cstr(task.subject)
                     task_progress = calculate_task_progress(task.name) if show_progress else None
                     progress_display = create_progress_display(task_progress) if show_progress else ""
-                    
+                    status_display = create_status_display(task.status)
                     task_data = frappe._dict({
                         "task": task_name,
                         "type":task.type,
@@ -397,7 +397,7 @@ def prepare_data(filters, projects, tasks):
                         "exp_start_date": task.exp_start_date,
                         "exp_end_date": task.exp_end_date,
                         "status": task.status,
-                        "status_show": task.status_show,  # Now returns formatted HTML
+                        "status_show": status_display,  # Now returns formatted HTML
                         "priority": task.priority,
                         "description": task.description,
                         "project": task.project,
@@ -422,7 +422,7 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
     
     # Create status display with styling - Fix: Use create_status_display
     status_display = create_status_display(task.status)
-    
+
     data.append(frappe._dict({
         "task": task_name,
         "type":task.type,
