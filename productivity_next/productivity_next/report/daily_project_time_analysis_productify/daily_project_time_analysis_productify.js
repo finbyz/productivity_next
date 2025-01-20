@@ -1,0 +1,35 @@
+// Copyright (c) 2025, Finbyz Tech Pvt Ltd and contributors
+// For license information, please see license.txt
+
+frappe.query_reports["Daily Project Time Analysis Productify"] = {
+	"filters": [
+		{
+            "fieldname": "from_date",
+            "label": "From Date",
+            "fieldtype": "Date",
+            "reqd": 1,
+            "default": "Today"
+        },
+        {
+            "fieldname": "to_date",
+            "label": "To Date",
+            "fieldtype": "Date",
+            "reqd": 1,
+            "default": "Today"
+        },
+		{
+            "fieldname": "project",
+            "label": ("Project"),
+            "fieldtype": "Link",
+            "options": "Project",
+            "reqd": 0
+        },
+        {
+            "fieldname": "customer",
+            "label": ("Customer"),
+            "fieldtype": "Link",
+            "options": "Customer",
+            "reqd": 0
+        }
+	]
+};
