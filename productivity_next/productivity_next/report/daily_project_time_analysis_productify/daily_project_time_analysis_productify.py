@@ -1,5 +1,3 @@
-# daily_time_report.py
-
 import frappe
 from frappe import _
 
@@ -11,6 +9,10 @@ def execute(filters=None):
     employees = get_employees_from_data(raw_data)
     columns = get_columns(len(employees))  # Pass the length of employees list instead of the list itself
     formatted_data = format_data(raw_data, len(employees))  # Pass employee count instead of list
+    
+    # Calculate and append total row
+    total_row = calculate_total_row(formatted_data, len(employees))
+    formatted_data.append(total_row)
     
     return columns, formatted_data
 
@@ -85,27 +87,27 @@ def get_columns(employee_count):
     columns = [
         {
             "fieldname": "date",
-            "label": _("Date"),
+            "label": _( "Date"),
             "fieldtype": "Date",
             "width": 100
         },
         {
             "fieldname": "customer",
-            "label": _("Customer"),
+            "label": _( "Customer"),
             "fieldtype": "Link",
             "options": "Customer",
             "width": 150
         },
         {
             "fieldname": "project",
-            "label": _("Project"),
+            "label": _( "Project"),
             "fieldtype": "Link",
             "options": "Project",
             "width": 150
         },
         {
             "fieldname": "total_hours",
-            "label": _("Total Hours"),
+            "label": _( "Total Hours"),
             "fieldtype": "Data",  # Changed to Data to support HH:MM format
             "width": 100
         }
@@ -149,11 +151,11 @@ def format_data(raw_data, employee_count):
             row_data[f"employee_{employee_num}"] = ""
             row_data[f"time_{employee_num}"] = None
         
-        # Fill in actual employee data
+        # Fill in actual employee data, sorted by time in descending order
         has_data = False
         total_seconds = 0
         sorted_emp_data = sorted(entry['employee_data'], 
-                               key=lambda x: x['employee'])  # Sort by employee name
+                               key=lambda x: x['total_duration'], reverse=True)  # Sort by duration descending
         
         for idx, emp_data in enumerate(sorted_emp_data):
             if emp_data['total_duration'] > 0:
@@ -170,6 +172,29 @@ def format_data(raw_data, employee_count):
             formatted_data.append(row_data)
     
     return formatted_data
+
+def calculate_total_row(formatted_data, employee_count):
+    """Calculate the total of all hours and format as the last row"""
+    total_seconds = 0
+    for row in formatted_data:
+        time_parts = row['total_hours'].split(":")
+        total_seconds += int(time_parts[0]) * 3600 + int(time_parts[1]) * 60
+    
+    total_hours = seconds_to_time_format(total_seconds)
+    total_row = {
+        'date': "",
+        'customer': "",
+        'project': _( "Total"),
+        'total_hours': f"<b>{total_hours}</b>"
+    }
+    
+    # Initialize all employee fields to empty
+    for i in range(employee_count):
+        employee_num = i + 1
+        total_row[f"employee_{employee_num}"] = ""
+        total_row[f"time_{employee_num}"] = ""
+    
+    return total_row
 
 def fetch_url_data(user=None, start_date=None, end_date=None, project=None, customer=None):
     if not project:
