@@ -1,3 +1,5 @@
+# daily_time_report.py
+
 import frappe
 from frappe import _
 
@@ -10,10 +12,6 @@ def execute(filters=None):
     columns = get_columns(len(employees))  # Pass the length of employees list instead of the list itself
     formatted_data = format_data(raw_data, len(employees))  # Pass employee count instead of list
     
-    # Calculate and append total row
-    total_row = calculate_total_row(formatted_data, len(employees))
-    formatted_data.append(total_row)
-    
     return columns, formatted_data
 
 def get_raw_data(filters):
@@ -22,6 +20,7 @@ def get_raw_data(filters):
     end_date = filters.get('to_date')
     project_filter = filters.get('project')
     customer_filter = filters.get('customer')
+    employee_filter = filters.get('employee')
     
     # Build project query with filters
     project_conditions = ["p.status = 'Open'"]
@@ -49,7 +48,8 @@ def get_raw_data(filters):
                 start_date=current_date,
                 end_date=current_date,
                 project=project.project,
-                customer=project.customer
+                customer=project.customer,
+                user=employee_filter
             )
             
             if time_data.get('data'):
@@ -151,11 +151,11 @@ def format_data(raw_data, employee_count):
             row_data[f"employee_{employee_num}"] = ""
             row_data[f"time_{employee_num}"] = None
         
-        # Fill in actual employee data, sorted by time in descending order
+        # Fill in actual employee data
         has_data = False
         total_seconds = 0
         sorted_emp_data = sorted(entry['employee_data'], 
-                               key=lambda x: x['total_duration'], reverse=True)  # Sort by duration descending
+                               key=lambda x: x['total_duration'], reverse=True)  # Sort by duration in descending order
         
         for idx, emp_data in enumerate(sorted_emp_data):
             if emp_data['total_duration'] > 0:
@@ -171,30 +171,20 @@ def format_data(raw_data, employee_count):
             row_data['total_hours'] = seconds_to_time_format(total_seconds)
             formatted_data.append(row_data)
     
+    # Add the total row
+    if formatted_data:
+        total_row = {
+            'date': _( "Total"),
+            'customer': "",
+            'project': "",
+            'total_hours': seconds_to_time_format(sum(frappe.utils.time_diff_in_seconds(row['total_hours'], '00:00') for row in formatted_data if row['total_hours'] != "00:00"))
+        }
+        for i in range(employee_count):
+            total_row[f"employee_{i+1}"] = ""
+            total_row[f"time_{i+1}"] = ""
+        formatted_data.append(total_row)
+    
     return formatted_data
-
-def calculate_total_row(formatted_data, employee_count):
-    """Calculate the total of all hours and format as the last row"""
-    total_seconds = 0
-    for row in formatted_data:
-        time_parts = row['total_hours'].split(":")
-        total_seconds += int(time_parts[0]) * 3600 + int(time_parts[1]) * 60
-    
-    total_hours = seconds_to_time_format(total_seconds)
-    total_row = {
-        'date': "",
-        'customer': "",
-        'project': _( "Total"),
-        'total_hours': f"<b>{total_hours}</b>"
-    }
-    
-    # Initialize all employee fields to empty
-    for i in range(employee_count):
-        employee_num = i + 1
-        total_row[f"employee_{employee_num}"] = ""
-        total_row[f"time_{employee_num}"] = ""
-    
-    return total_row
 
 def fetch_url_data(user=None, start_date=None, end_date=None, project=None, customer=None):
     if not project:

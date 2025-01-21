@@ -30,6 +30,14 @@ frappe.query_reports["Daily Project Time Analysis Productify"] = {
             "fieldtype": "Link",
             "options": "Customer",
             "reqd": 0
+        },
+        {
+            "fieldname": "employee",
+            "label": ("Employee"),
+            "fieldtype": "Link",
+            "options": "Employee",
+            "reqd": 0
         }
+
 	]
 };
