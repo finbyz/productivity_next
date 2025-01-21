@@ -196,7 +196,7 @@ def fetch_url_data(user=None, start_date=None, end_date=None, project=None, cust
     
     if user:
         condition += f" AND mcr.employee = '{user}'"
-        app_condition += f" AND a.proxy_employee = '{user}'"
+        app_condition += f" AND a.employee = '{user}'"
     if project:
         app_condition += f" AND a.project = '{project}'"
         
@@ -204,11 +204,11 @@ def fetch_url_data(user=None, start_date=None, end_date=None, project=None, cust
     application_intervals = frappe.db.sql(f"""
         SELECT 
             e.employee_name AS employee, 
-            a.proxy_employee AS employee_id,
+            a.employee AS employee_id,
             a.from_time as start_time,
             a.to_time as end_time
         FROM `tabApplication Usage log` as a
-        Join `tabEmployee` as e on e.name = a.proxy_employee
+        Join `tabEmployee` as e on e.name = a.employee
         WHERE a.date >= '{start_date}' 
         AND a.date <= '{end_date}'
         {app_condition}
