@@ -24,12 +24,12 @@ def get_custom_events(doctype, start=None, end=None, filters=None):
     """
     events = frappe.db.sql(query, as_dict=True)
     for event in events:
-        if event.get('task_owner'):
+        if event.get('assignee'):
             try:
-                first_name = event['task_owner'].split('@')[0].split('.')[0].capitalize()
+                first_name = event['assignee'].split('@')[0].split('.')[0].capitalize()
                 event['title'] = f"({first_name}) {event.get('subject', '')} "
             except Exception as e:
-                event['title'] = f"({event.get('task_owner', 'No Owner')}) {event.get('subject', '')} ({event.get('task_owner', 'No Owner')})"
+                event['title'] = f"({event.get('assignee', 'No Owner')}) {event.get('subject', '')} ({event.get('assignee', 'No Owner')})"
         else:
             event['title'] = f"{event.get('subject')}"
 
