@@ -37,8 +37,31 @@ frappe.query_reports["Task Analysis"] = {
             options: "User",
         },
         {
+            fieldname: "status",
+            label: __("Status"),
+            fieldtype: "MultiSelectList",
+            options: ["Open", "Unplanned", "Scheduled", "Overdue", "Completed", "Cancelled", "In-Progress", "Pending Review"],
+            get_data: function() {
+                return [
+                    { value: "Open", description: __("Tasks that are not started") },
+                    { value: "Unplanned", description: __("Tasks not Planned") },
+                    { value: "Scheduled", description: __("Tasks are Scheduled") },
+                    { value: "Overdue", description: __("Tasks passed due date") },
+                    { value: "In-Progress", description: __("Working on the task") },
+                    { value: "Pending Review", description: __("Tasks are to be reviewed") },
+                    { value: "Completed", description: __("Tasks that are completed") },
+                    { value: "Cancelled", description: __("Tasks that are cancelled") },
+                ];
+            }
+        },
+        {
             fieldname: "show_completed_tasks",
             label: __("Show Completed Tasks"),
+            fieldtype: "Check",
+        },
+        {
+            fieldname: "show_cancelled_tasks",
+            label: __("Show Cancelled Tasks"),
             fieldtype: "Check",
         }
     ],

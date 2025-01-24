@@ -59,6 +59,12 @@ def get_columns():
             "width": 120
         },
         {
+            "fieldname": "expected_time",
+            "label": _("Expected Time (In Hours)"),
+            "fieldtype": "Data",
+            "width": 120
+        },
+        {
             "fieldname": "priority",
             "label": _("Priority"),
             "fieldtype": "Select",
@@ -194,10 +200,12 @@ def copy_project_tasks(original_project, new_project_name, new_assignee=None):
 def get_tasks(filters):
     conditions = []
     task_condition = ""
-    
+
+    # Filter by project
     if filters.get('project'):
         conditions.append(f"project = '{filters.get('project')}'")
-    
+
+    # Filter by task
     if filters.get('task'):
         task_project = frappe.db.get_value('Task', filters.get('task'), 'project')
         if task_project:
@@ -215,20 +223,33 @@ def get_tasks(filters):
                     )
                 )
             """
-    
-    
+
+    # Filter out completed tasks if the flag is not set
     if not filters.get('show_completed_tasks'):
         conditions.append("status != 'Completed'")
-    
+    # Filter out cancelled tasks if the flag is not set
+    if not filters.get('show_cancelled_tasks'):
+        conditions.append("status != 'Cancelled'")
+
+    # Filter by assignee
     if filters.get("assignee"):
         conditions.append(f"assignee = '{filters.get('assignee')}'")
 
+    # Filter by expected start date range
     if filters.get("exp_start_date"):
-        conditions.append(f"exp_start_date Between '{filters.get('exp_start_date')[0]}' AND '{filters.get('exp_start_date')[1]}'")
+        conditions.append(f"exp_start_date BETWEEN '{filters.get('exp_start_date')[0]}' AND '{filters.get('exp_start_date')[1]}'")
+
+    # Filter by status (multi-select)
+    if filters.get("status"):
+        statuses = ", ".join([f"'{status}'" for status in filters.get("status")])
+        conditions.append(f"status IN ({statuses})")
+
+    # Combine conditions
     where_clause = " AND ".join(conditions) if conditions else "1=1"
     if task_condition:
         where_clause += f" AND {task_condition}"
-    
+
+    # Execute the query
     return frappe.db.sql(f"""
         SELECT 
             name,
@@ -241,6 +262,7 @@ def get_tasks(filters):
             description,
             exp_start_date,
             exp_end_date,
+            ROUND(expected_time, 2) as expected_time,
             type,
             CASE WHEN EXISTS (
                 SELECT 1 FROM `tabTask` t2 
@@ -257,7 +279,7 @@ def get_tasks(filters):
             {where_clause}
         ORDER BY project, parent_task, name
     """, as_dict=True)
-    
+
 def get_progress_color(progress):
     """
     Get the appropriate color based on the progress percentage
@@ -354,6 +376,7 @@ def prepare_data(filters, projects, tasks):
                 "progress": project_progress_display,
                 "status_show": create_status_display(project.status),  # Now returns formatted HTML
                 "status":project.status,
+                "expected_time":"",
                 "priority": project.priority,
                 "description": "",
                 "assignee": "",
@@ -398,6 +421,7 @@ def prepare_data(filters, projects, tasks):
                         "exp_end_date": task.exp_end_date,
                         "status": task.status,
                         "status_show": status_display,  # Now returns formatted HTML
+                        "expected_time":task.expected_time,
                         "priority": task.priority,
                         "description": task.description,
                         "project": task.project,
@@ -432,6 +456,7 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
         "exp_end_date": task.exp_end_date,
         "status": task.status,
         "status_show": status_display,  # Changed: Now using the formatted status
+        "expected_time":task.expected_time,
         "priority": task.priority,
         "description": task.description,
         "indent": level,
