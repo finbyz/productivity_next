@@ -191,6 +191,48 @@ frappe.query_reports["Task Analysis"] = {
                 console.error('Error in copy project handler:', error);
             }
         });
+        $(document).on('click', '.add-task-btn', function (e) {
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+        
+                let projectDataEncoded = $(this).attr('data-project');
+                console.log('Add Task button clicked. Data:', projectDataEncoded); // Debug log
+        
+                if (!projectDataEncoded) {
+                    console.error('No project data found');
+                    return;
+                }
+        
+                let projectData = JSON.parse(decodeURIComponent(projectDataEncoded));
+                console.log('Parsed Project Data:', projectData); // Debug log
+        
+                showTaskDialog({
+                    project: projectData.project, // Pass the project ID
+                    parent_task: null, // Ensure the parent task is empty for project-level tasks
+                }, report);
+            } catch (error) {
+                console.error('Error in add task handler:', error);
+            }
+        });
+        
+        
+        $(document).on('click', '.goto-project-btn', function(e) {
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+        
+                let projectId = $(this).attr('data-project-id');
+                if (projectId) {
+                    window.open(`/app/project/${projectId}`, '_blank');
+                } else {
+                    console.error('No project ID found');
+                }
+            } catch (error) {
+                console.error('Error in go to project handler:', error);
+            }
+        });
+        
     },
 
     "formatter": function(value, row, column, data, default_formatter) {
@@ -240,12 +282,20 @@ frappe.query_reports["Task Analysis"] = {
             });
             return `
                 <div class="btn-group">
+                    <button class="btn btn-xs btn-primary goto-project-btn" 
+                        data-project-id='${data.project_id || ''}'>
+                        <i class="fa fa-external-link"></i>
+                    </button>
                     <button class="btn btn-xs btn-info copy-project-btn" 
                         data-project='${htmlEscape(encodeURIComponent(safeProjectData))}'>
-                        <i class="fa fa-copy"></i> Copy All Tasks
+                        <i class="fa fa-copy"></i>
+                    </button>
+                    <button class="btn btn-xs btn-success add-task-btn" 
+                        data-project='${htmlEscape(encodeURIComponent(safeProjectData))}'>
+                        <i class="fa fa-plus"></i>
                     </button>
                 </div>`;
-        }
+        }        
         return default_formatter(value, row, column, data);
     }
 }
