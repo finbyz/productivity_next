@@ -7,7 +7,7 @@ from frappe.utils import nowdate
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
 from frappe.utils import flt
-from datetime import datetime
+from datetime import datetime,date
 import requests
 from werkzeug import Response
 import pytz
@@ -1606,3 +1606,29 @@ def ignore_location(latitude,longitude,user,description):
     doc.description = description
     doc.save()
     return "Success"
+
+
+@frappe.whitelist()
+def get_user_avatar(email:str):
+    return {
+        "user_image": frappe.get_value("User", email, "user_image"),
+        "full_name": frappe.get_value("User", email, "full_name")
+    }
+
+@frappe.whitelist()
+def get_user_time_on_task(employee,task):
+    task_time = frappe.db.sql(f"""
+        SELECT
+            SUM(TIMESTAMPDIFF(SECOND, from_time, to_time)) AS total_duration
+        FROM
+            `tabTimesheet Detail` AS child
+        JOIN
+            `tabTimesheet` AS parent ON child.parent = parent.name
+        WHERE
+            parent.employee = '{employee}' AND child.task = '{task}';
+    """, as_dict=True)
+    
+    return {
+        "total_duration": task_time[0]["total_duration"] or 0
+    }
+
