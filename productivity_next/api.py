@@ -12,6 +12,7 @@ import requests
 from werkzeug import Response
 import pytz
 from frappe import _
+import logging
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import (
     cint,
@@ -1119,13 +1120,13 @@ def get_application_data_for_mobile_app(user, start_date, end_date):
     total_web_data = frappe.db.sql(f"""
         SELECT sum(duration) as total_web_duration, count(DISTINCT domain) as total_web_count
         FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is not null
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and (url is not null or url != '')
     """, as_dict=True)
 
     total_app_data = frappe.db.sql(f"""
         SELECT sum(duration) as total_app_duration, count(DISTINCT application_name) as total_app_count
         FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and url is null
+        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and (url is null or url = '')
     """, as_dict=True)
 
     data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0 
@@ -1606,6 +1607,181 @@ def ignore_location(latitude,longitude,user,description):
     doc.description = description
     doc.save()
     return "Success"
+
+
+@frappe.whitelist()
+def task_mail_remainder():
+    # Enqueue the task for sending reminder emails
+    try:
+        frappe.enqueue(
+            task_mails,  # Renamed function to send_task_mails for clarity
+            queue='long',
+            timeout=5000,
+            job_name='Task Reminder Mails'
+        )
+        main = task_mails()
+        print(main)
+        return "Task Reminder Mails Enqueued"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@frappe.whitelist()
+def task_mails():
+    """
+    Sends reminder emails for tasks grouped into three tables:
+    - Overdue tasks (before today, excluding certain statuses)
+    - Today's tasks
+    - Future tasks (after today, excluding certain statuses)
+    """
+    today = today - timedelta(days=1) 
+    formatted_date = today.strftime("%d-%m-%Y")
+    new_formatted_date = today.strftime("%d %B %Y")
+    tomorrow = date.today()
+
+    # Fetch account settings
+    account_settings = frappe.get_doc("Accounts Settings")
+
+    # Check if sending overdue reminders is enabled
+    if not account_settings.send_overdue_reminder:
+        return "Sending overdue reminders is disabled in Account Settings."
+
+    # Fetch all tasks
+    tasks = frappe.get_all(
+        "Task",
+        fields=["name as task_no", "subject", "status", "project", "exp_end_date as due_date", "assignee","exp_start_date","completed_by"],
+        order_by="exp_end_date asc"
+    )
+
+    if not tasks:
+        return "No tasks found for sending reminders."
+
+    # Check if the Email Template "Task Reminder" exists
+    if not frappe.db.exists("Email Template", "Test Task Reminder"):
+        return "Email Template 'Task Reminder' does not exist."
+
+    email_template = frappe.get_doc("Email Template", "Test Task Reminder")
+    sender_email = frappe.db.get_value(
+        "Email Account",
+        {"default_outgoing": 1},  # Fetch where default_outgoing is True
+        "email_id"
+    )
+    if not sender_email:
+        return "Default sender email is not configured in Email Account settings."
+
+    sender_name = frappe.db.get_value("User", {"email": sender_email}, "full_name")
+
+    cc_emails = [
+        {"email": "palak@finbyz.tech", "name": "Palak"},
+        {"email": "mukesh@finbyz.tech", "name": "Mukesh variyani"}
+    ]
+
+    if not sender_name:
+        sender_name = "Task Notification System"  # Fallback if sender name is not set
+
+    
+
+     # Define default CC email addresses
+
+    # Categorize tasks into three groups
+    overdue_tasks = []
+    today_tasks = []
+    tomorrow_tasks = []
+    future_tasks = []
+
+    for task in tasks:
+        # Fetch project details
+        if task.project:
+            task.project_name = frappe.db.get_value("Project", task.project, "project_name")
+            task.project_link = frappe.utils.get_url_to_form("Project", task.project)
+        else:
+            task.project_name = None
+            task.project_link = None
+
+        # Parse due date
+        task_due_date = task.due_date
+        if not task_due_date:
+            continue
+
+
+        # Categorize tasks
+        if task_due_date < today and task.status not in ("Completed", "Unplanned", "Cancelled"):
+            overdue_tasks.append(task)
+        elif task_due_date == today and task.status != "Cancelled":
+            today_tasks.append(task)
+        elif task_due_date == tomorrow and task.status not in ("Completed", "Unplanned", "Cancelled"):
+            tomorrow_tasks.append(task)
+        elif task_due_date > tomorrow and task.status not in ("Completed", "Unplanned", "Cancelled"):
+            future_tasks.append(task)
+
+    # Group tasks by assignee and send emails
+    tasks_by_user = {}
+    for task_list, task_type in [
+        (overdue_tasks, "overdue_tasks"),
+        (today_tasks, "today_tasks"),
+        (tomorrow_tasks, "tomorrow_tasks"),
+        (future_tasks, "future_tasks")
+    ]:
+        for task in task_list:
+            if task.assignee:
+                if task.assignee not in tasks_by_user:
+                    tasks_by_user[task.assignee] = {
+                        "overdue_tasks": [],
+                        "today_tasks": [],
+                        "tomorrow_tasks": [],
+                        "future_tasks": []
+                    }                
+                tasks_by_user[task.assignee][task_type].append(task)
+
+   
+
+
+    # Send emails to each assignee
+    for assignee, task_groups in tasks_by_user.items():
+        # Fetch the email address of the assignee
+        recipient_email = frappe.db.get_value("User", assignee, "email")
+        assignee_name = frappe.db.get_value("User", assignee, "full_name")
+
+        if not recipient_email:
+            continue
+
+        # Prepare the email context with all tasks for the user
+        context = {
+            "assignee_name": assignee_name,  # Full name of the assignee
+            "sender_name": sender_name,  # Full name of the sender
+            "overdue_tasks": task_groups["overdue_tasks"],
+            "today_tasks": task_groups["today_tasks"],
+            "tomorrow_tasks": task_groups["tomorrow_tasks"],
+            "future_tasks": task_groups["future_tasks"],
+            "sender_email": sender_email,
+            "today_date": formatted_date,
+            "new_formatted_date":new_formatted_date
+
+        }
+
+        # Render email subject and body
+        email_subject = frappe.render_template(email_template.subject, context)
+        email_message = frappe.render_template(email_template.response_html, context)
+
+        try:
+
+            cc_recipients = [f'{cc["name"]} <{cc["email"]}>' for cc in cc_emails]
+            frappe.sendmail(
+                recipients=[recipient_email],
+                sender=sender_email,
+                subject=email_subject,
+                message=email_message,
+                cc=cc_recipients
+            )
+        except Exception as e:
+            print(f"Error sending email to {recipient_email}: {e}")
+            logger = logging.getLogger(__name__)
+
+            logger.info("Inside task_mails function")
+            logger.error(f"Error sending email to {recipient_email}: {e}")
+
+
+    return "Task Reminder Emails Sent Successfully."
 
 
 @frappe.whitelist()
