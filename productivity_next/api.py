@@ -1639,12 +1639,6 @@ def task_mails():
     new_formatted_date = today.strftime("%d %B %Y")
     tomorrow = date.today()
 
-    # Fetch account settings
-    account_settings = frappe.get_doc("Accounts Settings")
-
-    # Check if sending overdue reminders is enabled
-    if not account_settings.send_overdue_reminder:
-        return "Sending overdue reminders is disabled in Account Settings."
 
     # Fetch all tasks
     tasks = frappe.get_all(
