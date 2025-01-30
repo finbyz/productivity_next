@@ -8,13 +8,13 @@ from frappe import _
 from frappe.utils import cstr, getdate
 
 def execute(filters=None):
-    columns = get_columns()
+    columns = get_columns(filters)
     data = get_data(filters)
 	
     return columns, data
 
-def get_columns():
-    return [
+def get_columns(filters):  # Added filters parameter
+    columns = [
         {
             "fieldname": "task",
             "label": _("Task"),
@@ -30,7 +30,7 @@ def get_columns():
         {
             "fieldname": "progress",
             "label": _(""),
-            "fieldtype": "Data",  # Changed to Data to allow custom formatting
+            "fieldtype": "Data",
             "width": 70
         },
         {
@@ -85,6 +85,16 @@ def get_columns():
         }
     ]
 
+    if filters.get("show_completed_tasks"):  # Add completed_on column conditionally
+        columns.insert(6, {  # Insert after status_show
+            "fieldname": "completed_on",
+            "label": _("Completed On"),
+            "fieldtype": "Date",
+            "width": 120
+        })
+
+    return columns
+
 def get_data(filters):
     tasks = get_tasks(filters)
     projects = get_projects(filters)
@@ -115,6 +125,220 @@ def get_projects(filters):
         {conditions}
         ORDER BY name
     """.format(conditions=conditions), as_dict=True)
+
+def prepare_data(filters, projects, tasks):
+    data = []
+    project_task_map = {}
+    parent_children_map = {}
+    
+    for task in tasks:
+        parent_children_map.setdefault(task.parent_task or task.project, []).append(task)
+        project_task_map.setdefault(task.project, []).append(task)
+    
+    for project in projects:
+        project_tasks = project_task_map.get(project.name, [])
+        
+        if project_tasks:
+            project_progress = calculate_project_progress(project.name)
+            project_progress_display = create_progress_display(project_progress)
+            
+            # Use create_status_display instead of passing colors separately
+            project_data = frappe._dict({
+                "project_id": project.name,
+                "task": cstr(project.subject),
+                "progress": project_progress_display,
+                "status_show": create_status_display(project.status),  # Now returns formatted HTML
+                "status":project.status,
+                "expected_time":"",
+                "priority": project.priority,
+                "description": "",
+                "assignee": "",
+                "type":"",
+                "indent": 0,
+                "exp_start_date": project.expected_start_date,
+                "exp_end_date": project.expected_end_date,
+                "is_group": project.is_group,
+                "is_project": project.is_project
+            })
+            data.append(project_data)
+            
+            grandparent_tasks = [t for t in project_tasks if t.task_type == 'grandparent']
+            other_tasks = [t for t in project_tasks if t.task_type != 'grandparent']
+            
+            for gp_task in grandparent_tasks:
+                add_task_to_data(data, gp_task, parent_children_map, 1, show_progress=True)
+            
+            if not grandparent_tasks:
+                other_tasks.sort(key=lambda x: (x.parent_task or '', x.name))
+                
+                for task in other_tasks:
+                    level = 0
+                    current_parent = task.parent_task
+                    while current_parent:
+                        level += 1
+                        parent_info = frappe.db.get_value('Task', current_parent, 
+                            ['parent_task'], as_dict=True)
+                        current_parent = parent_info.get('parent_task') if parent_info else None
+                    
+                    show_progress = level <= 1
+                    task_name = '  ' * level + cstr(task.subject)
+                    task_progress = calculate_task_progress(task.name) if show_progress else None
+                    progress_display = create_progress_display(task_progress) if show_progress else ""
+                    status_display = create_status_display(task.status)
+                    task_data = frappe._dict({
+                        "task": task_name,
+                        "type":task.type,
+                        "progress": progress_display,
+                        "assignee": task.assignee,
+                        "exp_start_date": task.exp_start_date,
+                        "exp_end_date": task.exp_end_date,
+                        "status": task.status,
+                        "status_show": status_display,  # Now returns formatted HTML
+                        "expected_time":task.expected_time,
+                        "priority": task.priority,
+                        "description": task.description,
+                        "project": task.project,
+                        "indent": level,
+                        "is_group": task.is_group,
+                        "is_project": task.is_project,
+                        "task_id": task.name,
+                        "completed_on":task.completed_on
+                    })
+                    data.append(task_data)
+    
+    return data
+
+def add_task_to_data(data, task, parent_children_map, level, show_progress=False):
+    # Calculate task progress
+    task_progress = calculate_task_progress(task.name) if show_progress else None
+    
+    # Modify task name to include indentation
+    task_name = '  ' * level + cstr(task.subject)
+    
+    # Create progress display with styling
+    progress_display = create_progress_display(task_progress) if show_progress else ""
+    
+    # Create status display with styling - Fix: Use create_status_display
+    status_display = create_status_display(task.status)
+
+    data.append(frappe._dict({
+        "task": task_name,
+        "type":task.type,
+        "progress": progress_display,
+        "assignee": task.assignee,
+        "exp_start_date": task.exp_start_date,
+        "exp_end_date": task.exp_end_date,
+        "status": task.status,
+        "status_show": status_display,  # Changed: Now using the formatted status
+        "expected_time":task.expected_time,
+        "priority": task.priority,
+        "description": task.description,
+        "indent": level,
+        "is_group": task.is_group,
+        "is_project": task.is_project,
+        "project": task.project,
+        "task_id": task.name,
+        "completed_on": task.completed_on
+    }))
+    
+    if task.name in parent_children_map:
+        children = parent_children_map[task.name]
+        children.sort(key=lambda x: x.name)
+        for child in children:
+            # Pass down the current show_progress setting
+            add_task_to_data(data, child, parent_children_map, level + 1, show_progress)
+ 
+def get_tasks(filters):
+    conditions = []
+    task_condition = ""
+
+    # Filter by project
+    if filters.get('project'):
+        conditions.append(f"project = '{filters.get('project')}'")
+
+    # Filter by task
+    if filters.get('task'):
+        task_project = frappe.db.get_value('Task', filters.get('task'), 'project')
+        if task_project:
+            conditions.append(f"project = '{task_project}'")
+            task_condition = f"""
+                (
+                    name = '{filters.get('task')}' OR 
+                    parent_task = '{filters.get('task')}' OR 
+                    name IN (
+                        SELECT name FROM tabTask 
+                        WHERE parent_task IN (
+                            SELECT name FROM tabTask 
+                            WHERE parent_task = '{filters.get('task')}'
+                        )
+                    )
+                )
+            """
+
+    # Filter out completed tasks if the flag is not set
+    if not filters.get('show_completed_tasks'):
+        conditions.append("status != 'Completed'")
+    # Filter out cancelled tasks if the flag is not set
+    if not filters.get('show_cancelled_tasks'):
+        conditions.append("status != 'Cancelled'")
+
+    # Filter by assignee
+    if filters.get("assignee"):
+        conditions.append(f"assignee = '{filters.get('assignee')}'")
+
+    # Filter by expected start date range
+    if filters.get("exp_start_date"):
+        conditions.append(f"exp_start_date BETWEEN '{filters.get('exp_start_date')[0]}' AND '{filters.get('exp_start_date')[1]}'")
+
+    if filters.get("completed_on"):
+        conditions.append(f"completed_on BETWEEN '{filters.get('completed_on')[0]}' AND '{filters.get('completed_on')[1]}'")
+
+    # Filter by status (multi-select)
+    if filters.get("status"):
+        statuses = ", ".join([f"'{status}'" for status in filters.get("status")])
+        conditions.append(f"status IN ({statuses})")
+
+    # Combine conditions
+    where_clause = " AND ".join(conditions) if conditions else "1=1"
+    if task_condition:
+        where_clause += f" AND {task_condition}"
+
+    fields = """
+        name,
+        subject,
+        IFNULL(parent_task, '') as parent_task,
+        project,
+        status,
+        assignee as assignee,
+        priority,
+        description,
+        exp_start_date,
+        exp_end_date,
+        completed_on,
+        ROUND(expected_time, 2) as expected_time,
+        type,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM tabTask t2 
+            WHERE t2.parent_task = tabTask.name
+        ) THEN 1 ELSE 0 END as is_group,
+        CASE 
+            WHEN parent_task IS NULL THEN 'grandparent'
+            ELSE 'child'
+        END as task_type,
+        0 as is_project
+    """
+
+
+    # Execute the query
+    return frappe.db.sql(f"""
+        SELECT 
+            {fields}
+        FROM
+            tabTask
+        WHERE 
+            {where_clause}
+        ORDER BY project, parent_task, name
+    """, as_dict=True)
 
 @frappe.whitelist()
 def copy_project_tasks(original_project, new_project_name, new_assignee=None):
@@ -197,88 +421,6 @@ def copy_project_tasks(original_project, new_project_name, new_assignee=None):
         'copied_tasks_count': len(task_mapping)
     }
 
-def get_tasks(filters):
-    conditions = []
-    task_condition = ""
-
-    # Filter by project
-    if filters.get('project'):
-        conditions.append(f"project = '{filters.get('project')}'")
-
-    # Filter by task
-    if filters.get('task'):
-        task_project = frappe.db.get_value('Task', filters.get('task'), 'project')
-        if task_project:
-            conditions.append(f"project = '{task_project}'")
-            task_condition = f"""
-                (
-                    name = '{filters.get('task')}' OR 
-                    parent_task = '{filters.get('task')}' OR 
-                    name IN (
-                        SELECT name FROM `tabTask` 
-                        WHERE parent_task IN (
-                            SELECT name FROM `tabTask` 
-                            WHERE parent_task = '{filters.get('task')}'
-                        )
-                    )
-                )
-            """
-
-    # Filter out completed tasks if the flag is not set
-    if not filters.get('show_completed_tasks'):
-        conditions.append("status != 'Completed'")
-    # Filter out cancelled tasks if the flag is not set
-    if not filters.get('show_cancelled_tasks'):
-        conditions.append("status != 'Cancelled'")
-
-    # Filter by assignee
-    if filters.get("assignee"):
-        conditions.append(f"assignee = '{filters.get('assignee')}'")
-
-    # Filter by expected start date range
-    if filters.get("exp_start_date"):
-        conditions.append(f"exp_start_date BETWEEN '{filters.get('exp_start_date')[0]}' AND '{filters.get('exp_start_date')[1]}'")
-
-    # Filter by status (multi-select)
-    if filters.get("status"):
-        statuses = ", ".join([f"'{status}'" for status in filters.get("status")])
-        conditions.append(f"status IN ({statuses})")
-
-    # Combine conditions
-    where_clause = " AND ".join(conditions) if conditions else "1=1"
-    if task_condition:
-        where_clause += f" AND {task_condition}"
-
-    # Execute the query
-    return frappe.db.sql(f"""
-        SELECT 
-            name,
-            subject,
-            IFNULL(parent_task, '') as parent_task,
-            project,
-            status,
-            assignee as assignee,
-            priority,
-            description,
-            exp_start_date,
-            exp_end_date,
-            ROUND(expected_time, 2) as expected_time,
-            type,
-            CASE WHEN EXISTS (
-                SELECT 1 FROM `tabTask` t2 
-                WHERE t2.parent_task = `tabTask`.name
-            ) THEN 1 ELSE 0 END as is_group,
-            CASE 
-                WHEN parent_task IS NULL THEN 'grandparent'
-                ELSE 'child'
-            END as task_type,
-            0 as is_project
-        FROM
-            `tabTask`
-        WHERE 
-            {where_clause}
-        ORDER BY project, parent_task, name
-    """, as_dict=True)
 
 def get_progress_color(progress):
     """
@@ -353,126 +495,7 @@ def create_status_display(status):
     '''
     return html
 
-def prepare_data(filters, projects, tasks):
-    data = []
-    project_task_map = {}
-    parent_children_map = {}
-    
-    for task in tasks:
-        parent_children_map.setdefault(task.parent_task or task.project, []).append(task)
-        project_task_map.setdefault(task.project, []).append(task)
-    
-    for project in projects:
-        project_tasks = project_task_map.get(project.name, [])
-        
-        if project_tasks:
-            project_progress = calculate_project_progress(project.name)
-            project_progress_display = create_progress_display(project_progress)
-            
-            # Use create_status_display instead of passing colors separately
-            project_data = frappe._dict({
-                "project_id": project.name,
-                "task": cstr(project.subject),
-                "progress": project_progress_display,
-                "status_show": create_status_display(project.status),  # Now returns formatted HTML
-                "status":project.status,
-                "expected_time":"",
-                "priority": project.priority,
-                "description": "",
-                "assignee": "",
-                "type":"",
-                "indent": 0,
-                "exp_start_date": project.expected_start_date,
-                "exp_end_date": project.expected_end_date,
-                "is_group": project.is_group,
-                "is_project": project.is_project
-            })
-            data.append(project_data)
-            
-            grandparent_tasks = [t for t in project_tasks if t.task_type == 'grandparent']
-            other_tasks = [t for t in project_tasks if t.task_type != 'grandparent']
-            
-            for gp_task in grandparent_tasks:
-                add_task_to_data(data, gp_task, parent_children_map, 1, show_progress=True)
-            
-            if not grandparent_tasks:
-                other_tasks.sort(key=lambda x: (x.parent_task or '', x.name))
-                
-                for task in other_tasks:
-                    level = 0
-                    current_parent = task.parent_task
-                    while current_parent:
-                        level += 1
-                        parent_info = frappe.db.get_value('Task', current_parent, 
-                            ['parent_task'], as_dict=True)
-                        current_parent = parent_info.get('parent_task') if parent_info else None
-                    
-                    show_progress = level <= 1
-                    task_name = '  ' * level + cstr(task.subject)
-                    task_progress = calculate_task_progress(task.name) if show_progress else None
-                    progress_display = create_progress_display(task_progress) if show_progress else ""
-                    status_display = create_status_display(task.status)
-                    task_data = frappe._dict({
-                        "task": task_name,
-                        "type":task.type,
-                        "progress": progress_display,
-                        "assignee": task.assignee,
-                        "exp_start_date": task.exp_start_date,
-                        "exp_end_date": task.exp_end_date,
-                        "status": task.status,
-                        "status_show": status_display,  # Now returns formatted HTML
-                        "expected_time":task.expected_time,
-                        "priority": task.priority,
-                        "description": task.description,
-                        "project": task.project,
-                        "indent": level,
-                        "is_group": task.is_group,
-                        "is_project": task.is_project,
-                        "task_id": task.name
-                    })
-                    data.append(task_data)
-    
-    return data
-
-def add_task_to_data(data, task, parent_children_map, level, show_progress=False):
-    # Calculate task progress
-    task_progress = calculate_task_progress(task.name) if show_progress else None
-    
-    # Modify task name to include indentation
-    task_name = '  ' * level + cstr(task.subject)
-    
-    # Create progress display with styling
-    progress_display = create_progress_display(task_progress) if show_progress else ""
-    
-    # Create status display with styling - Fix: Use create_status_display
-    status_display = create_status_display(task.status)
-
-    data.append(frappe._dict({
-        "task": task_name,
-        "type":task.type,
-        "progress": progress_display,
-        "assignee": task.assignee,
-        "exp_start_date": task.exp_start_date,
-        "exp_end_date": task.exp_end_date,
-        "status": task.status,
-        "status_show": status_display,  # Changed: Now using the formatted status
-        "expected_time":task.expected_time,
-        "priority": task.priority,
-        "description": task.description,
-        "indent": level,
-        "is_group": task.is_group,
-        "is_project": task.is_project,
-        "project": task.project,
-        "task_id": task.name
-    }))
-    
-    if task.name in parent_children_map:
-        children = parent_children_map[task.name]
-        children.sort(key=lambda x: x.name)
-        for child in children:
-            # Pass down the current show_progress setting
-            add_task_to_data(data, child, parent_children_map, level + 1, show_progress)
-           
+          
 def create_progress_display(progress):
     """
     Create a styled progress display with color
