@@ -136,6 +136,10 @@ def bulk_insert_documents(doctype:str,documents:list):
 							"error": str(e)
 						})
 				successful_documents = []
+			except Exception as e:
+				successful_documents = []
+				failed_documents = []
+				
 
 		# Prepare response
 		response = {

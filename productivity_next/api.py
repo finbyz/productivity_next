@@ -1634,11 +1634,11 @@ def task_mails():
     - Today's tasks
     - Future tasks (after today, excluding certain statuses)
     """
-    today = today - timedelta(days=1) 
+
+    today = date.today() - timedelta(days=1)  #Past Date
     formatted_date = today.strftime("%d-%m-%Y")
     new_formatted_date = today.strftime("%d %B %Y")
-    tomorrow = date.today()
-
+    tomorrow = date.today() #current Date
 
     # Fetch all tasks
     tasks = frappe.get_all(
