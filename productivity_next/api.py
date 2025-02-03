@@ -1012,7 +1012,7 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
         WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 AND mcr.employee = '{employee}' 
         GROUP BY internal_meeting
-    """, as_dict=True)
+  `  """, as_dict=True)
 
     total_meeting_duration = 0.0
     data["total_internal_meetings"] = 0
@@ -1619,8 +1619,7 @@ def task_mail_remainder():
             timeout=5000,
             job_name='Task Reminder Mails'
         )
-        main = task_mails()
-        print(main)
+
         return "Task Reminder Mails Enqueued"
     except Exception as e:
         return f"Error: {str(e)}"
@@ -1635,15 +1634,15 @@ def task_mails():
     - Future tasks (after today, excluding certain statuses)
     """
 
-    today = date.today() - timedelta(days=1)  #Past Date
+    today = date.today() - timedelta(days=1)  # Past Date
     formatted_date = today.strftime("%d-%m-%Y")
     new_formatted_date = today.strftime("%d %B %Y")
-    tomorrow = date.today() #current Date
+    tomorrow = date.today()  # Current Date
 
     # Fetch all tasks
     tasks = frappe.get_all(
         "Task",
-        fields=["name as task_no", "subject", "status", "project", "exp_end_date as due_date", "assignee","exp_start_date","completed_by"],
+        fields=["name as task_no", "subject", "status", "project", "exp_end_date as due_date", "assignee", "exp_start_date", "completed_by"],
         order_by="exp_end_date asc"
     )
 
@@ -1655,29 +1654,14 @@ def task_mails():
         return "Email Template 'Task Reminder' does not exist."
 
     email_template = frappe.get_doc("Email Template", "Test Task Reminder")
-    sender_email = frappe.db.get_value(
-        "Email Account",
-        {"default_outgoing": 1},  # Fetch where default_outgoing is True
-        "email_id"
-    )
+    sender_email = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
+
     if not sender_email:
         return "Default sender email is not configured in Email Account settings."
 
-    sender_name = frappe.db.get_value("User", {"email": sender_email}, "full_name")
+    sender_name = frappe.db.get_value("User", {"email": sender_email}, "full_name") or "Task Notification System"
 
-    cc_emails = [
-        {"email": "palak@finbyz.tech", "name": "Palak"},
-        {"email": "mukesh@finbyz.tech", "name": "Mukesh variyani"}
-    ]
-
-    if not sender_name:
-        sender_name = "Task Notification System"  # Fallback if sender name is not set
-
-    
-
-     # Define default CC email addresses
-
-    # Categorize tasks into three groups
+    # Categorize tasks into different groups
     overdue_tasks = []
     today_tasks = []
     tomorrow_tasks = []
@@ -1696,7 +1680,6 @@ def task_mails():
         task_due_date = task.due_date
         if not task_due_date:
             continue
-
 
         # Categorize tasks
         if task_due_date < today and task.status not in ("Completed", "Unplanned", "Cancelled"):
@@ -1724,11 +1707,8 @@ def task_mails():
                         "today_tasks": [],
                         "tomorrow_tasks": [],
                         "future_tasks": []
-                    }                
+                    }
                 tasks_by_user[task.assignee][task_type].append(task)
-
-   
-
 
     # Send emails to each assignee
     for assignee, task_groups in tasks_by_user.items():
@@ -1739,41 +1719,71 @@ def task_mails():
         if not recipient_email:
             continue
 
+        # **Fetch Employee Details to Get Reports To (Manager) Email**
+        employee_record = frappe.db.get_value(
+            "Employee",
+            {"user_id": recipient_email},
+            ["name", "user_id", "reports_to"],
+            as_dict=True
+        )
+
+        employee_cc_emails = []
+        manager_cc_email = None
+
+        if employee_record:
+            # Add employee's own email from User ID
+            if employee_record.get("user_id"):
+                employee_cc_emails.append({
+                    "email": employee_record["user_id"],
+                    "name": frappe.db.get_value("User", employee_record["user_id"], "full_name")
+                })
+
+            # Fetch Reports To (Manager) Email
+            if employee_record.get("reports_to"):
+                manager_email = frappe.db.get_value("Employee", employee_record["reports_to"], "user_id")
+                if manager_email:
+                    manager_cc_email = {
+                        "email": manager_email,
+                        "name": frappe.db.get_value("User", manager_email, "full_name")
+                    }
+
+        # **Prepare CC email list**
+        dynamic_cc_emails = employee_cc_emails
+        if manager_cc_email:
+            dynamic_cc_emails.append(manager_cc_email)  # Add manager to CC
+
+        cc_recipients = [f'{cc["name"]} <{cc["email"]}>' for cc in dynamic_cc_emails if cc["email"]]
+
+
         # Prepare the email context with all tasks for the user
         context = {
-            "assignee_name": assignee_name,  # Full name of the assignee
-            "sender_name": sender_name,  # Full name of the sender
+            "assignee_name": assignee_name,
+            "sender_name": sender_name,
             "overdue_tasks": task_groups["overdue_tasks"],
             "today_tasks": task_groups["today_tasks"],
             "tomorrow_tasks": task_groups["tomorrow_tasks"],
             "future_tasks": task_groups["future_tasks"],
             "sender_email": sender_email,
             "today_date": formatted_date,
-            "new_formatted_date":new_formatted_date
-
+            "new_formatted_date": new_formatted_date
         }
 
         # Render email subject and body
         email_subject = frappe.render_template(email_template.subject, context)
         email_message = frappe.render_template(email_template.response_html, context)
-
         try:
-
-            cc_recipients = [f'{cc["name"]} <{cc["email"]}>' for cc in cc_emails]
             frappe.sendmail(
                 recipients=[recipient_email],
                 sender=sender_email,
                 subject=email_subject,
                 message=email_message,
-                cc=cc_recipients
+                cc=cc_recipients if cc_recipients else None  # Only add CC if there are recipients
             )
         except Exception as e:
             print(f"Error sending email to {recipient_email}: {e}")
             logger = logging.getLogger(__name__)
-
             logger.info("Inside task_mails function")
             logger.error(f"Error sending email to {recipient_email}: {e}")
-
 
     return "Task Reminder Emails Sent Successfully."
 
