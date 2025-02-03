@@ -1650,10 +1650,10 @@ def task_mails():
         return "No tasks found for sending reminders."
 
     # Check if the Email Template "Task Reminder" exists
-    if not frappe.db.exists("Email Template", "Test Task Reminder"):
+    if not frappe.db.exists("Email Template", "Daily Task Reminder"):
         return "Email Template 'Task Reminder' does not exist."
 
-    email_template = frappe.get_doc("Email Template", "Test Task Reminder")
+    email_template = frappe.get_doc("Email Template", "Daily Task Reminder")
     sender_email = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
 
     if not sender_email:
