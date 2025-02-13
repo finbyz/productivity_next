@@ -129,6 +129,8 @@ class Notification(_Notification):
 			task.type = self.type
 			task.priority = self.priority
 			task.flags.ignore_mandatory = True 
+			if self.assignee and doc.get(self.assignee):
+				task.assignee = doc.get(self.assignee)
 			task.save(ignore_permissions=True)
 
 			for assignment in self.assignment:

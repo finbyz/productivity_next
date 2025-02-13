@@ -87,6 +87,8 @@ frappe.notification = {
 				});
 			}
 
+			frm.set_df_property("assignee", "options", [""].concat(["owner"]).concat(receiver_fields));
+
 			// set email recipient options
 			frm.fields_dict.recipients.grid.update_docfield_property(
 				"receiver_by_document_field",
