@@ -8,14 +8,14 @@ frappe.query_reports["Daily Project Time Analysis Productify"] = {
             "label": "From Date",
             "fieldtype": "Date",
             "reqd": 1,
-            "default": "Today"
+            "default":  frappe.datetime.get_today()
         },
         {
             "fieldname": "to_date",
             "label": "To Date",
             "fieldtype": "Date",
             "reqd": 1,
-            "default": "Today"
+            "default":  frappe.datetime.get_today()
         },
 		{
             "fieldname": "project",
@@ -37,6 +37,17 @@ frappe.query_reports["Daily Project Time Analysis Productify"] = {
             "fieldtype": "Link",
             "options": "Employee",
             "reqd": 0
+        },
+        {
+            "fieldname": "is_internal_customer",
+            "label": ("Is Internal Project"),
+            "fieldtype": "Check",
+        },
+        {
+            "fieldname": "show_descendants",
+            "label": ("Show Descendants"),
+            "fieldtype": "Check",
+            "depends_on": "eval: doc.employee",  
         }
 
 	]

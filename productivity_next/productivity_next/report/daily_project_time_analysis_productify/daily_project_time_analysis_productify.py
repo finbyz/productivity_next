@@ -21,19 +21,42 @@ def get_raw_data(filters):
     project_filter = filters.get('project')
     customer_filter = filters.get('customer')
     employee_filter = filters.get('employee')
+    show_descendants = filters.get('show_descendants')
+    is_internal_customer = filters.get('is_internal_customer')  # ✅ New filter for checkbox
+
+
+
+    # If "Show Descendants" is checked, fetch the entire hierarchy
+    if show_descendants and employee_filter:
+        descendant_employees = get_descendant_employees(employee_filter)
+        employee_filter = [employee_filter] + descendant_employees  # Include selected employee too
+    elif employee_filter:
+        employee_filter = [employee_filter]
+    else:
+        employee_filter = frappe.db.sql("""
+            SELECT name FROM `tabEmployee` WHERE status = 'Active'
+        """, as_list=True)
+        employee_filter = [emp[0] for emp in employee_filter]  # Extract list of employee names
     
+
     # Build project query with filters
     project_conditions = ["p.status = 'Open'"]
     if project_filter:
         project_conditions.append(f"p.name = '{project_filter}'")
     if customer_filter:
         project_conditions.append(f"p.customer = '{customer_filter}'")
+    if not is_internal_customer:
+        project_conditions.append("c.is_internal_customer = 0")
+    else:
+        project_conditions.append("(c.is_internal_customer = 0 OR c.is_internal_customer = 1)")  # Both internal & external customers
+
     
     project_where_clause = " AND ".join(project_conditions)
     
     projects = frappe.db.sql(f"""
         SELECT DISTINCT p.name as project, p.customer
         FROM `tabProject` p
+        JOIN `tabCustomer` c ON p.customer = c.name
         WHERE {project_where_clause}
     """, as_dict=1)
     
@@ -44,25 +67,48 @@ def get_raw_data(filters):
         end_date_obj = frappe.utils.getdate(end_date)
         
         while current_date <= end_date_obj:
-            time_data = fetch_url_data(
-                start_date=current_date,
-                end_date=current_date,
-                project=project.project,
-                customer=project.customer,
-                user=employee_filter
-            )
+            for emp in employee_filter:
+                time_data = fetch_url_data(
+                    start_date=current_date,
+                    end_date=current_date,
+                    project=project.project,
+                    customer=project.customer,
+                    user=emp  
+                )
             
-            if time_data.get('data'):
-                raw_data.append({
-                    'date': current_date,
-                    'customer': project.customer,
-                    'project': project.project,
-                    'employee_data': time_data['data']
-                })
+                if time_data.get('data'):
+                    raw_data.append({
+                        'date': current_date,
+                        'customer': project.customer,
+                        'project': project.project,
+                        'employee': emp,  # Add employee info
+                        'employee_data': time_data['data']
+                    })
             
             current_date = frappe.utils.add_days(current_date, 1)
     
     return raw_data
+
+
+def get_descendant_employees(employee_id):
+    """Fetch all employees who report to the given employee"""
+    employee_list = []  # Do not include selected employee here (added in get_raw_data)
+
+    def fetch_reports_to(emp_id):
+        subordinates = frappe.db.sql(f"""
+            SELECT name FROM `tabEmployee`
+            WHERE reports_to = '{emp_id}'
+        """, as_dict=True)
+
+        for emp in subordinates:
+            if emp['name'] not in employee_list:  # Avoid duplicates
+                employee_list.append(emp['name'])
+                fetch_reports_to(emp['name'])  # Recursively get subordinates
+
+    fetch_reports_to(employee_id)
+    return employee_list  # Returns only descendants
+
+
 
 def get_employees_from_data(raw_data):
     """Get unique employees that actually have time entries"""
