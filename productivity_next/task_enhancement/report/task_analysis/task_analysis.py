@@ -373,12 +373,7 @@ def copy_project_tasks(original_project, new_project_name, new_assignee=None):
         batch_tasks = original_tasks[i:i+batch_size]
         
         for task in batch_tasks:
-            # Handle subject more robustly
-            if ':' in task.subject:
-                subject_part = task.subject.split(' : ', 1)[1].strip()
-                subject = subject_part
-            else:
-                subject = task.subject
+            subject = task.subject
             
             # Prepare new task data
             new_task_data = {
@@ -958,14 +953,7 @@ def copy_single_task(task_name, new_project, new_assignee, new_parent):
     new_task.custom_allow_changing_expected_start = 1
     new_task.custom_allow_changing_mark_of_week = 1
     
-    # Handle subject more robustly
-    if ':' in orig_task.subject:
-        # If colon exists, take the part after the colon
-        subject_part = orig_task.subject.split(' : ', 1)[1].strip()
-        new_task.subject = subject_part
-    else:
-        # If no colon, prepend the new project name
-        new_task.subject = orig_task.subject
+    new_task.subject = orig_task.subject
     
     # Save the new task
     new_task.insert(ignore_permissions=True)
