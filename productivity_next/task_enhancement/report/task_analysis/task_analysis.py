@@ -130,19 +130,25 @@ def prepare_data(filters, projects, tasks):
     data = []
     project_task_map = {}
     parent_children_map = {}
-    
+
+    # Build project and parent-child maps
     for task in tasks:
-        parent_children_map.setdefault(task.parent_task or task.project, []).append(task)
         project_task_map.setdefault(task.project, []).append(task)
-    
+        
+        # Handle both direct parent-child and orphaned tasks
+        if task.parent_task:
+            parent_children_map.setdefault(task.parent_task, []).append(task)
+        else:
+            # For tasks without parent_task, map them directly under their project
+            parent_children_map.setdefault(task.project, []).append(task)
+
     for project in projects:
         project_tasks = project_task_map.get(project.name, [])
+        project_progress = calculate_project_progress(project.name)
+        project_progress_display = create_progress_display(project_progress)
         
         if project_tasks:
-            project_progress = calculate_project_progress(project.name)
-            project_progress_display = create_progress_display(project_progress)
-            
-            # Use create_status_display instead of passing colors separately
+            # Add project header
             project_data = frappe._dict({
                 "project_id": project.name,
                 "task": cstr(project.subject),
@@ -162,63 +168,18 @@ def prepare_data(filters, projects, tasks):
             })
             data.append(project_data)
             
-            grandparent_tasks = [t for t in project_tasks if t.task_type == 'grandparent']
-            other_tasks = [t for t in project_tasks if t.task_type != 'grandparent']
-            
-            for gp_task in grandparent_tasks:
-                add_task_to_data(data, gp_task, parent_children_map, 1, show_progress=True)
-            
-            if not grandparent_tasks:
-                other_tasks.sort(key=lambda x: (x.parent_task or '', x.name))
-                
-                for task in other_tasks:
-                    level = 0
-                    current_parent = task.parent_task
-                    while current_parent:
-                        level += 1
-                        parent_info = frappe.db.get_value('Task', current_parent, 
-                            ['parent_task'], as_dict=True)
-                        current_parent = parent_info.get('parent_task') if parent_info else None
-                    
-                    show_progress = level <= 1
-                    task_name = '  ' * level + cstr(task.subject)
-                    task_progress = calculate_task_progress(task.name) if show_progress else None
-                    progress_display = create_progress_display(task_progress) if show_progress else ""
-                    status_display = create_status_display(task.status)
-                    task_data = frappe._dict({
-                        "task": task_name,
-                        "type":task.type,
-                        "progress": progress_display,
-                        "assignee": task.assignee,
-                        "exp_start_date": task.exp_start_date,
-                        "exp_end_date": task.exp_end_date,
-                        "status": task.status,
-                        "status_show": status_display,  # Now returns formatted HTML
-                        "expected_time":task.expected_time,
-                        "priority": task.priority,
-                        "description": task.description,
-                        "project": task.project,
-                        "indent": level,
-                        "is_group": task.is_group,
-                        "is_project": task.is_project,
-                        "task_id": task.name,
-                        "completed_on":task.completed_on
-                    })
-                    data.append(task_data)
-    
-    return data
+            # Process all tasks for this project
+            for task in project_tasks:
+                # Only process tasks that don't have a parent or whose parent isn't in our task list
+                if not task.parent_task or task.parent_task not in {t.name for t in tasks}:
+                    add_task_to_data(data, task, parent_children_map, 1, show_progress=True)
 
+    return data
 def add_task_to_data(data, task, parent_children_map, level, show_progress=False):
-    # Calculate task progress
+    # Add the current task
     task_progress = calculate_task_progress(task.name) if show_progress else None
-    
-    # Modify task name to include indentation
-    task_name = '  ' * level + cstr(task.subject)
-    
-    # Create progress display with styling
+    task_name = '  ' * level + str(task.subject)
     progress_display = create_progress_display(task_progress) if show_progress else ""
-    
-    # Create status display with styling - Fix: Use create_status_display
     status_display = create_status_display(task.status)
 
     data.append(frappe._dict({
@@ -240,14 +201,16 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
         "task_id": task.name,
         "completed_on": task.completed_on
     }))
-    
-    if task.name in parent_children_map:
-        children = parent_children_map[task.name]
+
+    # Process children if any exist
+    children = parent_children_map.get(task.name, [])
+    if children:
+        # Sort children by name to maintain consistent order
         children.sort(key=lambda x: x.name)
         for child in children:
-            # Pass down the current show_progress setting
             add_task_to_data(data, child, parent_children_map, level + 1, show_progress)
- 
+            
+
 def get_tasks(filters):
     conditions = []
     task_condition = ""
