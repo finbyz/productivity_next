@@ -48,6 +48,11 @@ frappe.query_reports["Daily Project Time Analysis Productify"] = {
             "label": ("Show Descendants"),
             "fieldtype": "Check",
             "depends_on": "eval: doc.employee",  
+        },
+        {
+            "fieldname": "show_project_wise_data",
+            "label": ("Show Project Wise Data"),
+            "fieldtype": "Check",   
         }
 
 	]
