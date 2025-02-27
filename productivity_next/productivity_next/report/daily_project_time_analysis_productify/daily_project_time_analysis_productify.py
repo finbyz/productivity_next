@@ -10,7 +10,7 @@ def execute(filters=None):
     raw_data = get_raw_data(filters)
     employees = get_employees_from_data(raw_data)
     columns = get_columns(len(employees))  # Pass the length of employees list instead of the list itself
-    formatted_data = format_data(raw_data, len(employees))  # Pass employee count instead of list
+    formatted_data = format_data(raw_data, len(employees),filters)  # Pass employee count instead of list
     
     return columns, formatted_data
 
@@ -120,13 +120,14 @@ def get_employees_from_data(raw_data):
     
     return sorted(list(employees), key=lambda x: x[1])  # Sort by employee name
 
-def seconds_to_time_format(seconds):
-    if seconds == None:
-        return seconds
-    """Convert seconds to HH:MM format"""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    return f"{hours:02d}:{minutes:02d}"
+# def seconds_to_time_format(seconds):
+#     if seconds == None:
+#         return seconds
+#     """Convert seconds to HH:MM format"""
+#     hours = int(seconds // 3600)
+#     minutes = int((seconds % 3600) // 60)
+#     return f"{hours:02d}:{minutes:02d}"
+
 
 def get_columns(employee_count):
     """Generate columns with generic Employee/Time names"""
@@ -151,12 +152,19 @@ def get_columns(employee_count):
             "options": "Project",
             "width": 150
         },
+        # {
+        #     "fieldname": "total_hours",
+        #     "label": _( "Total Hours"),
+        #     "fieldtype": "Data",  # Changed to Data to support HH:MM format
+        #     "width": 100
+        # }
         {
             "fieldname": "total_hours",
-            "label": _( "Total Hours"),
-            "fieldtype": "Data",  # Changed to Data to support HH:MM format
+            "label": _("Total Hours"),
+            "fieldtype": "Float",  # ✅ Corrected to Float
             "width": 100
         }
+
     ]
     
     # Add generic column pairs for each employee
@@ -179,8 +187,22 @@ def get_columns(employee_count):
     
     return columns
 
-def format_data(raw_data, employee_count):
-    """Format the raw data into the final report format with generic column names"""
+
+def format_data(raw_data, employee_count, filters=None):
+    """Format the raw data into the final report format based on filters."""
+
+    if filters is None:
+        filters = {}
+
+    # Check if "Show Project Wise Data" checkbox is checked
+    if filters.get("show_project_wise_data", False) == True:  
+        return format_project_wise_data(raw_data, employee_count)
+    else:
+        return format_default_data(raw_data, employee_count)
+
+
+def format_default_data(raw_data, employee_count):
+    """Format the raw data into the default structure (employee-wise)."""
     formatted_data = []
     
     for entry in raw_data:
@@ -188,49 +210,136 @@ def format_data(raw_data, employee_count):
             'date': entry['date'],
             'customer': entry['customer'],
             'project': entry['project'],
-            'total_hours': "00:00"
+            'total_hours': "0.00"  # Decimal format instead of HH:MM
         }
         
-        # Initialize all employee fields to empty/zero
+        # Initialize employee fields
         for i in range(employee_count):
-            employee_num = i + 1
-            row_data[f"employee_{employee_num}"] = ""
-            row_data[f"time_{employee_num}"] = None
+            row_data[f"employee_{i+1}"] = ""
+            row_data[f"time_{i+1}"] = None
         
-        # Fill in actual employee data
         has_data = False
         total_seconds = 0
-        sorted_emp_data = sorted(entry['employee_data'], 
-                               key=lambda x: x['total_duration'], reverse=True)  # Sort by duration in descending order
+        sorted_emp_data = sorted(entry['employee_data'], key=lambda x: x['total_duration'], reverse=True)
         
         for idx, emp_data in enumerate(sorted_emp_data):
             if emp_data['total_duration'] > 0:
                 seconds = emp_data['total_duration']
                 total_seconds += seconds
-                employee_num = idx + 1
                 
-                row_data[f"employee_{employee_num}"] = emp_data['employee']
-                row_data[f"time_{employee_num}"] = seconds_to_time_format(seconds)
-                has_data = True
+                if idx < employee_count:
+                    row_data[f"employee_{idx+1}"] = emp_data['employee']
+                    row_data[f"time_{idx+1}"] = seconds_to_decimal(seconds)
+                    has_data = True
         
         if has_data:
-            row_data['total_hours'] = seconds_to_time_format(total_seconds)
+            row_data['total_hours'] = seconds_to_decimal(total_seconds)
             formatted_data.append(row_data)
     
-    # Add the total row
+    # Add total row
     if formatted_data:
+        total_seconds = sum(
+            float(row['total_hours']) * 3600 for row in formatted_data if row['total_hours'] != "0.00"
+        )
+
         total_row = {
-            'date': _( "Total"),
+            'date': "Total",
             'customer': "",
             'project': "",
-            'total_hours': seconds_to_time_format(sum(frappe.utils.time_diff_in_seconds(row['total_hours'], '00:00') for row in formatted_data if row['total_hours'] != "00:00"))
+            'total_hours': seconds_to_decimal(total_seconds)
         }
         for i in range(employee_count):
             total_row[f"employee_{i+1}"] = ""
             total_row[f"time_{i+1}"] = ""
+
         formatted_data.append(total_row)
-    
+
     return formatted_data
+
+
+def format_project_wise_data(raw_data, employee_count):
+    """Format data in project-wise structure when checkbox is checked."""
+    formatted_data = []
+    project_date_map = {}  # Store entries by (date, project, customer)
+    grand_total_seconds = 0  
+
+    for entry in raw_data:
+        key = (entry['date'], entry['project'], entry['customer'])
+
+        if key not in project_date_map:
+            project_date_map[key] = {
+                'date': entry['date'],
+                'customer': entry['customer'],
+                'project': entry['project'],
+                'employees': []
+            }
+
+        # Add employee work details to the project-date entry
+        for emp_data in entry['employee_data']:
+            if emp_data['total_duration'] > 0 and emp_data['employee'].strip():
+                project_date_map[key]['employees'].append({
+                    'name': emp_data['employee'],
+                    'time_seconds': emp_data['total_duration']
+                })
+
+    # Convert project_date_map to the final formatted data structure
+    for key, row in project_date_map.items():
+        formatted_row = {
+            'date': row['date'],
+            'customer': row['customer'],
+            'project': row['project'],
+        }
+
+        # Initialize employee fields
+        for i in range(employee_count):
+            formatted_row[f"employee_{i+1}"] = ""
+            formatted_row[f"time_{i+1}"] = None
+
+        total_seconds = 0
+        has_employee = False  
+
+        for idx, emp_data in enumerate(row['employees']):
+            if idx < employee_count:
+                formatted_row[f"employee_{idx+1}"] = emp_data['name']
+                formatted_row[f"time_{idx+1}"] = seconds_to_decimal(emp_data['time_seconds'])
+                total_seconds += emp_data['time_seconds']
+                has_employee = True  
+
+        formatted_row['total_hours'] = seconds_to_decimal(total_seconds)
+        grand_total_seconds += total_seconds  
+
+        if total_seconds > 0 and has_employee:
+            formatted_data.append(formatted_row)
+
+    # Append total row
+    if grand_total_seconds > 0:
+        total_row = {
+            'date': 'TOTAL',
+            'customer': '',
+            'project': '',
+            'total_hours': seconds_to_decimal(grand_total_seconds)
+        }
+        for i in range(employee_count):
+            total_row[f"employee_{i+1}"] = ""
+            total_row[f"time_{i+1}"] = None
+
+        formatted_data.append(total_row)
+
+    return formatted_data
+
+
+def seconds_to_decimal(seconds):
+    """Convert seconds into decimal hours format (e.g., 1.50 instead of 01:30)."""
+    if seconds is None or seconds <= 0:
+        return "0.00"  # Return as a string to maintain consistency
+    
+    # Convert seconds to decimal hours
+    hours = seconds // 3600
+    minutes = (seconds % 3600) / 60
+    decimal_hours = float(hours) + (float(minutes) / 60)
+    
+    return f"{decimal_hours:.2f}"  # Return formatted string
+
 
 def fetch_url_data(user=None, start_date=None, end_date=None, project=None, customer=None):
     if not project:
