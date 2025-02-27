@@ -131,9 +131,8 @@
   },
   {
    "fieldname": "url",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Url",
-   "length": 255,
    "options": "URL",
    "read_only": 1
   },
@@ -168,7 +167,7 @@
   }
  ],
  "links": [],
- "modified": "2025-02-26 11:53:08.628043",
+ "modified": "2025-02-27 11:56:50.438873",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",
