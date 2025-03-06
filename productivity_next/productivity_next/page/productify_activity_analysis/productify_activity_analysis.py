@@ -14,7 +14,9 @@ from dateutil.parser import parse
 
 # Sidebar Activity Data code starts
 @frappe.whitelist(allow_guest=True)
-def get_activity_chart_data(user,start_date=None, end_date=None):
+def get_activity_chart_data(user = None,start_date=None, end_date=None):
+    if not user:
+        return {}
     if user == "Administrator":
         return {}
     # Fetch idle time logs
