@@ -1796,19 +1796,23 @@ def get_user_avatar(email:str):
     }
 
 @frappe.whitelist()
-def get_user_time_on_task(employee,task):
+def get_user_time_on_tasks(employee, tasks):
+    if not tasks:
+        return []
+    tasks = frappe.parse_json(tasks)
+    task_placeholders = ", ".join(["%s"] * len(tasks)) 
     task_time = frappe.db.sql(f"""
         SELECT
+            child.task AS task,
             SUM(TIMESTAMPDIFF(SECOND, from_time, to_time)) AS total_duration
         FROM
             `tabTimesheet Detail` AS child
         JOIN
             `tabTimesheet` AS parent ON child.parent = parent.name
         WHERE
-            parent.employee = '{employee}' AND child.task = '{task}';
-    """, as_dict=True)
-    
-    return {
-        "total_duration": task_time[0]["total_duration"] or 0
-    }
+            parent.employee = %s AND child.task IN ({task_placeholders})
+        GROUP BY child.task
+    """, [employee,*tasks], as_dict=True)
+
+    return task_time
 
