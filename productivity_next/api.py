@@ -1795,20 +1795,80 @@ def get_user_avatar(email:str):
         "full_name": frappe.get_value("User", email, "full_name")
     }
 
+
 @frappe.whitelist()
-def get_user_time_on_task(employee,task):
+def get_user_avatar(email:str):
+    return {
+        "user_image": frappe.get_value("User", email, "user_image"),
+        "full_name": frappe.get_value("User", email, "full_name")
+    }
+
+@frappe.whitelist()
+def get_user_time_on_tasks(employee, tasks):
+    if not tasks:
+        return []
+    tasks = frappe.parse_json(tasks)
+    task_placeholders = ", ".join(["%s"] * len(tasks)) 
     task_time = frappe.db.sql(f"""
         SELECT
+            child.task AS task,
             SUM(TIMESTAMPDIFF(SECOND, from_time, to_time)) AS total_duration
         FROM
             `tabTimesheet Detail` AS child
         JOIN
             `tabTimesheet` AS parent ON child.parent = parent.name
         WHERE
-            parent.employee = '{employee}' AND child.task = '{task}';
-    """, as_dict=True)
-    
-    return {
-        "total_duration": task_time[0]["total_duration"] or 0
-    }
+            parent.employee = %s AND child.task IN ({task_placeholders})
+        GROUP BY child.task
+    """, [employee,*tasks], as_dict=True)
 
+    return task_time
+
+
+def get_user_time_on_project():
+    # def validate(doc):
+    doc = frappe.db.get_list('Application Usage log',
+                            filters={
+                                'date': ["=", '2025-03-04'],     
+                            },
+                            fields=['DISTINCT employee','project']
+                        )
+    # print(doc)
+  
+    for i in doc:
+        task_time = frappe.db.sql(f"""
+            SELECT from_time, to_time, project
+            FROM `tabApplication Usage log`    
+            WHERE date = '2025-03-04' AND '{i.employee}' = employee
+            ORDER BY from_time ASC   
+        """, as_dict=True)
+        # print(task_time)
+        
+        for j in task_time:
+            From_Time = j.from_time
+            To_Time = j.to_time
+            # print(To_Time)
+            Pre_Project = j.project
+
+            if i.project == Pre_Project:
+                Pre_To_Time = To_Time  
+                print(Pre_To_Time)
+            else:
+                if frappe.db.exists('Timesheet'):
+                    doc.employee = i.employee
+                    doc.append("time_logs",{
+                    "from_time": From_Time,
+                    "to_time": Pre_To_Time,
+                    "project": Pre_Project
+                })
+                else:
+                    doc = frappe.new_doc('Timesheet')
+                    doc.employee = i.employee
+                    doc.append("time_logs",{
+                        "from_time": From_Time,
+                        "to_time": Pre_To_Time,
+                        "project": Pre_Project
+                    })
+                doc.save()
+            
+    frappe.db.commit()
