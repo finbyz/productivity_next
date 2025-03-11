@@ -1,6 +1,7 @@
 import json
 import frappe
 from frappe.auth import LoginManager
+from frappe.boot import DocType
 import frappe.utils
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 from frappe.utils import nowdate
@@ -1824,14 +1825,14 @@ def get_user_time_on_tasks(employee, tasks):
 
     return task_time
 
-
+from datetime import timedelta
 def get_user_time_on_project():
     # def validate(doc):
     doc = frappe.db.get_list('Application Usage log',
                             filters={
-                                'date': ["=", '2025-03-04'],     
+                                'date': ["=", '2025-03-06'],     
                             },
-                            fields=['DISTINCT employee','project']
+                            fields=['DISTINCT employee']
                         )
     # print(doc)
   
@@ -1839,36 +1840,102 @@ def get_user_time_on_project():
         task_time = frappe.db.sql(f"""
             SELECT from_time, to_time, project
             FROM `tabApplication Usage log`    
-            WHERE date = '2025-03-04' AND '{i.employee}' = employee
+            WHERE date = '2025-03-06' AND '{i.employee}' = employee AND project != 'None'
             ORDER BY from_time ASC   
         """, as_dict=True)
         # print(task_time)
         
-        for j in task_time:
-            From_Time = j.from_time
-            To_Time = j.to_time
-            # print(To_Time)
-            Pre_Project = j.project
+        From_Time = task_time[0].from_time
+        Pre_Project = task_time[0].project
+        To_Time = task_time[0].to_time
+        # print(To_Time)
 
-            if i.project == Pre_Project:
-                Pre_To_Time = To_Time  
-                print(Pre_To_Time)
+        for j in task_time:
+            # print("p"+j.project)
+            # print("pp"+Pre_Project)
+            # print(task_time[-1])
+            if j.project == Pre_Project and j != task_time[-1]:
+                To_Time = j.to_time 
+                # print(To_Time)
+                # print("Project same")
             else:
-                if frappe.db.exists('Timesheet'):
-                    doc.employee = i.employee
+                
+                doc_exists = frappe.db.exists("Timesheet", {"employee": i.employee, "start_date": "2025-03-06"})
+                if doc_exists:
+                    # print("if doc exists")
+                    doc = frappe.get_doc("Timesheet", doc_exists)
+                    # print(doc)
+                    # From_Time = j.from_time
+                    # Pre_Project = j.project
+                    # To_Time = j.to_time
+                    # print(To_Time)
+                    # print(To_Time)
+                    # print(From_Time)
+                    # print(Pre_Project)
+                    
                     doc.append("time_logs",{
-                    "from_time": From_Time,
-                    "to_time": Pre_To_Time,
-                    "project": Pre_Project
-                })
+                        "from_time": From_Time + timedelta(seconds=1),
+                        "to_time": j.to_time,
+                        "project": j.project
+                    })
+                    # print(doc)
+                    doc.save()
                 else:
+                    print("Timesheet created")
                     doc = frappe.new_doc('Timesheet')
                     doc.employee = i.employee
                     doc.append("time_logs",{
                         "from_time": From_Time,
-                        "to_time": Pre_To_Time,
+                        "to_time": To_Time,
                         "project": Pre_Project
                     })
-                doc.save()
-            
+                    doc.save()
+                    # print(doc)
+                From_Time = j.from_time
+                Pre_Project = j.project
+            # print(Pre_Project)
+        # else:
+        #     doc.append("time_logs",{
+        #         "from_time": From_Time + timedelta(seconds=1),
+        #         "to_time": j.to_time,
+        #         "project": Pre_Project
+        #     })
+        #     # print(doc)
+        #     doc.save()
+
     frappe.db.commit()
+    
+    
+
+@frappe.whitelist()
+def get_tasks(assignee, start_date, end_date):
+    if not assignee:
+        return []
+    Task = DocType("Task")
+    
+    query = (
+        frappe.qb.from_(Task)
+        .select("*")
+        .where(
+            (
+                (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
+                & (Task.exp_start_date.between(start_date, end_date))
+                & (
+                    (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
+                )
+            )
+            | (
+                (Task.status == "Completed")
+                & (Task.completed_on.between(start_date, end_date))
+                & (Task.completed_by == assignee)
+            )
+        )
+    )
+
+    tasks = query.run(as_dict=True)
+    
+    completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
+    non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
+    return {
+        "data": [*non_completed_tasks, *completed_tasks]
+    }
