@@ -2,6 +2,8 @@ import json
 import frappe
 from frappe.auth import LoginManager
 from frappe.boot import DocType
+from frappe.desk.form.assign_to import get
+from frappe.share import notify_assignment
 import frappe.utils
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 from frappe.utils import nowdate
@@ -1939,3 +1941,31 @@ def get_tasks(assignee, start_date, end_date):
     return {
         "data": [*non_completed_tasks, *completed_tasks]
     }
+
+
+@frappe.whitelist(methods=['POST'])
+def complete_todo(doctype, name, todo=None, assign_to=None, status="Completed", ignore_permissions=False):
+
+	if not ignore_permissions:
+		frappe.get_doc(doctype, name).check_permission()
+	try:
+		if not todo:
+			todo = frappe.db.get_value(
+				"ToDo",
+				{
+					"reference_type": doctype,
+					"reference_name": name,
+					"allocated_to": assign_to,
+					"status": ("!=", status),
+				},
+			)
+		if todo:
+			todo = frappe.get_doc("ToDo", todo)
+			todo.status = status
+			todo.save(ignore_permissions=True)
+
+			notify_assignment(todo.assigned_by, todo.allocated_to, todo.reference_type, todo.reference_name)
+	except frappe.DoesNotExistError:
+		pass
+
+	return get({"doctype": doctype, "name": name})
