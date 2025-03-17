@@ -37,6 +37,8 @@ doctype_js = {
     "Task": "public/js/doctype_js/task.js",
 }
 
+
+
 doctype_list_js = {
     "Task": "public/js/list_js/task.js",
 }
@@ -60,6 +62,16 @@ doc_events = {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
 }
+
+base_template_map = {
+    r"crm_activities.html": "productivity_next/public/templates/crm_activities.html"
+}
+
+override_whitelisted_methods = {
+    "erpnext.crm.doctype.lead.lead.get_activities": "productivity_next.productivity_next.lead.get_activities"
+ }
+
+
 
 # Scheduled Tasks
 # ---------------
@@ -93,6 +105,19 @@ scheduler_events = {
         # ]
     },
 }
+
+
+fixtures = [   
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["name", "in", [
+                "Task-lead","Lead-task_detail",                     
+            ]]
+        ]
+    },
+    
+]
 
 # Installation
 # ------------
