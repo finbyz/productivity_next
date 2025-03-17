@@ -79,7 +79,7 @@ class EmployeeFincall(Document):
                 "content": self.get_comment_text(self.get_url()),
             }
         )
-        comment.save()
+        comment.save(ignore_permissions=True)
 
 
 @frappe.whitelist()
