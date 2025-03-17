@@ -111,8 +111,8 @@ fixtures = [
     {
         "dt": "Custom Field",
         "filters": [
-            ["name", "in", [
-                "Task-lead","Lead-task_detail",                     
+            ["module", "in", [
+                "Productivity Next",                     
             ]]
         ]
     },
