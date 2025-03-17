@@ -41,9 +41,12 @@ frappe.ui.form.on('Lead', {
                 async create_task() {
                     let me = this;
 
-                    let default_project = await frappe.db.get_single_value('Productify Subscription', 'default_marketing_project');
-                    let default_task_type = await frappe.db.get_single_value('Productify Subscription', 'task_type') || 'Lead Follow Up';
+                    let { message } = await frappe.call({
+                        method: 'productivity_next.api.get_defaults_productivity'
+                    });
 
+                    let default_project = message.default_marketing_project || '';
+                    let default_task_type = message.task_type || 'Lead Follow-up';
 
                     let _create_task = () => {
                         frappe.prompt([

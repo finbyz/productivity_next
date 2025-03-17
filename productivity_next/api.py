@@ -1855,7 +1855,6 @@ def get_user_time_on_project():
         for j in task_time:
             # print("p"+j.project)
             # print("pp"+Pre_Project)
-            # print(task_time[-1])
             if j.project == Pre_Project and j != task_time[-1]:
                 To_Time = j.to_time 
                 # print(To_Time)
@@ -1866,14 +1865,6 @@ def get_user_time_on_project():
                 if doc_exists:
                     # print("if doc exists")
                     doc = frappe.get_doc("Timesheet", doc_exists)
-                    # print(doc)
-                    # From_Time = j.from_time
-                    # Pre_Project = j.project
-                    # To_Time = j.to_time
-                    # print(To_Time)
-                    # print(To_Time)
-                    # print(From_Time)
-                    # print(Pre_Project)
                     
                     doc.append("time_logs",{
                         "from_time": From_Time + timedelta(seconds=1),
@@ -1895,15 +1886,7 @@ def get_user_time_on_project():
                     # print(doc)
                 From_Time = j.from_time
                 Pre_Project = j.project
-            # print(Pre_Project)
-        # else:
-        #     doc.append("time_logs",{
-        #         "from_time": From_Time + timedelta(seconds=1),
-        #         "to_time": j.to_time,
-        #         "project": Pre_Project
-        #     })
-        #     # print(doc)
-        #     doc.save()
+        
 
     frappe.db.commit()
     
@@ -1969,3 +1952,36 @@ def complete_todo(doctype, name, todo=None, assign_to=None, status="Completed", 
 		pass
 
 	return get({"doctype": doctype, "name": name})
+
+
+# @frappe.whitelist()
+# def get_defaults():
+#     result = frappe.db.sql("""
+#         SELECT 
+#             default_marketing_project,
+#             task_type 
+#         FROM 
+#             `tabProductify Subscription`
+#     """, as_dict=True)
+    
+#     if result and len(result) > 0:
+#         return result[0]
+#     return {}
+
+@frappe.whitelist()
+def get_defaults_productivity():
+    result = frappe.db.sql("""
+        SELECT 
+            field,
+            value
+        FROM 
+            `tabSingles`
+        WHERE 
+            doctype = 'Productify Subscription' 
+            AND field IN ('default_marketing_project', 'task_type')
+    """, as_dict=True)
+
+    if result:
+        return {row["field"]: row["value"] for row in result}
+    return {}
+
