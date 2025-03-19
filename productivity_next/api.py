@@ -1995,7 +1995,7 @@ def get_employee_working_tasks():
 
     # Fetch latest logs per employee for the current day along with task details
     latest_logs = frappe.db.sql(f"""
-        SELECT log.employee, log.task, log.name AS log_id, log.to_time, 
+        SELECT log.employee, log.task, log.name AS log_id, log.to_time, log.application_name,
                task.subject AS task_subject, task._assign, task.assignee
         FROM `tabApplication Usage log` log
         JOIN (
@@ -2024,6 +2024,7 @@ def get_employee_working_tasks():
 
             task_details = {
                 'log_id': log.log_id,
+                'application_name': log.application_name,
                 'task': log.task,
                 'task_subject': log.task_subject,
                 'to_time': log.to_time,
