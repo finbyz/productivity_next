@@ -1968,6 +1968,23 @@ def complete_todo(doctype, name, todo=None, assign_to=None, status="Completed", 
 #         return result[0]
 #     return {}
 
+# @frappe.whitelist()
+# def get_defaults_productivity():
+#     result = frappe.db.sql("""
+#         SELECT 
+#             field,
+#             value
+#         FROM 
+#             `tabSingles`
+#         WHERE 
+#             doctype = 'Productify Subscription' 
+#             AND field IN ('default_marketing_project', 'task_type')
+#     """, as_dict=True)
+
+#     if result:
+#         return {row["field"]: row["value"] for row in result}
+#     return {}
+
 @frappe.whitelist()
 def get_defaults_productivity():
     result = frappe.db.sql("""
@@ -1978,7 +1995,12 @@ def get_defaults_productivity():
             `tabSingles`
         WHERE 
             doctype = 'Productify Subscription' 
-            AND field IN ('default_marketing_project', 'task_type')
+            AND field IN (
+                'default_marketing_project', 
+                'task_type', 
+                'create_task_instead_of_todo_for_lead_follow_up',
+                'create_task_instead_of_todo_for_opportunity_follow_up'
+            )
     """, as_dict=True)
 
     if result:
