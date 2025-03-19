@@ -1985,3 +1985,55 @@ def get_defaults_productivity():
         return {row["field"]: row["value"] for row in result}
     return {}
 
+
+
+@frappe.whitelist()
+def get_employee_working_tasks():
+    employees = frappe.get_list('Employee', fields=['name', 'employee_name', 'user_id'])
+
+    today = datetime.today().strftime('%Y-%m-%d')
+
+    # Fetch latest logs per employee for the current day along with task details
+    latest_logs = frappe.db.sql(f"""
+        SELECT log.employee, log.task, log.name AS log_id, log.to_time, 
+               task.subject AS task_subject, task._assign, task.assignee
+        FROM `tabApplication Usage log` log
+        JOIN (
+            SELECT employee, MAX(to_time) AS max_to_time 
+            FROM `tabApplication Usage log`
+            WHERE DATE(to_time) = '{today}'  -- Filter logs from today
+            GROUP BY employee
+        ) latest 
+        ON log.employee = latest.employee AND log.to_time = latest.max_to_time
+        LEFT JOIN `tabTask` task ON log.task = task.name  -- Join with Task table
+    """, as_dict=True)
+
+    log_dict = {log["employee"]: log for log in latest_logs}
+
+    employee_tasks = {}
+
+    for employee in employees:
+        log = log_dict.get(employee.name) 
+        task_details = {}
+
+        if log:
+            assignees = json.loads(log._assign or '[]')
+
+            if log.assignee and log.assignee not in assignees:
+                assignees.append(log.assignee)
+
+            task_details = {
+                'log_id': log.log_id,
+                'task': log.task,
+                'task_subject': log.task_subject,
+                'to_time': log.to_time,
+                'assignees': assignees,
+            }
+
+        employee_tasks[employee.name] = {
+            'employee_name': employee.employee_name,
+            'employee_email': employee.user_id,
+            **task_details
+        }
+
+    return employee_tasks
