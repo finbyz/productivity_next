@@ -425,8 +425,25 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         return [activity_type, start_time.date(), start_time, end_time] + list(args)
 
     base_data = []
+    task_data = {}
+    if applications:
+        # Extract unique task IDs from applications
+        task_ids = [app['task'] for app in applications if app.get('task')]
+        if task_ids:
+            # Only query if there are task IDs to fetch
+            tasks = frappe.db.sql("""
+                SELECT name, subject
+                FROM `tabTask`
+                WHERE name IN ({})
+            """.format(', '.join(['%s'] * len(task_ids))), tuple(task_ids), as_dict=True)
+            
+            # Create a dictionary mapping task ID to subject
+            task_data = {task['name']: task['subject'] for task in tasks}
+
     for app in applications:
-        activity_type = "Browser" if app['process_name'] in ["chrome.exe", "firefox.exe", "msedge.exe", "opera.exe", "iexplore.exe", "brave.exe", "safari.exe", "vivaldi.exe", "chromium.exe", "microsoftedge.exe"] else "Application"
+        activity_type = "Browser" if app['name'] in ["Google Chrome", "Firefox", "Microsoft Edge", "Opera", "Internet Explorer", "Brave", "Safari", "Vivaldi", "Chromium", "Microsoft Edge"]  else "Application"
+        task_id = app['task'] if app['task'] else None
+        task_subject = task_data.get(task_id) if task_id else None
         base_data.append(split_activity(
             activity_type,
             app['application_start'],
@@ -436,7 +453,8 @@ def overall_performance_timely(employee=None, date=None, hour=None):
             app['project'] if app['project'] else None,
             app['issue'] if app['issue'] else None,
             app['task'] if app['task'] else None,
-            app['name']
+            app['name'],
+            task_subject
         ))
 
     for app in idle:

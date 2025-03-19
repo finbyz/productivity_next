@@ -1484,7 +1484,7 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 								if (seconds > 0 || durationString === "") durationString += seconds + "s";
 	
 								var tooltipContent = ``;
-
+								console.log(params.data,"MEGHWIN")
 								if (activityType === "Application" || activityType === "Browser") {
 									tooltipContent += `
 										<div class="custom-tooltip">
@@ -1565,6 +1565,12 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 												<td style="padding: 0px 10px; text-align: left;">${params.data[7]}</td>
 												<td></td>
 												<td style="padding: 0px 10px; text-align: left;">${params.data[8]}</td>
+											</tr>`;
+									}
+									if (params.data[10]) {
+										tooltipContent += `
+											<tr>
+												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[10]}</td>
 											</tr>`;
 									}
 								}
