@@ -112,18 +112,29 @@ def get_data(filters):
     
     # Build the project filter based on the above data if a project is specified
     project_filter = ""
+    params = {"project": project} if project else {}
+    
     if project:
-        project_filter = f"AND name = '{project}'"
+        project_filter = "AND name = %(project)s"
+
+    # Handle resource_based and hourly_based filters
+    if filters.get("resource_based_project") and filters.get("hourly_based_project"):
+        project_filter += " AND (resource_based_project = 1 OR based_on_hourly_package = 1)"
+    elif filters.get("resource_based_project"):
+        project_filter += " AND resource_based_project = 1"
+    elif filters.get("hourly_based_project"):
+        project_filter += " AND based_on_hourly_package = 1"
     
     # Filter to only get relevant projects
-    valid_projects = frappe.db.sql(f"""
+    query = f"""
         SELECT name 
         FROM `tabProject` 
         WHERE customer IN (
             SELECT name FROM `tabCustomer` WHERE is_internal_customer = {is_internal}
         ) {project_filter}
-    """, as_dict=True)
+    """
     
+    valid_projects = frappe.db.sql(query, params, as_dict=True)
     valid_project_names = [p.name for p in valid_projects]
     
     # If no valid projects, return empty result

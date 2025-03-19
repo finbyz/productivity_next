@@ -26,12 +26,14 @@ frappe.query_reports["Project Time Analysis"] = {
         {
             "fieldname": "resource_based_project",
             "label": "Resource Based Project",
-            "fieldtype": "Check"
+            "fieldtype": "Check",
+            "default": 1
         },
         {
             "fieldname": "hourly_based_project",
             "label": "Hourly Based Project",
-            "fieldtype": "Check"
+            "fieldtype": "Check",
+            "default": 1
         },
         {
             "fieldname": "show_employee",
