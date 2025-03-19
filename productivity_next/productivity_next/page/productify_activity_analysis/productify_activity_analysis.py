@@ -14,7 +14,7 @@ from dateutil.parser import parse
 
 # Sidebar Activity Data code starts
 @frappe.whitelist(allow_guest=True)
-def get_activity_chart_data(user,start_date=None, end_date=None):
+def get_activity_chart_data(user = None,start_date=None, end_date=None):
     if user == "Administrator":
         return {}
     # Fetch idle time logs
@@ -691,7 +691,7 @@ def type_of_calls(user = None,start_date=None,end_date=None):
 
 # URL DATA AND SIDEBAR DATA CODE STARTS
 @frappe.whitelist(allow_guest=True)
-def fetch_url_data(user,start_date=None, end_date=None):
+def fetch_url_data(user=None,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)

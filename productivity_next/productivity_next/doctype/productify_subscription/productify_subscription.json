@@ -31,6 +31,8 @@
   "call_organization_name",
   "token",
   "token_updated_on",
+  "default_marketing_project",
+  "task_type",
   "location_tracking_section",
   "automatic_location_tracking",
   "column_break_ivyo",
@@ -254,12 +256,24 @@
    "fieldname": "location_tracking_to_time",
    "fieldtype": "Time",
    "label": "Location Tracking To Time"
+  },
+  {
+   "fieldname": "default_marketing_project",
+   "fieldtype": "Link",
+   "label": "Default Marketing Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "task_type",
+   "fieldtype": "Link",
+   "label": "Task Type",
+   "options": "Task Type"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-12-03 13:44:51.011475",
+ "modified": "2025-03-15 12:24:07.342394",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

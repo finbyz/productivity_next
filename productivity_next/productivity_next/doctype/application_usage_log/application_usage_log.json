@@ -24,9 +24,9 @@
   "column_break_hqfs",
   "url",
   "domain",
+  "task",
   "project",
-  "issue",
-  "task"
+  "issue"
  ],
  "fields": [
   {
@@ -133,6 +133,7 @@
    "fieldname": "url",
    "fieldtype": "Small Text",
    "label": "Url",
+   "options": "URL",
    "read_only": 1
   },
   {
@@ -142,26 +143,31 @@
    "read_only": 1
   },
   {
+   "fetch_from": "task.project",
    "fieldname": "project",
    "fieldtype": "Link",
    "label": "Project",
-   "options": "Project"
+   "options": "Project",
+   "read_only": 1
   },
   {
+   "fetch_from": "task.issue",
    "fieldname": "issue",
    "fieldtype": "Link",
    "label": "Issue",
-   "options": "Issue"
+   "options": "Issue",
+   "read_only": 1
   },
   {
    "fieldname": "task",
    "fieldtype": "Link",
    "label": "Task",
-   "options": "Task"
+   "options": "Task",
+   "read_only": 1
   }
  ],
  "links": [],
- "modified": "2024-09-19 16:16:37.286694",
+ "modified": "2025-02-27 11:56:50.438873",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",
