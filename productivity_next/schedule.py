@@ -424,20 +424,20 @@ def create_productify_work_summary_today():
                 SELECT call_datetime as start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end, 'call' as type,  COALESCE(
                     (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
                     COALESCE(contact, client, customer_no)
-                ) AS caller
+                ) AS caller, name as call_id
                 from `tabEmployee Fincall`
                 where employee = '{employee}' and date = '{date}'
                 """, as_dict=True)
                 # print('calls_data',len(calls_data))
                 internal_meetings_data = frappe.db.sql(f"""
-                SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
+                SELECT m.name as meeting, m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
                 FROM `tabMeeting` as m
                 JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
                 WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 1
                 """, as_dict=True)
 
                 external_meeting_data = frappe.db.sql(f"""
-                SELECT m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.party as party,  m.internal_meeting as meeting_type
+                SELECT m.name as meeting, m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.party as party,  m.internal_meeting as meeting_type
                 FROM `tabMeeting` as m
                 JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
                 WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 0
@@ -451,7 +451,7 @@ def create_productify_work_summary_today():
                 # print("employee",employee)
                 # print("date",date)
                 applications_data = frappe.db.sql(f"""
-                select from_time as start, to_time as end, 'application' as type
+                select from_time as start, to_time as end, 'application' as type, task, issue, project
                 from `tabApplication Usage log`
                 where employee = '{employee}' and date = '{date}'
                 """, as_dict=True)
@@ -533,7 +533,12 @@ def create_productify_work_summary_today():
             for app_entry in combined_applications:
                 PWS.append('applications', {
                     'from_time': app_entry['start'],
-                    'to_time': app_entry['end']
+                    'to_time': app_entry['end'],
+                    'task': app_entry.get('task'),
+                    'issue': app_entry.get('issue'),
+                    'project': app_entry.get('project'),
+                    'meeting': app_entry.get('meeting'),
+                    'call': app_entry.get('call_id'),
                 })
             PWS.save()
             # print(PWS.name)
