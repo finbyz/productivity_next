@@ -26,14 +26,12 @@ frappe.query_reports["Project Time Analysis"] = {
         {
             "fieldname": "resource_based_project",
             "label": "Resource Based Project",
-            "fieldtype": "Check",
-            "default": 1
+            "fieldtype": "Check"
         },
         {
             "fieldname": "hourly_based_project",
             "label": "Hourly Based Project",
-            "fieldtype": "Check",
-            "default": 1
+            "fieldtype": "Check"
         },
         {
             "fieldname": "show_employee",
@@ -62,6 +60,11 @@ frappe.query_reports["Project Time Analysis"] = {
         {
             "fieldname": "is_internal_project",
             "label": "Internal Project",
+            "fieldtype": "Check",
+        },
+        {
+            "fieldname": "show_deployment_rate",
+            "label": "Show Deployment Rate",
             "fieldtype": "Check",
         }
 	]

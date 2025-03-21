@@ -23,6 +23,37 @@ def execute(filters=None):
 def get_columns(filters):
     columns = []
     
+    # If show_deployment_rate, resource_based_project, and show_employee_details are all checked,
+    # show employee_name, deployed_hours, available_hours and deployment_rate columns
+    if filters.get("show_deployment_rate") and filters.get("resource_based_project") and filters.get("show_employee"):
+        columns = [
+            {
+                "fieldname": "employee_name",
+                "label": _("Employee"),
+                "fieldtype": "Data",
+                "width": 150
+            },
+            {
+                "fieldname": "total_hours",
+                "label": _("Deployed Hours"),
+                "fieldtype": "Float",
+                "width": 100
+            },
+            {
+                "fieldname": "available_hours",
+                "label": _("Available Hours"),
+                "fieldtype": "Float",
+                "width": 100
+            },
+            {
+                "fieldname": "deployment_rate",
+                "label": _("Deployment Rate (%)"),
+                "fieldtype": "Float",
+                "width": 100
+            }
+        ]
+        return columns
+    
     # Date column if showing daily data
     if filters.get("show_daily_data"):
         columns.append({
@@ -89,6 +120,10 @@ def get_data(filters):
     to_date = filters.get("to_date")
     project = filters.get("project")
     employee = filters.get("employee")
+    
+    # Get daily working hours settings
+    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
     
     # Prepare internal project condition
     is_internal = 1 if filters.get("is_internal_project") else 0
@@ -250,6 +285,12 @@ def get_data(filters):
         group_keys.append("employee_id")
     group_keys.append("project")  # Always group by project
     
+    # For deployment rate, we need to group by employee
+    if filters.get("show_deployment_rate") and filters.get("resource_based_project") and filters.get("show_employee"):
+        # Only include employee_id in group_keys if not already there
+        if "employee_id" not in group_keys:
+            group_keys = ["employee_id"]  # We'll only be grouping by employee for deployment rate
+    
     # Process data using optimized aggregation
     result_data = calculate_time_aggregates(
         application_intervals, 
@@ -257,6 +298,61 @@ def get_data(filters):
         calls_intervals,
         group_keys
     )
+    
+    # Filter for deployment rate if needed
+    if filters.get("show_deployment_rate") and filters.get("resource_based_project") and filters.get("show_employee"):
+        # Create a dictionary to aggregate hours by employee
+        employee_hours = defaultdict(lambda: {"total_hours": 0, "employee_name": "", "employee_id": ""})
+        
+        # Collect unique employees for calculating available hours
+        unique_employees = set()
+        # Aggregate hours for each employee where application_hours > 0
+        for row in result_data:
+            employee_id = row.get("employee_id")
+            if employee_id and row.get("application_hours", 0) > 0:
+                employee_hours[employee_id]["total_hours"] += row.get("total_hours", 0)
+                employee_hours[employee_id]["employee_name"] = row.get("employee_name", "")
+                employee_hours[employee_id]["employee_id"] = employee_id
+                unique_employees.add(employee_id)
+        # Import the function and calculate available hours for each employee
+        from productivity_next.api import calculate_total_working_hours
+        # Calculate available hours for each unique employee
+        for employee_id in unique_employees:
+            available_hours = calculate_total_working_hours(
+                employee_id, 
+                from_date, 
+                to_date, 
+                daily_working_hours, 
+                saturday_working_hours
+            )
+            frappe.throw(str(available_hours))
+            
+            # Add available hours to employee data
+            if employee_id in employee_hours:
+                employee_hours[employee_id]["available_hours"] = available_hours
+                
+                # Calculate deployment rate as a percentage
+                if available_hours > 0:
+                    deployment_rate = (employee_hours[employee_id]["total_hours"] / available_hours) * 100
+                    employee_hours[employee_id]["deployment_rate"] = round(deployment_rate, 2)
+                else:
+                    employee_hours[employee_id]["deployment_rate"] = 0
+        
+        # Convert to list format
+        result_data = [
+            {
+                "employee_name": data["employee_name"],
+                "total_hours": round(data["total_hours"], 2),
+                "available_hours": round(data.get("available_hours", 0), 2),
+                "deployment_rate": data.get("deployment_rate", 0)
+            }
+            for employee_id, data in employee_hours.items()
+        ]
+        
+        # Sort by deployed hours (total_hours) in descending order
+        result_data.sort(key=lambda x: -x.get('total_hours', 0))
+        
+        return result_data
     
     # Sort results appropriately based on filters
     if filters.get("show_daily_data"):
