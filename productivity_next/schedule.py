@@ -424,20 +424,20 @@ def create_productify_work_summary_today():
                 SELECT call_datetime as start, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end, 'call' as type,  COALESCE(
                     (SELECT first_name FROM `tabContact` WHERE name = COALESCE(contact, client, customer_no)),
                     COALESCE(contact, client, customer_no)
-                ) AS caller, name as call_id
+                ) AS caller, name as call_id, task, issue, project
                 from `tabEmployee Fincall`
                 where employee = '{employee}' and date = '{date}'
                 """, as_dict=True)
                 # print('calls_data',len(calls_data))
                 internal_meetings_data = frappe.db.sql(f"""
-                SELECT m.name as meeting, m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party
+                SELECT m.name as meeting, m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.internal_meeting as meeting_type, Null as party, m.task, m.issue, m.project
                 FROM `tabMeeting` as m
                 JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
                 WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 1
                 """, as_dict=True)
 
                 external_meeting_data = frappe.db.sql(f"""
-                SELECT m.name as meeting, m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.party as party,  m.internal_meeting as meeting_type
+                SELECT m.name as meeting, m.meeting_from as start, m.meeting_to as end, 'meeting' as type, m.party as party,  m.internal_meeting as meeting_type, m.task, m.issue, m.project
                 FROM `tabMeeting` as m
                 JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
                 WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59' and m.internal_meeting = 0

@@ -16,6 +16,9 @@
   "call_datetime",
   "duration",
   "date",
+  "task",
+  "issue",
+  "project",
   "column_break_qqss0",
   "link_to",
   "link_name",
@@ -169,11 +172,29 @@
    "label": "Comment",
    "options": "Comment",
    "read_only": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-10-21 15:01:53.883964",
+ "modified": "2025-03-21 11:20:53.215725",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",
