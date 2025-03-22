@@ -127,6 +127,7 @@ class Notification(_Notification):
 			task.description = formatted_message
 			task.exp_end_date = exp_end_date
 			task.type = self.type
+			task.project = self.project
 			task.priority = self.priority
 			task.flags.ignore_mandatory = True 
 			if self.assignee and doc.get(self.assignee):
