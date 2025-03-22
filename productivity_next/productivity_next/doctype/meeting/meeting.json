@@ -16,6 +16,8 @@
   "purpose",
   "scheduled_time",
   "project",
+  "issue",
+  "task",
   "posting_date",
   "travel_from",
   "meeting_from",
@@ -379,12 +381,24 @@
    "fieldname": "end_uuid",
    "fieldtype": "Data",
    "label": "End UUID"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-12-04 18:23:23.578095",
+ "modified": "2025-03-21 11:19:31.384374",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

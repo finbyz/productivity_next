@@ -61,6 +61,11 @@ frappe.query_reports["Project Time Analysis"] = {
             "fieldname": "is_internal_project",
             "label": "Internal Project",
             "fieldtype": "Check",
+        },
+        {
+            "fieldname": "show_deployment_rate",
+            "label": "Show Deployment Rate",
+            "fieldtype": "Check",
         }
 	]
 };

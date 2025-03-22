@@ -1824,8 +1824,31 @@ def get_user_time_on_tasks(employee, tasks):
             parent.employee = %s AND child.task IN ({task_placeholders})
         GROUP BY child.task
     """, [employee,*tasks], as_dict=True)
+    
+    pws_times = frappe.db.sql(f"""
+        SELECT
+            PWSA.task AS task,
+            SUM(TIMESTAMPDIFF(SECOND, PWSA.from_time, PWSA.to_time)) AS total_duration
+        FROM
+            `tabProductify Work Summary` AS PWS
+        JOIN
+            `tabProductify Work Summary Application` AS PWSA ON PWS.name = PWSA.parent
+        WHERE
+            PWS.employee = %s AND PWSA.task IN ({task_placeholders})
+        GROUP BY PWSA.task
+    """, [employee,*tasks], as_dict=True)
+    
+    task_duration_map = {}
 
-    return task_time
+    for entry in task_time + pws_times:
+        task = entry["task"]
+        duration = entry["total_duration"] or 0
+        task_duration_map[task] = task_duration_map.get(task, 0) + duration
+
+    combined_task_times = [{"task": task, "total_duration": duration} for task, duration in task_duration_map.items()]
+
+    return combined_task_times
+
 
 from datetime import timedelta
 def get_user_time_on_project():
@@ -1968,6 +1991,23 @@ def complete_todo(doctype, name, todo=None, assign_to=None, status="Completed", 
 #         return result[0]
 #     return {}
 
+# @frappe.whitelist()
+# def get_defaults_productivity():
+#     result = frappe.db.sql("""
+#         SELECT 
+#             field,
+#             value
+#         FROM 
+#             `tabSingles`
+#         WHERE 
+#             doctype = 'Productify Subscription' 
+#             AND field IN ('default_marketing_project', 'task_type')
+#     """, as_dict=True)
+
+#     if result:
+#         return {row["field"]: row["value"] for row in result}
+#     return {}
+
 @frappe.whitelist()
 def get_defaults_productivity():
     result = frappe.db.sql("""
@@ -1978,7 +2018,12 @@ def get_defaults_productivity():
             `tabSingles`
         WHERE 
             doctype = 'Productify Subscription' 
-            AND field IN ('default_marketing_project', 'task_type')
+            AND field IN (
+                'default_marketing_project', 
+                'task_type', 
+                'create_task_instead_of_todo_for_lead_follow_up',
+                'create_task_instead_of_todo_for_opportunity_follow_up'
+            )
     """, as_dict=True)
 
     if result:

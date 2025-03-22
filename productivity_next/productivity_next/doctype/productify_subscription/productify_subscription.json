@@ -33,6 +33,8 @@
   "token_updated_on",
   "default_marketing_project",
   "task_type",
+  "create_task_instead_of_todo_for_lead_follow_up",
+  "create_task_instead_of_todo_for_opportunity_follow_up",
   "location_tracking_section",
   "automatic_location_tracking",
   "column_break_ivyo",
@@ -268,12 +270,24 @@
    "fieldtype": "Link",
    "label": "Task Type",
    "options": "Task Type"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_task_instead_of_todo_for_lead_follow_up",
+   "fieldtype": "Check",
+   "label": "Create Task instead of Todo for Lead Follow up"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_task_instead_of_todo_for_opportunity_follow_up",
+   "fieldtype": "Check",
+   "label": "Create Task instead of Todo for Opportunity Follow up"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-15 12:24:07.342394",
+ "modified": "2025-03-19 11:56:12.447759",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",
