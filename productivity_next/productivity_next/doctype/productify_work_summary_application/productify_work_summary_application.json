@@ -7,7 +7,12 @@
  "engine": "InnoDB",
  "field_order": [
   "from_time",
-  "to_time"
+  "to_time",
+  "meeting",
+  "call",
+  "task",
+  "issue",
+  "project"
  ],
  "fields": [
   {
@@ -23,12 +28,42 @@
    "in_list_view": 1,
    "label": "To Time",
    "read_only": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "options": "Task"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "meeting",
+   "fieldtype": "Link",
+   "label": "Meeting",
+   "options": "Meeting"
+  },
+  {
+   "fieldname": "call",
+   "fieldtype": "Link",
+   "label": "Call",
+   "options": "Employee Fincall"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-07-15 14:49:37.230982",
+ "modified": "2025-03-22 10:33:19.590880",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Work Summary Application",
