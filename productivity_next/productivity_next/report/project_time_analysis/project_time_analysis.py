@@ -3,7 +3,7 @@ from frappe import _
 from datetime import datetime, timedelta
 from frappe.utils import getdate, get_first_day, get_last_day, add_days
 from collections import defaultdict
-
+from frappe.utils import flt
 
 def execute(filters=None):
     start_time = frappe.utils.now_datetime()
@@ -12,7 +12,6 @@ def execute(filters=None):
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
     
-
     frappe.log_error(
         title=f'full execution {duration}', 
         message=f"time in full execution {start_time} {end_time} {duration}"
@@ -25,30 +24,60 @@ def get_columns(filters):
     
     # If show_deployment_rate, resource_based_project, and show_employee_details are all checked,
     # show employee_name, deployed_hours, available_hours and deployment_rate columns
-    if filters.get("show_deployment_rate") and filters.get("resource_based_project") and filters.get("show_employee"):
+    if filters.get("show_deployment_rate"):
         columns = [
             {
                 "fieldname": "employee_name",
-                "label": _("Employee"),
+                "label": _("Resource"),
                 "fieldtype": "Data",
                 "width": 150
             },
             {
-                "fieldname": "total_hours",
-                "label": _("Deployed Hours"),
+                "fieldname": "days_available",
+                "label": _("Days Available"),
+                "fieldtype": "Int",
+                "width": 100
+            },
+            {
+                "fieldname": "hours_per_day",
+                "label": _("Hours Per Day"),
                 "fieldtype": "Float",
                 "width": 100
             },
             {
-                "fieldname": "available_hours",
-                "label": _("Available Hours"),
+                "fieldname": "leaves",
+                "label": _("Leaves in this period"),
+                "fieldtype": "Float",
+                "width": 150
+            },
+            {
+                "fieldname": "weekly_hours",
+                "label": _("Total Hours"),
                 "fieldtype": "Float",
                 "width": 100
             },
             {
-                "fieldname": "deployment_rate",
-                "label": _("Deployment Rate (%)"),
+                "fieldname": "dedicated_hours",
+                "label": _("Dedicated Hours"),
                 "fieldtype": "Float",
+                "width": 100
+            },
+            {
+                "fieldname": "support_hours",
+                "label": _("Support Hours"),
+                "fieldtype": "Float",
+                "width": 100
+            },
+            {
+                "fieldname": "total_billable",
+                "label": _("Total Billable"),
+                "fieldtype": "Float",
+                "width": 100
+            },
+            {
+                "fieldname": "percentage_billable",
+                "label": _("% Billable"),
+                "fieldtype": "Percent",
                 "width": 100
             }
         ]
@@ -115,6 +144,10 @@ def get_columns(filters):
 
 
 def get_data(filters):
+    # If deployment rate report is requested
+    if filters.get("show_deployment_rate"):
+        return get_deployment_rate_data(filters)
+    
     # Build date conditions
     from_date = filters.get("from_date")
     to_date = filters.get("to_date")
@@ -281,84 +314,301 @@ def get_data(filters):
     group_keys = []
     if filters.get("show_daily_data"):
         group_keys.append("date")
-    if filters.get("show_employee"):
-        group_keys.append("employee_id")
-    group_keys.append("project")  # Always group by project
     
-    # For deployment rate, we need to group by employee
-    if filters.get("show_deployment_rate") and filters.get("resource_based_project") and filters.get("show_employee"):
-        # Only include employee_id in group_keys if not already there
-        if "employee_id" not in group_keys:
-            group_keys = ["employee_id"]  # We'll only be grouping by employee for deployment rate
+    # IMPORTANT FIX: First calculate with employee_id to properly handle overlaps
+    # Always include employee_id in initial grouping to correctly calculate non-overlapping time per employee
+    calculate_keys = group_keys.copy()
+    calculate_keys.append("employee_id")
+    calculate_keys.append("project")  # Always group by project
     
-    # Process data using optimized aggregation
-    result_data = calculate_time_aggregates(
+    # Process data using optimized aggregation but keeping employee separations
+    detailed_result = calculate_time_aggregates(
         application_intervals, 
         meeting_intervals, 
         calls_intervals,
-        group_keys
+        calculate_keys
     )
     
-    # Filter for deployment rate if needed
-    if filters.get("show_deployment_rate") and filters.get("resource_based_project") and filters.get("show_employee"):
-        # Create a dictionary to aggregate hours by employee
-        employee_hours = defaultdict(lambda: {"total_hours": 0, "employee_name": "", "employee_id": ""})
+    # If we don't need to show employee data, aggregate across employees for each project
+    if not filters.get("show_employee"):
+        # Define display grouping keys (without employee_id)
+        display_keys = group_keys.copy()
+        display_keys.append("project")
         
-        # Collect unique employees for calculating available hours
-        unique_employees = set()
-        # Aggregate hours for each employee where application_hours > 0
-        for row in result_data:
-            employee_id = row.get("employee_id")
-            if employee_id and row.get("application_hours", 0) > 0:
-                employee_hours[employee_id]["total_hours"] += row.get("total_hours", 0)
-                employee_hours[employee_id]["employee_name"] = row.get("employee_name", "")
-                employee_hours[employee_id]["employee_id"] = employee_id
-                unique_employees.add(employee_id)
-        # Import the function and calculate available hours for each employee
-        from productivity_next.api import calculate_total_working_hours
-        # Calculate available hours for each unique employee
-        for employee_id in unique_employees:
-            available_hours = calculate_total_working_hours(
-                employee_id, 
-                from_date, 
-                to_date, 
-                daily_working_hours, 
-                saturday_working_hours
-            )
-            frappe.throw(str(available_hours))
+        # Group data by project (and date if needed) across employees
+        aggregated_result = {}
+        for row in detailed_result:
+            # Create a key without employee_id
+            key_parts = []
+            for k in display_keys:
+                key_parts.append(str(row.get(k, '')))
+            key = tuple(key_parts)
             
-            # Add available hours to employee data
-            if employee_id in employee_hours:
-                employee_hours[employee_id]["available_hours"] = available_hours
-                
-                # Calculate deployment rate as a percentage
-                if available_hours > 0:
-                    deployment_rate = (employee_hours[employee_id]["total_hours"] / available_hours) * 100
-                    employee_hours[employee_id]["deployment_rate"] = round(deployment_rate, 2)
-                else:
-                    employee_hours[employee_id]["deployment_rate"] = 0
+            if key not in aggregated_result:
+                # Initialize a new entry
+                new_row = {k: row.get(k) for k in display_keys}
+                new_row.update({
+                    'total_hours': 0,
+                    'application_hours': 0,
+                    'meeting_hours': 0,
+                    'call_hours': 0
+                })
+                aggregated_result[key] = new_row
+            
+            # Add hours
+            aggregated_result[key]['total_hours'] += row.get('total_hours', 0)
+            aggregated_result[key]['application_hours'] += row.get('application_hours', 0)
+            aggregated_result[key]['meeting_hours'] += row.get('meeting_hours', 0)
+            aggregated_result[key]['call_hours'] += row.get('call_hours', 0)
         
-        # Convert to list format
-        result_data = [
-            {
-                "employee_name": data["employee_name"],
-                "total_hours": round(data["total_hours"], 2),
-                "available_hours": round(data.get("available_hours", 0), 2),
-                "deployment_rate": data.get("deployment_rate", 0)
-            }
-            for employee_id, data in employee_hours.items()
-        ]
-        
-        # Sort by deployed hours (total_hours) in descending order
-        result_data.sort(key=lambda x: -x.get('total_hours', 0))
-        
-        return result_data
+        # Convert back to list
+        result_data = list(aggregated_result.values())
+    else:
+        # If showing employee data, use the detailed result
+        result_data = detailed_result
+    
+    # Round values for all rows
+    for row in result_data:
+        row['total_hours'] = round(row.get('total_hours', 0), 2)
+        row['application_hours'] = round(row.get('application_hours', 0), 2)
+        row['meeting_hours'] = round(row.get('meeting_hours', 0), 2)
+        row['call_hours'] = round(row.get('call_hours', 0), 2)
     
     # Sort results appropriately based on filters
     if filters.get("show_daily_data"):
         result_data.sort(key=lambda x: (x['date'], -x['total_hours']))
     else:
         result_data.sort(key=lambda x: -x['total_hours'])
+    
+    return result_data
+
+def get_deployment_rate_data(filters):
+    """
+    Generate deployment rate report data similar to the screenshot format
+    """
+    from_date = filters.get("from_date")
+    to_date = filters.get("to_date")
+    
+    # Get all employees
+    employees = frappe.db.sql("""
+        SELECT name, employee_name
+        FROM `tabEmployee`
+        WHERE status = 'Active'
+    """, as_dict=True)
+    
+    # Get working hours settings
+    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
+    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+    
+    # Initialize result data
+    result_data = []
+    total_weekly_hours = 0
+    total_dedicated_hours = 0
+    total_support_hours = 0
+    total_billable_hours = 0
+    
+    # Get project types
+    project_types = frappe.db.sql("""
+        SELECT name, resource_based_project, based_on_hourly_package
+        FROM `tabProject`
+    """, as_dict=True)
+    
+    # Create project type lookup dictionaries
+    resource_projects = {p.name for p in project_types if p.resource_based_project}
+    hourly_projects = {p.name for p in project_types if p.based_on_hourly_package}
+    
+    # For each employee, calculate their hours
+    for emp in employees:
+        employee_id = emp.name
+        
+        # Calculate available working hours
+        available_hours = calculate_total_working_hours(
+            employee_id, 
+            from_date, 
+            to_date, 
+            flt(daily_working_hours), 
+            flt(saturday_working_hours)
+        )
+        
+        # Get days in the date range
+        from_date_obj = datetime.strptime(str(from_date), '%Y-%m-%d')
+        to_date_obj = datetime.strptime(str(to_date), '%Y-%m-%d')
+        days_count = (to_date_obj - from_date_obj).days + 1
+        
+        # Get leave data for this employee
+        leaves = frappe.db.sql("""
+            SELECT COALESCE(SUM(total_leave_days), 0) as total_leaves
+            FROM `tabLeave Application`
+            WHERE employee = %s
+            AND status = 'Approved'
+            AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
+        """, (employee_id, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
+        
+        leave_days = leaves[0].total_leaves if leaves else 0
+        
+        # Format the list for IN clause
+        project_list = "', '".join([p.name for p in project_types])
+        project_list = f"('{project_list}')" if project_list else "(NULL)"
+        
+        # Application intervals query
+        application_intervals = frappe.db.sql(f"""
+            SELECT 
+                a.employee_name, 
+                a.employee AS employee_id,
+                a.project,
+                a.from_time as start_time,
+                a.to_time as end_time,
+                DATE(a.from_time) as date,
+                'application' as activity_type
+            FROM `tabApplication Usage log` as a
+            WHERE a.date BETWEEN '{from_date}' AND '{to_date}'
+            AND a.employee = '{employee_id}'
+            AND a.project IN {project_list}
+        """, as_dict=True)
+        # Meeting intervals query
+        meeting_intervals = frappe.db.sql(f"""
+            SELECT 
+                mcr.employee AS employee_id,
+                e.employee_name,
+                m.project,
+                m.meeting_from as start_time,
+                m.meeting_to as end_time,
+                DATE(m.meeting_from) as date,
+                'meeting' as activity_type
+            FROM `tabMeeting` AS m
+            JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
+            LEFT JOIN `tabEmployee` e ON e.name = mcr.employee
+            WHERE m.meeting_from >= '{from_date} 00:00:00' 
+            AND m.meeting_to <= '{to_date} 23:59:59' 
+            AND m.docstatus = 1
+            AND m.project IN {project_list}
+            AND mcr.employee = '{employee_id}'
+        """, as_dict=True)
+        # Get all valid customers for the call query
+        # Get customer-project mapping
+        project_customer_map = {}
+        customer_projects_map = {}
+        
+        projects_data = frappe.db.sql("""
+            SELECT name, customer
+            FROM `tabProject`
+        """, as_dict=True)
+        
+        for p in projects_data:
+            if p.customer:
+                project_customer_map[p.name] = p.customer
+                if p.customer not in customer_projects_map:
+                    customer_projects_map[p.customer] = []
+                customer_projects_map[p.customer].append(p.name)
+        
+        # Get list of customers
+        valid_customers = list(customer_projects_map.keys())
+        
+        # Format customer list for IN clause
+        if valid_customers:
+            customer_list = "', '".join(valid_customers)
+            customer_list = f"('{customer_list}')"
+        else:
+            customer_list = "(NULL)"  # No valid customers
+        
+        # Calls intervals query
+        calls_intervals = frappe.db.sql(f"""
+            SELECT 
+                employee AS employee_id,
+                employee_name,
+                NULL as project,
+                call_datetime as start_time,
+                ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time,
+                date,
+                'call' as activity_type,
+                link_name as customer
+            FROM `tabEmployee Fincall` 
+            WHERE date BETWEEN '{from_date}' AND '{to_date}'
+            AND calltype NOT IN ('Missed', 'Rejected')
+            AND link_to = 'Customer'
+            AND link_name IN {customer_list}
+            AND employee = '{employee_id}'
+        """, as_dict=True)
+        
+        # Optimization: Map projects to calls once, using the pre-loaded customer-projects mapping
+        for call in calls_intervals:
+            customer = call.get('customer')
+            if customer and customer in customer_projects_map:
+                # For simplicity, assign the first project of this customer
+                if customer_projects_map[customer]:
+                    call['project'] = customer_projects_map[customer][0]
+        
+        # Remove calls without project assignment
+        calls_intervals = [call for call in calls_intervals if call.get('project')]
+        
+        # Convert all datetime strings to actual datetime objects
+        for intervals in [application_intervals, meeting_intervals, calls_intervals]:
+            for interval in intervals:
+                if 'start_time' in interval and isinstance(interval['start_time'], str):
+                    interval['start_time'] = frappe.utils.get_datetime(interval['start_time'])
+                if 'end_time' in interval and isinstance(interval['end_time'], str):
+                    interval['end_time'] = frappe.utils.get_datetime(interval['end_time'])
+        
+        # Split intervals by project type
+        resource_based_intervals = []
+        hourly_based_intervals = []
+        
+        # Process application intervals
+        for interval in application_intervals:
+            project = interval.get('project')
+            if project in resource_projects:
+                resource_based_intervals.append((interval['start_time'], interval['end_time']))
+            elif project in hourly_projects:
+                hourly_based_intervals.append((interval['start_time'], interval['end_time']))
+        
+        # Process meeting intervals
+        for interval in meeting_intervals:
+            project = interval.get('project')
+            if project in resource_projects:
+                resource_based_intervals.append((interval['start_time'], interval['end_time']))
+            elif project in hourly_projects:
+                hourly_based_intervals.append((interval['start_time'], interval['end_time']))
+        
+        # Process call intervals
+        for interval in calls_intervals:
+            project = interval.get('project')
+            if project in resource_projects:
+                resource_based_intervals.append((interval['start_time'], interval['end_time']))
+            elif project in hourly_projects:
+                hourly_based_intervals.append((interval['start_time'], interval['end_time']))
+        # Calculate non-overlapping hours for each project type
+        dedicated_hours = calculate_non_overlapping_hours(resource_based_intervals)
+        support_hours = calculate_non_overlapping_hours(hourly_based_intervals)
+        
+        # Calculate total billable hours
+        total_billable = dedicated_hours + support_hours
+        
+        # Calculate percentage billable
+        percentage_billable = (total_billable / available_hours * 100) if available_hours > 0 else 0
+        
+        # Create a row for this employee
+        employee_row = {
+            "employee_name": emp.employee_name,
+            "days_available": days_count,
+            "hours_per_day": daily_working_hours,
+            "leaves": leave_days,
+            "weekly_hours": available_hours,
+            "dedicated_hours": round(dedicated_hours, 2),
+            "support_hours": round(support_hours, 2),
+            "total_billable": round(total_billable, 2),
+            "percentage_billable": round(percentage_billable, 2)
+        }
+        
+        result_data.append(employee_row)
+        
+        # Add to totals
+        total_weekly_hours += available_hours
+        total_dedicated_hours += dedicated_hours
+        total_support_hours += support_hours
+        total_billable_hours += total_billable
+    
+    # Sort by percentage billable in descending order
+    result_data.sort(key=lambda x: -x.get('percentage_billable', 0) if x.get('employee_name') != 'Total' else -999)
     
     return result_data
 
@@ -466,14 +716,14 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
             result_row['employee_name'] = data['details']['employee_name']
         
         result_data.append(result_row)
+    
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
-    
-
     frappe.log_error(
         title=f'calculate_time_aggregates {duration}', 
         message=f"time in calculate_time_aggregates {start_time} {end_time} {duration}"
     )
+    
     return result_data
 
 
@@ -503,13 +753,66 @@ def calculate_non_overlapping_hours(intervals):
     
     # Add the last interval
     total_seconds += (current_end - current_start).total_seconds()
+    
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
-    
-
     frappe.log_error(
         title=f'calculate_non_overlapping_hours {duration}', 
         message=f"time in calculate_non_overlapping_hours {start_time} {end_time} {duration}"
     )
+    
     # Convert to hours
     return total_seconds / 3600
+
+
+@frappe.whitelist()
+def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
+    from_date = datetime.strptime(str(from_date), '%Y-%m-%d')
+    to_date = datetime.strptime(str(to_date), '%Y-%m-%d')
+    date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+
+    holidays = frappe.db.sql("""
+        SELECT holiday_date 
+        FROM `tabHoliday` 
+        WHERE holiday_date BETWEEN %s AND %s
+    """, (from_date, to_date), as_dict=True)
+    holiday_dates = set(holiday.holiday_date for holiday in holidays)
+    
+    if not frappe.db.exists("DocType", "Leave Application"):
+        leaves = []
+    else:
+        leaves = frappe.db.sql("""
+            SELECT from_date, to_date, half_day
+            FROM `tabLeave Application`
+            WHERE employee = %s
+            AND status = 'Approved'
+            AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
+        """, (employee, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
+
+    total_working_hours = 0
+    for date in date_range:
+        current_date = date.date()
+
+        if current_date in holiday_dates:
+            continue
+
+        day_hours = daily_working_hours
+
+        # Check if it's a Saturday (weekday 5) or Sunday (weekday 6)
+        if date.weekday() == 5:
+            day_hours = saturday_working_hours
+        elif date.weekday() == 6:
+            day_hours = 0  # No hours on Sunday
+            
+        # Apply leave deductions
+        for leave in leaves:
+            if leave.from_date <= current_date <= leave.to_date:
+                if leave.half_day:
+                    day_hours *= 0.5
+                else:
+                    day_hours = 0
+                break
+
+        total_working_hours += day_hours
+
+    return total_working_hours
