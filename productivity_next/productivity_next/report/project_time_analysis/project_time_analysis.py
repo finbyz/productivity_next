@@ -155,8 +155,8 @@ def get_data(filters):
     employee = filters.get("employee")
     
     # Get daily working hours settings
-    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
-    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_per_day')
+    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_on_saturday')
     
     # Prepare internal project condition
     is_internal = 1 if filters.get("is_internal_project") else 0
@@ -391,14 +391,13 @@ def get_deployment_rate_data(filters):
     
     # Get all employees
     employees = frappe.db.sql("""
-        SELECT name, employee_name, user_id
-        FROM `tabEmployee`
-        WHERE status = 'Active'
+        SELECT employee as name, employee_name, user_id
+        FROM `tabList of User`
     """, as_dict=True)
     
     # Get working hours settings
-    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
-    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_per_day')
+    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_on_saturday')
     
     # Initialize result data
     result_data = []
@@ -465,6 +464,7 @@ def get_deployment_rate_data(filters):
             AND a.employee = '{employee_id}'
             AND a.project IN {project_list}
         """, as_dict=True)
+        
         # Meeting intervals query
         meeting_intervals = frappe.db.sql(f"""
             SELECT 
@@ -484,6 +484,7 @@ def get_deployment_rate_data(filters):
             AND m.project IN {project_list}
             AND mcr.employee = '{employee_id}'
         """, as_dict=True)
+        
         # Get all valid customers for the call query
         # Get customer-project mapping
         project_customer_map = {}
@@ -549,45 +550,44 @@ def get_deployment_rate_data(filters):
                 if 'end_time' in interval and isinstance(interval['end_time'], str):
                     interval['end_time'] = frappe.utils.get_datetime(interval['end_time'])
         
-        # Split intervals by project type
-        resource_based_intervals = []
-        hourly_based_intervals = []
+        # Group intervals by project instead of just activity type
+        project_intervals = defaultdict(list)
         
         # Process application intervals
         for interval in application_intervals:
             project = interval.get('project')
             if project in resource_projects:
-                resource_based_intervals.append((interval['start_time'], interval['end_time']))
-            elif project in hourly_projects:
-                hourly_based_intervals.append((interval['start_time'], interval['end_time']))
+                project_intervals[project].append((interval['start_time'], interval['end_time']))
         
         # Process meeting intervals
         for interval in meeting_intervals:
             project = interval.get('project')
             if project in resource_projects:
-                resource_based_intervals.append((interval['start_time'], interval['end_time']))
-            elif project in hourly_projects:
-                hourly_based_intervals.append((interval['start_time'], interval['end_time']))
+                project_intervals[project].append((interval['start_time'], interval['end_time']))
         
         # Process call intervals
         for interval in calls_intervals:
             project = interval.get('project')
             if project in resource_projects:
-                resource_based_intervals.append((interval['start_time'], interval['end_time']))
-            elif project in hourly_projects:
-                hourly_based_intervals.append((interval['start_time'], interval['end_time']))
-                
-        # Calculate non-overlapping hours for dedicated hours (resource-based projects)
-        dedicated_hours = calculate_non_overlapping_hours(resource_based_intervals)
+                project_intervals[project].append((interval['start_time'], interval['end_time']))
+        
+        # Calculate dedicated hours by summing non-overlapping hours per project
+        dedicated_hours = 0
+        for project, intervals in project_intervals.items():
+            # Calculate non-overlapping hours for each project separately
+            project_hours = calculate_non_overlapping_hours(intervals)
+            dedicated_hours += project_hours
+            
         user = emp.user_id
-        # MODIFIED: Get support hours from Issue's time involvement table instead of hourly-based projects
-        # Query to get sum of involvement hours from issues for this employee in date range
+        # Get support hours from Issue's time involvement table
         support_hours_data = frappe.db.sql(f"""
             SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
             FROM `tabIssue` i
             JOIN `tabTime Involvement` ti ON ti.parent = i.name
+            JOIN `tabProject` p on i.project = p.name
             WHERE ti.user_name = '{user}'
             AND ti.date BETWEEN '{from_date}' AND '{to_date}'
+            AND p.based_on_hourly_package = 1
         """, as_dict=True)
         
         support_hours = support_hours_data[0].total_support_hours if support_hours_data else 0
@@ -807,21 +807,35 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         if current_date in holiday_dates:
             continue
 
-        day_hours = daily_working_hours
-
         # Check if it's a Saturday (weekday 5) or Sunday (weekday 6)
-        if date.weekday() == 5:
-            day_hours = saturday_working_hours
-        elif date.weekday() == 6:
+        is_saturday = date.weekday() == 5
+        is_sunday = date.weekday() == 6
+        
+        # Set initial hours based on day type
+        if is_sunday:
             day_hours = 0  # No hours on Sunday
+        elif is_saturday:
+            day_hours = saturday_working_hours
+        else:
+            day_hours = daily_working_hours
+            
+        # Skip further calculations if already 0
+        if day_hours == 0:
+            continue
             
         # Apply leave deductions
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
                 if leave.half_day:
-                    day_hours *= 0.5
+                    # For half-day leaves:
+                    # If Saturday, set to 0 hours (skip the day)
+                    # For other days, apply half of the daily hours
+                    if is_saturday:
+                        day_hours = 0
+                    else:
+                        day_hours *= 0.5
                 else:
-                    day_hours = 0
+                    day_hours = 0  # Full day leave
                 break
 
         total_working_hours += day_hours
