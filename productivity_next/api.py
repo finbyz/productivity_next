@@ -1845,6 +1845,7 @@ def get_user_time_on_tasks(employee, tasks):
         duration = entry["total_duration"] or 0
         task_duration_map[task] = task_duration_map.get(task, 0) + duration
 
+    # Convert to list of dicts
     combined_task_times = [{"task": task, "total_duration": duration} for task, duration in task_duration_map.items()]
 
     return combined_task_times
@@ -2040,17 +2041,18 @@ def get_employee_working_tasks():
 
     # Fetch latest logs per employee for the current day along with task details
     latest_logs = frappe.db.sql(f"""
-        SELECT log.employee, log.task, log.name AS log_id, log.to_time, log.application_name,
-               task.subject AS task_subject, task._assign, task.assignee
-        FROM `tabApplication Usage log` log
-        JOIN (
+        WITH latest_logs AS (
             SELECT employee, MAX(to_time) AS max_to_time 
             FROM `tabApplication Usage log`
             WHERE DATE(to_time) = '{today}'  -- Filter logs from today
             GROUP BY employee
-        ) latest 
+        )
+        SELECT log.employee, log.task, log.name AS log_id, log.to_time, log.application_name,
+            task.subject AS task_subject, task._assign, task.assignee
+        FROM `tabApplication Usage log` log
+        JOIN latest_logs latest
         ON log.employee = latest.employee AND log.to_time = latest.max_to_time
-        LEFT JOIN `tabTask` task ON log.task = task.name  -- Join with Task table
+        LEFT JOIN `tabTask` task ON log.task = task.name;
     """, as_dict=True)
 
     log_dict = {log["employee"]: log for log in latest_logs}
