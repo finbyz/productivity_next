@@ -122,7 +122,12 @@ fixtures = [
             ]]
         ]
     },
-    
+    {
+        "dt": "Activity Type",
+        "filters": [
+            ["name", "in", ["Task","Call", "Meeting"]]
+        ]
+    },
 ]
 
 # Installation
