@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import nowdate, get_datetime, format_time, format_duration,today
 import frappe.utils
-from frappe.utils.data import cint
+from frappe.utils.data import cint, today
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
 
@@ -322,11 +322,11 @@ def create_productify_work_summary():
             """, as_dict=True)
 
             applications_data = frappe.db.sql(f"""
-            select from_time as start, to_time as end, 'application' as type
+            select from_time as start, to_time as end, 'application' as type, task, issue, project
             from `tabApplication Usage log`
             where employee = '{employee}' and date = '{date}'
             """, as_dict=True)
-
+            print('applications_data',applications_data)
             data = calls_data + internal_meetings_data + idle_logs + applications_data + external_meeting_data
             data = sorted(data, key=lambda x: x['start'])
 
@@ -403,7 +403,10 @@ def create_productify_work_summary():
         for app_entry in combined_applications:
             PWS.append('applications', {
                 'from_time': app_entry['start'],
-                'to_time': app_entry['end']
+                'to_time': app_entry['end'],
+                'task': app_entry.get('task'),
+                'issue': app_entry.get('issue'),
+                'project': app_entry.get('project')
             })
         PWS.save()
         print(PWS.name)
@@ -583,7 +586,7 @@ def create_productify_work_summary_today():
                 """, as_dict=True)
 
                 applications_data = frappe.db.sql(f"""
-                select from_time as start, to_time as end, 'application' as type
+                select from_time as start, to_time as end, 'application' as type, task, issue, project
                 from `tabApplication Usage log`
                 where employee = '{employee}' and date = '{date}' and from_time >= '{last_activity}'
                 """, as_dict=True)
@@ -662,7 +665,10 @@ def create_productify_work_summary_today():
             for app_entry in combined_applications:
                 PWS.append('applications', {
                     'from_time': app_entry['start'],
-                    'to_time': app_entry['end']
+                    'to_time': app_entry['end'],
+                    'task': app_entry.get('task'),
+                    'issue': app_entry.get('issue'),
+                    'project': app_entry.get('project')
                 })
             PWS.save()
             # print(PWS.name)
@@ -1150,6 +1156,8 @@ def update_due_period():
 
     frappe.db.commit()
 
+import frappe
+from frappe.utils import get_datetime
 
 def merge_continuous_logs(logs):
     if not logs:
@@ -1157,27 +1165,24 @@ def merge_continuous_logs(logs):
     
     logs.sort(key=lambda x: x["from_time"])  
     merged_logs = [logs[0]]
-
     for log in logs[1:]:
         last_log = merged_logs[-1]
         time_gap = (log["from_time"] - last_log["to_time"]).total_seconds()
-
+        
         if time_gap <= 10 and log["task"] == last_log["task"]:
             last_log["to_time"] = log["to_time"]
-        elif time_gap <= 10 and log["issue"] == last_log["issue"]:
+        elif time_gap <= 10 and log["issue"] and log["issue"] == last_log["issue"]:
             last_log["to_time"] = log["to_time"]
-        elif time_gap <= 10 and log["project"] == last_log["project"]:
+        elif time_gap <= 10 and log["project"] and log["project"] == last_log["project"]:
             last_log["to_time"] = log["to_time"]
-        elif time_gap <= 10 and log["meeting"] == last_log["meeting"]:
+        elif time_gap <= 10 and log["meeting"] and log["meeting"] == last_log["meeting"]:
             last_log["to_time"] = log["to_time"]
         else:
             log['from_time'] = log['from_time'] + timedelta(seconds=1)
             merged_logs.append(log)
 
     return merged_logs
-
-
-
+    
 def create_timesheet_logs():
     work_sumaries = frappe.get_all(
         "Productify Work Summary",
@@ -1215,7 +1220,7 @@ def create_timesheet_logs():
                 activity_type = "Task"
             elif log.get("project"):
                 activity_type = "Project"
-            
+
             timesheet.append("time_logs", {
                 "activity_type": activity_type,
                 "task": log.get("task"),

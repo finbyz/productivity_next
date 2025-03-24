@@ -48,7 +48,7 @@
  "fields": [
   {
    "fieldname": "organization_name",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Organization Name",
    "options": "Company",
@@ -287,7 +287,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-19 11:56:12.447759",
+ "modified": "2025-03-15 12:24:07.342394",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Subscription",

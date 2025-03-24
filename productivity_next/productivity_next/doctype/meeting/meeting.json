@@ -60,7 +60,12 @@
   "total_expense",
   "amended_from",
   "customer",
-  "opportunity"
+  "opportunity",
+  "section_break_zjhq",
+  "task",
+  "column_break_vkqu",
+  "issue",
+  "column_break_cadn"
  ],
  "fields": [
   {
@@ -383,22 +388,34 @@
    "label": "End UUID"
   },
   {
-   "fieldname": "issue",
-   "fieldtype": "Link",
-   "label": "Issue",
-   "options": "Issue"
+   "fieldname": "section_break_zjhq",
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "task",
    "fieldtype": "Link",
    "label": "Task",
    "options": "Task"
+  },
+  {
+   "fieldname": "column_break_vkqu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "label": "Issue",
+   "options": "Issue"
+  },
+  {
+   "fieldname": "column_break_cadn",
+   "fieldtype": "Column Break"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-03-21 11:19:31.384374",
+ "modified": "2024-12-04 18:23:23.578095",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
