@@ -391,7 +391,7 @@ def get_deployment_rate_data(filters):
     
     # Get all employees
     employees = frappe.db.sql("""
-        SELECT name, employee_name
+        SELECT name, employee_name, user_id
         FROM `tabEmployee`
         WHERE status = 'Active'
     """, as_dict=True)
@@ -576,9 +576,21 @@ def get_deployment_rate_data(filters):
                 resource_based_intervals.append((interval['start_time'], interval['end_time']))
             elif project in hourly_projects:
                 hourly_based_intervals.append((interval['start_time'], interval['end_time']))
-        # Calculate non-overlapping hours for each project type
+                
+        # Calculate non-overlapping hours for dedicated hours (resource-based projects)
         dedicated_hours = calculate_non_overlapping_hours(resource_based_intervals)
-        support_hours = calculate_non_overlapping_hours(hourly_based_intervals)
+        user = emp.user_id
+        # MODIFIED: Get support hours from Issue's time involvement table instead of hourly-based projects
+        # Query to get sum of involvement hours from issues for this employee in date range
+        support_hours_data = frappe.db.sql(f"""
+            SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
+            FROM `tabIssue` i
+            JOIN `tabTime Involvement` ti ON ti.parent = i.name
+            WHERE ti.user_name = '{user}'
+            AND ti.date BETWEEN '{from_date}' AND '{to_date}'
+        """, as_dict=True)
+        
+        support_hours = support_hours_data[0].total_support_hours if support_hours_data else 0
         
         # Calculate total billable hours
         total_billable = dedicated_hours + support_hours
@@ -611,7 +623,6 @@ def get_deployment_rate_data(filters):
     result_data.sort(key=lambda x: -x.get('percentage_billable', 0) if x.get('employee_name') != 'Total' else -999)
     
     return result_data
-
 
 def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys):
     
