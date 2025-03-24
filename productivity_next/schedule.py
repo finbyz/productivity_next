@@ -1156,46 +1156,156 @@ def update_due_period():
 
     frappe.db.commit()
 
-import frappe
-from frappe.utils import get_datetime
 
-def merge_continuous_logs(logs):
-    if not logs:
-        return []
+
+def merge_logs(logs):
+    logs.sort(key=lambda x: x["from_time"])
     
-    logs.sort(key=lambda x: x["from_time"])  
-    merged_logs = [logs[0]]
-    for log in logs[1:]:
+    merged_logs = []
+    
+    for log in logs:
+        if not merged_logs:
+            merged_logs.append(log)
+            continue
+        
         last_log = merged_logs[-1]
         time_gap = (log["from_time"] - last_log["to_time"]).total_seconds()
         
-        if time_gap <= 10 and log["task"] == last_log["task"]:
-            last_log["to_time"] = log["to_time"]
-        elif time_gap <= 10 and log["issue"] and log["issue"] == last_log["issue"]:
-            last_log["to_time"] = log["to_time"]
-        elif time_gap <= 10 and log["project"] and log["project"] == last_log["project"]:
-            last_log["to_time"] = log["to_time"]
-        elif time_gap <= 10 and log["meeting"] and log["meeting"] == last_log["meeting"]:
-            last_log["to_time"] = log["to_time"]
+        priority_keys = ["task", "issue", "project"]
+        
+        key_changed = any(
+            log.get(key) and log[key] != last_log.get(key)
+            for key in priority_keys
+        )
+        
+        both_none = all(log.get(key) is None and last_log.get(key) is None for key in priority_keys)
+        
+        if time_gap <= 10 and not key_changed and (both_none or any(log.get(key) == last_log.get(key) for key in priority_keys)):
+            last_log["to_time"] = max(last_log["to_time"], log["to_time"])
+        
+        elif log["from_time"] <= last_log["to_time"]:
+            if log["to_time"] <= last_log["to_time"]:
+                continue
+            if log["from_time"] < last_log["to_time"]:
+                last_log["to_time"] = log["from_time"]
+            
+            merged_logs.append(log)        
         else:
-            log['from_time'] = log['from_time'] + timedelta(seconds=1)
+            log["from_time"] = max(log["from_time"], last_log["to_time"] + timedelta(seconds=1))
             merged_logs.append(log)
+    
+    return merged_logs
 
     return merged_logs
+def split_logs(merged_logs, new_logs):
+    updated_logs = []
+    i, j = 0, 0
+
+    while i < len(merged_logs) or j < len(new_logs):
+        if j >= len(new_logs): 
+            updated_logs.append(merged_logs[i])
+            i += 1
+            continue
+
+        if i >= len(merged_logs): 
+            updated_logs.append(new_logs[j])
+            j += 1
+            continue
+
+        old_log = merged_logs[i]
+        new_log = new_logs[j]
+
+        if new_log["to_time"] <= old_log["from_time"]:
+            updated_logs.append(new_log)
+            j += 1
+        elif new_log["from_time"] >= old_log["to_time"]:
+            updated_logs.append(old_log)
+            i += 1
+        else:
+            if old_log["from_time"] < new_log["from_time"]:
+                updated_logs.append({
+                    **old_log,
+                    "to_time": new_log["from_time"]
+                })
+            updated_logs.append(new_log)
+            j += 1
+            
+            if old_log["to_time"] > new_log["to_time"]:
+                merged_logs[i]["from_time"] = new_log["to_time"]
+            else:
+                i += 1
+    for k in range(1, len(updated_logs)):
+        if updated_logs[k]["from_time"] < updated_logs[k - 1]["to_time"]:
+            updated_logs[k]["from_time"] = updated_logs[k - 1]["to_time"]
+    return updated_logs
+
+def get_employee_meetings(employee, date):
+    data = frappe.db.sql(f"""
+        SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, m.internal_meeting
+        FROM `tabMeeting` as m
+        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59'
+        """, as_dict=True)
+    return data
+
+def group_logs_by_employee(logs):
+    employee_logs = {}
+    for log in logs:
+        employee = log.get("employee")
+        if employee not in employee_logs:
+            employee_logs[employee] = []
+        employee_logs[employee].append(log)
+    return employee_logs
+
     
 def create_timesheet_logs():
-    work_sumaries = frappe.get_all(
-        "Productify Work Summary",
-        filters={"date": today()},
-        fields=["name", "date", "employee"]
+    applications = frappe.get_all(
+        "Application Usage log",
+        fields=["employee","from_time","to_time","task","issue","project"],
+        filters={
+            "date": ["between",[today(),today()]],
+        }
     )
     
-    for work_summary in work_sumaries:
-        applications = frappe.get_all("Productify Work Summary Application", filters={"parent": work_summary["name"]}, fields=[ "meeting", "issue", "task", "project", "from_time", "to_time"])
-        existing_timesheets = frappe.get_all(
+    calls = frappe.get_all(
+        "Employee Fincall",
+        fields=["name as call_id","employee","call_datetime as from_time","ADDTIME(call_datetime, SEC_TO_TIME(duration)) as to_time", "issue", "task", "project"],
+        filters={
+            "call_datetime": ["between",[today(),today()]],
+        }
+    )
+    
+    merged_logs = {}
+    applications = group_logs_by_employee(applications)
+    calls = group_logs_by_employee(calls)
+    employees = frappe.get_all('List of User', fields=['employee'],pluck='employee')
+    
+    # merge application logs
+    for employee, logs in applications.items():
+        merged_logs[employee] = merge_logs(logs)
+    
+
+    # split meeting logs
+    for employee in employees:
+        meetings = get_employee_meetings(employee, today())
+        merged_logs[employee] = split_logs(merged_logs.get(employee,[]),meetings)
+    
+    # split call logs
+    for employee, logs in calls.items():
+        merged_logs[employee] = split_logs(merged_logs.get(employee,[]),logs)
+    
+    for employee in employees:
+        
+        existing_timesheets = frappe.get_list(
             "Timesheet",
-            filters={"employee": work_summary["employee"], "status": "Draft"},
-            fields=["name"]
+            filters={
+                "employee": employee,
+                "status": "Draft",
+                "is_created_by_productify": 1,
+                "start_date": today(),
+            },
+            fields=["name"],
+            limit=1
         )
 
         if existing_timesheets:
@@ -1203,10 +1313,13 @@ def create_timesheet_logs():
             timesheet.time_logs = []
         else:
             timesheet = frappe.new_doc("Timesheet")
-            timesheet.employee = work_summary["employee"]
+            timesheet.employee = employee
         timesheet.is_created_by_productify = True
-        merged_logs = merge_continuous_logs(applications)
-        for log in merged_logs:
+        employee_merged_logs = merged_logs.get(employee, [])
+        if not employee_merged_logs:
+            continue
+        for log in employee_merged_logs:
+            log["to_time"] = log["to_time"] - timedelta(seconds=1)
             seconds = (log["to_time"] - log["from_time"]).total_seconds()
             hours = seconds / 3600
             if seconds < 0:
@@ -1220,6 +1333,8 @@ def create_timesheet_logs():
                 activity_type = "Task"
             elif log.get("project"):
                 activity_type = "Project"
+            elif log.get("call_id"):
+                activity_type = "Call"
 
             timesheet.append("time_logs", {
                 "activity_type": activity_type,
@@ -1230,4 +1345,10 @@ def create_timesheet_logs():
                 "from_time": log["from_time"],
                 "to_time": log["to_time"]
             })
-        timesheet.save()
+        try:
+            if timesheet.time_logs:
+                timesheet.save()
+        except Exception as e:
+            frappe.log_error(f"Failed to create timesheet for {employee}",e)
+            
+
