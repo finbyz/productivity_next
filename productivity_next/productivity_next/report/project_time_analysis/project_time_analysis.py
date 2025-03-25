@@ -79,7 +79,25 @@ def get_columns(filters):
                 "label": _("% Billable"),
                 "fieldtype": "Percent",
                 "width": 100
-            }
+            },
+            {
+                "fieldname": "internal_hours",
+                "label": _("Internal Task Hours"),
+                "fieldtype": "Float",
+                "width": 100
+            },
+            {
+                "fieldname": "non_hourly_issue_hours",
+                "label": _("Non-Hourly Issue Hours"),
+                "fieldtype": "Float",
+                "width": 150
+            },
+            {
+                "fieldname": "total_utilized_hours",
+                "label": _("Total Utilised Hours"),
+                "fieldtype": "Float",
+                "width": 150
+            },
         ]
         return columns
     
@@ -384,7 +402,8 @@ def get_data(filters):
 
 def get_deployment_rate_data(filters):
     """
-    Generate deployment rate report data similar to the screenshot format
+    Generate deployment rate report data with additional columns for internal tasks, 
+    non-hourly issues, and total utilized hours
     """
     from_date = filters.get("from_date")
     to_date = filters.get("to_date")
@@ -401,20 +420,17 @@ def get_deployment_rate_data(filters):
     
     # Initialize result data
     result_data = []
-    total_weekly_hours = 0
-    total_dedicated_hours = 0
-    total_support_hours = 0
-    total_billable_hours = 0
     
     # Get project types
     project_types = frappe.db.sql("""
-        SELECT name, resource_based_project, based_on_hourly_package
-        FROM `tabProject`
+        SELECT p.name, p.resource_based_project, p.based_on_hourly_package, p.customer, c.is_internal_customer
+        FROM `tabProject` p
+        JOIN `tabCustomer` c ON c.name = p.customer
     """, as_dict=True)
     
     # Create project type lookup dictionaries
     resource_projects = {p.name for p in project_types if p.resource_based_project}
-    hourly_projects = {p.name for p in project_types if p.based_on_hourly_package}
+    internal_projects = {p.name for p in project_types if p.is_internal_customer}
     
     # For each employee, calculate their hours
     for emp in employees:
@@ -444,9 +460,8 @@ def get_deployment_rate_data(filters):
         """, (employee_id, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
         
         leave_days = leaves[0].total_leaves if leaves else 0
-        
-        # Format the list for IN clause
-        project_list = "', '".join([p.name for p in project_types])
+        combined_projects = resource_projects.union(internal_projects)
+        project_list = "', '".join(combined_projects)
         project_list = f"('{project_list}')" if project_list else "(NULL)"
         
         # Application intervals query
@@ -485,7 +500,6 @@ def get_deployment_rate_data(filters):
             AND mcr.employee = '{employee_id}'
         """, as_dict=True)
         
-        # Get all valid customers for the call query
         # Get customer-project mapping
         project_customer_map = {}
         customer_projects_map = {}
@@ -550,36 +564,27 @@ def get_deployment_rate_data(filters):
                 if 'end_time' in interval and isinstance(interval['end_time'], str):
                     interval['end_time'] = frappe.utils.get_datetime(interval['end_time'])
         
-        # Group intervals by project instead of just activity type
-        project_intervals = defaultdict(list)
+        # Prepare interval categorization
+        project_intervals = {
+            'dedicated': [],     # Resource-based projects (external customers)
+            'internal': [],      # Projects with internal customers
+            'non_hourly': []     # Non-resource and non-hourly projects
+        }
         
-        # Process application intervals
-        for interval in application_intervals:
+        # Categorize intervals by project type
+        for interval in application_intervals + meeting_intervals + calls_intervals:
             project = interval.get('project')
-            if project in resource_projects:
-                project_intervals[project].append((interval['start_time'], interval['end_time']))
+            if project in resource_projects and project not in internal_projects:
+                project_intervals['dedicated'].append((interval['start_time'], interval['end_time']))
+            elif project in internal_projects:
+                project_intervals['internal'].append((interval['start_time'], interval['end_time']))
         
-        # Process meeting intervals
-        for interval in meeting_intervals:
-            project = interval.get('project')
-            if project in resource_projects:
-                project_intervals[project].append((interval['start_time'], interval['end_time']))
+        # Calculate hours for each category
+        dedicated_hours = calculate_non_overlapping_hours(project_intervals['dedicated'])
+        internal_hours = calculate_non_overlapping_hours(project_intervals['internal'])
         
-        # Process call intervals
-        for interval in calls_intervals:
-            project = interval.get('project')
-            if project in resource_projects:
-                project_intervals[project].append((interval['start_time'], interval['end_time']))
-        
-        # Calculate dedicated hours by summing non-overlapping hours per project
-        dedicated_hours = 0
-        for project, intervals in project_intervals.items():
-            # Calculate non-overlapping hours for each project separately
-            project_hours = calculate_non_overlapping_hours(intervals)
-            dedicated_hours += project_hours
-            
+        # Get support hours from Issue's time involvement table (hourly projects)
         user = emp.user_id
-        # Get support hours from Issue's time involvement table
         support_hours_data = frappe.db.sql(f"""
             SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
             FROM `tabIssue` i
@@ -590,10 +595,24 @@ def get_deployment_rate_data(filters):
             AND p.based_on_hourly_package = 1
         """, as_dict=True)
         
-        support_hours = support_hours_data[0].total_support_hours if support_hours_data else 0
+        # Get non-hourly issue hours 
+        non_hourly_issue_hours_data = frappe.db.sql(f"""
+            SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
+            FROM `tabIssue` i
+            JOIN `tabTime Involvement` ti ON ti.parent = i.name
+            JOIN `tabProject` p on i.project = p.name
+            WHERE ti.user_name = '{user}'
+            AND ti.date BETWEEN '{from_date}' AND '{to_date}'
+            AND p.based_on_hourly_package = 0 
+            AND p.resource_based_project = 0
+        """, as_dict=True)
         
-        # Calculate total billable hours
+        support_hours = support_hours_data[0].total_support_hours if support_hours_data else 0
+        non_hourly_issue_hours = non_hourly_issue_hours_data[0].total_support_hours if non_hourly_issue_hours_data else 0
+        
+        # Calculate total billable and utilized hours
         total_billable = dedicated_hours + support_hours
+        total_utilized_hours = dedicated_hours + support_hours + internal_hours + non_hourly_issue_hours
         
         # Calculate percentage billable
         percentage_billable = (total_billable / available_hours * 100) if available_hours > 0 else 0
@@ -607,17 +626,14 @@ def get_deployment_rate_data(filters):
             "weekly_hours": available_hours,
             "dedicated_hours": round(dedicated_hours, 2),
             "support_hours": round(support_hours, 2),
+            "internal_hours": round(internal_hours, 2),
+            "non_hourly_issue_hours": round(non_hourly_issue_hours, 2),
             "total_billable": round(total_billable, 2),
+            "total_utilized_hours": round(total_utilized_hours, 2),
             "percentage_billable": round(percentage_billable, 2)
         }
         
         result_data.append(employee_row)
-        
-        # Add to totals
-        total_weekly_hours += available_hours
-        total_dedicated_hours += dedicated_hours
-        total_support_hours += support_hours
-        total_billable_hours += total_billable
     
     # Sort by percentage billable in descending order
     result_data.sort(key=lambda x: -x.get('percentage_billable', 0) if x.get('employee_name') != 'Total' else -999)
