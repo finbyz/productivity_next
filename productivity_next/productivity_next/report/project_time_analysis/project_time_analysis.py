@@ -407,11 +407,14 @@ def get_deployment_rate_data(filters):
     """
     from_date = filters.get("from_date")
     to_date = filters.get("to_date")
-    
-    # Get all employees
-    employees = frappe.db.sql("""
+    employee_condition = ""
+    if filters.get("employee"):
+        employee_condition = f"AND employee = '{filters.get('employee')}'"
+
+    employees = frappe.db.sql(f"""
         SELECT employee as name, employee_name, user_id
         FROM `tabList of User`
+        WHERE 1=1 {employee_condition}
     """, as_dict=True)
     
     # Get working hours settings
