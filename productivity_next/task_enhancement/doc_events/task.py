@@ -2,10 +2,27 @@ import frappe
 from frappe import _
 
 def before_validate(self, method):
-    if not self.is_new():
-        on_update(self, method)
+    validate_parent_task(self)
         
-def on_update(doc, method):
+def validate_parent_task(self):
+    """
+    Validate parent task to ensure that a task is not made a child of itself
+    
+    Args:
+        self (Document): Task document being saved
+    """
+    
+    if self.name == self.parent_task:
+        frappe.throw(_("Task cannot be a child of itself"))
+    
+    if self.parent_task and not frappe.get_cached_value('Task', self.parent_task, 'is_group'):
+        frappe.throw(_("Is Group must be checked for parent task"))
+    
+    if self.parent_task and frappe.get_cached_value("Task", self.parent_task, "project") != self.project:
+        frappe.throw(_("Parent Task must belong to the same project"))
+        
+
+def on_update(self, method):
     """
     Update expected time in parent tasks when a task is saved
     
@@ -13,18 +30,22 @@ def on_update(doc, method):
         doc (Document): Task document being saved
         method (str): Trigger method (before_save, validate, etc.)
     """
+    
+    if self.is_new():
+        return
+
     # Skip if this is not a task or if no parent task exists
-    if doc.doctype != 'Task' or not doc.parent_task:
+    if self.doctype != 'Task' or not self.parent_task:
         return
     
     try:
         # Update only the parent tasks
-        update_parent_tasks(doc.parent_task)
+        update_parent_tasks(self.parent_task)
     except Exception as e:
         # Log detailed error for tracking
         frappe.log_error(
             title="Task Hierarchy Update Error", 
-            message=f"Error updating task hierarchy for {doc.name}: {str(e)}"
+            message=f"Error updating task hierarchy for {self.name}: {str(e)}"
         )
         # Throw a user-friendly error
         frappe.throw(_(f"Could not update task hierarchy: {str(e)}"))
@@ -56,8 +77,6 @@ def update_parent_tasks(parent_task):
 
     # Save the task with minimal checks
     try:
-        task_doc.flags.ignore_version = True
-        task_doc.flags.ignore_validate = True
         task_doc.save(ignore_permissions=True)
     except Exception as save_error:
         frappe.log_error(

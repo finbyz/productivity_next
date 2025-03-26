@@ -1196,7 +1196,6 @@ def merge_logs(logs):
     
     return merged_logs
 
-    return merged_logs
 def split_logs(merged_logs, new_logs):
     updated_logs = []
     i, j = 0, 0

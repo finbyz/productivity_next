@@ -105,26 +105,24 @@ def get_data(filters):
     return prepare_data(filters, projects, tasks)
 
 def get_projects(filters):
-    conditions = ""
+    project_filters = {}
     if filters.get('project'):
-        conditions += f" WHERE name = '{filters.get('project')}'"
+        project_filters["project"] = filters["project"]
     
-    return frappe.db.sql("""
-        SELECT 
-            name,
-            project_name as subject,
-            status,
-            priority,
-            expected_start_date,
-            expected_end_date,
-            percent_complete,
-            2 as is_group,  /* 2 for project to differentiate from tasks */
-            1 as is_project
-        FROM
-            `tabProject`
-        {conditions}
-        ORDER BY name
-    """.format(conditions=conditions), as_dict=True)
+    return frappe.get_all(
+        "Project",
+        filters=project_filters,
+        fields=[
+            "name",
+            "project_name as subject",
+            "status",
+            "priority",
+            "expected_start_date",
+            "expected_end_date",
+            "percent_complete",
+        ],
+        order_by="name"
+    )
 
 def prepare_data(filters, projects, tasks):
     data = []
@@ -155,16 +153,16 @@ def prepare_data(filters, projects, tasks):
                 "progress": project_progress_display,
                 "status_show": create_status_display(project.status),  # Now returns formatted HTML
                 "status":project.status,
-                "expected_time":"",
+                "expected_time": None,
                 "priority": project.priority,
-                "description": "",
-                "assignee": "",
-                "type":"",
+                "description": None,
+                "assignee": None,
+                "type": None,
                 "indent": 0,
                 "exp_start_date": project.expected_start_date,
                 "exp_end_date": project.expected_end_date,
-                "is_group": project.is_group,
-                "is_project": project.is_project
+                "is_group": 2,
+                "is_project": 1
             })
             data.append(project_data)
             
@@ -175,6 +173,7 @@ def prepare_data(filters, projects, tasks):
                     add_task_to_data(data, task, parent_children_map, 1, show_progress=True)
 
     return data
+
 def add_task_to_data(data, task, parent_children_map, level, show_progress=False):
     # Add the current task
     task_progress = calculate_task_progress(task.name) if show_progress else None
@@ -211,97 +210,79 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
             add_task_to_data(data, child, parent_children_map, level + 1, show_progress)
             
 
-def get_tasks(filters):
-    conditions = []
-    task_condition = ""
+def get_tasks(filters): 
+    task_filters = {}
+    task_or_filters = {}
 
     # Filter by project
     if filters.get('project'):
-        conditions.append(f"project = '{filters.get('project')}'")
+        task_filters["project"] = filters['project']
 
     # Filter by task
     if filters.get('task'):
-        task_project = frappe.db.get_value('Task', filters.get('task'), 'project')
-        if task_project:
-            conditions.append(f"project = '{task_project}'")
-            task_condition = f"""
-                (
-                    name = '{filters.get('task')}' OR 
-                    parent_task = '{filters.get('task')}' OR 
-                    name IN (
-                        SELECT name FROM tabTask 
-                        WHERE parent_task IN (
-                            SELECT name FROM tabTask 
-                            WHERE parent_task = '{filters.get('task')}'
-                        )
-                    )
-                )
-            """
+        sql = """WITH RECURSIVE `task_tree` AS (
+            SELECT * FROM `tabTask` WHERE name = '{0}' or parent_task = '{0}'
+            UNION ALL
+            SELECT t.* FROM `tabTask` t
+            INNER JOIN task_tree tt ON t.parent_task = tt.name
+        )
+        SELECT distinct name FROM task_tree;"""
+        
+        if names := [row.name for row in frappe.db.sql(sql.format(filters.get('task')), as_dict=True)]:
+            task_filters['name'] = ('in', names)
 
     # Filter out completed tasks if the flag is not set
+    status_not_in = []
     if not filters.get('show_completed_tasks'):
-        conditions.append("status != 'Completed'")
+        status_not_in.append("Completed")
+
     # Filter out cancelled tasks if the flag is not set
     if not filters.get('show_cancelled_tasks'):
-        conditions.append("status != 'Cancelled'")
+        status_not_in.append("Cancelled")
+    
+    if status_not_in and not filters.get('status'):
+        task_filters["status"] = ("not in", status_not_in)
 
     # Filter by assignee
     if filters.get("assignee"):
-        conditions.append(f"assignee = '{filters.get('assignee')}'")
+        task_or_filters["_assign"] = ("like", "%" + filters["assignee"] + "%")
+        task_or_filters["assignee"] = filters["assignee"]
 
     # Filter by expected start date range
     if filters.get("exp_start_date"):
-        conditions.append(f"exp_start_date BETWEEN '{filters.get('exp_start_date')[0]}' AND '{filters.get('exp_start_date')[1]}'")
+        task_filters["exp_start_date"] = ("between", filters["exp_start_date"])
 
     if filters.get("completed_on"):
-        conditions.append(f"completed_on BETWEEN '{filters.get('completed_on')[0]}' AND '{filters.get('completed_on')[1]}'")
+        task_filters["completed_on"] = ("between", filters["completed_on"])
 
     # Filter by status (multi-select)
     if filters.get("status"):
-        statuses = ", ".join([f"'{status}'" for status in filters.get("status")])
-        conditions.append(f"status IN ({statuses})")
+        task_filters["status"] = ("in", filters["status"])
 
-    # Combine conditions
-    where_clause = " AND ".join(conditions) if conditions else "1=1"
-    if task_condition:
-        where_clause += f" AND {task_condition}"
-
-    fields = """
-        name,
-        subject,
-        IFNULL(parent_task, '') as parent_task,
-        project,
-        status,
-        assignee as assignee,
-        priority,
-        description,
-        exp_start_date,
-        exp_end_date,
-        completed_on,
-        ROUND(expected_time, 2) as expected_time,
-        type,
-        CASE WHEN EXISTS (
-            SELECT 1 FROM tabTask t2 
-            WHERE t2.parent_task = tabTask.name
-        ) THEN 1 ELSE 0 END as is_group,
-        CASE 
-            WHEN parent_task IS NULL THEN 'grandparent'
-            ELSE 'child'
-        END as task_type,
-        0 as is_project
-    """
-
-
-    # Execute the query
-    return frappe.db.sql(f"""
-        SELECT 
-            {fields}
-        FROM
-            tabTask
-        WHERE 
-            {where_clause}
-        ORDER BY project, parent_task, name
-    """, as_dict=True)
+    fields = [
+        "name",
+        "subject",
+        "parent_task",
+        "project",
+        "status",
+        "assignee",
+        "priority",
+        "description",
+        "exp_start_date",
+        "exp_end_date",
+        "completed_on",
+        "ROUND(expected_time, 2) as expected_time",
+        "type",
+        "is_group",
+    ]
+    
+    return frappe.get_all(
+        "Task",
+        filters=task_filters,
+        or_filters=task_or_filters,
+        fields=fields,
+        order_by="project, parent_task, name"
+    )
 
 @frappe.whitelist()
 def copy_project_tasks(original_project, new_project_name, new_assignee=None):

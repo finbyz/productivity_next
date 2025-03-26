@@ -62,7 +62,8 @@ doc_events = {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
     "Task": {
-		"on_update": "productivity_next.task_enhancement.doc_events.task.before_validate",
+		"before_validate": "productivity_next.task_enhancement.doc_events.task.before_validate",
+		"on_update": "productivity_next.task_enhancement.doc_events.task.on_update",
 	}
 }
 
@@ -111,24 +112,6 @@ scheduler_events = {
         # ]
     },
 }
-
-
-fixtures = [   
-    {
-        "dt": "Custom Field",
-        "filters": [
-            ["module", "in", [
-                "Productivity Next",                     
-            ]]
-        ]
-    },
-    {
-        "dt": "Activity Type",
-        "filters": [
-            ["name", "in", ["Task","Call", "Meeting"]]
-        ]
-    },
-]
 
 # Installation
 # ------------
