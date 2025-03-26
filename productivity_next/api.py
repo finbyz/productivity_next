@@ -1807,49 +1807,37 @@ def get_user_avatar(email:str):
     }
 
 @frappe.whitelist()
-def get_user_time_on_tasks(employee, tasks):
+def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
+    tasks = json.loads(tasks)
     if not tasks:
         return []
-    tasks = frappe.parse_json(tasks)
-    task_placeholders = ", ".join(["%s"] * len(tasks)) 
-    task_time = frappe.db.sql(f"""
-        SELECT
-            child.task AS task,
-            SUM(TIMESTAMPDIFF(SECOND, from_time, to_time)) AS total_duration
-        FROM
-            `tabTimesheet Detail` AS child
-        JOIN
-            `tabTimesheet` AS parent ON child.parent = parent.name
-        WHERE
-            parent.employee = %s AND child.task IN ({task_placeholders})
-        GROUP BY child.task
-    """, [employee,*tasks], as_dict=True)
     
-    pws_times = frappe.db.sql(f"""
-        SELECT
-            PWSA.task AS task,
-            SUM(TIMESTAMPDIFF(SECOND, PWSA.from_time, PWSA.to_time)) AS total_duration
-        FROM
-            `tabProductify Work Summary` AS PWS
-        JOIN
-            `tabProductify Work Summary Application` AS PWSA ON PWS.name = PWSA.parent
-        WHERE
-            PWS.employee = %s AND PWSA.task IN ({task_placeholders})
-        GROUP BY PWSA.task
-    """, [employee,*tasks], as_dict=True)
+    filters = {}
     
-    task_duration_map = {}
+    if from_date and to_date:
+        filters["date"] = ["between", (from_date, to_date)]
 
-    for entry in task_time + pws_times:
-        task = entry["task"]
-        duration = entry["total_duration"] or 0
-        task_duration_map[task] = task_duration_map.get(task, 0) + duration
+    filters['employee'] = employee
+    filters["task"] = ["in", tasks]
+    
+    data = frappe.db.get_all(
+        "Application Usage log",
+        filters=filters,
+        fields=["task", "sum(duration) as total_duration"],
+        group_by="task"
+    )
+    
+    data_tasks = [row.task for row in data]
+    
+    for task in set(tasks):
+        if task not in data_tasks:
+            data.append(frappe._dict({
+                "task": task,
+                "total_duration": 0
+            }))
+            data_tasks.append(task)
 
-    # Convert to list of dicts
-    combined_task_times = [{"task": task, "total_duration": duration} for task, duration in task_duration_map.items()]
-
-    return combined_task_times
-
+    return data
 
 from datetime import timedelta
 def get_user_time_on_project():
