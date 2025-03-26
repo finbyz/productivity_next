@@ -107,7 +107,7 @@ def get_data(filters):
 def get_projects(filters):
     project_filters = {}
     if filters.get('project'):
-        project_filters["project"] = filters["project"]
+        project_filters["name"] = filters["project"]
     
     return frappe.get_all(
         "Project",
