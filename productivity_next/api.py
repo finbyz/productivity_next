@@ -811,6 +811,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         WHERE holiday_date BETWEEN %s AND %s
     """, (from_date, to_date), as_dict=True)
     holiday_dates = set(holiday.holiday_date for holiday in holidays)
+    
     if not frappe.db.exists("DocType", "Leave Application"):
         leaves = []
     else:
@@ -829,23 +830,40 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         if current_date in holiday_dates:
             continue
 
-        day_hours = daily_working_hours
-
-        # Check if it's a Saturday (weekday 5)
-        if date.weekday() == 5:
+        # Check if it's a Saturday (weekday 5) or Sunday (weekday 6)
+        is_saturday = date.weekday() == 5
+        is_sunday = date.weekday() == 6
+        
+        # Set initial hours based on day type
+        if is_sunday:
+            day_hours = 0  # No hours on Sunday
+        elif is_saturday:
             day_hours = saturday_working_hours
+        else:
+            day_hours = daily_working_hours
+            
+        # Skip further calculations if already 0
+        if day_hours == 0:
+            continue
+            
+        # Apply leave deductions
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
                 if leave.half_day:
-                    day_hours *= 0.5
+                    # For half-day leaves:
+                    # If Saturday, set to 0 hours (skip the day)
+                    # For other days, apply half of the daily hours
+                    if is_saturday:
+                        day_hours = 0
+                    else:
+                        day_hours *= 0.5
                 else:
-                    day_hours = 0
+                    day_hours = 0  # Full day leave
                 break
 
         total_working_hours += day_hours
 
     return total_working_hours
-
 
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])

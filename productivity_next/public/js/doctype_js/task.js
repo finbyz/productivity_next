@@ -91,5 +91,61 @@ frappe.ui.form.on("Task", {
         }
         
         frm.refresh_field("color");
-    }
+    },
+
+    // ✅ Handle Expected Start Date field before saving
+
+    
+        refresh: function(frm) {
+            // ✅ When the page loads, check if date is empty
+            if (!frm.doc.exp_start_date) {
+                frm.set_value('allow_changing_expected_start_date', 1); //  Check the checkbox
+                frm.set_df_property('exp_start_date', 'read_only', 0); //  Make editable
+            } else {
+                frm.set_df_property('exp_start_date', 'read_only', 1); //  Keep read-only
+            }
+    
+            if (!frm.doc.exp_end_date) {
+                frm.set_value('allow_changing_expected_end_date', 1); //  Check the checkbox
+                frm.set_df_property('exp_end_date', 'read_only', 0); //  Make editable
+            } else {
+                frm.set_df_property('exp_end_date', 'read_only', 1); //  Keep read-only
+            }
+        },
+    
+        validate: function(frm) {
+            // ✅ When saving, update checkbox and read-only state
+            if (frm.doc.exp_start_date) {
+                frm.set_value('allow_changing_expected_start_date', 0); //  Uncheck checkbox
+                frm.set_df_property('exp_start_date', 'read_only', 1); // Make read-only
+            } else {
+                frm.set_value('allow_changing_expected_start_date', 1); // Check checkbox
+                frm.set_df_property('exp_start_date', 'read_only', 0); // Make editable
+            }
+    
+            if (frm.doc.exp_end_date) {
+                frm.set_value('allow_changing_expected_end_date', 0); //  Uncheck checkbox
+                frm.set_df_property('exp_end_date', 'read_only', 1); // Make read-only
+            } else {
+                frm.set_value('allow_changing_expected_end_date', 1); //  Check checkbox
+                frm.set_df_property('exp_end_date', 'read_only', 0); //  Make editable
+            }
+        },
+    
+        // ✅ When checkbox changes, update field read-only state
+        allow_changing_expected_start_date: function(frm) {
+            if (frm.doc.allow_changing_expected_start_date == 1) {
+                frm.set_df_property('exp_start_date', 'read_only', 0); //  Make editable
+            } else {
+                frm.set_df_property('exp_start_date', 'read_only', 1); //  Make read-only
+            }
+        },
+    
+        allow_changing_expected_end_date: function(frm) {
+            if (frm.doc.allow_changing_expected_end_date == 1) {
+                frm.set_df_property('exp_end_date', 'read_only', 0); //  Make editable
+            } else {
+                frm.set_df_property('exp_end_date', 'read_only', 1); //  Make read-only
+            }
+        }
 });

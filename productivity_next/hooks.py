@@ -109,6 +109,16 @@ scheduler_events = {
     },
 }
 
+
+fixtures = [
+       {
+        
+         "dt": "Custom Field", 
+         "filters":[["module", "=", 'Task Enhancement']]
+	   }
+]
+
+
 # Installation
 # ------------
 
