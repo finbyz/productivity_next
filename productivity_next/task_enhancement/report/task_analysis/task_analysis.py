@@ -175,6 +175,8 @@ def prepare_data(filters, projects, tasks):
     return data
 
 def add_task_to_data(data, task, parent_children_map, level, show_progress=False):
+    if task.is_group and task.status not in ["Cancelled", "Completed"]:
+        task.status = "Open"
     # Add the current task
     task_progress = calculate_task_progress(task.name) if show_progress else None
     task_name = '  ' * level + str(task.subject)
@@ -226,7 +228,7 @@ def get_tasks(filters):
             SELECT t.* FROM `tabTask` t
             INNER JOIN task_tree tt ON t.parent_task = tt.name
         )
-        SELECT distinct name FROM task_tree;"""
+        SELECT distinct name FROM task_tree"""
         
         if names := [row.name for row in frappe.db.sql(sql.format(filters.get('task')), as_dict=True)]:
             task_filters['name'] = ('in', names)

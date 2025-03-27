@@ -35,6 +35,7 @@ frappe.query_reports["Task Analysis"] = {
             label: __("Assignee"),
             fieldtype: "Link",
             options: "User",
+            default: frappe.session.user,
         },
         {
             fieldname: "status",

@@ -2,6 +2,8 @@ import frappe
 from frappe import _
 import frappe.utils
 from frappe.desk.form.assign_to import set_status
+from frappe.desk.form.assign_to import clear
+from frappe.utils import flt
 
 from erpnext.projects.doctype.task.task import Task as _Task
 
@@ -9,7 +11,6 @@ from frappe.model.workflow import set_workflow_state_on_action, WorkflowPermissi
 
 
 class Task(_Task):
-
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
@@ -32,10 +33,41 @@ class Task(_Task):
 	def before_validate(self):
 		self.set_completed_on_and_completed_by()
 		self.set_color()
+		self.validate_parent_task()
+
+	def validate_parent_task(self):
+		"""
+		Validate parent task to ensure that a task is not made a child of itself
+		
+		Args:
+			self (Document): Task document being saved
+		"""
+		
+		if self.name == self.parent_task:
+			frappe.throw(_("Task cannot be a child of itself"))
+		
+		if self.parent_task and not frappe.get_cached_value('Task', self.parent_task, 'is_group'):
+			frappe.throw(_("Is Group must be checked for parent task"))
+		
+		if self.parent_task and frappe.get_cached_value("Task", self.parent_task, "project") != self.project:
+			frappe.throw(_("Parent Task must belong to the same project"))
 
 	def validate_status(self):
+		# Added this code
+		if self.status == "Scheduled" and (not self.exp_start_date or not self.exp_end_date):
+			frappe.throw("Expected Start Date and Expected End Date are required to set this task's status to Scheduled.")
+		
+		if self.exp_start_date and self.exp_end_date and self.status in ["Unplanned", "Open"]:
+			self.workflow_state = "Scheduled"
+			self.status = "Scheduled"
+
+		if self.is_group and self.status not in ["Open", "Completed", "Cancelled"]:
+			self.status = "Open"
+		# Code ended here
+		
 		if self.is_template and self.status != "Template":
 			self.status = "Template"
+		
 		if self.status != self.get_db_value("status") and self.status == "Completed":
 			for d in self.depends_on:
 				if frappe.db.get_value("Task", d.task, "status") not in ("Completed", "Cancelled"):
@@ -45,23 +77,80 @@ class Task(_Task):
 						).format(frappe.bold(self.name), frappe.bold(d.task))
 					)
 
-			clomplete_all_assignments(self.doctype, self.name)
+			clomplete_all_assignments(self.doctype, self.name) # Instead of closing all assignments, we will complete them
 	
 	def validate(self):
 		super().validate()
 		self.validate_status()
 	
 	def on_update(self):
+		super().on_update()
 		self.assign_to_assignee_and_task_approver()
-	
-	def validate_status(self):
-		if self.status == "Scheduled" and (not self.exp_start_date or not self.exp_end_date):
-			frappe.throw("Expected Start Date and Expected End Date are required to set this task's status to Scheduled.")
-		
-		if self.exp_start_date and self.exp_end_date and self.status in ["Unplanned", "Open"]:
-			self.workflow_state = "Scheduled"
-			self.status = "Scheduled"
-	
+		self.update_if_is_group()
+		self.update_parent_task()
+   
+	def update_parent_task(self):
+		if self.parent_task:
+			parent_tasks = frappe.db.sql(f"""
+				WITH RECURSIVE parent_task AS (
+					SELECT * FROM `tabTask` WHERE name = '{self.name}'
+					UNION ALL
+					SELECT t.* FROM `tabTask` t
+					INNER JOIN parent_task pt ON t.name = pt.parent_task
+				)
+				SELECT distinct name FROM parent_task WHERE is_group = 1
+			""", pluck='name')
+			
+			for parent_task in parent_tasks:
+				sum_child_task = frappe.db.sql(f"""
+					WITH RECURSIVE `task_tree` AS (
+						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
+						UNION ALL
+						SELECT t.* FROM `tabTask` t
+						INNER JOIN task_tree tt ON t.parent_task = tt.name
+					)
+					SELECT SUM(expected_time) AS total_expected_time
+					FROM (
+						SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
+					) AS unique_tasks
+				""")
+				
+				
+				if sum_child_task:
+					expected_time = flt(sum_child_task[0][0] or 0)
+				else:
+					expected_time = 0
+				
+				frappe.db.set_value("Task", parent_task, "expected_time", expected_time, update_modified=False)
+
+	def update_if_is_group(self):
+		if self.is_group:
+			self.status = "Open"
+			
+			sum_child_task = frappe.db.sql(f"""
+				WITH RECURSIVE `task_tree` AS (
+					SELECT * FROM `tabTask` WHERE name = '{self.name}'
+					UNION ALL
+					SELECT t.* FROM `tabTask` t
+					INNER JOIN task_tree tt ON t.parent_task = tt.name
+				)
+				SELECT SUM(expected_time) AS total_expected_time
+				FROM (
+					SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
+				) AS unique_tasks
+			""")
+			
+			if sum_child_task:
+				self.db_set('expected_time', flt(sum_child_task[0][0]))
+			else:
+				self.db_set('expected_time', 0)
+			
+	def unassign_todo(self):
+		if self.status == "Completed":
+			clomplete_all_assignments(self.doctype, self.name)
+		if self.status == "Cancelled":
+			clear(self.doctype, self.name)
+
 	def assign_to_assignee_and_task_approver(self):
 		if self.assignee and not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': self.assignee, 'status': ['!=', 'Cancelled']}):
 			frappe.desk.form.assign_to.add({
