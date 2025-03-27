@@ -213,8 +213,8 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
             
 
 def get_tasks(filters): 
-    task_filters = {}
-    task_or_filters = {"is_template": 0}
+    task_filters = {"is_template": 0}
+    task_or_filters = {}
 
     # Filter by project
     if filters.get('project'):
