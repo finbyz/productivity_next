@@ -1978,23 +1978,30 @@ def get_defaults_productivity():
 @frappe.whitelist()
 def get_employee_working_tasks():
     employees = frappe.get_list('Employee', fields=['name', 'employee_name', 'user_id'])
-
-    today = datetime.today().strftime('%Y-%m-%d')
-
-    # Fetch latest logs per employee for the current day along with task details
     latest_logs = frappe.db.sql(f"""
-        WITH latest_logs AS (
-            SELECT employee, MAX(to_time) AS max_to_time 
-            FROM `tabApplication Usage log`
-            WHERE DATE(to_time) = '{today}'  -- Filter logs from today
-            GROUP BY employee
+        WITH ranked_logs AS (
+            SELECT 
+                log.employee, 
+                log.task, 
+                log.name AS log_id, 
+                log.to_time, 
+                log.application_name,
+                ROW_NUMBER() OVER (PARTITION BY log.employee ORDER BY log.to_time DESC) AS rn
+            FROM `tabApplication Usage log` log
+            WHERE date = CURDATE() -- Filter logs from today
         )
-        SELECT log.employee, log.task, log.name AS log_id, log.to_time, log.application_name,
-            task.subject AS task_subject, task._assign, task.assignee
-        FROM `tabApplication Usage log` log
-        JOIN latest_logs latest
-        ON log.employee = latest.employee AND log.to_time = latest.max_to_time
-        LEFT JOIN `tabTask` task ON log.task = task.name;
+        SELECT 
+            rl.employee, 
+            rl.task, 
+            rl.log_id, 
+            rl.to_time, 
+            rl.application_name,
+            task.subject AS task_subject, 
+            task._assign, 
+            task.assignee
+        FROM ranked_logs rl
+        LEFT JOIN `tabTask` task ON rl.task = task.name
+        WHERE rl.rn = 1;
     """, as_dict=True)
 
     log_dict = {log["employee"]: log for log in latest_logs}
