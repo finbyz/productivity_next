@@ -4,6 +4,7 @@ import frappe.utils
 from frappe.utils.data import cint, today
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
 from datetime import timedelta
+import traceback
 
 import requests
 from .api import (
@@ -663,15 +664,26 @@ def create_productify_work_summary_today():
                 combined_applications.append(current_app)
             PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['employee']})
             for app_entry in combined_applications:
-                PWS.append('applications', {
+                PWS.append('PWS', {
                     'from_time': app_entry['start'],
                     'to_time': app_entry['end'],
                     'task': app_entry.get('task'),
                     'issue': app_entry.get('issue'),
                     'project': app_entry.get('project')
                 })
-            PWS.save()
-            # print(PWS.name)
+            try:
+                PWS.save()
+            except frappe.exceptions.LinkValidationError as le:
+                PWS.reload()
+                keys = {"project":"Project","issue":"Issue","Task":"task","Employee Fincall":"call","Meeting":"meeting"}
+                for app in PWS.get('applications',[]):
+                    for doc,field in keys.items():
+                        if not frappe.db.exists(doc,app.get(field)):
+                            app.set(field,None)
+                PWS.save()
+            except Exception as e:
+                frappe.log_error('work summary today error',traceback.print_exc())
+
 
 
 def get_employee_data(start_date, end_date):
