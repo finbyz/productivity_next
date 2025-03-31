@@ -1549,7 +1549,7 @@ def merge_activities(activities):
             )
             
             # Merge if same project and time difference is less than 60 seconds
-            if same_project and time_diff <= 60:
+            if same_project and time_diff <= 120:
                 current['to_time'] = max(to_time, current['to_time'])
             else:
                 merged.append(current)
