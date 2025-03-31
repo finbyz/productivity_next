@@ -684,7 +684,7 @@ def create_productify_work_summary_today():
                 combined_applications.append(current_app)
             PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['employee']})
             for app_entry in combined_applications:
-                PWS.append('PWS', {
+                PWS.append('applications', {
                     'from_time': app_entry['start'],
                     'to_time': app_entry['end'],
                     'task': app_entry.get('task'),
@@ -1488,7 +1488,10 @@ def create_timesheet(employee, date, activities):
         timesheet.end_date = date
         timesheet.is_created_by_productify = 1  # Add this flag
         
-        for activity in activities:
+        # Sort activities by start time to ensure proper ordering
+        activities.sort(key=lambda x: x.get('from_time', ''))
+        
+        for i, activity in enumerate(activities):
             if not activity.get('from_time') or not activity.get('to_time'):
                 print(f"Warning: Skipping activity with missing time data: {activity}")
                 continue
@@ -1508,6 +1511,15 @@ def create_timesheet(employee, date, activities):
                 activity_type = "Call"
             elif activity.get('meeting_from'):  # If it's a meeting
                 activity_type = "Meeting"
+            
+            # Check for overlap with previous activity
+            if i > 0 and activities[i-1].get('to_time'):
+                prev_to_time = activities[i-1]['to_time'] - timedelta(seconds=1)
+                if from_time < prev_to_time:
+                    from_time = prev_to_time + timedelta(seconds=1)
+                    hours = frappe.utils.time_diff_in_hours(to_time, from_time)
+                    if hours <= 0:
+                        continue
             
             timesheet.append("time_logs", {
                 "activity_type": activity_type,
@@ -1542,7 +1554,7 @@ def parse_duration(duration):
         return None
 
 def merge_activities(activities):
-    """Merge overlapping activities with improved error handling and validation"""
+    """Merge overlapping activities with proper time handling"""
     if not activities:
         return []
     
@@ -1572,18 +1584,23 @@ def merge_activities(activities):
             if not current:
                 current = activity.copy()
                 continue
-            
-            # Check if activities can be merged
-            time_diff = (from_time - get_datetime(current['to_time'])).total_seconds()
+
+            # Check if activities should be merged based on project and time overlap
             same_project = (
                 activity.get('project') == current.get('project') and
                 activity.get('task') == current.get('task')
             )
             
-            # Merge if same project and time difference is less than 60 seconds
-            if same_project and time_diff <= 120:
+            # Check for time overlap or small gap (less than 60 seconds)
+            time_gap = (from_time - current['to_time']).total_seconds()
+            has_overlap = from_time <= current['to_time']
+            small_gap = 0 <= time_gap <= 60
+            
+            if same_project and (has_overlap or small_gap):
+                # Merge the activities
                 current['to_time'] = max(to_time, current['to_time'])
             else:
+                # Add current activity to merged list and start new one
                 merged.append(current)
                 current = activity.copy()
                 
