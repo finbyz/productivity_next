@@ -1349,5 +1349,219 @@ def create_timesheet_logs():
                 timesheet.save()
         except Exception as e:
             frappe.log_error(f"Failed to create timesheet for {employee}",e)
+def generate_daily_timesheets():
+    """Generate timesheets for all employees based on application usage logs, meetings, and calls"""
+    yesterday = frappe.utils.add_days(frappe.utils.today(), -3)
+    print(f"Starting timesheet generation for date: {yesterday}")
+    
+    # Get all employees with activity
+    employees = frappe.db.sql("""
+        SELECT DISTINCT employee 
+        FROM `tabApplication Usage log` 
+        WHERE date = %s
+        UNION
+        SELECT DISTINCT mcr.employee
+        FROM `tabMeeting` m
+        JOIN `tabMeeting Company Representative` mcr ON m.name = mcr.parent
+        WHERE m.docstatus = 1
+        AND DATE(m.meeting_from) >= %s 
+        AND Date(m.meeting_to) <= %s
+        UNION
+        SELECT DISTINCT employee
+        FROM `tabEmployee Fincall`
+        WHERE date = %s
+    """, (yesterday, yesterday, yesterday, yesterday), as_dict=True)
+    
+    print(f"Found {len(employees)} employees with activity")
+    
+    for emp in employees:
+        if not emp.employee:
+            print(f"Warning: Skipping record with empty employee field")
+            continue
             
+        try:
+            print(f"Processing timesheet for employee: {emp.employee}")
+            
+            # Get all activities for the employee
+            activities = get_employee_activities(emp.employee, yesterday)
+            print(f"Found {len(activities)} activities for employee {emp.employee}")
+            
+            # Create and save timesheet
+            if activities:
+                create_timesheet(emp.employee, yesterday, activities)
+                print(f"Successfully created timesheet for {emp.employee}")
+            else:
+                print(f"No activities found for {emp.employee}")
+                
+        except Exception as e:
+            print(f"Error processing timesheet for {emp.employee}: {str(e)}")
 
+def get_employee_activities(employee, date):
+    """Get all activities for an employee on a given date"""
+    activities = []
+    
+    # Get application logs
+    app_logs = frappe.get_all(
+        "Application Usage log",
+        filters={"date": date, "employee": employee},
+        fields=["from_time", "to_time", "project", "task"],
+        order_by="from_time asc"
+    )
+    print(f"Found {len(app_logs)} application logs for {employee}")
+    activities.extend(app_logs)
+    
+    # Get meetings
+    meetings = frappe.db.sql("""
+        SELECT m.meeting_from as from_time, m.meeting_to as to_time, m.project
+        FROM `tabMeeting` m
+        JOIN `tabMeeting Company Representative` mcr ON m.name = mcr.parent
+        WHERE mcr.employee = %s
+        AND m.docstatus = 1
+        AND DATE(m.meeting_from) >= %s
+        AND DATE(m.meeting_to) <= %s
+    """, (employee, date, date), as_dict=True)
+    print(f"Found {len(meetings)} meetings for {employee}")
+    activities.extend(meetings)
+    
+    # Get calls
+    calls = frappe.get_all(
+        "Employee Fincall",
+        filters={"date": date, "employee": employee},
+        fields=["call_datetime", "duration", "project"],
+        order_by="call_datetime asc"
+    )
+    print(f"Found {len(calls)} calls for {employee}")
+    
+    # Convert call durations to end times
+    for call in calls:
+        if call.duration:
+            duration_seconds = parse_duration(call.duration)
+            if duration_seconds:
+                activities.append({
+                    "from_time": call.call_datetime,
+                    "to_time": call.call_datetime + timedelta(seconds=duration_seconds),
+                    "project": call.project
+                })
+    
+    merged_activities = merge_activities(activities)
+    print(f"After merging, found {len(merged_activities)} activities for {employee}")
+    return merged_activities
+
+def create_timesheet(employee, date, activities):
+    """Create timesheet from activities"""
+    try:
+        timesheet = frappe.new_doc("Timesheet")
+        timesheet.employee = employee
+        timesheet.start_date = date
+        timesheet.end_date = date
+        timesheet.is_created_by_productify = 1  # Add this flag
+        
+        for activity in activities:
+            if not activity.get('from_time') or not activity.get('to_time'):
+                print(f"Warning: Skipping activity with missing time data: {activity}")
+                continue
+                
+            hours = frappe.utils.time_diff_in_hours(activity['to_time'], activity['from_time'])
+            if hours <= 0:
+                print(f"Warning: Skipping activity with invalid hours: {activity}")
+                continue
+                
+            # Add a small gap between activities to prevent overlap
+            from_time = activity['from_time']
+            to_time = activity['to_time'] - timedelta(seconds=1)
+            
+            # Determine activity type based on the source
+            activity_type = "Task"  # Default for application logs
+            if activity.get('call_datetime'):  # If it's a call
+                activity_type = "Call"
+            elif activity.get('meeting_from'):  # If it's a meeting
+                activity_type = "Meeting"
+            
+            timesheet.append("time_logs", {
+                "activity_type": activity_type,
+                "project": activity.get('project'),
+                "task": activity.get('task'),
+                "from_time": from_time,
+                "to_time": to_time,
+                "hours": hours
+            })
+        
+        if timesheet.time_logs:
+            timesheet.flags.ignore_permissions = True
+            timesheet.save()
+            print(f"Saved timesheet {timesheet.name} for {employee}")
+            timesheet.submit()
+            print(f"Submitted timesheet {timesheet.name} for {employee}")
+        else:
+            print(f"Warning: No valid time logs found for {employee}")
+            
+    except Exception as e:
+        print(f"Error creating timesheet for {employee}: {str(e)}")
+        raise
+
+def parse_duration(duration):
+    """Parse duration string into seconds"""
+    try:
+        if not duration:
+            return None
+        hours, minutes, seconds = map(int, duration.split(':'))
+        return hours * 3600 + minutes * 60 + seconds
+    except:
+        return None
+
+def merge_activities(activities):
+    """Merge overlapping activities with improved error handling and validation"""
+    if not activities:
+        return []
+    
+    print(f"Starting to merge {len(activities)} activities")
+    
+    # Sort activities by start time
+    activities.sort(key=lambda x: x.get('from_time', ''))
+    
+    merged = []
+    current = None
+    
+    for activity in activities:
+        try:
+            # Skip invalid activities
+            if not activity.get('from_time') or not activity.get('to_time'):
+                print(f"Warning: Skipping invalid activity: {activity}")
+                continue
+                
+            from_time = get_datetime(activity['from_time'])
+            to_time = get_datetime(activity['to_time'])
+            
+            # Skip invalid time ranges
+            if from_time >= to_time:
+                print(f"Warning: Skipping activity with invalid time range: {activity}")
+                continue
+            
+            if not current:
+                current = activity.copy()
+                continue
+            
+            # Check if activities can be merged
+            time_diff = (from_time - get_datetime(current['to_time'])).total_seconds()
+            same_project = (
+                activity.get('project') == current.get('project') and
+                activity.get('task') == current.get('task')
+            )
+            
+            # Merge if same project and time difference is less than 60 seconds
+            if same_project and time_diff <= 60:
+                current['to_time'] = max(to_time, current['to_time'])
+            else:
+                merged.append(current)
+                current = activity.copy()
+                
+        except Exception as e:
+            print(f"Error processing activity: {str(e)}")
+            continue
+    
+    # Add the last activity if exists
+    if current:
+        merged.append(current)
+    
+    print(f"Successfully merged {len(activities)} activities into {len(merged)} non-overlapping activities")
+    return merged
