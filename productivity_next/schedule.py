@@ -409,7 +409,17 @@ def create_productify_work_summary():
                 'issue': app_entry.get('issue'),
                 'project': app_entry.get('project')
             })
-        PWS.save()
+        try:
+            PWS.save()
+        except frappe.exceptions.LinkValidationError as le:
+            keys = {"project":"Project","issue":"Issue","Task":"task","Employee Fincall":"call","Meeting":"meeting"}
+            for app in PWS.get('applications',[]):
+                for doc,field in keys.items():
+                    if not frappe.db.exists(doc,app.get(field)):
+                        app.set(field,None)
+            PWS.save()
+        except Exception as e:
+            frappe.log_error('work summary today error',traceback.print_exc())
         print(PWS.name)
 
 @frappe.whitelist()
