@@ -92,12 +92,8 @@ frappe.ui.form.on("Task", {
         
         frm.refresh_field("color");
     },
-
-    // ✅ Handle Expected Start Date field before saving
-
     
         refresh: function(frm) {
-            // ✅ When the page loads, check if date is empty
             if (!frm.doc.exp_start_date) {
                 frm.set_value('allow_changing_expected_start_date', 1); //  Check the checkbox
                 frm.set_df_property('exp_start_date', 'read_only', 0); //  Make editable
@@ -114,7 +110,6 @@ frappe.ui.form.on("Task", {
         },
     
         validate: function(frm) {
-            // ✅ When saving, update checkbox and read-only state
             if (frm.doc.exp_start_date) {
                 frm.set_value('allow_changing_expected_start_date', 0); //  Uncheck checkbox
                 frm.set_df_property('exp_start_date', 'read_only', 1); // Make read-only
@@ -132,7 +127,6 @@ frappe.ui.form.on("Task", {
             }
         },
     
-        // ✅ When checkbox changes, update field read-only state
         allow_changing_expected_start_date: function(frm) {
             if (frm.doc.allow_changing_expected_start_date == 1) {
                 frm.set_df_property('exp_start_date', 'read_only', 0); //  Make editable

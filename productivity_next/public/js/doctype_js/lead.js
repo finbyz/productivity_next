@@ -1,7 +1,7 @@
 frappe.ui.form.on('Lead', {
     refresh: function(frm) {
         if (!frm.doc.__islocal) {
-            // ✅ Add Meeting Schedule Button
+            //  Add Meeting Schedule Button
             frm.add_custom_button(__("Meeting Schedule"), function () {
                 return frappe.call({
                     method: "productivity_next.api.make_meetings",
@@ -18,7 +18,7 @@ frappe.ui.form.on('Lead', {
                 })
             }, __("Create"));
 
-            // ✅ Add Meeting Button
+            //  Add Meeting Button
             frm.add_custom_button(__("Meeting"), function () {
                 return frappe.call({
                     method: "productivity_next.api.make_meetings",
@@ -36,7 +36,7 @@ frappe.ui.form.on('Lead', {
             }, __("Create"));
         }
 
-        // ✅ Fetch default values ONCE on form load
+        //  Fetch default values ONCE on form load
         frappe.call({
             method: 'productivity_next.api.get_defaults_productivity',
             callback: (response) => {
@@ -45,7 +45,7 @@ frappe.ui.form.on('Lead', {
                     frm.default_task_type = response.message.task_type || 'Lead Follow-up';
                     frm.allow_task_creation = response.message.create_task_instead_of_todo_for_lead_follow_up;
                     frm.allow_task_creation_for_opportunty =response.message.create_task_instead_of_todo_for_opportunity_follow_up;
-                    // ✅ Check if task creation is allowed
+                    //  Check if task creation is allowed
                     if (frm.allow_task_creation == 1) {
 
                         if (erpnext.utils.CRMActivities) {
@@ -53,7 +53,7 @@ frappe.ui.form.on('Lead', {
                                 async create_task() {
                                     let me = this;
 
-                                    // ✅ Use already fetched values instead of calling API again
+                                    //  Use already fetched values instead of calling API again
                                     let default_project = frm.default_project || '';
                                     let default_task_type = frm.default_task_type;
 
@@ -64,7 +64,7 @@ frappe.ui.form.on('Lead', {
                                                 fieldname: 'subject',
                                                 fieldtype: 'Data',
                                                 default: me.frm.doc.doctype === 'Lead'
-                                                    ? `Follow-up ${me.frm.doc.lead_name}`
+                                                    ? `Follow-up ${me.frm.doc.lead_name} (${me.frm.doc.company_name})`
                                                     : `Follow-up ${me.frm.doc.opportunity_name}`,
                                                 reqd: 1
                                             },
@@ -174,7 +174,7 @@ frappe.ui.form.on('Lead', {
 
                             erpnext.utils.CRMActivities = CustomCRMActivities;
 
-                            // ✅ Initialize and load tasks
+                            //  Initialize and load tasks
                             let crmActivities = new erpnext.utils.CRMActivities({
                                 frm: frm,
                                 open_activities_wrapper: frm.custom_open_activities_wrapper,

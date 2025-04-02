@@ -15,9 +15,16 @@ def execute(filters=None):
 
 def get_columns(filters):  # Added filters parameter
     columns = [
+       
         {
             "fieldname": "task",
             "label": _("Task"),
+            "fieldtype": "Data",
+            "width": 300
+        },
+        {
+            "fieldname": "id",
+            "label": _("ID"),
             "fieldtype": "Data",
             "width": 300
         },
@@ -182,16 +189,19 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
     task_name = '  ' * level + str(task.subject)
     progress_display = create_progress_display(task_progress) if show_progress else ""
     status_display = create_status_display(task.status)
+    
 
     data.append(frappe._dict({
         "task": task_name,
+        "id" :  task.name,
+        "parent_task":task.parent_task,
         "type":task.type,
         "progress": progress_display,
         "assignee": task.assignee,
         "exp_start_date": task.exp_start_date,
         "exp_end_date": task.exp_end_date,
         "status": task.status,
-        "status_show": status_display,  # Changed: Now using the formatted status
+        "status_show": status_display,  
         "expected_time":task.expected_time,
         "priority": task.priority,
         "description": task.description,
@@ -288,61 +298,56 @@ def get_tasks(filters):
 
 @frappe.whitelist()
 def copy_project_tasks(original_project, new_project_name, new_assignee=None):
-    """
-    Copy all tasks from an original project to a new project, maintaining task hierarchy
-    
-    Args:
-        original_project (str): Name of the source project
-        new_project_name (str): Name of the destination project
-        new_assignee (str, optional): New owner for copied tasks. Defaults to original Assignees.
-    
-    Returns:
-        dict: Information about the new project and copied tasks
-    """
-    # Validate project exists
-    if not frappe.db.exists('Project', new_project_name):
-        frappe.throw(_('Project {} does not exist').format(new_project_name))
-    
-    # Use a more efficient query to get tasks
-    original_tasks = frappe.get_list('Task', 
-        filters={'project': original_project},
-        fields=['name', 'subject', 'description', 'priority', 'parent_task', 'assignee'],
-        order_by='lft'  # Ensures parent tasks are processed before children
-    )
-    
-    # Batch processing to prevent timeout
-    batch_size = 50  # Adjust based on your system's performance
-    task_mapping = {}
-
+    """Copy all tasks from one project to another"""
+    try:
+        # Get all tasks from the original project
+        tasks = frappe.get_all(
+            'Task',
+            filters={'project': original_project},
+            fields=['*'],
+            order_by='parent_task, creation'
+        )
         
-    for i in range(0, len(original_tasks), batch_size):
-        batch_tasks = original_tasks[i:i+batch_size]
+        if not tasks:
+            frappe.throw(_('No tasks found in the original project'))
         
-        for task in batch_tasks:
-            subject = task.subject
-            
-            # Prepare new task data
-            new_task_data = {
-                'doctype': 'Task',
-                'subject': subject,
-                'description': task.description,
-                'status': 'Unplanned',  # Reset status for new project
-                'priority': task.priority,
-                'project': new_project_name,
-                'assignee': new_assignee or task.assignee,
-                # Reset date fields
-                'exp_start_date': None,
-                'exp_end_date': None,
-            }
-            
+        # Dictionary to store mapping of original task IDs to new task IDs
+        task_mapping = {}
+        
+        # First pass: Create all tasks and store their mappings
+        for task in tasks:
             # Create new task document
-            new_task = frappe.get_doc(new_task_data)
+            new_task = frappe.new_doc('Task')
+            
+            # Copy all fields except name, parent_task, and system fields
+            exclude_fields = ['name', 'parent_task', 'creation', 'modified', 'modified_by', 
+                            'owner', 'docstatus', 'idx', 'exp_start_date', 'exp_end_date']
+            
+            for field, value in task.items():
+                if field not in exclude_fields:
+                    new_task.set(field, value)
+            
+            # Set new project and assignee
+            new_task.project = new_project_name
+            if new_assignee:
+                new_task.assignee = new_assignee
             
             # Handle parent-child relationships
             if task.parent_task:
                 # If parent task was already copied, use its new task ID
                 if task.parent_task in task_mapping:
                     new_task.parent_task = task_mapping[task.parent_task]
+            
+            # Set is_group=1 for parent tasks
+            if task.parent_task is None:
+                new_task.is_group = 1
+            
+            # Ensure type field is set
+            if not new_task.type:
+                new_task.type = "Consulting"
+            
+            # Set status to Open for new tasks
+            new_task.status = "Open"
             
             # Insert the new task
             new_task.insert(ignore_permissions=True)
@@ -355,12 +360,15 @@ def copy_project_tasks(original_project, new_project_name, new_assignee=None):
         
         # Commit batch to prevent memory buildup
         frappe.db.commit()
-    
-    return {
-        'message': _('Tasks copied successfully'),
-        'new_project': new_project_name,
-        'copied_tasks_count': len(task_mapping)
-    }
+        
+        return {
+            'message': _('Tasks copied successfully'),
+            'new_project': new_project_name
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error copying tasks from project {original_project} to {new_project_name}: {str(e)}", "Task Copy Error")
+        frappe.throw(_('Failed to copy tasks. Please check the error log for details.'))
 
 
 def get_progress_color(progress):
@@ -584,6 +592,7 @@ def update_task(task_id, task_data, update_mode='single'):
         frappe.db.rollback()
         frappe.log_error(frappe.get_traceback(), _("Task Update Error"))
         frappe.throw(_("Error updating task and related tasks: {0}").format(str(e)))
+        
 def update_single_task(task_name, task_data, update_description):
     """
     Update a single task with the provided data
@@ -599,8 +608,10 @@ def update_single_task(task_name, task_data, update_description):
         task.description = task_data.get('description')
     
     task.assignee = task_data.get('assignee')
+    task.parent_task = task_data.get('parent_task')
     task.exp_start_date = task_data.get('exp_start_date')
     task.exp_end_date = task_data.get('exp_end_date')
+    task.expected_time = task_data.get('expected_time')
     task.type = task_data.get('type')
     # Validate task dates
     if task.exp_start_date and task.exp_end_date and task.exp_start_date > task.exp_end_date:
@@ -883,7 +894,7 @@ def copy_single_task(task_name, new_project, new_assignee, new_parent):
     
     # Copy all standard fields
     exclude_fields = ['name', 'parent_task', 'project', 'assignee', 'creation', 
-                     'modified', 'modified_by', 'owner', 'docstatus', 'idx','depends_on', 'status', 'exp_start_date'
+                     'modified', 'modified_by', 'owner', 'docstatus', 'idx','depends_on', 'status', 'exp_start_date',
                      'exp_end_date','workflow_state']
     for field in orig_task.meta.fields:
         if field.fieldname not in exclude_fields:
@@ -895,9 +906,9 @@ def copy_single_task(task_name, new_project, new_assignee, new_parent):
     new_task.parent_task = new_parent if new_parent else None
     new_task.exp_start_date = None
     new_task.exp_end_date = None
-    new_task.custom_allow_changing_expected_end = 1
-    new_task.custom_allow_changing_expected_start = 1
-    new_task.custom_allow_changing_mark_of_week = 1
+    new_task.allow_changing_expected_end_date = 1
+    new_task.allow_changing_expected_start_date = 1
+    new_task.is_group = orig_task.is_group
     
     new_task.subject = orig_task.subject
     

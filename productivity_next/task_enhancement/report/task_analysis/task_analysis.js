@@ -1,7 +1,6 @@
 // Copyright (c) 2025, Finbyz Tech Pvt Ltd and contributors
 // For license information, please see license.txt
 
-
 function htmlEscape(str) {
     return str
         .replace(/&/g, '&amp;')
@@ -314,7 +313,6 @@ function showEditDialog(taskData, report) {
     delete taskDataWithoutProgress.progress;
     delete taskDataWithoutProgress.status_show;
 
-
     let d = new frappe.ui.Dialog({
         title: __('Edit Task'),
         fields: [
@@ -337,6 +335,32 @@ function showEditDialog(taskData, report) {
                 fieldtype: 'Link',
                 options: 'User',
                 default: taskDataWithoutProgress.assignee
+            },
+            {
+                label: __('Parent Task'),
+                fieldname: 'parent_task',
+                fieldtype: 'Link',
+                options: 'Task',
+                default: taskDataWithoutProgress.parent_task || "",
+                get_query: function() {
+                    let filters = { is_group: 1 };
+                    // Only filter by project if it's available
+                    if (taskDataWithoutProgress.project) {
+                        filters.project = taskDataWithoutProgress.project;
+                    }
+
+                    return { filters };
+                },
+                on_change: function() {
+                    let parent_task = d.get_value("parent_task");
+                    if (parent_task) {
+                        frappe.db.get_value("Task", parent_task, ["name"], function(value) {
+                            if (value) {
+                                d.set_value("parent_task", value.name);
+                            }
+                        });
+                    }
+                }
             },
             {
                 label: __('Status'),
@@ -368,12 +392,21 @@ function showEditDialog(taskData, report) {
                 default: taskDataWithoutProgress.exp_end_date
             },
             {
+                label: __('Expected Time (in hours)'),
+                fieldname: 'expected_time',
+                fieldtype: 'Float',
+                default: taskDataWithoutProgress.expected_time
+            },
+            {
                 label: __('Description'),
                 fieldname: 'description',
                 fieldtype: 'Text Editor',
                 default: taskDataWithoutProgress.description
             }
         ],
+
+        
+
         primary_action_label: __('Update Task'),
         secondary_action_label: taskDataWithoutProgress.is_group ? __('Update All Child Tasks') : null,
         
@@ -390,6 +423,8 @@ function showEditDialog(taskData, report) {
     }
 
     d.show();
+
+    
 }
 
 // Function to show copy dialog
