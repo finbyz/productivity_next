@@ -699,14 +699,53 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
             if 'employee_name' in interval:
                 grouped_data[key]['details']['employee_name'] = interval['employee_name']
     
+    # Get all users who have issue hours
+    issue_users = frappe.db.sql(f"""
+        SELECT DISTINCT ti.user_name, i.project
+        FROM `tabIssue` i
+        JOIN `tabTime Involvement` ti ON ti.parent = i.name
+        WHERE ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
+    """, as_dict=True)
+    
+    # Add entries for users who only have issue hours
+    for issue_user in issue_users:
+        user_id = issue_user.user_name
+        project = issue_user.project
+        employee = frappe.db.get_value('Employee', {'user_id': user_id}, ['name', 'employee_name'], as_dict=True)
+        
+        if employee:
+            # Create a key for this user and project
+            key_parts = []
+            for k in group_keys:
+                if k == 'employee_id':
+                    key_parts.append(employee.name)
+                elif k == 'project':
+                    key_parts.append(project)
+                elif k == 'date' and 'date' in filters:
+                    key_parts.append(filters.get('date'))
+                else:
+                    key_parts.append('')
+            key = tuple(key_parts)
+            
+            # If this user doesn't already have an entry, create one
+            if key not in grouped_data:
+                grouped_data[key] = {
+                    'intervals': {
+                        'application': [],
+                        'meeting': [],
+                        'call': []
+                    },
+                    'details': {
+                        'employee_id': employee.name,
+                        'employee_name': employee.employee_name,
+                        'project': project
+                    }
+                }
+    
     # Calculate non-overlapping time for each group
     result_data = []
     
     for key, data in grouped_data.items():
-        # Skip if no intervals
-        if not any(data['intervals'].values()):
-            continue
-        
         # Calculate non-overlapping hours for each activity type and total
         app_hours = calculate_non_overlapping_hours(data['intervals']['application'])
         meeting_hours = calculate_non_overlapping_hours(data['intervals']['meeting'])
@@ -753,11 +792,11 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
             result_row['employee_name'] = data['details']['employee_name']
             
             # Get issue hours for this employee
-            if 'employee_id' in data['details']:
+            if 'employee_id' in data['details'] and 'project' in data['details']:
                 employee_id = data['details']['employee_id']
+                project = data['details']['project']
                 user_id = frappe.db.get_value('Employee', employee_id, 'user_id')
-                if user_id and 'project' in data['details']:
-                    project = data['details']['project']
+                if user_id:
                     issue_hours_data = frappe.db.sql(f"""
                         SELECT COALESCE(SUM(ti.time_involvement), 0) as total_issue_hours
                         FROM `tabIssue` i
@@ -768,7 +807,9 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
                     """, as_dict=True)
                     result_row['issue_hours'] = round(issue_hours_data[0].total_issue_hours, 2) if issue_hours_data else 0
         
-        result_data.append(result_row)
+        # Only add to result if there are any hours (total or issue)
+        if result_row['total_hours'] > 0 or result_row['issue_hours'] > 0:
+            result_data.append(result_row)
     
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
