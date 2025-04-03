@@ -97,7 +97,7 @@ def get_columns(filters):
                 "label": _("Total Utilised Hours"),
                 "fieldtype": "Float",
                 "width": 150
-            },
+            }
         ]
         return columns
     
@@ -155,6 +155,12 @@ def get_columns(filters):
                 "label": _("Call Hours"),
                 "fieldtype": "Float",
                 "width": 100
+            },
+            {
+                "fieldname": "issue_hours",
+                "label": _("Issue Hours"),
+                "fieldtype": "Float",
+                "width": 100
             }
         ])
     
@@ -171,10 +177,6 @@ def get_data(filters):
     to_date = filters.get("to_date")
     project = filters.get("project")
     employee = filters.get("employee")
-    
-    # Get daily working hours settings
-    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_per_day')
-    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_on_saturday')
     
     # Prepare internal project condition
     is_internal = 1 if filters.get("is_internal_project") else 0
@@ -344,7 +346,8 @@ def get_data(filters):
         application_intervals, 
         meeting_intervals, 
         calls_intervals,
-        calculate_keys
+        calculate_keys,
+        filters
     )
     
     # If we don't need to show employee data, aggregate across employees for each project
@@ -369,7 +372,8 @@ def get_data(filters):
                     'total_hours': 0,
                     'application_hours': 0,
                     'meeting_hours': 0,
-                    'call_hours': 0
+                    'call_hours': 0,
+                    'issue_hours': 0
                 })
                 aggregated_result[key] = new_row
             
@@ -378,6 +382,7 @@ def get_data(filters):
             aggregated_result[key]['application_hours'] += row.get('application_hours', 0)
             aggregated_result[key]['meeting_hours'] += row.get('meeting_hours', 0)
             aggregated_result[key]['call_hours'] += row.get('call_hours', 0)
+            aggregated_result[key]['issue_hours'] += row.get('issue_hours', 0)
         
         # Convert back to list
         result_data = list(aggregated_result.values())
@@ -391,6 +396,7 @@ def get_data(filters):
         row['application_hours'] = round(row.get('application_hours', 0), 2)
         row['meeting_hours'] = round(row.get('meeting_hours', 0), 2)
         row['call_hours'] = round(row.get('call_hours', 0), 2)
+        row['issue_hours'] = round(row.get('issue_hours', 0), 2)
     
     # Sort results appropriately based on filters
     if filters.get("show_daily_data"):
@@ -643,7 +649,7 @@ def get_deployment_rate_data(filters):
     
     return result_data
 
-def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys):
+def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys, filters):
     
     """
     Optimized function that calculates time aggregates without repeated calls to merge_intervals.
@@ -733,7 +739,8 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
             'total_hours': total_hours,
             'application_hours': app_hours,
             'meeting_hours': meeting_hours,
-            'call_hours': call_hours
+            'call_hours': call_hours,
+            'issue_hours': 0  # Initialize issue hours to 0
         }
         
         # Add group keys from details
@@ -744,6 +751,22 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
         # Add employee name if present
         if 'employee_name' in data['details']:
             result_row['employee_name'] = data['details']['employee_name']
+            
+            # Get issue hours for this employee
+            if 'employee_id' in data['details']:
+                employee_id = data['details']['employee_id']
+                user_id = frappe.db.get_value('Employee', employee_id, 'user_id')
+                if user_id and 'project' in data['details']:
+                    project = data['details']['project']
+                    issue_hours_data = frappe.db.sql(f"""
+                        SELECT COALESCE(SUM(ti.time_involvement), 0) as total_issue_hours
+                        FROM `tabIssue` i
+                        JOIN `tabTime Involvement` ti ON ti.parent = i.name
+                        WHERE ti.user_name = '{user_id}'
+                        AND i.project = '{project}'
+                        AND ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
+                    """, as_dict=True)
+                    result_row['issue_hours'] = round(issue_hours_data[0].total_issue_hours, 2) if issue_hours_data else 0
         
         result_data.append(result_row)
     
