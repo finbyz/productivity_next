@@ -684,7 +684,7 @@ def create_productify_work_summary_today():
                 combined_applications.append(current_app)
             PWS = frappe.get_doc('Productify Work Summary', {'date': date,'employee':i['employee']})
             for app_entry in combined_applications:
-                PWS.append('PWS', {
+                PWS.append('applications', {
                     'from_time': app_entry['start'],
                     'to_time': app_entry['end'],
                     'task': app_entry.get('task'),
