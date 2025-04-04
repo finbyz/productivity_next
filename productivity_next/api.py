@@ -1977,7 +1977,7 @@ def get_defaults_productivity():
 
 @frappe.whitelist()
 def get_employee_working_tasks():
-    employees = frappe.get_all('Employee', fields=['name', 'employee_name', 'user_id'], filters={'status': 'Active'})
+    employees = frappe.get_list('Employee', fields=['name', 'employee_name', 'user_id'], filters={'status': 'Active'})
     latest_logs = frappe.db.sql(f"""
         WITH ranked_logs AS (
             SELECT 
