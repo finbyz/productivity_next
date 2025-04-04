@@ -118,13 +118,14 @@
   {
    "fieldname": "date",
    "fieldtype": "Date",
+   "in_standard_filter": 1,
    "label": "Date",
    "read_only": 1
   }
  ],
  "image_field": "screenshot",
  "links": [],
- "modified": "2025-02-27 11:27:00.912521",
+ "modified": "2025-04-04 14:07:26.590610",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",
