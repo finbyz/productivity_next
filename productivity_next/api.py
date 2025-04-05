@@ -1983,9 +1983,11 @@ def get_employee_working_tasks():
             SELECT 
                 log.employee, 
                 log.task, 
+                log.project, 
                 log.name AS log_id, 
                 log.to_time, 
                 log.application_name,
+                log.application_title,
                 ROW_NUMBER() OVER (PARTITION BY log.employee ORDER BY log.to_time DESC) AS rn
             FROM `tabApplication Usage log` log
             WHERE date = CURDATE() -- Filter logs from today
@@ -1993,14 +1995,18 @@ def get_employee_working_tasks():
         SELECT 
             rl.employee, 
             rl.task, 
+            rl.project, 
+            project.project_name, 
             rl.log_id, 
             rl.to_time, 
             rl.application_name,
+            rl.application_title,
             task.subject AS task_subject, 
             task._assign, 
             task.assignee
         FROM ranked_logs rl
         LEFT JOIN `tabTask` task ON rl.task = task.name
+        LEFT JOIN `tabProject` project ON rl.project = project.name
         WHERE rl.rn = 1;
     """, as_dict=True)
 
@@ -2021,6 +2027,9 @@ def get_employee_working_tasks():
             task_details = {
                 'log_id': log.log_id,
                 'application_name': log.application_name,
+                'application_title': log.application_title,
+                'project': log.project,
+                'project_name': log.project_name,
                 'task': log.task,
                 'task_subject': log.task_subject,
                 'to_time': log.to_time,
