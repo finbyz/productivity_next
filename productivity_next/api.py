@@ -1870,7 +1870,7 @@ def get_tasks(assignee, start_date, end_date):
         .where(
             (
                 (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
-                & (Task.exp_start_date.between(start_date, end_date))
+                & (Task.exp_start_date.lte(start_date))
                 & (
                     (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
                 )
