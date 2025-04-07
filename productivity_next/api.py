@@ -28,6 +28,7 @@ from frappe.utils import (
 
 from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
 from geopy.distance import geodesic
+from frappe.query_builder import Order
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1884,6 +1885,7 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
                 & (Task.completed_by == assignee)
             )
         )
+        .orderby(Task.modified, order=Order.desc)
     )
 
     tasks = query.run(as_dict=True)
