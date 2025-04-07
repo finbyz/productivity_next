@@ -1859,9 +1859,12 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
 
 
 @frappe.whitelist()
-def get_tasks(assignee, start_date, end_date):
-    if not assignee:
-        return []
+def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
+    if filters:
+        filters = frappe.parse_json(filters)
+        return {
+            "data": frappe.get_list("Task",filters=filters,fields=['*'])
+        }
     Task = DocType("Task")
     
     query = (
