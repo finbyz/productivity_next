@@ -404,6 +404,7 @@ def add_meeting(
     meeting_company_representative,
     meeting_party_representative,
     project=None,
+    task=None,
     latitude=None,
     longitude=None
 ):
@@ -421,6 +422,8 @@ def add_meeting(
     meeting.purpose = purpose
     if project:
         meeting.project = project
+    if task:
+        meeting.task = task
     # meeting.industry = industry if industry else None
     meeting.party_type = party_type if party_type else None
     meeting.party = party if party else None
