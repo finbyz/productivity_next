@@ -6,7 +6,7 @@ from frappe.desk.form.assign_to import get
 from frappe.share import notify_assignment
 import frappe.utils
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
-from frappe.utils import nowdate
+from frappe.utils import nowdate, today
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
 from frappe.utils import flt
@@ -2031,7 +2031,10 @@ def get_employee_working_tasks():
 
             if log.assignee and log.assignee not in assignees:
                 assignees.append(log.assignee)
-
+            spent_time = get_user_time_on_tasks(employee.name,json.dumps([log.task]),from_date=today(),to_date=today())
+            if not spent_time:
+                spent_time = 0
+            spent_time = spent_time[0].total_duration
             task_details = {
                 'log_id': log.log_id,
                 'application_name': log.application_name,
@@ -2042,6 +2045,7 @@ def get_employee_working_tasks():
                 'task_subject': log.task_subject,
                 'to_time': log.to_time,
                 'assignees': assignees,
+                'spent_time': spent_time
             }
 
         employee_tasks[employee.name] = {
