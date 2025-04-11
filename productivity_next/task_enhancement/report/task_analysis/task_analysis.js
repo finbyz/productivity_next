@@ -40,20 +40,22 @@ frappe.query_reports["Task Analysis"] = {
             fieldname: "status",
             label: __("Status"),
             fieldtype: "MultiSelectList",
-            options: ["Open", "Unplanned", "Scheduled", "Overdue", "Completed", "Cancelled", "In-Progress", "Pending Review"],
+            options: [],
+            default: ["Open", "Scheduled", "Overdue", "In-Progress", "Pending Review"],  // 👈 This is the key
             get_data: function() {
                 return [
-                    { value: "Open", description: __("Tasks that are not started") },
+                    { value: "Open", description: __("Tasks that are not started"), selected: true },
                     { value: "Unplanned", description: __("Tasks not Planned") },
-                    { value: "Scheduled", description: __("Tasks are Scheduled") },
-                    { value: "Overdue", description: __("Tasks passed due date") },
-                    { value: "In-Progress", description: __("Working on the task") },
-                    { value: "Pending Review", description: __("Tasks are to be reviewed") },
+                    { value: "Scheduled", description: __("Tasks are Scheduled"), selected: true },
+                    { value: "Overdue", description: __("Tasks passed due date"), selected: true },
+                    { value: "In-Progress", description: __("Working on the task"), selected: true },
+                    { value: "Pending Review", description: __("Tasks are to be reviewed"), selected: true },
                     { value: "Completed", description: __("Tasks that are completed") },
                     { value: "Cancelled", description: __("Tasks that are cancelled") },
                 ];
             }
-        },
+        }
+        ,
         {
             fieldname: "show_completed_tasks",
             label: __("Show Completed Tasks"),
@@ -78,6 +80,11 @@ frappe.query_reports["Task Analysis"] = {
         report.page.add_inner_button(__('Refresh'), () => {
             report.refresh();
         });
+
+        let status_filter = report.get_filter('status');
+        if (status_filter && (!status_filter.get_value() || status_filter.get_value().length === 0)) {
+            status_filter.set_value(["Open", "Scheduled","Overdue","In-Progress", "Pending Review"]);
+        }
 
         // Ensure event handlers are added after page is fully loaded
         $(document).ready(function() {
@@ -544,29 +551,44 @@ function copyProjectTasks(dialog, projectData, report) {
     }
 
     frappe.call({
-        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks',
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks_async',
         args: {
             original_project: values.original_project,
             new_project_name: values.new_project_name,
             new_assignee: values.new_assignee
         },
         freeze: true,
-        freeze_message: __('Copying Project Tasks...'),
-        callback: function(r) {
-            if (!r.exc) {
+        freeze_message: __('Starting background job to copy project tasks...'),
+        callback: function (r) {
+            if (r.message && r.message.status === 'queued') {
                 frappe.show_alert({
-                    message: __('Project tasks copied successfully'),
-                    indicator: 'green'
+                    message: r.message.message || __('Background job started to copy project tasks.'),
+                    indicator: 'blue'
                 });
-                dialog.hide();
-                report.refresh();
+
+                // Optional: listen for completion event
+                frappe.realtime.on('task_copy_done', (data) => {
+                    frappe.show_alert({
+                        message: data.message || __('Project tasks copied successfully!'),
+                        indicator: 'green'
+                    });
+                    if (dialog) dialog.hide();
+                    if (report && report.refresh) report.refresh();
+                });
             } else {
                 frappe.msgprint({
                     title: __('Error'),
                     indicator: 'red',
-                    message: r.exc
+                    message: __('Failed to start task copy background job.')
                 });
             }
+        },
+        error: function (err) {
+            frappe.msgprint({
+                title: __('Server Error'),
+                indicator: 'red',
+                message: err.message || __('Unexpected error occurred while queuing the task copy job.')
+            });
         }
     });
 }
@@ -813,6 +835,12 @@ function showTaskDialog(taskData, report) {
                     default: taskData.assignee
                 },
                 {
+                    label: __('Is Group'),
+                    fieldname: 'is_group',
+                    fieldtype: 'Check',
+                    default: taskData.is_group
+                },
+                {
                     label: __('Priority'),
                     fieldname: 'priority',
                     fieldtype: 'Select',
@@ -838,8 +866,20 @@ function showTaskDialog(taskData, report) {
             primary_action_label: __('Create Task'),
             primary_action(values) {
                 if (validateDates(values)) {
-                    createSingleTask(values);
-                    singleTaskDialog.hide();
+                    // createSingleTask(values);
+                    // singleTaskDialog.hide();
+                    checkAndUpdateParentTaskIsGroup(values.parent_task, function(isGroup) {
+                        if (isGroup) {
+                            createSingleTask(values);
+                            singleTaskDialog.hide();
+                        } else {
+                            frappe.msgprint({
+                                title: __('Error'),
+                                message: __('Failed to update the Parent Task. Cannot create a sub-task.'),
+                                indicator: 'red'
+                            });
+                        }
+                    });
                 }
             },
             secondary_action_label: __('Back'),
@@ -904,6 +944,12 @@ function showTaskDialog(taskData, report) {
                             default: taskData.assignee
                         },
                         {
+                            label: __('Is Group'),
+                            fieldname: 'is_group',
+                            fieldtype: 'Check',
+                            default: taskData.is_group
+                        },
+                        {
                             label: __('Priority'),
                             fieldname: 'priority',
                             fieldtype: 'Select',
@@ -934,8 +980,20 @@ function showTaskDialog(taskData, report) {
             primary_action_label: __('Create Tasks'),
             primary_action(values) {
                 if (validateMultipleTasks(values)) {
-                    createMultipleTasks(values);
-                    multipleTaskDialog.hide();
+                    // createMultipleTasks(values);
+                    // multipleTaskDialog.hide();
+                    checkAndUpdateParentTaskIsGroup(values.parent_task, function(isGroup) {
+                        if (isGroup) {
+                            createMultipleTasks(values);
+                            multipleTaskDialog.hide();
+                        } else {
+                            frappe.msgprint({
+                                title: __('Error'),
+                                message: __('Failed to update the Parent Task. Cannot create a sub-task.'),
+                                indicator: 'red'
+                            });
+                        }
+                    });
                 }
             },
             secondary_action_label: __('Back'),
@@ -981,6 +1039,54 @@ function showTaskDialog(taskData, report) {
         return true;
     }
 
+    function checkAndUpdateParentTaskIsGroup(task_id, callback) {
+        frappe.call({
+            method: 'frappe.client.get',
+            args: {
+                doctype: 'Task',
+                name: task_id
+            },
+            callback: function(response) {
+                if (response.message) {
+                    let task = response.message;
+    
+                    if (task.is_group) {
+                        callback(true); // Proceed if already a group
+                    } else {
+                        // Update the parent task to a group
+                        frappe.call({
+                            method: 'frappe.client.set_value',
+                            args: {
+                                doctype: 'Task',
+                                name: task_id,
+                                fieldname: 'is_group',
+                                value: 1
+                            },
+                            callback: function(updateResponse) {
+                                if (!updateResponse.exc) {
+                                    frappe.msgprint({
+                                        title: __('Updated'),
+                                        message: __('The Parent Task has been updated to a Group automatically.'),
+                                        indicator: 'green'
+                                    });
+                                    callback(true); // Now proceed to create the task
+                                } else {
+                                    frappe.msgprint({
+                                        title: __('Error'),
+                                        message: __('Failed to update the Parent Task.'),
+                                        indicator: 'red'
+                                    });
+                                    callback(false);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
+    
+
     // Task creation functions
     function createSingleTask(values) {
         frappe.call({
@@ -992,6 +1098,7 @@ function showTaskDialog(taskData, report) {
                     parent_task: values.parent_task,
                     project: values.project,
                     assignee: values.assignee,
+                    is_group : values.is_group,
                     priority: values.priority,
                     exp_start_date: values.exp_start_date,
                     exp_end_date: values.exp_end_date,
@@ -1039,6 +1146,7 @@ function showTaskDialog(taskData, report) {
                         project: values.project,
                         task: values.task,
                         assignee: task.assignee,
+                        is_group : task.is_group,
                         priority: task.priority,
                         exp_start_date: task.exp_start_date,
                         exp_end_date: task.exp_end_date,

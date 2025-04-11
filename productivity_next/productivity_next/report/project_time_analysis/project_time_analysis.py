@@ -424,8 +424,8 @@ def get_deployment_rate_data(filters):
     """, as_dict=True)
     
     # Get working hours settings
-    daily_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_per_day')
-    saturday_working_hours = frappe.db.get_single_value('Productify Subscription', 'deliverable_hours_on_saturday')
+    daily_working_hours = frappe.db.get_single_value('Productify Configuration', 'total_hours_per_day')
+    saturday_working_hours = frappe.db.get_single_value('Productify Configuration', 'total_hours_on_saturday')
     
     # Initialize result data
     result_data = []
@@ -791,8 +791,8 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
         if 'employee_name' in data['details']:
             result_row['employee_name'] = data['details']['employee_name']
             
-            # Get issue hours for this employee
-            if 'employee_id' in data['details'] and 'project' in data['details']:
+            # Get issue hours for this employee only if not showing daily data
+            if not filters.get('show_daily_data') and 'employee_id' in data['details'] and 'project' in data['details']:
                 employee_id = data['details']['employee_id']
                 project = data['details']['project']
                 user_id = frappe.db.get_value('Employee', employee_id, 'user_id')
@@ -806,9 +806,11 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
                         AND ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
                     """, as_dict=True)
                     result_row['issue_hours'] = round(issue_hours_data[0].total_issue_hours, 2) if issue_hours_data else 0
+            else:
+                result_row['issue_hours'] = 0
         
         # Only add to result if there are any hours (total or issue)
-        if result_row['total_hours'] > 0 or result_row['issue_hours'] > 0:
+        if result_row['total_hours'] > 0 or (not filters.get('show_daily_data') and result_row['issue_hours'] > 0):
             result_data.append(result_row)
     
     end_time = frappe.utils.now_datetime()

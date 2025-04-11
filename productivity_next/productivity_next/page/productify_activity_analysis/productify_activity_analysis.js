@@ -1123,6 +1123,12 @@ UserProfile = class UserProfile {
 										reqd: 1
 									},
 									{
+										label: 'Task',
+										fieldname: 'task',
+										fieldtype: 'Link',
+										options: 'Task'
+									},
+									{
 										fieldtype: 'Section Break',
 									},
 									{
@@ -1201,7 +1207,8 @@ UserProfile = class UserProfile {
 												discussion: values.discussion,
 												meeting_company_representative: values.meeting_company_representative || null,
 												meeting_party_representative: values.meeting_party_representative || null,
-												project: values.project || null  // Add project to the args
+												project: values.project || null, // Add project to the args
+												task: values.task || null
 											},
 											callback: (r) => {
 												if (r.message) {

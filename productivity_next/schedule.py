@@ -3,6 +3,7 @@ from frappe.utils import nowdate, get_datetime, format_time, format_duration,tod
 import frappe.utils
 from frappe.utils.data import cint, today
 from productivity_next.productivity_next.page.productify_consolidated_analysis.productify_consolidated_analysis import user_analysis_data
+from productivity_next.productivity_next.report.productify_activity_summary.productify_activity_summary import execute,get_data
 from datetime import timedelta
 import traceback
 
@@ -915,7 +916,7 @@ def delete_productify_error_logs():
 
 
 def delete_screenshots():
-    time_for_screenshots = frappe.db.get_single_value("Productify Subscription", "keep_screen_shots_for_days") or 60
+    time_for_screenshots = frappe.db.get_single_value("Productify Configuration", "keep_screenshots_for_days") or 60
     time_for_screenshots = int(time_for_screenshots)
     date_for_screenshots = get_datetime() - timedelta(days=time_for_screenshots)
     screenshots = frappe.get_all("Screen Screenshot Log", {"time": ("<", date_for_screenshots.strftime("%Y-%m-%d %H:%M:%S"))})
@@ -923,7 +924,7 @@ def delete_screenshots():
         frappe.delete_doc("Screen Screenshot Log", screenshot.name)
 
 def delete_application_logs():
-    time_for_application_logs = frappe.db.get_single_value("Productify Subscription", "keep_application_logs_for_days") or 60
+    time_for_application_logs = frappe.db.get_single_value("Productify Configuration", "keep_application_logs_for_days") or 60
     time_for_application_logs = int(time_for_application_logs)
     date_for_application_logs = get_datetime() - timedelta(days=time_for_application_logs)
     frappe.db.sql("""
@@ -1663,3 +1664,107 @@ def parse_duration(duration):
         return hours * 3600 + minutes * 60 + seconds
     except:
         return None
+    
+
+
+def create_working_hours_exceptions():
+    from_date = add_days(today(), -1)
+    to_date = add_days(today(), -1)
+
+    # Step 1: Get all employees
+    active_users = frappe.db.sql("""
+        SELECT employee_name,employee FROM `tabList of User`
+    """, as_dict=True)
+    
+    
+
+    # Step 2: Get all report data once (without employee filter)
+    filters = {
+        "from_date": from_date,
+        "to_date": to_date,
+        "frequency": "Daily"
+    }
+
+    all_data = get_data(filters)
+    data = all_data[0] 
+    # print(data)
+    # Step 3: Loop through each row and match with each employee
+    for row in data:
+        if isinstance(row, dict) and row:
+            employee = row.get("emp_id")
+            if not employee:
+                continue
+
+            # Check if this employee is in the active list
+            if not any(emp["employee"] == employee for emp in active_users):
+                continue
+            
+            
+            productivity_score = row.get("productivity_score")
+            total_hours = parse_hours(row.get("total_hours"))
+            # print(productivity_score)
+            if productivity_score is not None and productivity_score < 70 and total_hours < 8:
+                try:
+                    emp_id = row.get("emp_id")
+                    employee_name = row.get("employee") 
+                    starting_date = row.get("starting_date")
+                    ending_date = row.get("ending_date") or starting_date
+                    productivity_score = float(row.get("productivity_score") or 0)
+                    total_hours = parse_hours(row.get("total_hours"))
+                    active_hours = parse_hours(row.get("active_hours"))
+                    idle_hours = parse_hours(row.get("idle_hours"))
+                    average_active = parse_hours(row.get("average_active"))
+                    incoming_calls = float(row.get("incoming_calls") or 0)
+                    incoming_hours = parse_hours(row.get("incoming_hours"))
+                    outgoing_calls = float(row.get("outgoing_calls") or 0)
+                    outgoing_hours = parse_hours(row.get("outgoing_hours"))
+                    missed_calls = float(row.get("missed_calls") or 0)
+                    rejected_calls = float(row.get("rejected_calls") or 0)
+                    keyboard = float(row.get("keyboard") or 0)
+                    mouse = float(row.get("mouse") or 0)
+                    scroll = float(row.get("scroll") or 0)
+                    meetings = float(row.get("meetings") or 0)
+                    meetings_hours = parse_hours(row.get("meetings_hours"))
+                    
+                    # print("emp_id",emp_id)
+                    print(employee_name)
+                    doc = frappe.new_doc("Working Hours Exception")
+                    doc.employee = emp_id
+                    doc.employee_name = employee_name
+                    doc.starting_date = starting_date
+                    doc.ending_date = ending_date
+                    doc.productivity_score = productivity_score
+                    doc.total_hours = total_hours
+                    doc.active_hours = active_hours
+                    doc.idle_hours = idle_hours
+                    doc.average_active = average_active
+                    doc.incoming_calls = incoming_calls
+                    doc.incoming_hours = incoming_hours
+                    doc.outgoing_calls = outgoing_calls
+                    doc.outgoing_hours = outgoing_hours
+                    doc.missed_calls = missed_calls
+                    doc.rejected_calls = rejected_calls
+                    doc.keyboard = keyboard
+                    doc.mouse = mouse
+                    doc.scroll = scroll
+                    doc.meetings = meetings
+                    doc.meetings_hours = meetings_hours
+
+                    doc.insert(ignore_permissions=True)
+                    doc.save()
+                    frappe.db.commit()
+
+                except Exception as e:
+                    frappe.log_error(frappe.get_traceback(), "Working Hours Exception Insert Failed")
+                    frappe.msgprint(f"Failed to insert for {employee}: {str(e)}")
+
+
+# Utility to convert "Xh Ym" format to float hours
+def parse_hours(duration_str):
+    try:
+        if not duration_str:
+            return 0
+        hours, minutes = duration_str.split("h")
+        return int(hours.strip()) + int(minutes.replace("m", "").strip()) / 60
+    except Exception:
+        return 0

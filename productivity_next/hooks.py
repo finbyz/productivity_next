@@ -61,12 +61,6 @@ doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
-    "Lead":{
-          "on_update": "productivity_next.task_enhancement.doc_events.Lead.on_update",
-    },
-    "Opportunity":{
-          "on_update": "productivity_next.task_enhancement.doc_events.opportunity.on_update",
-    }
 }
 
 base_template_map = {

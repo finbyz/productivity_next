@@ -1,0 +1,129 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-04-09 11:35:12.767867",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "keep_screenshots_for_days",
+  "keep_application_logs_for_days",
+  "active_hours_per_day",
+  "active_hours_on_saturday",
+  "stop_duration_for_meetings",
+  "column_break_qltg",
+  "default_marketing_project",
+  "task_type",
+  "do_not_send_task_reminder_email",
+  "create_task_instead_of_todo_for_lead_follow_up",
+  "create_task_instead_of_todo_for_opportunity_follow_up",
+  "total_hours_per_day",
+  "total_hours_on_saturday"
+ ],
+ "fields": [
+  {
+   "default": "60",
+   "description": "Specify the number of days after which screenshots will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_screenshots_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Screenshots For Days"
+  },
+  {
+   "default": "60",
+   "description": "Specify the number of days after which application usage logs will be automatically deleted from the system. If not specified default is 60 days.",
+   "fieldname": "keep_application_logs_for_days",
+   "fieldtype": "Data",
+   "label": "Keep Application Logs for Days"
+  },
+  {
+   "default": "7.5",
+   "description": "Enter the number of active hours per weekday (Monday to Friday) in the format 7, 7.5, 8, etc. If not filled, the default is 7.5 hours per weekday.",
+   "fieldname": "active_hours_per_day",
+   "fieldtype": "Data",
+   "label": "Active Hours Per Day"
+  },
+  {
+   "description": "Enter the number of active hours for Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 2.5 hours for Saturday.",
+   "fieldname": "active_hours_on_saturday",
+   "fieldtype": "Data",
+   "label": "Active Hours On Saturday"
+  },
+  {
+   "default": "15",
+   "description": "Specify the number of minutes at one single point after which user will be automatically considered stop while on meeting. If not specified default is 15 minutes.",
+   "fieldname": "stop_duration_for_meetings",
+   "fieldtype": "Data",
+   "label": "Stop Duration For Meetings"
+  },
+  {
+   "fieldname": "column_break_qltg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_marketing_project",
+   "fieldtype": "Link",
+   "label": "Default Marketing Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "task_type",
+   "fieldtype": "Link",
+   "label": "Task Type",
+   "options": "Task Type"
+  },
+  {
+   "default": "0",
+   "fieldname": "do_not_send_task_reminder_email",
+   "fieldtype": "Check",
+   "label": "Do Not Send Task Reminder Email"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_task_instead_of_todo_for_lead_follow_up",
+   "fieldtype": "Check",
+   "label": "Create Task instead of Todo for Lead Follow up"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_task_instead_of_todo_for_opportunity_follow_up",
+   "fieldtype": "Check",
+   "label": "Create Task instead of Todo for Opportunity Follow up"
+  },
+  {
+   "default": "8",
+   "description": "Enter the number of total hours per weekday (Monday to Friday) in the format 7, 7.5, 8, etc. If not filled, the default is 8 hours per weekday.",
+   "fieldname": "total_hours_per_day",
+   "fieldtype": "Float",
+   "label": "Total Hours Per Day"
+  },
+  {
+   "default": "4",
+   "description": "Enter the number of total hours for Saturday in the format 7, 7.5, 8, etc. If not filled, the default is 4 hours for Saturday.",
+   "fieldname": "total_hours_on_saturday",
+   "fieldtype": "Float",
+   "label": "Total Hours On Saturday"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-04-09 17:03:03.073712",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify Configuration",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

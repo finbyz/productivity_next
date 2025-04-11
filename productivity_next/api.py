@@ -25,6 +25,7 @@ from frappe.utils import (
     now_datetime,
     validate_email_address,
 )
+from frappe.query_builder import Order
 
 from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
 from geopy.distance import geodesic
@@ -873,8 +874,8 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     data = {}
-    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
-    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+    weekday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_on_saturday')
 
     hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
     hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
@@ -1649,14 +1650,11 @@ def task_mail_remainder():
     except Exception as e:
         return f"Error: {str(e)}"
 
-
 @frappe.whitelist()
 def task_mails():
     """
-    Sends reminder emails for tasks grouped into three tables:
-    - Overdue tasks (before today, excluding certain statuses)
-    - Today's tasks
-    - Future tasks (after today, excluding certain statuses)
+    Sends reminder emails for tasks, but only to users who are listed in the "List of Users"
+    child table of the "Productify Subscription" doctype and have "Active" status.
     """
 
     today = date.today() - timedelta(days=1)  # Past Date
@@ -1664,9 +1662,22 @@ def task_mails():
     new_formatted_date = today.strftime("%d %B %Y")
     tomorrow = date.today()  # Current Date
 
+    # Fetch active users
+    active_users = frappe.db.sql("""
+        SELECT user_id FROM `tabList of User`
+    """, as_dict=True)
+
+    active_user_ids = {user["user_id"] for user in active_users}
+    # Check if task reminder emails should be sent
+    do_not_send_task_reminder_email = get_do_not_send_task_reminder_email_value()
+
+    if isinstance(do_not_send_task_reminder_email, dict) and do_not_send_task_reminder_email.get("do_not_send_task_reminder_email") in [1, "1", True]:
+        return "Task Reminder Emails are disabled."
+    
     # Fetch all tasks
     tasks = frappe.get_all(
         "Task",
+        filters={"assignee": ["in", list(active_user_ids)]},
         fields=["name as task_no", "subject", "status", "project", "exp_end_date as due_date", "assignee", "exp_start_date", "completed_by"],
         order_by="exp_end_date asc"
     )
@@ -1686,14 +1697,17 @@ def task_mails():
 
     sender_name = frappe.db.get_value("User", {"email": sender_email}, "full_name") or "Task Notification System"
 
-    # Categorize tasks into different groups
+    # Categorize tasks
     overdue_tasks = []
     today_tasks = []
     tomorrow_tasks = []
     future_tasks = []
 
     for task in tasks:
-        # Fetch project details
+        task_due_date = task.due_date
+        if not task_due_date:
+            continue
+
         if task.project:
             task.project_name = frappe.db.get_value("Project", task.project, "project_name")
             task.project_link = frappe.utils.get_url_to_form("Project", task.project)
@@ -1701,12 +1715,6 @@ def task_mails():
             task.project_name = None
             task.project_link = None
 
-        # Parse due date
-        task_due_date = task.due_date
-        if not task_due_date:
-            continue
-
-        # Categorize tasks
         if task_due_date < today and task.status not in ("Completed", "Unplanned", "Cancelled"):
             overdue_tasks.append(task)
         elif task_due_date == today and task.status != "Cancelled":
@@ -1716,7 +1724,7 @@ def task_mails():
         elif task_due_date > tomorrow and task.status not in ("Completed", "Unplanned", "Cancelled"):
             future_tasks.append(task)
 
-    # Group tasks by assignee and send emails
+    # Group tasks by assignee
     tasks_by_user = {}
     for task_list, task_type in [
         (overdue_tasks, "overdue_tasks"),
@@ -1735,16 +1743,18 @@ def task_mails():
                     }
                 tasks_by_user[task.assignee][task_type].append(task)
 
-    # Send emails to each assignee
+    # Send emails only to active users and if checkbox is unchecked
     for assignee, task_groups in tasks_by_user.items():
-        # Fetch the email address of the assignee
+        if assignee not in active_user_ids:
+            continue 
+
         recipient_email = frappe.db.get_value("User", assignee, "email")
         assignee_name = frappe.db.get_value("User", assignee, "full_name")
 
         if not recipient_email:
             continue
 
-        # **Fetch Employee Details to Get Reports To (Manager) Email**
+        # Fetch Employee Details to Get Reports To (Manager) Email
         employee_record = frappe.db.get_value(
             "Employee",
             {"user_id": recipient_email},
@@ -1756,14 +1766,12 @@ def task_mails():
         manager_cc_email = None
 
         if employee_record:
-            # Add employee's own email from User ID
             if employee_record.get("user_id"):
                 employee_cc_emails.append({
                     "email": employee_record["user_id"],
                     "name": frappe.db.get_value("User", employee_record["user_id"], "full_name")
                 })
 
-            # Fetch Reports To (Manager) Email
             if employee_record.get("reports_to"):
                 manager_email = frappe.db.get_value("Employee", employee_record["reports_to"], "user_id")
                 if manager_email:
@@ -1772,15 +1780,14 @@ def task_mails():
                         "name": frappe.db.get_value("User", manager_email, "full_name")
                     }
 
-        # **Prepare CC email list**
+        # Prepare CC email list
         dynamic_cc_emails = employee_cc_emails
         if manager_cc_email:
-            dynamic_cc_emails.append(manager_cc_email)  # Add manager to CC
+            dynamic_cc_emails.append(manager_cc_email)
 
         cc_recipients = [f'{cc["name"]} <{cc["email"]}>' for cc in dynamic_cc_emails if cc["email"]]
 
-
-        # Prepare the email context with all tasks for the user
+        # Prepare email context
         context = {
             "assignee_name": assignee_name,
             "sender_name": sender_name,
@@ -1796,13 +1803,14 @@ def task_mails():
         # Render email subject and body
         email_subject = frappe.render_template(email_template.subject, context)
         email_message = frappe.render_template(email_template.response_html, context)
+
         try:
             frappe.sendmail(
                 recipients=[recipient_email],
                 sender=sender_email,
                 subject=email_subject,
                 message=email_message,
-                cc=cc_recipients if cc_recipients else None  # Only add CC if there are recipients
+                cc=cc_recipients if cc_recipients else None
             )
         except Exception as e:
             print(f"Error sending email to {recipient_email}: {e}")
@@ -1813,12 +1821,26 @@ def task_mails():
     return "Task Reminder Emails Sent Successfully."
 
 
+
 @frappe.whitelist()
-def get_user_avatar(email:str):
-    return {
-        "user_image": frappe.get_value("User", email, "user_image"),
-        "full_name": frappe.get_value("User", email, "full_name")
-    }
+def get_do_not_send_task_reminder_email_value():
+    result = frappe.db.sql("""
+        SELECT 
+            field,
+            value
+        FROM 
+            `tabSingles`
+        WHERE 
+            doctype = 'Productify Configuration' 
+            AND field IN (
+                'do_not_send_task_reminder_email'
+            )
+    """, as_dict=True)
+
+    if result:
+        return {row["field"]: row["value"] for row in result}
+    return {}
+
 
 
 @frappe.whitelist()
@@ -1968,7 +1990,7 @@ def get_defaults_productivity():
         FROM 
             `tabSingles`
         WHERE 
-            doctype = 'Productify Subscription' 
+            doctype = 'Productify Configuration' 
             AND field IN (
                 'default_marketing_project', 
                 'task_type', 

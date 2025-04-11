@@ -166,8 +166,8 @@ def get_activity_chart_data(user = None,start_date=None, end_date=None):
     total_system_hours = total_application_duration - total_idle_duration
     toal_hours_to_show = total_time
     total_active_hours = total_time - total_idle_time
-    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
-    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+    weekday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_on_saturday')
     return {
         "total_time": total_time or 0,
         "total_system_hours": total_system_hours or 0,
@@ -865,8 +865,8 @@ def fetch_url_data(user=None,start_date=None, end_date=None):
             "count": i['count'],
         })
     # Retrieve working hours per day and on Saturday from the database
-    weekday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_per_day')
-    saturday_hours = frappe.db.get_single_value('Productify Subscription', 'working_hours_on_saturday')
+    weekday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_per_day')
+    saturday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_on_saturday')
 
     hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
     hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5

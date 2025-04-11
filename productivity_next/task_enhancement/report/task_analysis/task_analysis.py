@@ -26,69 +26,69 @@ def get_columns(filters):  # Added filters parameter
             "fieldname": "id",
             "label": _("ID"),
             "fieldtype": "Data",
-            "width": 300
+            "width": 100
         },
         {
             "fieldname": "type",
             "label": _("Type"),
             "fieldtype": "Data",
-            "width": 100
+            "width": 80
         },
         {
             "fieldname": "progress",
             "label": _(""),
             "fieldtype": "Data",
-            "width": 70
+            "width": 50
         },
         {
             "fieldname": "assignee",
             "label": _("Assignee"),
             "fieldtype": "Link",
             "options": "User",
-            "width": 200
+            "width": 120
         },
         {
             "fieldname": "exp_start_date",
             "label": _("Expected Start Date"),
             "fieldtype": "Date",
-            "width": 120
+            "width": 115
         },
         {
             "fieldname": "exp_end_date",
             "label": _("Expected End Date"),
             "fieldtype": "Date",
-            "width": 120
+            "width": 115
         },
         {
             "fieldname": "status_show",
             "label": _("Status"),
             "fieldtype": "Data",
-            "width": 120
+            "width": 80
         },
         {
             "fieldname": "expected_time",
             "label": _("Expected Time (In Hours)"),
             "fieldtype": "Data",
-            "width": 120
+            "width": 55
         },
         {
             "fieldname": "priority",
             "label": _("Priority"),
             "fieldtype": "Select",
             "options": "Low\nMedium\nHigh",
-            "width": 80
+            "width": 65
         },
         {
             "fieldname": "description",
             "label": _("Description"),
             "fieldtype": "Text Editor",
-            "width": 280
+            "width": 150
         },
         {
             "fieldname": "edit_task",
             "label": _(""),
             "fieldtype": "Button",
-            "width": 200
+            "width": 150
         }
     ]
 
@@ -251,9 +251,10 @@ def get_tasks(filters):
     # Filter out cancelled tasks if the flag is not set
     if not filters.get('show_cancelled_tasks'):
         status_not_in.append("Cancelled")
-    
+        
     if status_not_in and not filters.get('status'):
         task_filters["status"] = ("not in", status_not_in)
+        
 
     # Filter by assignee
     if filters.get("assignee"):
@@ -296,80 +297,264 @@ def get_tasks(filters):
         order_by="project, parent_task, name"
     )
 
+# @frappe.whitelist()
+# def copy_project_tasks(original_project, new_project_name, new_assignee=None):
+#     """Copy all tasks from one project to another"""
+#     try:
+#         # Get all tasks from the original project
+#         tasks = frappe.get_all(
+#             'Task',
+#             filters={'project': original_project},
+#             fields=['*'],
+#             order_by='parent_task, creation'
+#         )
+        
+#         if not tasks:
+#             frappe.throw(_('No tasks found in the original project'))
+        
+#         # Dictionary to store mapping of original task IDs to new task IDs
+#         task_mapping = {}
+        
+#         # First pass: Create all tasks and store their mappings
+#         for task in tasks:
+#             # Create new task document
+#             new_task = frappe.new_doc('Task')
+            
+#             # Copy all fields except name, parent_task, and system fields
+#             exclude_fields = ['name', 'parent_task', 'creation', 'modified', 'modified_by', 
+#                             'owner', 'docstatus', 'idx', 'exp_start_date', 'exp_end_date']
+            
+#             for field, value in task.items():
+#                 if field not in exclude_fields:
+#                     new_task.set(field, value)
+            
+#             # Set new project and assignee
+#             new_task.project = new_project_name
+#             if new_assignee:
+#                 new_task.assignee = new_assignee
+            
+#             # Handle parent-child relationships
+#             if task.parent_task:
+#                 # If parent task was already copied, use its new task ID
+#                 if task.parent_task in task_mapping:
+#                     new_task.parent_task = task_mapping[task.parent_task]
+            
+#             # Set is_group=1 for parent tasks
+#             if task.parent_task is None:
+#                 new_task.is_group = 1
+            
+#             # Ensure type field is set
+#             if not new_task.type:
+#                 new_task.type = "Consulting"
+            
+#             # Set status to Open for new tasks
+#             new_task.status = "Open"
+            
+#             # Insert the new task
+#             new_task.insert(ignore_permissions=True)
+            
+#             # Copy attachments from original task to new task
+#             copy_attachments('Task', task.name, 'Task', new_task.name)
+            
+#             # Store mapping of original task ID to new task ID
+#             task_mapping[task.name] = new_task.name
+        
+#         # Commit batch to prevent memory buildup
+#         frappe.db.commit()
+        
+#         return {
+#             'message': _('Tasks copied successfully'),
+#             'new_project': new_project_name
+#         }
+        
+#     except Exception as e:
+#         frappe.log_error(f"Error copying tasks from project {original_project} to {new_project_name}: {str(e)}", "Task Copy Error")
+#         frappe.throw(_('Failed to copy tasks. Please check the error log for details.'))
+
+# @frappe.whitelist()
+# def copy_project_tasks(original_project, new_project_name, new_assignee=None):
+#     """Copy all tasks from one project to another, preserving task hierarchy"""
+   
+#     root_tasks = frappe.get_all(
+#         "Task",
+#         filters={"project": original_project },
+#         fields=["name"],
+#         order_by="creation"
+#     )
+
+#     if not root_tasks:
+#         frappe.throw(_("No tasks found in the original project"))
+
+#     task_mapping = {}
+
+#     for root in root_tasks:
+#         copy_task_tree(
+#             task_name=root.name,
+#             new_project=new_project_name,
+#             new_assignee=new_assignee,
+#             new_parent=None,
+#             task_mapping=task_mapping
+#         )
+
+#     frappe.db.commit()
+
+#     return {
+#         "message": _("Tasks copied successfully"),
+#         "new_project": new_project_name
+#     }
+
+# def copy_task_tree(task_name, new_project, new_assignee=None, new_parent=None, task_mapping=None):
+#     """Recursively copy a task and its children, preserving the hierarchy."""
+#     if task_mapping is None:
+#         task_mapping = {}
+
+#     original_task = frappe.get_doc("Task", task_name)
+
+#     new_task = frappe.new_doc("Task")
+
+#     exclude_fields = [
+#         'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx',
+#         'project', 'parent_task', 'exp_start_date', 'exp_end_date'
+#     ]
+
+#     for field in original_task.meta.fields:
+#         if field.fieldname and field.fieldname not in exclude_fields:
+#             new_task.set(field.fieldname, original_task.get(field.fieldname))
+
+#     new_task.project = new_project
+#     new_task.parent_task = new_parent
+#     new_task.status = "Open"
+#     new_task.type = original_task.type or "Consulting"
+#     new_task.is_group = original_task.is_group
+
+#     if new_assignee:
+#         new_task.assignee = new_assignee
+#     else:
+#         new_task.assignee = original_task.assignee
+
+#     new_task.insert(ignore_permissions=True)
+
+#     # Copy attachments
+#     copy_attachments("Task", original_task.name, "Task", new_task.name)
+
+#     task_mapping[original_task.name] = new_task.name
+
+#     # Recursively copy children
+#     child_tasks = frappe.get_all(
+#         "Task",
+#         filters={"parent_task": original_task.name},
+#         fields=["name"],
+#         order_by="creation"
+#     )
+
+#     for child in child_tasks:
+#         copy_task_tree(
+#             task_name=child.name,
+#             new_project=new_project,
+#             new_assignee=new_assignee,
+#             new_parent=new_task.name,
+#             task_mapping=task_mapping
+#         )
+
+@frappe.whitelist()
+def copy_project_tasks_async(original_project, new_project_name, new_assignee=None):
+    """Enqueue background job to copy project tasks"""
+    frappe.enqueue(
+        method="productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks",
+        queue='long',
+        timeout=1800,  # 30 minutes
+        original_project=original_project,
+        new_project_name=new_project_name,
+        new_assignee=new_assignee
+    )
+    return {"status": "queued", "message": "Task copy started in background."}
+
 @frappe.whitelist()
 def copy_project_tasks(original_project, new_project_name, new_assignee=None):
-    """Copy all tasks from one project to another"""
-    try:
-        # Get all tasks from the original project
-        tasks = frappe.get_all(
-            'Task',
-            filters={'project': original_project},
-            fields=['*'],
-            order_by='parent_task, creation'
-        )
-        
-        if not tasks:
-            frappe.throw(_('No tasks found in the original project'))
-        
-        # Dictionary to store mapping of original task IDs to new task IDs
-        task_mapping = {}
-        
-        # First pass: Create all tasks and store their mappings
-        for task in tasks:
-            # Create new task document
-            new_task = frappe.new_doc('Task')
-            
-            # Copy all fields except name, parent_task, and system fields
-            exclude_fields = ['name', 'parent_task', 'creation', 'modified', 'modified_by', 
-                            'owner', 'docstatus', 'idx', 'exp_start_date', 'exp_end_date']
-            
-            for field, value in task.items():
-                if field not in exclude_fields:
-                    new_task.set(field, value)
-            
-            # Set new project and assignee
-            new_task.project = new_project_name
-            if new_assignee:
-                new_task.assignee = new_assignee
-            
-            # Handle parent-child relationships
-            if task.parent_task:
-                # If parent task was already copied, use its new task ID
-                if task.parent_task in task_mapping:
-                    new_task.parent_task = task_mapping[task.parent_task]
-            
-            # Set is_group=1 for parent tasks
-            if task.parent_task is None:
-                new_task.is_group = 1
-            
-            # Ensure type field is set
-            if not new_task.type:
-                new_task.type = "Consulting"
-            
-            # Set status to Open for new tasks
-            new_task.status = "Open"
-            
-            # Insert the new task
-            new_task.insert(ignore_permissions=True)
-            
-            # Copy attachments from original task to new task
-            copy_attachments('Task', task.name, 'Task', new_task.name)
-            
-            # Store mapping of original task ID to new task ID
-            task_mapping[task.name] = new_task.name
-        
-        # Commit batch to prevent memory buildup
-        frappe.db.commit()
-        
-        return {
-            'message': _('Tasks copied successfully'),
-            'new_project': new_project_name
-        }
-        
-    except Exception as e:
-        frappe.log_error(f"Error copying tasks from project {original_project} to {new_project_name}: {str(e)}", "Task Copy Error")
-        frappe.throw(_('Failed to copy tasks. Please check the error log for details.'))
+    """Copy all tasks from one project to another, preserving task hierarchy"""
+    frappe.log_error(f"Starting task copy: {original_project} ➜ {new_project_name}")
 
+    root_tasks = frappe.get_all(
+        "Task",
+        filters={"project": original_project},
+        fields=["name"],
+        order_by="creation"
+    )
+
+    if not root_tasks:
+        frappe.log_error("No tasks found to copy", original_project)
+        return
+
+    task_mapping = {}
+
+    for root in root_tasks:
+        try:
+            copy_task_tree(
+                task_name=root.name,
+                new_project=new_project_name,
+                new_assignee=new_assignee,
+                new_parent=None,
+                task_mapping=task_mapping
+            )
+        except Exception as e:
+            frappe.log_error(f"Failed to copy root task {root.name}: {e}")
+
+    frappe.db.commit()
+    frappe.publish_realtime("task_copy_done", {"message": f"Tasks copied to {new_project_name}."})
+
+@frappe.whitelist()
+def copy_task_tree(task_name, new_project, new_assignee=None, new_parent=None, task_mapping=None):
+    """Recursively copy a task and its children"""
+    task_mapping = task_mapping or {}
+
+    try:
+        original_task = frappe.get_doc("Task", task_name)
+
+        new_task = frappe.new_doc("Task")
+
+        exclude_fields = {
+            'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx',
+            'project', 'parent_task', 'exp_start_date', 'exp_end_date'
+        }
+
+        for field in original_task.meta.fields:
+            if field.fieldname and field.fieldname not in exclude_fields:
+                new_task.set(field.fieldname, original_task.get(field.fieldname))
+
+        new_task.project = new_project
+        new_task.parent_task = new_parent
+        new_task.status = "Open"
+        new_task.type = original_task.type or "Consulting"
+        new_task.is_group = original_task.is_group
+
+        new_task.assignee = new_assignee or original_task.assignee
+        new_task.insert(ignore_permissions=True)
+
+        copy_attachments("Task", original_task.name, "Task", new_task.name)
+
+        task_mapping[original_task.name] = new_task.name
+
+        frappe.db.commit()  # Commit in batches to avoid lock/timeout
+
+        # Fetch child tasks and copy recursively
+        child_tasks = frappe.get_all(
+            "Task",
+            filters={"parent_task": original_task.name},
+            fields=["name"],
+            order_by="creation"
+        )
+
+        for child in child_tasks:
+            copy_task_tree(
+                task_name=child.name,
+                new_project=new_project,
+                new_assignee=new_assignee,
+                new_parent=new_task.name,
+                task_mapping=task_mapping
+            )
+
+    except Exception as e:
+        frappe.log_error(f"Error copying task {task_name}: {e}")
 
 def get_progress_color(progress):
     """
@@ -621,6 +806,8 @@ def update_single_task(task_name, task_data, update_description):
     task.flags.ignore_version = True  # Skip version creation
     task.save(ignore_permissions=True)
     
+    
+    
     # Add a comment to the task
     frappe.get_doc({
         "doctype": "Comment",
@@ -826,52 +1013,113 @@ def validate_project_permissions(project_name):
     if not frappe.has_permission('Project', 'write', project_name):
         frappe.throw(_("No permission to modify tasks in project: {0}").format(project_name))
 
+# @frappe.whitelist()
+# def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
+#     """
+#     Copy a task and its entire hierarchy with attachments and descriptions
+    
+#     Args:
+#         task_data (dict): Original task data
+#         new_project (str): Project to assign copied tasks to
+#         new_assignee (str): User to assign as Assignee for copied tasks
+#     """
+#     if not isinstance(task_data, dict):
+#         task_data = frappe.parse_json(task_data)
+#     try:
+#         actual_task_name = task_data.task_id
+#         if not actual_task_name:
+#             frappe.throw(_("Task not found"))
+        
+#         # Create mapping to store original task ID to new task ID
+#         task_id_mapping = {}
+        
+#         # Copy main task and get its children
+#         new_task = copy_single_task(actual_task_name, new_project, new_assignee, None)
+#         task_id_mapping[actual_task_name] = new_task.name
+        
+#         # Get and copy all child tasks
+#         child_tasks = get_all_child_tasks(actual_task_name)
+#         for child in child_tasks:
+#             # Get the parent from the mapping
+#             new_parent = task_id_mapping.get(
+#                 frappe.db.get_value('Task', child.name, 'parent_task')
+#             )
+#             # Copy the child task, assigning it to the new project
+#             new_child = copy_single_task(child.name, new_project, new_assignee, new_parent)
+#             task_id_mapping[child.name] = new_child.name
+        
+#         frappe.db.commit()
+        
+#         return {
+#             "message": _("Task hierarchy copied successfully"),
+#             "new_task_id": new_task.name
+#         }
+        
+#     except Exception as e:
+#         frappe.db.rollback()
+#         frappe.log_error(frappe.get_traceback(), _("Task Copy Error"))
+#         frappe.throw(_("Error copying task: {0}").format(str(e)))
+
+
 @frappe.whitelist()
 def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
     """
-    Copy a task and its entire hierarchy with attachments and descriptions
-    
-    Args:
-        task_data (dict): Original task data
-        new_project (str): Project to assign copied tasks to
-        new_assignee (str): User to assign as Assignee for copied tasks
+    Copy a task and its entire hierarchy while preserving structure.
     """
+    
     if not isinstance(task_data, dict):
         task_data = frappe.parse_json(task_data)
+
     try:
-        actual_task_name = task_data.task_id
+        actual_task_name = task_data.get("task_id")
         if not actual_task_name:
-            frappe.throw(_("Task not found"))
-        
-        # Create mapping to store original task ID to new task ID
+            frappe.throw(_("Task ID not provided."))
+
+        # Map original task name => new copied task name
         task_id_mapping = {}
-        
-        # Copy main task and get its children
+
+        # Copy root task first
         new_task = copy_single_task(actual_task_name, new_project, new_assignee, None)
         task_id_mapping[actual_task_name] = new_task.name
-        
-        # Get and copy all child tasks
-        child_tasks = get_all_child_tasks(actual_task_name)
+
+        # Get all child tasks in hierarchical (top-down) order
+        child_tasks = get_all_child_tasks_ordered(actual_task_name)
+
+        # Copy children
         for child in child_tasks:
-            # Get the parent from the mapping
-            new_parent = task_id_mapping.get(
-                frappe.db.get_value('Task', child.name, 'parent_task')
-            )
-            # Copy the child task, assigning it to the new project
+            original_parent = frappe.db.get_value("Task", child.name, "parent_task")
+            new_parent = task_id_mapping.get(original_parent)
+
             new_child = copy_single_task(child.name, new_project, new_assignee, new_parent)
             task_id_mapping[child.name] = new_child.name
-        
+
         frappe.db.commit()
-        
         return {
             "message": _("Task hierarchy copied successfully"),
             "new_task_id": new_task.name
         }
-        
+
     except Exception as e:
         frappe.db.rollback()
         frappe.log_error(frappe.get_traceback(), _("Task Copy Error"))
         frappe.throw(_("Error copying task: {0}").format(str(e)))
+
+def get_all_child_tasks_ordered(root_task):
+    """
+    Recursively get all child tasks in depth-first order
+    so parents are processed before their children.
+    """
+    ordered = []
+
+    def fetch_children(task_name):
+        children = frappe.get_all("Task", filters={"parent_task": task_name}, fields=["name"])
+        for child in children:
+            ordered.append(child)  # Add this child first
+            fetch_children(child.name)  # Then its children
+
+    fetch_children(root_task)
+    return ordered
+
 
 def copy_single_task(task_name, new_project, new_assignee, new_parent):
     """

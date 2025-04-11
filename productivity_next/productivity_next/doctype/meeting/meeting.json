@@ -13,6 +13,7 @@
   "party_type",
   "party",
   "organization",
+  "mom_sent",
   "purpose",
   "scheduled_time",
   "project",
@@ -60,12 +61,7 @@
   "total_expense",
   "amended_from",
   "customer",
-  "opportunity",
-  "section_break_zjhq",
-  "task",
-  "column_break_vkqu",
-  "issue",
-  "column_break_cadn"
+  "opportunity"
  ],
  "fields": [
   {
@@ -388,18 +384,10 @@
    "label": "End UUID"
   },
   {
-   "fieldname": "section_break_zjhq",
-   "fieldtype": "Section Break"
-  },
-  {
    "fieldname": "task",
    "fieldtype": "Link",
    "label": "Task",
    "options": "Task"
-  },
-  {
-   "fieldname": "column_break_vkqu",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "issue",
@@ -408,14 +396,17 @@
    "options": "Issue"
   },
   {
-   "fieldname": "column_break_cadn",
-   "fieldtype": "Column Break"
+   "default": "0",
+   "depends_on": "eval:doc.party_type == \"Lead\"",
+   "fieldname": "mom_sent",
+   "fieldtype": "Check",
+   "label": "MOM Sent"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2024-12-04 18:23:23.578095",
+ "modified": "2025-04-10 16:54:37.608335",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

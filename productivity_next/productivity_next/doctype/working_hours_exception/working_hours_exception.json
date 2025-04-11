@@ -1,0 +1,202 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:naming_series",
+ "creation": "2025-04-10 15:27:09.984392",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "starting_date",
+  "ending_date",
+  "productivity_score",
+  "total_hours",
+  "active_hours",
+  "idle_hours",
+  "average_active",
+  "incoming_calls",
+  "column_break_ivkb",
+  "incoming_hours",
+  "outgoing_calls",
+  "outgoing_hours",
+  "missed_calls",
+  "rejected_calls",
+  "keyboard",
+  "mouse",
+  "scroll",
+  "meetings",
+  "meetings_hours",
+  "section_break_yhnk",
+  "reason",
+  "naming_series"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "starting_date",
+   "fieldtype": "Date",
+   "label": "Starting Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ending_date",
+   "fieldtype": "Date",
+   "label": "Ending Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "productivity_score",
+   "fieldtype": "Float",
+   "label": "Productivity Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_hours",
+   "fieldtype": "Float",
+   "label": "Total Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "active_hours",
+   "fieldtype": "Float",
+   "label": "Active Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "idle_hours",
+   "fieldtype": "Float",
+   "label": "Idle Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "average_active",
+   "fieldtype": "Float",
+   "label": "Average Active",
+   "read_only": 1
+  },
+  {
+   "fieldname": "incoming_calls",
+   "fieldtype": "Float",
+   "label": "Incoming Calls",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ivkb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "incoming_hours",
+   "fieldtype": "Float",
+   "label": "Incoming Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "outgoing_calls",
+   "fieldtype": "Float",
+   "label": "Outgoing Calls",
+   "read_only": 1
+  },
+  {
+   "fieldname": "outgoing_hours",
+   "fieldtype": "Float",
+   "label": "Outgoing Hours"
+  },
+  {
+   "fieldname": "missed_calls",
+   "fieldtype": "Float",
+   "label": "Missed Calls",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rejected_calls",
+   "fieldtype": "Float",
+   "label": "Rejected Calls",
+   "read_only": 1
+  },
+  {
+   "fieldname": "keyboard",
+   "fieldtype": "Float",
+   "label": "Keyboard",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mouse",
+   "fieldtype": "Float",
+   "label": "Mouse",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scroll",
+   "fieldtype": "Float",
+   "label": "Scroll",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meetings",
+   "fieldtype": "Float",
+   "label": "Meetings",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meetings_hours",
+   "fieldtype": "Float",
+   "label": "Meetings Hours",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_yhnk",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "{employee_name}.-.{starting_date}.-."
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-04-10 16:24:32.328014",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Working Hours Exception",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "employee_name"
+}

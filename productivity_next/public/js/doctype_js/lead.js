@@ -189,6 +189,12 @@ frappe.ui.form.on('Lead', {
                 }
             }
         });
+    },
+    qualification_status: function(frm) {
+        if (frm.doc.qualification_status == "In Process") {
+            frm.set_value('qualification_process_started', frappe.datetime.get_today());
+            frm.set_df_property('qualification_process_started', 'read_only', 1);
+        }
     }
 });
 
