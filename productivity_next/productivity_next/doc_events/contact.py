@@ -1,6 +1,8 @@
 import frappe
+import re
 
 def validate(self, method):
+
     if normalize_and_check_duplicates(self):
         return
 
@@ -17,6 +19,11 @@ def normalize_and_check_duplicates(doc):
     client_no = []
     for row in doc.phone_nos:
         if row.phone:
+
+            # Check if phone contains any character other than digits, +, or spaces
+            if re.search(r"[^\d+ ]", row.phone):
+                  frappe.throw(f"Phone number '{row.phone}' contains invalid special characters. Only digits, spaces, and '+' are allowed.")
+
             phone = row.phone.replace(" ", "") 
             if phone[0] != "+" and phone[0] != "0":
                 phone = "+91" + phone

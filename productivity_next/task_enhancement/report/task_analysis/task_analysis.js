@@ -34,7 +34,6 @@ frappe.query_reports["Task Analysis"] = {
             label: __("Assignee"),
             fieldtype: "Link",
             options: "User",
-            default: frappe.session.user,
         },
         {
             fieldname: "status",
@@ -54,23 +53,11 @@ frappe.query_reports["Task Analysis"] = {
                     { value: "Cancelled", description: __("Tasks that are cancelled") },
                 ];
             }
-        }
-        ,
-        {
-            fieldname: "show_completed_tasks",
-            label: __("Show Completed Tasks"),
-            fieldtype: "Check",
         },
         {
             fieldname: "completed_on",
             label: __("Completed On"),
-            fieldtype: "DateRange",
-            depends_on: "show_completed_tasks",
-        },
-        {
-            fieldname: "show_cancelled_tasks",
-            label: __("Show Cancelled Tasks"),
-            fieldtype: "Check",
+            fieldtype: "DateRange"  
         }
     ],
 
@@ -245,6 +232,105 @@ frappe.query_reports["Task Analysis"] = {
                 console.error('Error in go to project handler:', error);
             }
         });
+        report.page.add_inner_button(__('Print View'), function () {
+            const data = report.data || [];
+            
+            // Reduce chunk size for better performance
+            const CHUNK_SIZE = 100; // Process 100 tasks at a time
+            const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+            
+            // Show loading dialog
+            const loadingDialog = new frappe.ui.Dialog({
+                title: __('Preparing Print View'),
+                fields: [{
+                    fieldtype: 'HTML',
+                    fieldname: 'status',
+                    options: `<div class="text-muted margin-top">
+                        <p>${__('Processing')} ${data.length} ${__('tasks')}...</p>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped active" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center text-muted" style="margin-top: 10px">
+                            <span class="processed-count">0</span> / ${data.length} ${__('tasks processed')}
+                        </div>
+                    </div>`
+                }]
+            });
+            
+            loadingDialog.show();
+            
+            try {
+                // Process chunks with setTimeout to prevent browser hanging
+                let processedHTML = '';
+                let currentChunk = 0;
+                let errorCount = 0;
+
+                function updateProgress(processed) {
+                    const progress = (processed / data.length) * 100;
+                    loadingDialog.$wrapper.find('.progress-bar').css('width', `${progress}%`);
+                    loadingDialog.$wrapper.find('.processed-count').text(processed);
+                }
+
+                function processChunk() {
+                    try {
+                        const start = currentChunk * CHUNK_SIZE;
+                        const end = Math.min(start + CHUNK_SIZE, data.length);
+                        const chunk = data.slice(start, end);
+                        
+                        // Process this chunk
+                        processedHTML += generateTableRows(chunk);
+                        
+                        // Update progress
+                        updateProgress(end);
+                        
+                        currentChunk++;
+                        
+                        if (currentChunk < totalChunks) {
+                            // Schedule next chunk with a small delay
+                            setTimeout(processChunk, 10);
+                        } else {
+                            // All chunks processed
+                            loadingDialog.hide();
+                            if (errorCount > 0) {
+                                frappe.show_alert({
+                                    message: __(`Print view generated with ${errorCount} errors`),
+                                    indicator: 'orange'
+                                });
+                            }
+                            showPrintView(processedHTML);
+                        }
+                    } catch (e) {
+                        console.error('Error processing chunk:', e);
+                        errorCount++;
+                        currentChunk++;
+                        
+                        if (currentChunk < totalChunks) {
+                            // Try next chunk despite error
+                            setTimeout(processChunk, 10);
+                        } else {
+                            loadingDialog.hide();
+                            if (processedHTML) {
+                                frappe.show_alert({
+                                    message: __(`Print view generated with ${errorCount} errors`),
+                                    indicator: 'orange'
+                                });
+                                showPrintView(processedHTML);
+                            } else {
+                                frappe.throw(__('Failed to generate print view'));
+                            }
+                        }
+                    }
+                }
+
+                // Start processing with a small delay
+                setTimeout(processChunk, 100);
+
+            } catch (e) {
+                console.error('Error in print view generation:', e);
+                loadingDialog.hide();
+                frappe.throw(__('Failed to generate print view'));
+            }
+        });
         
     },
 
@@ -310,6 +396,224 @@ frappe.query_reports["Task Analysis"] = {
                 </div>`;
         }        
         return default_formatter(value, row, column, data);
+    }
+}
+
+function sanitizeText(text) {
+    if (!text) return '';
+    try {
+        const temp = document.createElement('div');
+        temp.innerHTML = text;
+        let sanitized = temp.textContent || temp.innerText;
+        sanitized = sanitized.replace(/\s+/g, ' ').trim();
+        return frappe.utils.escape_html(sanitized);
+    } catch (e) {
+        console.error('Error sanitizing text:', e);
+        return frappe.utils.escape_html(String(text));
+    }
+}
+
+function generateTableRows(data) {
+    try {
+        return data.map(row => {
+            try {
+                const indent = row.indent || 0;
+                const status = row.status || "";
+                let statusColor = "#888";
+                let statusBgColor = "#f4f4f4";
+
+                // Format assignee - extract username from email
+                let assignee = row.assignee || '';
+                if (assignee.includes('@')) {
+                    assignee = assignee.split('@')[0];
+                }
+
+                // Format description - strip HTML and truncate if needed
+                let description = row.description || '';
+                if (description) {
+                    // Create temporary element to strip HTML
+                    const temp = document.createElement('div');
+                    temp.innerHTML = description;
+                    description = temp.textContent || temp.innerText;
+                    // Truncate if too long
+                    if (description.length > 150) {
+                        description = description.substring(0, 147) + '...';
+                    }
+                }
+
+                // Status color mapping
+                switch (status) {
+                    case "Open": statusColor = "#9370DB"; statusBgColor = "#F8F0FF"; break;
+                    case "Scheduled": statusColor = "#20c997"; statusBgColor = "#E8F8F4"; break;
+                    case "In-Progress": statusColor = "#ffc107"; statusBgColor = "#FFF8E6"; break;
+                    case "Pending Review": statusColor = "#fd7e14"; statusBgColor = "#FFF4EC"; break;
+                    case "Completed": statusColor = "#28a745"; statusBgColor = "#F0FFF0"; break;
+                    case "Cancelled": statusColor = "#6c757d"; statusBgColor = "#F8F9FA"; break;
+                    default: statusColor = "#888"; statusBgColor = "#f4f4f4";
+                }
+
+                // Format task name and ID
+                const taskName = sanitizeText(row.task || '');
+                const taskId = row.id || '';
+
+                // Create tree-like structure
+                const indentHtml = indent > 0 ? 
+                    `<div class="tree-indent" style="margin-left: ${(indent - 1) * 16}px;">` : '';
+                const indentCloseHtml = indent > 0 ? '</div>' : '';
+
+                return `
+                    <tr>
+                        <td class="task-col">
+                            ${indentHtml}
+                            <div class="task-content">
+                                <span class="task-name">${taskName}</span>
+                                ${taskId ? `<span class="task-id">${taskId}</span>` : ''}
+                                ${description ? `<span class="task-description">${sanitizeText(description)}</span>` : ''}
+                            </div>
+                            ${indentCloseHtml}
+                        </td>
+                        <td class="other-col">${sanitizeText(assignee)}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.exp_start_date) || ''}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.exp_end_date) || ''}</td>
+                        <td class="status-col">
+                            <span class="status-badge" style="background-color: ${statusBgColor}; color: ${statusColor}">
+                                ${sanitizeText(status)}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            } catch (e) {
+                console.error('Error processing row:', e, row);
+                return '';
+            }
+        }).join('');
+    } catch (e) {
+        console.error('Error in generateTableRows:', e);
+        return '';
+    }
+}
+
+function showPrintView(tableRows) {
+    try {
+        const currentDate = frappe.datetime.now_date();
+        const currentTime = frappe.datetime.now_time();
+
+        const html = `
+            <html>
+            <head>
+                <title>Task Analysis Report</title>
+                <meta charset="UTF-8">
+                <style>
+                    @media print {
+                        @page { size: landscape; margin: 15mm; }
+                    }
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                        font-size: 11px;
+                        line-height: 1.4;
+                        color: #333;
+                        margin: 0;
+                        padding: 20px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        table-layout: fixed;
+                        margin-bottom: 20px;
+                    }
+                    th, td {
+                        border: 1px solid #e0e0e0;
+                        padding: 8px;
+                        text-align: left;
+                        vertical-align: top;
+                    }
+                    th {
+                        background-color: #f8f9fa;
+                        font-weight: 600;
+                        color: #495057;
+                        white-space: nowrap;
+                    }
+                    .task-col { width: 40%; }
+                    .date-col { width: 12%; white-space: nowrap; }
+                    .status-col { width: 14%; }
+                    .other-col { width: 22%; }
+                    .task-content {
+                        margin: 4px 0;
+                        padding: 2px 0;
+                    }
+                    .task-name {
+                        font-weight: 500;
+                        color: #2c3338;
+                        display: block;
+                    }
+                    .task-id {
+                        color: #6c757d;
+                        font-size: 9px;
+                        font-family: monospace;
+                        margin-top: 2px;
+                        display: block;
+                    }
+                    .task-description {
+                        color: #666;
+                        font-size: 10px;
+                        margin-top: 4px;
+                        display: block;
+                        font-style: italic;
+                    }
+                    .tree-indent {
+                        border-left: 2px solid #e0e0e0;
+                        margin: 4px 0;
+                        padding-left: 12px;
+                    }
+                    .status-badge {
+                        display: inline-block;
+                        padding: 3px 8px;
+                        border-radius: 12px;
+                        font-size: 10px;
+                        font-weight: 500;
+                        text-align: center;
+                    }
+                </style>
+            </head>
+            <body>
+                <h2 style="text-align: center; margin-bottom: 20px;">Task Analysis Report</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="task-col">Task</th>
+                            <th class="other-col">Assignee</th>
+                            <th class="date-col">Start Date</th>
+                            <th class="date-col">End Date</th>
+                            <th class="status-col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+                <div style="text-align: right; font-size: 9px; color: #6c757d;">
+                    Generated on ${frappe.datetime.str_to_user(currentDate)} at ${currentTime}
+                </div>
+            </body>
+            </html>`;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            frappe.throw(__('Pop-up blocker is enabled! Please allow pop-ups for this site to print.'));
+            return;
+        }
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        
+        // Wait for resources to load
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 250);
+    } catch (e) {
+        console.error('Error in showPrintView:', e);
+        frappe.throw(__('Failed to generate print view'));
     }
 }
 

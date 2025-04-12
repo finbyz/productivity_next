@@ -243,59 +243,75 @@ def get_tasks(filters):
         if names := [row.name for row in frappe.db.sql(sql.format(filters.get('task')), as_dict=True)]:
             task_filters['name'] = ('in', names)
 
-    # Filter out completed tasks if the flag is not set
-    status_not_in = []
-    if not filters.get('show_completed_tasks'):
-        status_not_in.append("Completed")
-
-    # Filter out cancelled tasks if the flag is not set
-    if not filters.get('show_cancelled_tasks'):
-        status_not_in.append("Cancelled")
-        
-    if status_not_in and not filters.get('status'):
-        task_filters["status"] = ("not in", status_not_in)
-        
-
     # Filter by assignee
-    if filters.get("assignee"):
-        task_or_filters["_assign"] = ("like", "%" + filters["assignee"] + "%")
-        task_or_filters["assignee"] = filters["assignee"]
+    if filters.get('assignee'):
+        task_filters['assignee'] = filters['assignee']
 
-    # Filter by expected start date range
-    if filters.get("exp_start_date"):
-        task_filters["exp_start_date"] = ("between", filters["exp_start_date"])
+    # Filter by expected start date
+    if filters.get('exp_start_date'):
+        task_filters['exp_start_date'] = ['between', filters.get('exp_start_date')]
 
-    if filters.get("completed_on"):
-        task_filters["completed_on"] = ("between", filters["completed_on"])
+    # Filter by status
+    if filters.get('status'):
+        task_filters['status'] = ('in', filters.get('status'))
 
-    # Filter by status (multi-select)
-    if filters.get("status"):
-        task_filters["status"] = ("in", filters["status"])
+    # Filter by completed_on date if specified
+    if filters.get('completed_on'):
+        task_filters['completed_on'] = ['between', filters.get('completed_on')]
 
-    fields = [
-        "name",
-        "subject",
-        "parent_task",
-        "project",
-        "status",
-        "assignee",
-        "priority",
-        "description",
-        "exp_start_date",
-        "exp_end_date",
-        "completed_on",
-        "ROUND(expected_time, 2) as expected_time",
-        "type",
-        "is_group",
-    ]
-    
-    return frappe.get_all(
+    # First get all tasks that match the direct criteria
+    direct_tasks = frappe.get_all(
         "Task",
         filters=task_filters,
-        or_filters=task_or_filters,
-        fields=fields,
-        order_by="project, parent_task, name"
+        fields=[
+            "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
+            "expected_time", "description", "is_group", "project", "parent_task",
+            "assignee", "type", "completed_on"
+        ],
+        order_by="name"
     )
+
+    # Get all parent tasks of matching tasks
+    parent_tasks = set()
+    for task in direct_tasks:
+        current = task
+        while current.get('parent_task'):
+            parent_tasks.add(current.parent_task)
+            current = frappe.get_value('Task', 
+                current.parent_task, 
+                ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', 
+                 'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
+                 'assignee', 'type', 'completed_on'], 
+                as_dict=1)
+            if not current:
+                break
+
+    # Get the parent task details
+    additional_tasks = []
+    if parent_tasks:
+        additional_tasks = frappe.get_all(
+            "Task",
+            filters={"name": ("in", list(parent_tasks))},
+            fields=[
+                "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
+                "expected_time", "description", "is_group", "project", "parent_task",
+                "assignee", "type", "completed_on"
+            ],
+            order_by="name"
+        )
+
+    # Combine direct tasks and parent tasks
+    all_tasks = direct_tasks + additional_tasks
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_tasks = []
+    for task in all_tasks:
+        if task.name not in seen:
+            seen.add(task.name)
+            unique_tasks.append(task)
+
+    return unique_tasks
 
 # @frappe.whitelist()
 # def copy_project_tasks(original_project, new_project_name, new_assignee=None):
