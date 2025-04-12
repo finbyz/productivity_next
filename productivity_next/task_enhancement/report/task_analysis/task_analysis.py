@@ -10,7 +10,7 @@ from frappe.utils import cstr, getdate
 def execute(filters=None):
     columns = get_columns(filters)
     data = get_data(filters)
-	
+
     return columns, data
 
 def get_columns(filters):  # Added filters parameter
@@ -135,7 +135,22 @@ def prepare_data(filters, projects, tasks):
     data = []
     project_task_map = {}
     parent_children_map = {}
+    user_first_names = {}
 
+    # Get all unique assignees
+    assignees = set()
+    for task in tasks:
+        if task.assignee:
+            assignees.add(task.assignee)
+    
+    # Fetch first names for all assignees
+    if assignees:
+        user_data = frappe.get_all(
+            "User",
+            filters={"name": ("in", list(assignees))},
+            fields=["name", "first_name"]
+        )
+        user_first_names = {u.name: u.first_name for u in user_data}
     # Build project and parent-child maps
     for task in tasks:
         project_task_map.setdefault(task.project, []).append(task)
@@ -158,12 +173,13 @@ def prepare_data(filters, projects, tasks):
                 "project_id": project.name,
                 "task": cstr(project.subject),
                 "progress": project_progress_display,
-                "status_show": create_status_display(project.status),  # Now returns formatted HTML
+                "status_show": create_status_display(project.status),
                 "status":project.status,
                 "expected_time": None,
                 "priority": project.priority,
                 "description": None,
                 "assignee": None,
+                "assignee_first_name": None,
                 "type": None,
                 "indent": 0,
                 "exp_start_date": project.expected_start_date,
@@ -177,11 +193,11 @@ def prepare_data(filters, projects, tasks):
             for task in project_tasks:
                 # Only process tasks that don't have a parent or whose parent isn't in our task list
                 if not task.parent_task or task.parent_task not in {t.name for t in tasks}:
-                    add_task_to_data(data, task, parent_children_map, 1, show_progress=True)
+                    add_task_to_data(data, task, parent_children_map, 1, user_first_names, show_progress=True)
 
     return data
 
-def add_task_to_data(data, task, parent_children_map, level, show_progress=False):
+def add_task_to_data(data, task, parent_children_map, level, user_first_names, show_progress=False):
     if task.is_group and task.status not in ["Cancelled", "Completed"]:
         task.status = "Open"
     # Add the current task
@@ -198,6 +214,7 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
         "type":task.type,
         "progress": progress_display,
         "assignee": task.assignee,
+        "assignee_first_name": user_first_names.get(task.assignee, ''),
         "exp_start_date": task.exp_start_date,
         "exp_end_date": task.exp_end_date,
         "status": task.status,
@@ -210,7 +227,8 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
         "is_project": task.is_project,
         "project": task.project,
         "task_id": task.name,
-        "completed_on": task.completed_on
+        "completed_on": task.completed_on,
+        "completed_by": task.completed_by
     }))
 
     # Process children if any exist
@@ -219,7 +237,7 @@ def add_task_to_data(data, task, parent_children_map, level, show_progress=False
         # Sort children by name to maintain consistent order
         children.sort(key=lambda x: x.name)
         for child in children:
-            add_task_to_data(data, child, parent_children_map, level + 1, show_progress)
+            add_task_to_data(data, child, parent_children_map, level + 1, user_first_names, show_progress)
             
 
 def get_tasks(filters): 
@@ -266,7 +284,7 @@ def get_tasks(filters):
         fields=[
             "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
             "expected_time", "description", "is_group", "project", "parent_task",
-            "assignee", "type", "completed_on"
+            "assignee", "type", "completed_on", "completed_by"
         ],
         order_by="name"
     )
@@ -281,7 +299,7 @@ def get_tasks(filters):
                 current.parent_task, 
                 ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', 
                  'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
-                 'assignee', 'type', 'completed_on'], 
+                 'assignee', 'type', 'completed_on', 'completed_by'], 
                 as_dict=1)
             if not current:
                 break
@@ -295,7 +313,7 @@ def get_tasks(filters):
             fields=[
                 "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
                 "expected_time", "description", "is_group", "project", "parent_task",
-                "assignee", "type", "completed_on"
+                "assignee", "type", "completed_on", "completed_by"
             ],
             order_by="name"
         )

@@ -422,16 +422,19 @@ function generateTableRows(data) {
                 let statusColor = "#888";
                 let statusBgColor = "#f4f4f4";
 
-                // Format assignee - extract username from email
-                let assignee = row.assignee || '';
-                if (assignee.includes('@')) {
-                    assignee = assignee.split('@')[0];
+                // Format assignee - use first name if available
+                let assignee = row.assignee_first_name || "";
+                if (assignee.length > 15) {
+                    assignee = assignee.substring(0, 12) + '...';
                 }
 
                 // Format completed_by - extract username from email
                 let completed_by = row.completed_by || '';
                 if (completed_by.includes('@')) {
                     completed_by = completed_by.split('@')[0];
+                }
+                if (completed_by.length > 15) {
+                    completed_by = completed_by.substring(0, 12) + '...';
                 }
                 
                 // Format description - strip HTML and truncate if needed
@@ -442,8 +445,8 @@ function generateTableRows(data) {
                     temp.innerHTML = description;
                     description = temp.textContent || temp.innerText;
                     // Truncate if too long
-                    if (description.length > 150) {
-                        description = description.substring(0, 147) + '...';
+                    if (description.length > 100) {
+                        description = description.substring(0, 97) + '...';
                     }
                 }
 
@@ -461,6 +464,10 @@ function generateTableRows(data) {
                 // Format task name and ID
                 const taskName = sanitizeText(row.task || '');
                 const taskId = row.id || '';
+                let displayTaskName = taskName;
+                if (displayTaskName.length > 50) {
+                    displayTaskName = displayTaskName.substring(0, 47) + '...';
+                }
 
                 // Create tree-like structure with status-colored border
                 const indentHtml = indent > 0 ? 
@@ -472,15 +479,15 @@ function generateTableRows(data) {
                         <td class="task-col">
                             ${indentHtml}
                             <div class="task-content">
-                                <span class="task-name">${taskName}${taskId ? ` <i>(${taskId})</i>` : ''}</span>
+                                <span class="task-name">${displayTaskName}${taskId ? ` <i>(${taskId})</i>` : ''}</span>
                                 ${description ? `<span class="task-description">${sanitizeText(description)}</span>` : ''}
                             </div>
                             ${indentCloseHtml}
                         </td>
                         <td class="other-col">${sanitizeText(assignee)}</td>
-                        <td class="other-col">${sanitizeText(completed_by)}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.exp_start_date) || ''}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.exp_end_date) || ''}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.completed_on) || ''}</td>
                         <td class="status-col">
                             <span class="status-badge" style="background-color: ${statusBgColor}; color: ${statusColor}">
                                 ${sanitizeText(status)}
@@ -548,7 +555,6 @@ function showPrintView(tableRows) {
                         padding: 2px 0;
                     }
                     .task-name {
-                        font-weight: 500;
                         color: #2c3338;
                         display: block;
                     }
@@ -588,9 +594,9 @@ function showPrintView(tableRows) {
                         <tr>
                             <th class="task-col">Task</th>
                             <th class="other-col">Assignee</th>
-                            <th class="other-col">Completed By</th>
                             <th class="date-col">Start Date</th>
                             <th class="date-col">End Date</th>
+                            <th class="date-col">Completed On</th>
                             <th class="status-col">Status</th>
                         </tr>
                     </thead>
