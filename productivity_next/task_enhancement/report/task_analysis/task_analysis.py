@@ -275,7 +275,31 @@ def get_tasks(filters):
 
     # Filter by completed_on date if specified
     if filters.get('completed_on'):
-        task_filters['completed_on'] = ['between', filters.get('completed_on')]
+        dates = filters.get('completed_on')
+        task_filters.update({
+            "status": ("in", filters.get('status', [])),
+            "project": filters.get('project'),
+            "is_template": 0
+        })
+        
+        # Simple SQL to get tasks completed in range or not completed
+        return frappe.db.sql("""
+            SELECT name, subject, status, priority, exp_start_date, exp_end_date,
+                expected_time, description, is_group, project, parent_task,
+                assignee, type, completed_on, completed_by
+            FROM `tabTask`
+            WHERE (completed_on BETWEEN %(start)s AND %(end)s OR completed_on IS NULL)
+                AND status IN %(status)s
+                AND project = %(project)s
+                AND is_template = %(is_template)s
+            ORDER BY COALESCE(completed_on, '2999-12-31') DESC, name
+        """, {
+            "start": dates[0],
+            "end": dates[1],
+            "status": filters.get('status', []),
+            "project": filters.get('project'),
+            "is_template": 0
+        }, as_dict=1)
 
     # First get all tasks that match the direct criteria
     direct_tasks = frappe.get_all(
