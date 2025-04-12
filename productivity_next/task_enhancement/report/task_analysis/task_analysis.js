@@ -428,6 +428,12 @@ function generateTableRows(data) {
                     assignee = assignee.split('@')[0];
                 }
 
+                // Format completed_by - extract username from email
+                let completed_by = row.completed_by || '';
+                if (completed_by.includes('@')) {
+                    completed_by = completed_by.split('@')[0];
+                }
+                
                 // Format description - strip HTML and truncate if needed
                 let description = row.description || '';
                 if (description) {
@@ -456,9 +462,9 @@ function generateTableRows(data) {
                 const taskName = sanitizeText(row.task || '');
                 const taskId = row.id || '';
 
-                // Create tree-like structure
+                // Create tree-like structure with status-colored border
                 const indentHtml = indent > 0 ? 
-                    `<div class="tree-indent" style="margin-left: ${(indent - 1) * 16}px;">` : '';
+                    `<div class="tree-indent" style="margin-left: ${(indent - 1) * 16}px; border-left: 2px solid ${statusColor};">` : '';
                 const indentCloseHtml = indent > 0 ? '</div>' : '';
 
                 return `
@@ -466,13 +472,13 @@ function generateTableRows(data) {
                         <td class="task-col">
                             ${indentHtml}
                             <div class="task-content">
-                                <span class="task-name">${taskName}</span>
-                                ${taskId ? `<span class="task-id">${taskId}</span>` : ''}
+                                <span class="task-name">${taskName}${taskId ? ` <i>(${taskId})</i>` : ''}</span>
                                 ${description ? `<span class="task-description">${sanitizeText(description)}</span>` : ''}
                             </div>
                             ${indentCloseHtml}
                         </td>
                         <td class="other-col">${sanitizeText(assignee)}</td>
+                        <td class="other-col">${sanitizeText(completed_by)}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.exp_start_date) || ''}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.exp_end_date) || ''}</td>
                         <td class="status-col">
@@ -536,7 +542,7 @@ function showPrintView(tableRows) {
                     .task-col { width: 40%; }
                     .date-col { width: 12%; white-space: nowrap; }
                     .status-col { width: 14%; }
-                    .other-col { width: 22%; }
+                    .other-col { width: 11%; }
                     .task-content {
                         margin: 4px 0;
                         padding: 2px 0;
@@ -549,7 +555,7 @@ function showPrintView(tableRows) {
                     .task-id {
                         color: #6c757d;
                         font-size: 9px;
-                        font-family: monospace;
+                        font-style: italic;
                         margin-top: 2px;
                         display: block;
                     }
@@ -582,6 +588,7 @@ function showPrintView(tableRows) {
                         <tr>
                             <th class="task-col">Task</th>
                             <th class="other-col">Assignee</th>
+                            <th class="other-col">Completed By</th>
                             <th class="date-col">Start Date</th>
                             <th class="date-col">End Date</th>
                             <th class="status-col">Status</th>
