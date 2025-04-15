@@ -82,13 +82,29 @@ class Task(_Task):
 	def validate(self):
 		super().validate()
 		self.validate_status()
+		self.validate_parent_expected_end_date()
 	
 	def on_update(self):
 		super().on_update()
 		self.assign_to_assignee_and_task_approver()
 		self.update_if_is_group()
 		self.update_parent_task()
-   
+		
+	def validate_parent_expected_end_date(self):
+		if not self.parent_task or not self.exp_end_date:
+			return
+
+		parent_exp_end_date = frappe.db.get_value("Task", self.parent_task, "exp_end_date")
+		if not parent_exp_end_date:
+			return
+
+		# if getdate(self.exp_end_date) > getdate(parent_exp_end_date):
+		# 	frappe.throw(
+		# 		_(
+		# 			"Expected End Date should be less than or equal to parent task's Expected End Date {0}."
+		# 		).format(format_date(parent_exp_end_date)),
+		# 		frappe.exceptions.InvalidDates,
+		# 	)
 	# def update_parent_task(self):
 	# 	if self.parent_task:
 	# 		parent_tasks = frappe.db.sql(f"""
