@@ -89,6 +89,39 @@ class Task(_Task):
 		self.update_if_is_group()
 		self.update_parent_task()
    
+	# def update_parent_task(self):
+	# 	if self.parent_task:
+	# 		parent_tasks = frappe.db.sql(f"""
+	# 			WITH RECURSIVE parent_task AS (
+	# 				SELECT * FROM `tabTask` WHERE name = '{self.name}'
+	# 				UNION ALL
+	# 				SELECT t.* FROM `tabTask` t
+	# 				INNER JOIN parent_task pt ON t.name = pt.parent_task
+	# 			)
+	# 			SELECT distinct name FROM parent_task WHERE is_group = 1
+	# 		""", pluck='name')
+			
+	# 		for parent_task in parent_tasks:
+	# 			sum_child_task = frappe.db.sql(f"""
+	# 				WITH RECURSIVE `task_tree` AS (
+	# 					SELECT * FROM `tabTask` WHERE name = '{parent_task}'
+	# 					UNION ALL
+	# 					SELECT t.* FROM `tabTask` t
+	# 					INNER JOIN task_tree tt ON t.parent_task = tt.name
+	# 				)
+	# 				SELECT SUM(expected_time) AS total_expected_time
+	# 				FROM (
+	# 					SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
+	# 				) AS unique_tasks
+	# 			""")
+				
+				
+	# 			if sum_child_task:
+	# 				expected_time = flt(sum_child_task[0][0] or 0)
+	# 			else:
+	# 				expected_time = 0
+				
+	# 			frappe.db.set_value("Task", parent_task, "expected_time", expected_time, update_modified=False)
 	def update_parent_task(self):
 		if self.parent_task:
 			parent_tasks = frappe.db.sql(f"""
@@ -98,12 +131,13 @@ class Task(_Task):
 					SELECT t.* FROM `tabTask` t
 					INNER JOIN parent_task pt ON t.name = pt.parent_task
 				)
-				SELECT distinct name FROM parent_task WHERE is_group = 1
+				SELECT DISTINCT name FROM parent_task WHERE is_group = 1
 			""", pluck='name')
 			
 			for parent_task in parent_tasks:
+				# Expected time
 				sum_child_task = frappe.db.sql(f"""
-					WITH RECURSIVE `task_tree` AS (
+					WITH RECURSIVE task_tree AS (
 						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
 						UNION ALL
 						SELECT t.* FROM `tabTask` t
@@ -114,14 +148,72 @@ class Task(_Task):
 						SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
 					) AS unique_tasks
 				""")
-				
-				
-				if sum_child_task:
-					expected_time = flt(sum_child_task[0][0] or 0)
-				else:
-					expected_time = 0
-				
-				frappe.db.set_value("Task", parent_task, "expected_time", expected_time, update_modified=False)
+
+				# Date range
+				date_range = frappe.db.sql(f"""
+					WITH RECURSIVE task_tree AS (
+						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
+						UNION ALL
+						SELECT t.* FROM `tabTask` t
+						INNER JOIN task_tree tt ON t.parent_task = tt.name
+					)
+					SELECT 
+						MIN(exp_start_date) AS min_start,
+						MAX(exp_end_date) AS max_end
+					FROM (
+						SELECT DISTINCT name, exp_start_date, exp_end_date FROM task_tree WHERE is_group != 1
+					) AS unique_tasks
+				""", as_dict=True)
+
+				# Check if all are completed
+				all_completed = frappe.db.sql(f"""
+					WITH RECURSIVE task_tree AS (
+						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
+						UNION ALL
+						SELECT t.* FROM `tabTask` t
+						INNER JOIN task_tree tt ON t.parent_task = tt.name
+					)
+					SELECT COUNT(*) 
+					FROM (
+						SELECT DISTINCT name, status FROM task_tree WHERE is_group != 1
+					) AS leaf_tasks
+					WHERE status != 'Completed'
+				""")[0][0] == 0
+
+				# Latest completed_on & completed_by
+				latest_completed = frappe.db.sql(f"""
+					WITH RECURSIVE task_tree AS (
+						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
+						UNION ALL
+						SELECT t.* FROM `tabTask` t
+						INNER JOIN task_tree tt ON t.parent_task = tt.name
+					)
+					SELECT completed_on, completed_by FROM (
+						SELECT DISTINCT name, completed_on, completed_by FROM task_tree 
+						WHERE is_group != 1 AND status = 'Completed'
+					) AS completed_tasks
+					ORDER BY completed_on DESC
+					LIMIT 1
+				""", as_dict=True)
+
+				expected_time = flt(sum_child_task[0][0] or 0) if sum_child_task else 0
+				exp_start_date = date_range[0]["min_start"] if date_range else None
+				exp_end_date = date_range[0]["max_end"] if date_range else None
+				status = "Completed" if all_completed else "Open"
+				completed_on = latest_completed[0]["completed_on"] if (all_completed and latest_completed) else None
+				completed_by = latest_completed[0]["completed_by"] if (all_completed and latest_completed) else None
+
+				# Update parent task
+				frappe.db.set_value("Task", parent_task, {
+					"expected_time": expected_time,
+					"exp_start_date": exp_start_date,
+					"exp_end_date": exp_end_date,
+					"status": status,
+					"completed_on": completed_on,
+					"completed_by": completed_by
+				}, update_modified=False)
+
+
 
 	def update_if_is_group(self):
 		if self.is_group:
