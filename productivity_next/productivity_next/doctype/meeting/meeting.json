@@ -20,10 +20,6 @@
   "issue",
   "task",
   "posting_date",
-  "travel_from",
-  "meeting_from",
-  "meeting_to",
-  "travel_to",
   "column_break",
   "meeting_arranged_by",
   "contact_person",
@@ -33,11 +29,10 @@
   "email_id",
   "address",
   "address_display",
-  "longitude",
-  "latitude",
-  "location_log",
-  "start_uuid",
-  "end_uuid",
+  "meeting_schedule_section",
+  "meeting_from",
+  "column_break_qwvd",
+  "meeting_to",
   "participants",
   "meeting_company_representative",
   "meeting_party_representative",
@@ -61,7 +56,16 @@
   "total_expense",
   "amended_from",
   "customer",
-  "opportunity"
+  "opportunity",
+  "location_tab",
+  "travel_from",
+  "travel_to",
+  "longitude",
+  "latitude",
+  "column_break_kqpz",
+  "location_log",
+  "start_uuid",
+  "end_uuid"
  ],
  "fields": [
   {
@@ -401,12 +405,30 @@
    "fieldname": "mom_sent",
    "fieldtype": "Check",
    "label": "MOM Sent"
+  },
+  {
+   "fieldname": "meeting_schedule_section",
+   "fieldtype": "Section Break",
+   "label": "Meeting Schedule"
+  },
+  {
+   "fieldname": "column_break_qwvd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "location_tab",
+   "fieldtype": "Tab Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "column_break_kqpz",
+   "fieldtype": "Column Break"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-10 16:54:37.608335",
+ "modified": "2025-04-16 15:00:58.943194",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
@@ -467,6 +489,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "organization,contact_person",
  "sort_field": "modified",
  "sort_order": "DESC",

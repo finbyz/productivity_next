@@ -160,5 +160,49 @@ frappe.ui.form.on('Meeting', {
                 frm.refresh_field('meeting_party_representative');
             }
         }
-    }
+    },
+
+	project: function(frm) {
+        // When project changes, set a query on task field
+        frm.set_query('task', function() {
+            return {
+                filters: {
+                    project: frm.doc.project
+                }
+            };
+        });
+    },
+	party: function(frm) {
+        set_project_filter(frm);
+    },
 });
+
+function set_project_filter(frm) {
+    if (frm.doc.party_type === "Customer" && frm.doc.party) {
+        // Apply filter on Project field
+        frm.set_query('project', function() {
+            return {
+                filters: {
+                    "customer": frm.doc.party
+                }
+            };
+        });
+
+        // Check how many projects exist for this Customer
+        frappe.call({
+            method: 'frappe.client.get_list',
+            args: {
+                doctype: 'Project',
+                filters: {
+                    "customer": frm.doc.party
+                },
+                fields: ['name']
+            },
+            callback: function(r) {
+                if (r.message && r.message.length === 1) {
+                    frm.set_value('project', r.message[0].name);
+                }
+            }
+        });
+    }
+}

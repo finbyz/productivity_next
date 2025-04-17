@@ -1183,20 +1183,24 @@ function showTaskDialog(taskData, report) {
             primary_action_label: __('Create Task'),
             primary_action(values) {
                 if (validateDates(values)) {
-                    // createSingleTask(values);
-                    // singleTaskDialog.hide();
-                    checkAndUpdateParentTaskIsGroup(values.parent_task, function(isGroup) {
-                        if (isGroup) {
-                            createSingleTask(values);
-                            singleTaskDialog.hide();
-                        } else {
-                            frappe.msgprint({
-                                title: __('Error'),
-                                message: __('Failed to update the Parent Task. Cannot create a sub-task.'),
-                                indicator: 'red'
-                            });
-                        }
-                    });
+                    if (values.parent_task) {
+                        // Only in this case, check if the parent is a group
+                        checkAndUpdateParentTaskIsGroup(values.parent_task, function(isGroup) {
+                            if (isGroup) {
+                                createSingleTask(values);
+                                singleTaskDialog.hide();
+                            } else {
+                                frappe.msgprint({
+                                    title: __('Error'),
+                                    message: __('Cannot create a sub-task. Parent Task must be a group.'),
+                                    indicator: 'red'
+                                });
+                            }
+                        });
+                    } else {
+                        createSingleTask(values);
+                        singleTaskDialog.hide();
+                    }
                 }
             },
             secondary_action_label: __('Back'),

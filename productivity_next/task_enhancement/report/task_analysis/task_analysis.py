@@ -282,7 +282,6 @@ def get_tasks(filters):
             "is_template": 0
         })
         
-        # Simple SQL to get tasks completed in range or not completed
         return frappe.db.sql("""
             SELECT name, subject, status, priority, exp_start_date, exp_end_date,
                 expected_time, description, is_group, project, parent_task,
@@ -301,7 +300,6 @@ def get_tasks(filters):
             "is_template": 0
         }, as_dict=1)
 
-    # First get all tasks that match the direct criteria
     direct_tasks = frappe.get_all(
         "Task",
         filters=task_filters,
@@ -1070,53 +1068,6 @@ def validate_project_permissions(project_name):
     """
     if not frappe.has_permission('Project', 'write', project_name):
         frappe.throw(_("No permission to modify tasks in project: {0}").format(project_name))
-
-# @frappe.whitelist()
-# def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
-#     """
-#     Copy a task and its entire hierarchy with attachments and descriptions
-    
-#     Args:
-#         task_data (dict): Original task data
-#         new_project (str): Project to assign copied tasks to
-#         new_assignee (str): User to assign as Assignee for copied tasks
-#     """
-#     if not isinstance(task_data, dict):
-#         task_data = frappe.parse_json(task_data)
-#     try:
-#         actual_task_name = task_data.task_id
-#         if not actual_task_name:
-#             frappe.throw(_("Task not found"))
-        
-#         # Create mapping to store original task ID to new task ID
-#         task_id_mapping = {}
-        
-#         # Copy main task and get its children
-#         new_task = copy_single_task(actual_task_name, new_project, new_assignee, None)
-#         task_id_mapping[actual_task_name] = new_task.name
-        
-#         # Get and copy all child tasks
-#         child_tasks = get_all_child_tasks(actual_task_name)
-#         for child in child_tasks:
-#             # Get the parent from the mapping
-#             new_parent = task_id_mapping.get(
-#                 frappe.db.get_value('Task', child.name, 'parent_task')
-#             )
-#             # Copy the child task, assigning it to the new project
-#             new_child = copy_single_task(child.name, new_project, new_assignee, new_parent)
-#             task_id_mapping[child.name] = new_child.name
-        
-#         frappe.db.commit()
-        
-#         return {
-#             "message": _("Task hierarchy copied successfully"),
-#             "new_task_id": new_task.name
-#         }
-        
-#     except Exception as e:
-#         frappe.db.rollback()
-#         frappe.log_error(frappe.get_traceback(), _("Task Copy Error"))
-#         frappe.throw(_("Error copying task: {0}").format(str(e)))
 
 
 @frappe.whitelist()
