@@ -30,7 +30,9 @@
   "meetings_hours",
   "section_break_yhnk",
   "reason",
-  "naming_series"
+  "naming_series",
+  "employee_email",
+  "email_alert_on_time_violation"
  ],
  "fields": [
   {
@@ -62,12 +64,14 @@
   {
    "fieldname": "productivity_score",
    "fieldtype": "Float",
+   "in_list_view": 1,
    "label": "Productivity Score",
    "read_only": 1
   },
   {
    "fieldname": "total_hours",
    "fieldtype": "Float",
+   "in_list_view": 1,
    "label": "Total Hours",
    "read_only": 1
   },
@@ -173,11 +177,25 @@
    "hidden": 1,
    "label": "Naming Series",
    "options": "{employee_name}.-.{starting_date}.-."
+  },
+  {
+   "fetch_from": "employee.company_email",
+   "fieldname": "employee_email",
+   "fieldtype": "Data",
+   "label": "Employee Email",
+   "options": "Email"
+  },
+  {
+   "default": "0",
+   "fieldname": "email_alert_on_time_violation",
+   "fieldtype": "Check",
+   "label": "Email Alert on Time Violation",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-10 16:24:32.328014",
+ "modified": "2025-04-17 14:01:39.393502",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Working Hours Exception",
@@ -193,8 +211,19 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

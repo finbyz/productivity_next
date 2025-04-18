@@ -107,6 +107,9 @@ scheduler_events = {
         #     "productivity_next.schedule.send_weekly_report",
         # ]
     },
+    "daily": [
+        "productivity_next.schedule.create_working_hours_exceptions"
+    ]
 }
 
 

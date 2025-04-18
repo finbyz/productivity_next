@@ -2077,3 +2077,70 @@ def get_employee_working_tasks():
         }
 
     return employee_tasks
+
+
+@frappe.whitelist()
+def working_hour_exception_details(doc_id):
+    if not doc_id:
+        frappe.throw("Document ID is required")
+
+    data = frappe.db.sql("""
+        SELECT employee_name, starting_date, total_hours, productivity_score
+        FROM `tabWorking Hours Exception`
+        WHERE name = %s
+    """, (doc_id,), as_dict=True)
+
+    if not data:
+        frappe.throw("No record found for the given Document ID")
+
+    return data[0]
+
+@frappe.whitelist(allow_guest=True)
+def submit_working_hour_exception_reason(doc_id,reason):
+    if not doc_id or not reason:
+        frappe.throw("Both Document ID and Reason are required")
+
+    doc = frappe.get_doc("Working Hours Exception", doc_id)
+
+    # Store JSON as string (only if short enough)
+    doc.reason = reason
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return "success"
+
+@frappe.whitelist()
+def make_developer_document_meetings(source_name, doctype, ref_doctype, target_doc=None):
+    def set_missing_values(source, target):
+        target.party_type = doctype
+        now = now_datetime()
+        if ref_doctype == "Meeting Schedule":
+            target.scheduled_from = target.scheduled_to = now
+        else:
+            target.meeting_from = target.meeting_to = now
+
+    def update_contact(source, target, source_parent):
+        if doctype == "Developer Document":
+            target.contact = source.contact_person
+
+    doclist = get_mapped_doc(
+        doctype,
+        source_name,
+        {
+            doctype: {
+                "doctype": ref_doctype,
+                "field_map": {
+                    "name": "developer_document",
+                    "contact_person": "contact",
+                    "contact_email": "email_id",
+                    "contact_mobile": "mobile_no",
+                },
+                "field_no_map": ["naming_series"],
+                "postprocess": update_contact,
+            }
+        },
+        target_doc,
+        set_missing_values,
+    )
+
+    return doclist
+

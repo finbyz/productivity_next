@@ -1,5 +1,6 @@
 import frappe
 from datetime import datetime, timedelta
+import json
 from frappe import _
 import frappe
 from datetime import datetime, timedelta
@@ -119,6 +120,7 @@ def get_columns(filters=None):
             "fieldname": "reason",
             "label": _("Reason"),
             "fieldtype": "Data",
+            "width": 200
         }
     ]
 
@@ -196,8 +198,10 @@ def get_data(filters):
                 active_hours = total_hours - total_idle_time
                 average_active = active_hours / total_days if total_days else 0
                 productivity_score = user_analysis.get("productivity_score", {}).get(employee, 0)
+                emp_id = frappe.get_value("Employee", employee, "name")
                 if productivity_score == 0:
                     employee_record = {
+                        "emp_id": frappe.get_value("Employee", employee, "name"),
                         "employee": frappe.get_value("Employee", employee, "employee_name"),
                         "starting_date": current_filters["from_date"],
                         "ending_date": current_filters["to_date"],
@@ -218,8 +222,12 @@ def get_data(filters):
                         "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
                         "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
                     }
+                    reason = frappe.db.get_value("Working Hours Exception", {"employee": emp_id, "starting_date": current_filters["from_date"]}, "reason")
+                    employee_record["reason"] = reason if reason else ""
+
                 elif current_filters["from_date"] not in holiday_dates:
                     employee_record = {
+                        "emp_id": frappe.get_value("Employee", employee, "name"),
                         "employee": frappe.get_value("Employee", employee, "employee_name"),
                         "starting_date": current_filters["from_date"],
                         "ending_date": current_filters["to_date"],
@@ -241,7 +249,9 @@ def get_data(filters):
                         "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
                     }
 
-     
+                    reason = frappe.db.get_value("Working Hours Exception", {"employee": emp_id, "starting_date": current_filters["from_date"]}, "reason")
+                    employee_record["reason"] = reason if reason else ""
+
                 data.append({k: format_duration(v) if k in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours'] else v for k, v in employee_record.items()})
 
 

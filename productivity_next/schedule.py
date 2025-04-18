@@ -1382,278 +1382,243 @@ def create_timesheet_logs():
                 timesheet.save()
         except Exception as e:
             frappe.log_error(f"Failed to create timesheet for {employee}",e)
+
 def generate_daily_timesheets():
     """Generate timesheets for all employees based on application usage logs, meetings, and calls"""
-    yesterday = frappe.utils.add_days(frappe.utils.today(), -4)
-    print(f"Starting timesheet generation for date: {yesterday}")
+    yesterday = frappe.utils.add_days(frappe.utils.today(), -2)
+    print(f"\n=== Starting Timesheet Generation for date: {yesterday} ===")
     
-    # Get all employees with activity
+    # Get all employees from List of User
     employees = frappe.db.sql("""
-        SELECT DISTINCT employee 
-        FROM `tabApplication Usage log` 
-        WHERE date = %s
-        UNION
-        SELECT DISTINCT mcr.employee
-        FROM `tabMeeting` m
-        JOIN `tabMeeting Company Representative` mcr ON m.name = mcr.parent
-        WHERE m.docstatus = 1
-        AND DATE(m.meeting_from) >= %s 
-        AND Date(m.meeting_to) <= %s
-        UNION
-        SELECT DISTINCT employee
-        FROM `tabEmployee Fincall`
-        WHERE date = %s
-    """, (yesterday, yesterday, yesterday, yesterday), as_dict=True)
+        SELECT employee, employee_name 
+        FROM `tabList of User`
+        WHERE employee IS NOT NULL
+    """, as_dict=True)
     
-    print(f"Found {len(employees)} employees with activity")
+    print(f"Found {len(employees)} employees to process")
     
     for emp in employees:
-        if not emp.employee:
-            print(f"Warning: Skipping record with empty employee field")
-            continue
-            
+        print(f"\nProcessing employee: {emp.employee} ({emp.employee_name})")
         try:
-            print(f"Processing timesheet for employee: {emp.employee}")
-            
             # Get all activities for the employee
             activities = get_employee_activities(emp.employee, yesterday)
-            print(f"Found {len(activities)} activities for employee {emp.employee}")
+            print(f"Found {len(activities)} total activities for {emp.employee}")
             
-            # Create and save timesheet
+            # Create timesheet if activities exist
             if activities:
+                print(f"Creating timesheet for {emp.employee}")
                 create_timesheet(emp.employee, yesterday, activities)
-                print(f"Successfully created timesheet for {emp.employee}")
             else:
-                print(f"No activities found for {emp.employee}")
+                print(f"No activities found for {emp.employee}, skipping timesheet creation")
                 
         except Exception as e:
-            print(f"Error processing timesheet for {emp.employee}: {str(e)}")
+            print(f"ERROR processing {emp.employee}: {str(e)}")
+            frappe.log_error(
+                title=f"Timesheet Generation Error - {emp.employee}",
+                message=str(e)
+            )
 
 def get_employee_activities(employee, date):
     """Get all activities for an employee on a given date"""
     activities = []
+    print(f"\nGetting activities for {employee} on {date}")
     
-    # Get application logs with project type
-    app_logs = frappe.get_all(
-        "Application Usage log",
-        filters={"date": date, "employee": employee},
-        fields=["from_time", "to_time", "project", "task", "issue"],
-        order_by="from_time asc"
-    )
-    for log in app_logs:
-        log['activity_type'] = 'Task'
-        log['source'] = 'application'
-        # Get project checkboxes if project exists
-        if log.get('project'):
-            project_doc = frappe.get_doc('Project', log['project'])
-            log['is_hourly'] = project_doc.based_on_hourly_package
-            log['is_resource'] = project_doc.resource_based_project
-        else:
-            log['is_hourly'] = False
-            log['is_resource'] = False
-    activities.extend(app_logs)
+    # Get calls (highest priority)
+    calls = frappe.db.sql("""
+        SELECT 
+            name as call_id,
+            call_datetime as from_time,
+            ADDTIME(call_datetime, SEC_TO_TIME(duration)) as to_time,
+            project, task, issue,
+            'Call' as activity_type,
+            1 as priority
+        FROM `tabEmployee Fincall`
+        WHERE 
+            employee = %s 
+            AND DATE(call_datetime) = %s
+            AND (project IS NOT NULL OR task IS NOT NULL OR issue IS NOT NULL)
+    """, (employee, date), as_dict=True)
+    print(f"Found {len(calls)} calls with tasks/projects")
+    activities.extend(calls)
     
-    # Get meetings with project type
+    # Get meetings (medium priority)
     meetings = frappe.db.sql("""
-        SELECT m.meeting_from as from_time, m.meeting_to as to_time, m.project, m.task, m.issue, m.name as meeting_id
+        SELECT 
+            m.name as meeting_id,
+            m.meeting_from as from_time,
+            m.meeting_to as to_time,
+            m.project, m.task, m.issue,
+            'Meeting' as activity_type,
+            2 as priority
         FROM `tabMeeting` m
-        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE mcr.employee = %s
-        AND m.docstatus = 1
-        AND DATE(m.meeting_from) >= %s
-        AND DATE(m.meeting_to) <= %s
-    """, (employee, date, date), as_dict=True)
-    for meeting in meetings:
-        meeting['activity_type'] = 'Meeting'
-        meeting['source'] = 'meeting'
-        # Get project checkboxes if project exists
-        if meeting.get('project'):
-            project_doc = frappe.get_doc('Project', meeting['project'])
-            meeting['is_hourly'] = project_doc.based_on_hourly_package
-            meeting['is_resource'] = project_doc.resource_based_project
-        else:
-            meeting['is_hourly'] = False
-            meeting['is_resource'] = False
+        JOIN `tabMeeting Company Representative` mcr ON m.name = mcr.parent
+        WHERE 
+            mcr.employee = %s
+            AND DATE(m.meeting_from) = %s
+            AND m.docstatus = 1
+            AND (m.project IS NOT NULL OR m.task IS NOT NULL OR m.issue IS NOT NULL)
+    """, (employee, date), as_dict=True)
+    print(f"Found {len(meetings)} meetings with tasks/projects")
     activities.extend(meetings)
     
-    # Get calls with project type
-    calls = frappe.get_all(
-        "Employee Fincall",
-        filters={"date": date, "employee": employee},
-        fields=["call_datetime", "duration", "project", "task", "issue", "name as call_id"],
-        order_by="call_datetime asc"
-    )
+    # Get application logs (lowest priority)
+    app_logs = frappe.db.sql("""
+        SELECT 
+            from_time,
+            to_time,
+            project, task, issue,
+            'Application' as activity_type,
+            3 as priority
+        FROM `tabApplication Usage log`
+        WHERE 
+            employee = %s 
+            AND date = %s
+            AND (project IS NOT NULL OR task IS NOT NULL OR issue IS NOT NULL)
+    """, (employee, date), as_dict=True)
+    print(f"Found {len(app_logs)} application logs with tasks/projects")
+    activities.extend(app_logs)
     
-    # Convert call durations to end times
-    for call in calls:
-        if call.duration:
-            duration_seconds = parse_duration(call.duration)
-            if duration_seconds:
-                # Get project checkboxes if project exists
-                is_hourly = False
-                is_resource = False
-                if call.get('project'):
-                    project_doc = frappe.get_doc('Project', call['project'])
-                    is_hourly = project_doc.based_on_hourly_package
-                    is_resource = project_doc.resource_based_project
-                
-                activities.append({
-                    "from_time": call.call_datetime,
-                    "to_time": call.call_datetime + timedelta(seconds=duration_seconds),
-                    "project": call.project,
-                    "task": call.task,
-                    "issue": call.issue,
-                    "activity_type": "Call",
-                    "source": "call",
-                    "call_id": call.call_id,
-                    "is_hourly": is_hourly,
-                    "is_resource": is_resource
-                })
+    # Sort by time and priority
+    activities.sort(key=lambda x: (x['from_time'], x['priority']))
+    print(f"Total activities before overlap resolution: {len(activities)}")
     
-    # Sort all activities by start time
-    activities.sort(key=lambda x: x.get('from_time', ''))
-    
-    # Process activities to handle overlaps
-    processed_activities = []
-    for activity in activities:
-        if not activity.get('from_time') or not activity.get('to_time'):
-            continue
-            
-        # Convert times to datetime objects
-        from_time = get_datetime(activity['from_time'])
-        to_time = get_datetime(activity['to_time'])
-        
-        # Skip invalid time ranges
-        if from_time >= to_time:
-            continue
-            
-        # Check for overlaps with existing activities
-        overlap_found = False
-        for existing in processed_activities:
-            existing_from = get_datetime(existing['from_time'])
-            existing_to = get_datetime(existing['to_time'])
-            
-            if (from_time <= existing_to and to_time >= existing_from):
-                # Handle overlap based on project priority
-                activity_priority = get_project_priority(activity.get('is_hourly', False), activity.get('is_resource', False))
-                existing_priority = get_project_priority(existing.get('is_hourly', False), existing.get('is_resource', False))
-                
-                if activity_priority > existing_priority:
-                    # Higher priority activity takes precedence
-                    if from_time < existing_from:
-                        existing['from_time'] = from_time
-                    if to_time > existing_to:
-                        existing['to_time'] = to_time
-                    # Preserve project, task, and issue from higher priority activity
-                    existing['project'] = activity.get('project')
-                    existing['task'] = activity.get('task')
-                    existing['issue'] = activity.get('issue')
-                    overlap_found = True
-                    break
-                elif activity_priority == existing_priority:
-                    # Same priority - merge if they're the same type of activity
-                    if activity['source'] == existing['source']:
-                        if from_time < existing_from:
-                            existing['from_time'] = from_time
-                        if to_time > existing_to:
-                            existing['to_time'] = to_time
-                        # Preserve project, task, and issue from the activity being merged
-                        existing['project'] = activity.get('project') or existing.get('project')
-                        existing['task'] = activity.get('task') or existing.get('task')
-                        existing['issue'] = activity.get('issue') or existing.get('issue')
-                        overlap_found = True
-                        break
-        
-        if not overlap_found:
-            processed_activities.append(activity)
-    
-    return processed_activities
+    resolved = resolve_overlaps(activities)
+    print(f"Total activities after overlap resolution: {len(resolved)}")
+    return resolved
 
-def get_project_priority(is_hourly, is_resource):
-    """Get priority based on project checkboxes"""
-    if is_hourly:
-        return 3  # Highest priority
-    elif is_resource:
-        return 2  # Second priority
-    return 1  # Lowest priority
+def resolve_overlaps(activities):
+    """Resolve overlapping time periods based on priority"""
+    if not activities:
+        return []
+        
+    resolved = []
+    current = activities[0]
+    print("\nResolving overlaps:")
+    print(f"Starting with activity: {current['activity_type']} at {current['from_time']}")
+    
+    for next_activity in activities[1:]:
+        current_end = get_datetime(current['to_time'])
+        next_start = get_datetime(next_activity['from_time'])
+        
+        print(f"\nComparing:")
+        print(f"Current: {current['activity_type']} {current['from_time']} - {current['to_time']}")
+        print(f"Next: {next_activity['activity_type']} {next_activity['from_time']} - {next_activity['to_time']}")
+        
+        if current_end > next_start:
+            print("Overlap detected!")
+            if current['priority'] <= next_activity['priority']:
+                print(f"Keeping current activity ({current['activity_type']}) due to higher priority")
+                continue
+            else:
+                print(f"Higher priority activity found ({next_activity['activity_type']})")
+                if current_end > get_datetime(next_activity['to_time']):
+                    # Split current activity
+                    resolved.append({
+                        **current,
+                        'to_time': next_start
+                    })
+                    resolved.append(next_activity)
+                    current = {
+                        **current,
+                        'from_time': next_activity['to_time']
+                    }
+                    print("Split current activity")
+                else:
+                    resolved.append({
+                        **current,
+                        'to_time': next_start
+                    })
+                    current = next_activity
+                    print("Truncated current activity")
+        else:
+            print("No overlap, adding current activity")
+            resolved.append(current)
+            current = next_activity
+            
+    resolved.append(current)
+    return resolved
 
 def create_timesheet(employee, date, activities):
     """Create timesheet from activities"""
-    try:
-        # Check for existing timesheet
-        existing_timesheet = frappe.get_all(
-            "Timesheet",
-            filters={
-                "employee": employee,
-                "start_date": date,
-                "is_created_by_productify": 1
-            },
-            fields=["name"],
-            limit=1
-        )
+    print(f"\nCreating timesheet for {employee} on {date}")
+    
+    # Check for existing timesheet
+    existing_timesheet = frappe.db.get_value(
+        "Timesheet",
+        {
+            "employee": employee,
+            "start_date": date,
+            "is_created_by_productify": 1,
+            "docstatus": 0
+        },
+        "name"
+    )
+    
+    if existing_timesheet:
+        print(f"Found existing timesheet: {existing_timesheet}")
+        timesheet = frappe.get_doc("Timesheet", existing_timesheet)
+        timesheet.time_logs = []  # Clear existing logs
+    else:
+        print("Creating new timesheet")
+        timesheet = frappe.new_doc("Timesheet")
+        timesheet.employee = employee
+        timesheet.start_date = date
+        timesheet.end_date = date
+        timesheet.is_created_by_productify = 1
+    
+    print("\nProcessing activities for timesheet:")
+    previous_end_time = None
+    
+    for activity in activities:
+        from_time = get_datetime(activity['from_time'])
+        to_time = get_datetime(activity['to_time'])
         
-        if existing_timesheet:
-            timesheet = frappe.get_doc("Timesheet", existing_timesheet[0].name)
-            timesheet.time_logs = []  # Clear existing time logs
-        else:
-            timesheet = frappe.new_doc("Timesheet")
-            timesheet.employee = employee
-            timesheet.start_date = date
-            timesheet.end_date = date
-            timesheet.is_created_by_productify = 1
+        # Add 1 second gap if there was a previous activity
+        if previous_end_time and from_time <= previous_end_time:
+            from_time = previous_end_time + timedelta(seconds=1)
+            
+        # Ensure we're not creating a negative duration
+        if from_time >= to_time:
+            print(f"Skipping activity due to invalid time range: {from_time} - {to_time}")
+            continue
+            
+        hours = frappe.utils.time_diff_in_hours(to_time, from_time)
         
-        # Sort activities by start time
-        activities.sort(key=lambda x: x.get('from_time', ''))
+        print(f"\nActivity: {activity['activity_type']}")
+        print(f"Original Time: {activity['from_time']} - {activity['to_time']}")
+        print(f"Adjusted Time: {from_time} - {to_time}")
+        print(f"Hours: {hours}")
+        print(f"Project: {activity.get('project')}")
+        print(f"Task: {activity.get('task')}")
+        print(f"Issue: {activity.get('issue')}")
         
-        for activity in activities:
-            from_time = get_datetime(activity['from_time'])
-            to_time = get_datetime(activity['to_time'])
+        if hours <= 0:
+            print("Skipping due to zero or negative hours")
+            continue
             
-            # Skip invalid time ranges
-            if from_time >= to_time:
-                continue
-                
-            hours = frappe.utils.time_diff_in_hours(to_time, from_time)
-            if hours <= 0:
-                continue
-            
-            # Create time log entry with all relevant fields
-            time_log = {
-                "activity_type": activity['activity_type'],
-                "from_time": from_time,
-                "to_time": to_time,
-                "hours": hours
-            }
-            
-            # Set project, task, and issue if they exist
-            if activity.get('project'):
-                time_log['project'] = activity['project']
-            if activity.get('task'):
-                time_log['task'] = activity['task']
-            if activity.get('issue'):
-                time_log['issue'] = activity['issue']
-            
-            # Add source information for tracking
-            time_log['source'] = activity.get('source', '')
-            if activity.get('call_id'):
-                time_log['call_id'] = activity['call_id']
-            if activity.get('meeting_id'):
-                time_log['meeting_id'] = activity['meeting_id']
-            
-            timesheet.append("time_logs", time_log)
+        timesheet.append("time_logs", {
+            "activity_type": activity['activity_type'],
+            "from_time": from_time,
+            "to_time": to_time,
+            "hours": hours,
+            "project": activity.get('project'),
+            "task": activity.get('task'),
+            "issue": activity.get('issue'),
+            "billable": 1 if activity.get('project') else 0
+        })
         
-        if timesheet.time_logs:
-            timesheet.flags.ignore_permissions = True
-            timesheet.save()
-            print(f"Saved timesheet {timesheet.name} for {employee}")
-            # timesheet.submit()
-            print(f"Submitted timesheet {timesheet.name} for {employee}")
-        else:
-            print(f"Warning: No valid time logs found for {employee}")
-            
-    except Exception as e:
-        print(f"Error creating timesheet for {employee}: {str(e)}")
-        raise
+        previous_end_time = to_time
+    
+    if timesheet.time_logs:
+        print(f"Saving timesheet with {len(timesheet.time_logs)} entries")
+        try:
+            timesheet.save(ignore_permissions=True)
+            print("Timesheet saved successfully")
+        except Exception as e:
+            print(f"ERROR saving timesheet: {str(e)}")
+            raise
+    else:
+        print("No time logs to save, skipping timesheet creation")
 
 def parse_duration(duration):
     """Parse duration string into seconds"""
@@ -1665,17 +1630,38 @@ def parse_duration(duration):
     except:
         return None
     
+@frappe.whitelist()
+def get_defaults_productivity():
+    result = frappe.db.sql("""
+        SELECT 
+            field,
+            value
+        FROM 
+            `tabSingles`
+        WHERE 
+            doctype = 'Productify Configuration' 
+            AND field IN (
+                'email_alert_on_time_violation'      
+            )
+    """, as_dict=True)
+
+    if result:
+        return {row["field"]: row["value"] for row in result}
+    return {}
+    
 
 
 def create_working_hours_exceptions():
     from_date = add_days(today(), -1)
     to_date = add_days(today(), -1)
+ 
 
     # Step 1: Get all employees
     active_users = frappe.db.sql("""
         SELECT employee_name,employee FROM `tabList of User`
     """, as_dict=True)
     
+
     
 
     # Step 2: Get all report data once (without employee filter)
@@ -1687,7 +1673,7 @@ def create_working_hours_exceptions():
 
     all_data = get_data(filters)
     data = all_data[0] 
-    # print(data)
+  
     # Step 3: Loop through each row and match with each employee
     for row in data:
         if isinstance(row, dict) and row:
@@ -1702,10 +1688,10 @@ def create_working_hours_exceptions():
             
             productivity_score = row.get("productivity_score")
             total_hours = parse_hours(row.get("total_hours"))
-            # print(productivity_score)
             if productivity_score is not None and productivity_score < 70 and total_hours < 8:
                 try:
                     emp_id = row.get("emp_id")
+                   
                     employee_name = row.get("employee") 
                     starting_date = row.get("starting_date")
                     ending_date = row.get("ending_date") or starting_date
@@ -1726,8 +1712,6 @@ def create_working_hours_exceptions():
                     meetings = float(row.get("meetings") or 0)
                     meetings_hours = parse_hours(row.get("meetings_hours"))
                     
-                    # print("emp_id",emp_id)
-                    print(employee_name)
                     doc = frappe.new_doc("Working Hours Exception")
                     doc.employee = emp_id
                     doc.employee_name = employee_name
@@ -1749,17 +1733,20 @@ def create_working_hours_exceptions():
                     doc.scroll = scroll
                     doc.meetings = meetings
                     doc.meetings_hours = meetings_hours
+                    
+                    config_defaults = get_defaults_productivity()
+                    doc.email_alert_on_time_violation = cint(config_defaults.get("email_alert_on_time_violation", 0))
 
                     doc.insert(ignore_permissions=True)
-                    doc.save()
-                    frappe.db.commit()
+                    frappe.msgprint("data inserted successfully")
 
                 except Exception as e:
                     frappe.log_error(frappe.get_traceback(), "Working Hours Exception Insert Failed")
                     frappe.msgprint(f"Failed to insert for {employee}: {str(e)}")
 
+    frappe.db.commit()
 
-# Utility to convert "Xh Ym" format to float hours
+
 def parse_hours(duration_str):
     try:
         if not duration_str:

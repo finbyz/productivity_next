@@ -16,6 +16,7 @@
   "do_not_send_task_reminder_email",
   "create_task_instead_of_todo_for_lead_follow_up",
   "create_task_instead_of_todo_for_opportunity_follow_up",
+  "email_alert_on_time_violation",
   "total_hours_per_day",
   "total_hours_on_saturday"
  ],
@@ -101,12 +102,18 @@
    "fieldname": "total_hours_on_saturday",
    "fieldtype": "Float",
    "label": "Total Hours On Saturday"
+  },
+  {
+   "default": "0",
+   "fieldname": "email_alert_on_time_violation",
+   "fieldtype": "Check",
+   "label": "Email Alert on Time Violation"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-04-09 17:03:03.073712",
+ "modified": "2025-04-17 13:55:15.243930",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Configuration",
@@ -123,6 +130,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
