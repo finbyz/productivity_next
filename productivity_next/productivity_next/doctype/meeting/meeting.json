@@ -14,6 +14,7 @@
   "party",
   "organization",
   "mom_sent",
+  "management_involved",
   "purpose",
   "scheduled_time",
   "project",
@@ -423,12 +424,19 @@
   {
    "fieldname": "column_break_kqpz",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.party_type == \"Lead\"",
+   "fieldname": "management_involved",
+   "fieldtype": "Check",
+   "label": "Management Involved"
   }
  ],
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-16 15:00:58.943194",
+ "modified": "2025-04-21 11:40:00.110152",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

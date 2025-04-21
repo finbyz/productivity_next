@@ -58,6 +58,12 @@ frappe.query_reports["Task Analysis"] = {
             fieldname: "completed_on",
             label: __("Completed On"),
             fieldtype: "DateRange"  
+        },
+        {
+            "fieldname": "on_hold",
+            "label": "Task On Hold",
+            "fieldtype": "Check",
+            "default": 1
         }
     ],
 

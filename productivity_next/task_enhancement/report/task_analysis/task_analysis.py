@@ -300,6 +300,9 @@ def get_tasks(filters):
             "is_template": 0
         }, as_dict=1)
 
+    if filters.get('on_hold'):
+        task_filters['on_hold'] = (filters.get('on_hold'))
+
     direct_tasks = frappe.get_all(
         "Task",
         filters=task_filters,
@@ -308,6 +311,11 @@ def get_tasks(filters):
             "expected_time", "description", "is_group", "project", "parent_task",
             "assignee", "type", "completed_on", "completed_by"
         ],
+        # fields=[
+        #     "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
+        #     "expected_time", "description", "is_group", "project", "parent_task",
+        #     "assignee", "type", "completed_on", "completed_by","on_hold"
+        # ],
         order_by="name"
     )
 
@@ -323,6 +331,12 @@ def get_tasks(filters):
                  'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
                  'assignee', 'type', 'completed_on', 'completed_by'], 
                 as_dict=1)
+            # current = frappe.get_value('Task', 
+            #     current.parent_task, 
+            #     ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', 
+            #      'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
+            #      'assignee', 'type', 'completed_on', 'completed_by',"on_hold"], 
+            #     as_dict=1)
             if not current:
                 break
 
@@ -337,6 +351,11 @@ def get_tasks(filters):
                 "expected_time", "description", "is_group", "project", "parent_task",
                 "assignee", "type", "completed_on", "completed_by"
             ],
+            # fields=[
+            #     "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
+            #     "expected_time", "description", "is_group", "project", "parent_task",
+            #     "assignee", "type", "completed_on", "completed_by","on_hold"
+            # ],
             order_by="name"
         )
 

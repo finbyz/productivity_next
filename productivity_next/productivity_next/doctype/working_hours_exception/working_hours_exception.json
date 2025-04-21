@@ -118,7 +118,8 @@
   {
    "fieldname": "outgoing_hours",
    "fieldtype": "Float",
-   "label": "Outgoing Hours"
+   "label": "Outgoing Hours",
+   "read_only": 1
   },
   {
    "fieldname": "missed_calls",
@@ -169,7 +170,8 @@
   {
    "fieldname": "reason",
    "fieldtype": "Small Text",
-   "label": "Reason"
+   "label": "Reason",
+   "read_only": 1
   },
   {
    "fieldname": "naming_series",
@@ -183,7 +185,8 @@
    "fieldname": "employee_email",
    "fieldtype": "Data",
    "label": "Employee Email",
-   "options": "Email"
+   "options": "Email",
+   "read_only": 1
   },
   {
    "default": "0",
@@ -195,7 +198,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-04-17 14:01:39.393502",
+ "modified": "2025-04-21 17:56:24.229780",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Working Hours Exception",
