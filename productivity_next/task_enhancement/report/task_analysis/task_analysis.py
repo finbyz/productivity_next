@@ -300,8 +300,8 @@ def get_tasks(filters):
             "is_template": 0
         }, as_dict=1)
 
-    if filters.get('on_hold'):
-        task_filters['on_hold'] = (filters.get('on_hold'))
+    if not filters.get('on_hold'):
+        task_filters['on_hold'] = 0
 
     direct_tasks = frappe.get_all(
         "Task",

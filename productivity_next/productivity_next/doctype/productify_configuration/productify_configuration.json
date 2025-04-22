@@ -17,6 +17,7 @@
   "create_task_instead_of_todo_for_lead_follow_up",
   "create_task_instead_of_todo_for_opportunity_follow_up",
   "email_alert_on_time_violation",
+  "validate_marketing_follow_up_with_calls",
   "total_hours_per_day",
   "total_hours_on_saturday"
  ],
@@ -108,12 +109,18 @@
    "fieldname": "email_alert_on_time_violation",
    "fieldtype": "Check",
    "label": "Email Alert on Time Violation"
+  },
+  {
+   "default": "0",
+   "fieldname": "validate_marketing_follow_up_with_calls",
+   "fieldtype": "Check",
+   "label": "Validate Marketing Follow up with Calls"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-04-17 13:55:15.243930",
+ "modified": "2025-04-21 12:00:18.339019",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify Configuration",

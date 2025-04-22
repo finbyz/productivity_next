@@ -11,6 +11,52 @@ from frappe.model.workflow import set_workflow_state_on_action, WorkflowPermissi
 
 
 class Task(_Task):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from erpnext.projects.doctype.task_depends_on.task_depends_on import TaskDependsOn
+		from frappe.types import DF
+
+		act_end_date: DF.Date | None
+		act_start_date: DF.Date | None
+		actual_time: DF.Float
+		closing_date: DF.Date | None
+		color: DF.Color | None
+		company: DF.Link | None
+		completed_by: DF.Link | None
+		completed_on: DF.Date | None
+		department: DF.Link | None
+		depends_on: DF.Table[TaskDependsOn]
+		depends_on_tasks: DF.Code | None
+		description: DF.TextEditor | None
+		duration: DF.Int
+		exp_end_date: DF.Date | None
+		exp_start_date: DF.Date | None
+		expected_time: DF.Float
+		is_group: DF.Check
+		is_milestone: DF.Check
+		is_template: DF.Check
+		issue: DF.Link | None
+		lft: DF.Int
+		old_parent: DF.Data | None
+		parent_task: DF.Link | None
+		priority: DF.Literal["Low", "Medium", "High", "Urgent"]
+		progress: DF.Percent
+		project: DF.Link | None
+		review_date: DF.Date | None
+		rgt: DF.Int
+		start: DF.Int
+		status: DF.Literal["Open", "Working", "Pending Review", "Overdue", "Template", "Completed", "Cancelled"]
+		subject: DF.Data
+		task_weight: DF.Float
+		template_task: DF.Data | None
+		total_billing_amount: DF.Currency
+		total_costing_amount: DF.Currency
+		type: DF.Link | None
+	# end: auto-generated types
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
@@ -89,6 +135,7 @@ class Task(_Task):
 		self.assign_to_assignee_and_task_approver()
 		self.update_if_is_group()
 		self.update_parent_task()
+		self.check_employee_fincall_for_lead()
 		
 	def validate_parent_expected_end_date(self):
 		if not self.parent_task or not self.exp_end_date:
@@ -307,6 +354,40 @@ class Task(_Task):
 			case _:
 				self.color = None
 
+	def check_employee_fincall_for_lead(self):
+		result = frappe.db.sql("""
+			SELECT value 
+			FROM `tabSingles`
+			WHERE doctype = 'Productify Configuration' 
+			AND field = 'validate_marketing_follow_up_with_calls'
+			LIMIT 1
+		""", as_dict=True)
+
+		if not result or not frappe.utils.cint(result[0].value):
+			return 
+		
+		if self.status == "Completed":
+			if self.lead and self.exp_start_date and self.exp_end_date:
+				fincall_exists = frappe.db.exists(
+					"Employee Fincall",
+					{
+						"link_name": self.lead,
+						"date": ["between", [self.exp_start_date, self.exp_end_date]]
+					}
+				)
+
+				has_attachment = frappe.db.exists(
+					"File",
+					{
+						"attached_to_doctype": self.doctype,
+						"attached_to_name": self.name
+					}
+				)
+
+				if not fincall_exists and not has_attachment:
+					frappe.throw(_("No follow-up found for this Lead. Please attach a screenshot of the follow-up on Email or WhatsApp as evidence for closure of this task."))
+
+
 	@frappe.whitelist()
 	def fetch_process_flow_steps(self):
 		return frappe.get_all(
@@ -397,3 +478,5 @@ def validate_workflow(doc):
 				_("Workflow State transition not allowed from {0} to {1}").format(bold_current, bold_next),
 				WorkflowPermissionError,
 			)
+
+	

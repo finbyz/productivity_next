@@ -63,7 +63,7 @@ frappe.query_reports["Task Analysis"] = {
             "fieldname": "on_hold",
             "label": "Task On Hold",
             "fieldtype": "Check",
-            "default": 1
+            "default": 0
         }
     ],
 
