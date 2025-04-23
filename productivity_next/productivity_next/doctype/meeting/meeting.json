@@ -401,6 +401,7 @@
    "options": "Issue"
   },
   {
+   "allow_on_submit": 1,
    "default": "0",
    "depends_on": "eval:doc.party_type == \"Lead\"",
    "fieldname": "mom_sent",
@@ -436,7 +437,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2025-04-21 11:40:00.110152",
+ "modified": "2025-04-23 13:46:48.894339",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
