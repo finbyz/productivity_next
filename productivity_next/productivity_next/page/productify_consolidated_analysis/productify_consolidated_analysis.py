@@ -1,7 +1,7 @@
 
 import frappe
 from datetime import datetime,timedelta
-from frappe.utils import now
+from frappe.utils import add_days,now,getdate
 from collections import defaultdict
 from frappe.utils import now_datetime
 from productivity_next.api import calculate_total_working_hours
@@ -282,6 +282,17 @@ def employee_calls_chart(user, start_date=None, end_date=None):
 # Overall Performance (All Employees) Code Starts
 @frappe.whitelist()
 def overall_performance_chart(start_date=None, end_date=None):
+    holdays = frappe.get_all("Holiday",filters={'holiday_date':["between",[start_date,end_date]]},pluck='holiday_date')
+    end_date = getdate(end_date)
+    if end_date > getdate() and getdate(start_date) <= getdate():
+        end_date = getdate()
+
+    while end_date in holdays:
+        end_date = add_days(end_date, -1)
+        if end_date <= getdate(start_date):
+            break
+
+    end_date = end_date.strftime('%Y-%m-%d')
     employees = get_employees()
     employees_overall = get_employees_overall_performance(end_date)
     if not employees:
@@ -383,7 +394,8 @@ def overall_performance_chart(start_date=None, end_date=None):
         "base_dimensions":['Activity', 'Employee', 'Start Time', 'End Time'],
         "dimensions":['Employee', 'Employee Name'],
         "base_data":base_data,
-        "data":data
+        "data":data,
+        "date":end_date,
     }
 # Overall Performance (All Employees) Code Ends
 
