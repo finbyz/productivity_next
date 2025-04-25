@@ -33,8 +33,8 @@ def set_dates(start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_employees():
-    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
-    employee_analysis = frappe.get_all('List of User', fields=['employee', 'employee_name'])
+    employees = frappe.get_list("Employee", filters={"status": "Active"}, fields=["name", "employee_name", "user_id"])
+    employee_analysis = frappe.get_all('List of User', fields=['employee', 'employee_name', 'user_id'])
     all_analysed_employees = []
     for employee in employees:
         if employee['name'] in [emp['employee'] for emp in employee_analysis]:
@@ -288,10 +288,10 @@ def overall_performance_chart(start_date=None, end_date=None):
         end_date = getdate()
 
     while end_date in holdays:
-        end_date = add_days(end_date, -1)
         if end_date <= getdate(start_date):
             break
-
+        end_date = add_days(end_date, -1)
+    print(end_date)
     end_date = end_date.strftime('%Y-%m-%d')
     employees = get_employees()
     employees_overall = get_employees_overall_performance(end_date)
@@ -638,10 +638,33 @@ def user_analysis_data(start_date=None, end_date=None):
 
     hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
     hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
-
+    
+    completed_tasks = frappe.get_list(
+        "Task",
+        fields=['count(*) as completed_tasks',"completed_by"],
+        filters={
+            "status":"Completed",
+            "completed_on": ["between", [start_date, end_date]]
+        },
+        group_by="completed_by"   
+    )
+    overdue_tasks = frappe.get_list(
+        "Task",
+        fields=['count(*) as overdue_tasks',"assignee"],
+        filters={
+            "status":"Overdue"
+        },
+        group_by="assignee"
+    )
+    overdue_tasks_user_id = {task['assignee']: task['overdue_tasks'] for task in overdue_tasks}
+    completed_tasks_by_user_id = {task['completed_by']: task['completed_tasks'] for task in completed_tasks}
+    completed_tasks = {}
+    overdue_tasks = {}
     for employee in employees:
         score = calculate_total_working_hours(employee['name'],start_date, end_date, hours_per_weekday, hours_on_saturday)
         productivity_score[employee['name']] = score
+        overdue_tasks[employee['name']] = overdue_tasks_user_id.get(employee['user_id'], 0)
+        completed_tasks[employee['name']] = completed_tasks_by_user_id.get(employee['user_id'], 0)
     
     return {
         "total_days": total_days,
@@ -650,6 +673,8 @@ def user_analysis_data(start_date=None, end_date=None):
         "employee_fincall_data": employee_fincall_data,
         "meeting_employee_data": meetings_external_employee,
         "work_intensity_data": work_intensity_data,
-        "productivity_score": productivity_score
+        "productivity_score": productivity_score,
+        "overdue_tasks": overdue_tasks,
+        "completed_tasks": completed_tasks,
     }
 # User Analysis (User Productivity Stats) Code Ends
