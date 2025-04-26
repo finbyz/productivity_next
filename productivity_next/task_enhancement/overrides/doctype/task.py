@@ -363,16 +363,19 @@ class Task(_Task):
 			LIMIT 1
 		""", as_dict=True)
 
+		from datetime import date
+		today = date.today()
+
 		if not result or not frappe.utils.cint(result[0].value):
 			return 
 		
 		if self.status == "Completed":
-			if self.lead and self.exp_start_date and self.exp_end_date:
+			if self.lead and self.exp_start_date:
 				fincall_exists = frappe.db.exists(
 					"Employee Fincall",
 					{
 						"link_name": self.lead,
-						"date": ["between", [self.exp_start_date, self.exp_end_date]]
+						"date": ["between", [self.exp_start_date, today]]
 					}
 				)
 
