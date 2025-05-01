@@ -4,7 +4,7 @@ import frappe.utils
 from frappe.desk.form.assign_to import set_status
 from frappe.desk.form.assign_to import clear
 from frappe.utils import flt
-
+from datetime import date
 from erpnext.projects.doctype.task.task import Task as _Task
 
 from frappe.model.workflow import set_workflow_state_on_action, WorkflowPermissionError, get_workflow, get_transitions
@@ -355,20 +355,22 @@ class Task(_Task):
 				self.color = None
 
 	def check_employee_fincall_for_lead(self):
-		result = frappe.db.sql("""
-			SELECT value 
+		config = frappe.db.sql("""
+			SELECT 
+				MAX(CASE WHEN field = 'validate_marketing_follow_up_with_calls' THEN value END) AS validate_marketing_follow_up_with_calls,
+				MAX(CASE WHEN field = 'default_marketing_project' THEN value END) AS default_marketing_project,
+				MAX(CASE WHEN field = 'task_type' THEN value END) AS task_type
 			FROM `tabSingles`
-			WHERE doctype = 'Productify Configuration' 
-			AND field = 'validate_marketing_follow_up_with_calls'
-			LIMIT 1
+			WHERE doctype = 'Productify Configuration'
 		""", as_dict=True)
 
-		from datetime import date
-		today = date.today()
+		if not config or not frappe.utils.cint(config[0].validate_marketing_follow_up_with_calls):
+			return
 
-		if not result or not frappe.utils.cint(result[0].value):
-			return 
-		
+		if self.project != config[0].default_marketing_project or config[0].task_type != self.type:
+			return
+
+		today = date.today()
 		if self.status == "Completed":
 			if self.lead and self.exp_start_date:
 				fincall_exists = frappe.db.exists(
@@ -379,6 +381,13 @@ class Task(_Task):
 					}
 				)
 
+				communication_exists = frappe.db.sql("""
+					SELECT name FROM `tabCommunication`
+					WHERE reference_name = %s 
+					AND DATE(communication_date) BETWEEN %s AND %s
+					LIMIT 1
+				""", (self.lead, self.exp_start_date, today))
+
 				has_attachment = frappe.db.exists(
 					"File",
 					{
@@ -387,7 +396,7 @@ class Task(_Task):
 					}
 				)
 
-				if not fincall_exists and not has_attachment:
+				if not fincall_exists and not has_attachment and not communication_exists:
 					frappe.throw(_("No follow-up found for this Lead. Please attach a screenshot of the follow-up on Email or WhatsApp as evidence for closure of this task."))
 
 
