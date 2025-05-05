@@ -1,11 +1,12 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:PALF-{#####}",
+ "autoname": "naming_series:",
  "creation": "2025-05-05 08:20:52.748843",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_series",
   "from_time",
   "employee",
   "column_break_mklv",
@@ -43,16 +44,23 @@
   {
    "fieldname": "section_break_yirj",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "PALF-"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-05 11:53:14.265050",
+ "modified": "2025-05-05 14:12:15.933811",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify API Log",
- "naming_rule": "Expression",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
