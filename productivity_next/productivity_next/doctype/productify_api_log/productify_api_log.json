@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:PALF-{#####}",
+ "creation": "2025-05-05 08:20:52.748843",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "from_time",
+  "employee",
+  "column_break_mklv",
+  "to_time",
+  "section_break_yirj",
+  "productify_api_call_frequency"
+ ],
+ "fields": [
+  {
+   "fieldname": "productify_api_call_frequency",
+   "fieldtype": "Table",
+   "label": "Productify API Call Frequency",
+   "options": "Productify API Call Frequency"
+  },
+  {
+   "fieldname": "from_time",
+   "fieldtype": "Datetime",
+   "label": "From Time"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "column_break_mklv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "to_time",
+   "fieldtype": "Datetime",
+   "label": "To Time"
+  },
+  {
+   "fieldname": "section_break_yirj",
+   "fieldtype": "Section Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-05-05 11:53:14.265050",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Productify API Log",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
