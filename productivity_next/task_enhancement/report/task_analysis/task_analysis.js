@@ -491,8 +491,8 @@ function generateTableRows(data) {
                             ${indentCloseHtml}
                         </td>
                         <td class="other-col">${sanitizeText(assignee)}</td>
-                        <td class="date-col">${frappe.datetime.str_to_user(row.exp_start_date) || ''}</td>
-                        <td class="date-col">${frappe.datetime.str_to_user(row.exp_end_date) || ''}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.start_date) || ''}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.end_date) || ''}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.completed_on) || ''}</td>
                         <td class="status-col">
                             <span class="status-badge" style="background-color: ${statusBgColor}; color: ${statusColor}">
