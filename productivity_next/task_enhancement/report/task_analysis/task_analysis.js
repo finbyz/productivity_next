@@ -553,7 +553,7 @@ function showPrintView(tableRows) {
                         white-space: nowrap;
                     }
                     .task-col { width: 40%; }
-                    .date-col { width: 12%; white-space: nowrap; }
+                    .date-col { width: 14%; white-space: nowrap; }
                     .status-col { width: 14%; }
                     .other-col { width: 11%; }
                     .task-content {
@@ -600,8 +600,8 @@ function showPrintView(tableRows) {
                         <tr>
                             <th class="task-col">Task</th>
                             <th class="other-col">Assignee</th>
-                            <th class="date-col">Start Date</th>
-                            <th class="date-col">End Date</th>
+                            <th class="date-col">Expected/Actual Start</th>
+                            <th class="date-col">Expected/Actual End</th>
                             <th class="date-col">Completed On</th>
                             <th class="status-col">Status</th>
                         </tr>

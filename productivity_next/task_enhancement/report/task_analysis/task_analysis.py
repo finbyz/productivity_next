@@ -25,7 +25,8 @@ def get_columns(filters):  # Added filters parameter
         {
             "fieldname": "id",
             "label": _("ID"),
-            "fieldtype": "Data",
+            "fieldtype": "Link",
+            "options": "Task",
             "width": 100
         },
         {
@@ -48,14 +49,14 @@ def get_columns(filters):  # Added filters parameter
             "width": 120
         },
         {
-            "fieldname": "exp_start_date",
-            "label": _("Expected Start Date"),
+            "fieldname": "start_date",
+            "label": _("Expected / Actual Start "),
             "fieldtype": "Date",
             "width": 115
         },
         {
-            "fieldname": "exp_end_date",
-            "label": _("Expected End Date"),
+            "fieldname": "end_date",
+            "label": _("Expected / Actual End"),
             "fieldtype": "Date",
             "width": 115
         },
@@ -184,6 +185,8 @@ def prepare_data(filters, projects, tasks):
                 "indent": 0,
                 "exp_start_date": project.expected_start_date,
                 "exp_end_date": project.expected_end_date,
+                "actual_start_date" : project.actual_start_date,
+                "actual_end_date":project.actual_end_date,
                 "is_group": 2,
                 "is_project": 1
             })
@@ -215,8 +218,8 @@ def add_task_to_data(data, task, parent_children_map, level, user_first_names, s
         "progress": progress_display,
         "assignee": task.assignee,
         "assignee_first_name": user_first_names.get(task.assignee, ''),
-        "exp_start_date": task.exp_start_date,
-        "exp_end_date": task.exp_end_date,
+        "start_date": task.act_start_date or task.exp_start_date,
+        "end_date": task.act_end_date or task.exp_end_date,
         "status": task.status,
         "status_show": status_display,  
         "expected_time":task.expected_time,
@@ -265,9 +268,17 @@ def get_tasks(filters):
     if filters.get('assignee'):
         task_filters['assignee'] = filters['assignee']
 
-    # Filter by expected start date
+    # # Filter by expected start date
+    conditions = []
+    values = {}
+    
     if filters.get('exp_start_date'):
-        task_filters['exp_start_date'] = ['between', filters.get('exp_start_date')]
+        dates = filters.get('exp_start_date')
+        conditions.append(
+            "((act_start_date BETWEEN %(start)s AND %(end)s) OR (act_start_date IS NULL AND exp_start_date BETWEEN %(start)s AND %(end)s))"
+        )
+        values["start"] = dates[0]
+        values["end"] = dates[1]
 
     # Filter by status
     if filters.get('status'):
@@ -276,30 +287,68 @@ def get_tasks(filters):
     # Filter by completed_on date if specified
     if filters.get('completed_on'):
         dates = filters.get('completed_on')
-        task_filters.update({
-            "status": ("in", filters.get('status', [])),
-            "project": filters.get('project'),
-            "is_template": 0
-        })
-        
-        return frappe.db.sql("""
-            SELECT name, subject, status, priority, exp_start_date, exp_end_date,
-                expected_time, description, is_group, project, parent_task,
-                assignee, type, completed_on, completed_by
-            FROM `tabTask`
-            WHERE (completed_on BETWEEN %(start)s AND %(end)s OR completed_on IS NULL)
-                AND status IN %(status)s
-                AND project = %(project)s
-                AND is_template = %(is_template)s
-            ORDER BY COALESCE(completed_on, '2999-12-31') DESC, name
-        """, {
-            "start": dates[0],
-            "end": dates[1],
-            "status": filters.get('status', []),
-            "project": filters.get('project'),
-            "is_template": 0
-        }, as_dict=1)
 
+        # If status is not set or is empty, default to all statuses
+        status_list = filters.get('status')
+        if not status_list:
+            # Fetch all possible statuses from Task doctype meta
+            status_list = frappe.get_meta('Task').get_field('status').options.split('\n')
+            status_list = [s for s in status_list if s]
+
+        task_filters.update({
+            "status": ("in", status_list),
+            "project": filters.get('project'),
+        })
+
+        conditions = [
+        "(completed_on BETWEEN %(start)s AND %(end)s OR completed_on IS NULL)",
+        "status IN %(status)s",
+        "is_template = 0"
+        ]
+        
+        values = {
+        "start": dates[0],
+        "end": dates[1],
+        "status": status_list,
+        "is_template": 0
+        }
+        
+        if filters.get("project"):
+            conditions.append("project = %(project)s")
+            values["project"] = filters.get("project")
+        
+        if filters.get("assignee"):
+            conditions.append("assignee = %(assignee)s")
+            values["assignee"] = filters.get("assignee")
+        # frappe.throw(str(query))
+        query = f"""
+        SELECT name, subject, status, priority, exp_start_date, exp_end_date,act_start_date, act_end_date,
+            expected_time, description, is_group, project, parent_task,
+            assignee, type, completed_on, completed_by
+        FROM `tabTask`
+        WHERE {' AND '.join(conditions)}
+        ORDER BY COALESCE(completed_on, '2999-12-31') DESC, name
+        """
+
+        return frappe.db.sql(query, values, as_dict=1)
+        # return frappe.db.sql("""
+        #     SELECT name, subject, status, priority, exp_start_date, exp_end_date,
+        #         expected_time, description, is_group, project, parent_task,
+        #         assignee, type, completed_on, completed_by
+        #     FROM `tabTask`
+        #     WHERE (completed_on BETWEEN %(start)s AND %(end)s OR completed_on IS NULL)
+        #         AND status IN %(status)s
+        #         AND project = %(project)s
+        #         AND is_template = %(is_template)s
+        #     ORDER BY COALESCE(completed_on, '2999-12-31') DESC, name
+        # """, {
+        #     "start": dates[0],
+        #     "end": dates[1],
+        #     "status": filters.get('status', []),
+        #     "project": filters.get('project'),
+        #     "is_template": 0
+        # }, as_dict=1)
+        
     if not filters.get('on_hold'):
         task_filters['on_hold'] = 0
 
@@ -307,15 +356,10 @@ def get_tasks(filters):
         "Task",
         filters=task_filters,
         fields=[
-            "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
+            "name", "subject", "status", "priority", "exp_start_date", "exp_end_date","act_start_date", "act_end_date",
             "expected_time", "description", "is_group", "project", "parent_task",
             "assignee", "type", "completed_on", "completed_by"
         ],
-        # fields=[
-        #     "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
-        #     "expected_time", "description", "is_group", "project", "parent_task",
-        #     "assignee", "type", "completed_on", "completed_by","on_hold"
-        # ],
         order_by="name"
     )
 
@@ -327,16 +371,11 @@ def get_tasks(filters):
             parent_tasks.add(current.parent_task)
             current = frappe.get_value('Task', 
                 current.parent_task, 
-                ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', 
+                ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', "act_start_date", "act_end_date",
                  'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
                  'assignee', 'type', 'completed_on', 'completed_by'], 
                 as_dict=1)
-            # current = frappe.get_value('Task', 
-            #     current.parent_task, 
-            #     ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', 
-            #      'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
-            #      'assignee', 'type', 'completed_on', 'completed_by',"on_hold"], 
-            #     as_dict=1)
+           
             if not current:
                 break
 
@@ -347,15 +386,11 @@ def get_tasks(filters):
             "Task",
             filters={"name": ("in", list(parent_tasks))},
             fields=[
-                "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
+                "name", "subject", "status", "priority", "exp_start_date", "exp_end_date","act_start_date", "act_end_date",
                 "expected_time", "description", "is_group", "project", "parent_task",
                 "assignee", "type", "completed_on", "completed_by"
             ],
-            # fields=[
-            #     "name", "subject", "status", "priority", "exp_start_date", "exp_end_date",
-            #     "expected_time", "description", "is_group", "project", "parent_task",
-            #     "assignee", "type", "completed_on", "completed_by","on_hold"
-            # ],
+           
             order_by="name"
         )
 
@@ -371,165 +406,6 @@ def get_tasks(filters):
             unique_tasks.append(task)
 
     return unique_tasks
-
-# @frappe.whitelist()
-# def copy_project_tasks(original_project, new_project_name, new_assignee=None):
-#     """Copy all tasks from one project to another"""
-#     try:
-#         # Get all tasks from the original project
-#         tasks = frappe.get_all(
-#             'Task',
-#             filters={'project': original_project},
-#             fields=['*'],
-#             order_by='parent_task, creation'
-#         )
-        
-#         if not tasks:
-#             frappe.throw(_('No tasks found in the original project'))
-        
-#         # Dictionary to store mapping of original task IDs to new task IDs
-#         task_mapping = {}
-        
-#         # First pass: Create all tasks and store their mappings
-#         for task in tasks:
-#             # Create new task document
-#             new_task = frappe.new_doc('Task')
-            
-#             # Copy all fields except name, parent_task, and system fields
-#             exclude_fields = ['name', 'parent_task', 'creation', 'modified', 'modified_by', 
-#                             'owner', 'docstatus', 'idx', 'exp_start_date', 'exp_end_date']
-            
-#             for field, value in task.items():
-#                 if field not in exclude_fields:
-#                     new_task.set(field, value)
-            
-#             # Set new project and assignee
-#             new_task.project = new_project_name
-#             if new_assignee:
-#                 new_task.assignee = new_assignee
-            
-#             # Handle parent-child relationships
-#             if task.parent_task:
-#                 # If parent task was already copied, use its new task ID
-#                 if task.parent_task in task_mapping:
-#                     new_task.parent_task = task_mapping[task.parent_task]
-            
-#             # Set is_group=1 for parent tasks
-#             if task.parent_task is None:
-#                 new_task.is_group = 1
-            
-#             # Ensure type field is set
-#             if not new_task.type:
-#                 new_task.type = "Consulting"
-            
-#             # Set status to Open for new tasks
-#             new_task.status = "Open"
-            
-#             # Insert the new task
-#             new_task.insert(ignore_permissions=True)
-            
-#             # Copy attachments from original task to new task
-#             copy_attachments('Task', task.name, 'Task', new_task.name)
-            
-#             # Store mapping of original task ID to new task ID
-#             task_mapping[task.name] = new_task.name
-        
-#         # Commit batch to prevent memory buildup
-#         frappe.db.commit()
-        
-#         return {
-#             'message': _('Tasks copied successfully'),
-#             'new_project': new_project_name
-#         }
-        
-#     except Exception as e:
-#         frappe.log_error(f"Error copying tasks from project {original_project} to {new_project_name}: {str(e)}", "Task Copy Error")
-#         frappe.throw(_('Failed to copy tasks. Please check the error log for details.'))
-
-# @frappe.whitelist()
-# def copy_project_tasks(original_project, new_project_name, new_assignee=None):
-#     """Copy all tasks from one project to another, preserving task hierarchy"""
-   
-#     root_tasks = frappe.get_all(
-#         "Task",
-#         filters={"project": original_project },
-#         fields=["name"],
-#         order_by="creation"
-#     )
-
-#     if not root_tasks:
-#         frappe.throw(_("No tasks found in the original project"))
-
-#     task_mapping = {}
-
-#     for root in root_tasks:
-#         copy_task_tree(
-#             task_name=root.name,
-#             new_project=new_project_name,
-#             new_assignee=new_assignee,
-#             new_parent=None,
-#             task_mapping=task_mapping
-#         )
-
-#     frappe.db.commit()
-
-#     return {
-#         "message": _("Tasks copied successfully"),
-#         "new_project": new_project_name
-#     }
-
-# def copy_task_tree(task_name, new_project, new_assignee=None, new_parent=None, task_mapping=None):
-#     """Recursively copy a task and its children, preserving the hierarchy."""
-#     if task_mapping is None:
-#         task_mapping = {}
-
-#     original_task = frappe.get_doc("Task", task_name)
-
-#     new_task = frappe.new_doc("Task")
-
-#     exclude_fields = [
-#         'name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'idx',
-#         'project', 'parent_task', 'exp_start_date', 'exp_end_date'
-#     ]
-
-#     for field in original_task.meta.fields:
-#         if field.fieldname and field.fieldname not in exclude_fields:
-#             new_task.set(field.fieldname, original_task.get(field.fieldname))
-
-#     new_task.project = new_project
-#     new_task.parent_task = new_parent
-#     new_task.status = "Open"
-#     new_task.type = original_task.type or "Consulting"
-#     new_task.is_group = original_task.is_group
-
-#     if new_assignee:
-#         new_task.assignee = new_assignee
-#     else:
-#         new_task.assignee = original_task.assignee
-
-#     new_task.insert(ignore_permissions=True)
-
-#     # Copy attachments
-#     copy_attachments("Task", original_task.name, "Task", new_task.name)
-
-#     task_mapping[original_task.name] = new_task.name
-
-#     # Recursively copy children
-#     child_tasks = frappe.get_all(
-#         "Task",
-#         filters={"parent_task": original_task.name},
-#         fields=["name"],
-#         order_by="creation"
-#     )
-
-#     for child in child_tasks:
-#         copy_task_tree(
-#             task_name=child.name,
-#             new_project=new_project,
-#             new_assignee=new_assignee,
-#             new_parent=new_task.name,
-#             task_mapping=task_mapping
-#         )
 
 @frappe.whitelist()
 def copy_project_tasks_async(original_project, new_project_name, new_assignee=None):
@@ -866,7 +742,7 @@ def update_single_task(task_name, task_data, update_description):
     # Map of frontend field names to database field names
     if update_description:
         task.description = task_data.get('description')
-    
+    task.subject = task_data.get('task')
     task.assignee = task_data.get('assignee')
     task.parent_task = task_data.get('parent_task')
     task.exp_start_date = task_data.get('exp_start_date')
