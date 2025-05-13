@@ -1,6 +1,6 @@
 frappe.require('assets/productivity_next/productivity_next/party.min.js');
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
     function hasrole(rl) {
 		if (typeof rl == "string") rl = [rl];
 		for (var i in rl) {
@@ -12,6 +12,10 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('User is not System Manager');
         return;
     }
+    const {message : is_users_added} = await frappe.call({
+                    method: "productivity_next.api.is_users_added_in_productify_subscription"
+                })
+    if(is_users_added) return
     let subscription;
     frappe.db.get_doc('Productify Subscription')
         .then(doc => {

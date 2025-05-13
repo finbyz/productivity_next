@@ -2144,3 +2144,15 @@ def make_developer_document_meetings(source_name, doctype, ref_doctype, target_d
 
     return doclist
 
+@frappe.whitelist()
+def is_users_added_in_productify_subscription() -> bool:
+    try:
+        count = frappe.db.count('List of User', {
+            'parent': "Productify Subscription",
+            'parenttype': 'Productify Subscription',
+            'parentfield': 'list_of_users'
+        })
+    except Exception as e:
+        return True
+
+    return count > 0
