@@ -6,4 +6,5 @@ from frappe.model.document import Document
 
 
 class ProductifyAPILog(Document):
-	pass
+	def validate(self):
+		self.total_api_calls = sum(acf.frequency for acf in self.productify_api_call_frequency)

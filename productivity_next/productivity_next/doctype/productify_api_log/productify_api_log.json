@@ -8,9 +8,10 @@
  "field_order": [
   "naming_series",
   "from_time",
-  "employee",
-  "column_break_mklv",
   "to_time",
+  "column_break_mklv",
+  "employee",
+  "total_api_calls",
   "section_break_yirj",
   "productify_api_call_frequency"
  ],
@@ -24,11 +25,13 @@
   {
    "fieldname": "from_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "From Time"
   },
   {
    "fieldname": "employee",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Employee",
    "options": "Employee"
   },
@@ -39,6 +42,7 @@
   {
    "fieldname": "to_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "To Time"
   },
   {
@@ -51,12 +55,19 @@
    "hidden": 1,
    "label": "Naming Series",
    "options": "PALF-"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_api_calls",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total API Calls"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-05-05 14:12:15.933811",
+ "modified": "2025-05-15 11:05:59.367732",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Productify API Log",
