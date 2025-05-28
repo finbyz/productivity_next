@@ -1369,6 +1369,7 @@ def create_timesheet_logs():
             elif log.get("call_id"):
                 activity_type = "Call"
 
+            description = get_activity_description(log)
             timesheet.append("time_logs", {
                 "activity_type": activity_type,
                 "task": log.get("task"),
@@ -1376,7 +1377,8 @@ def create_timesheet_logs():
                 "issue": log.get("issue"),
                 "hours": hours,
                 "from_time": log["from_time"],
-                "to_time": log["to_time"]
+                "to_time": log["to_time"],
+                "description": description
             })
         try:
             if timesheet.time_logs:
@@ -1583,6 +1585,22 @@ def resolve_overlaps(activities):
     
     return final_resolved
 
+def get_activity_description(activity):
+    """Generate description using Task and Issue subject lines."""
+    description_parts = []
+
+    if activity.get('task'):
+        task_subject = frappe.db.get_value("Task", activity['task'], "subject") or ""
+        if task_subject:
+            description_parts.append(f"Task - {task_subject}")
+
+    if activity.get('issue'):
+        issue_subject = frappe.db.get_value("Issue", activity['issue'], "subject") or ""
+        if issue_subject:
+            description_parts.append(f"Issue - {issue_subject}")
+
+    return "\n".join(description_parts)
+
 def create_timesheet(employee, date, activities):
     """Create timesheet from activities"""
     print(f"\nCreating timesheet for {employee} on {date}")
@@ -1655,7 +1673,7 @@ def create_timesheet(employee, date, activities):
                     get_datetime(current_activity['to_time']),
                     get_datetime(current_activity['from_time'])
                 )
-                
+                description = get_activity_description(current_activity) 
                 if hours > 0:
                     timesheet.append("time_logs", {
                         "activity_type": activity_type,
@@ -1665,10 +1683,11 @@ def create_timesheet(employee, date, activities):
                         "project": project,
                         "task": task,
                         "issue": issue,
-                        "billable": 1 if project else 0
+                        "billable": 1 if project else 0,
+                        "description": description
                     })
                 current_activity = activity.copy()
-        
+               
         # Add final activity from the group
         if current_activity:
             hours = frappe.utils.time_diff_in_hours(
@@ -1685,7 +1704,8 @@ def create_timesheet(employee, date, activities):
                     "project": project,
                     "task": task,
                     "issue": issue,
-                    "billable": 1 if project else 0
+                    "billable": 1 if project else 0,
+                    "description": description
                 })
     
     # Sort time logs by start time

@@ -711,15 +711,15 @@ function showEditDialog(taskData, report) {
                 label: __('Expected Start Date'),
                 fieldname: 'exp_start_date',
                 fieldtype: 'Date',
-                read_only: !!taskDataWithoutProgress.exp_start_date,
-                default: taskDataWithoutProgress.exp_start_date
+                read_only: !!taskDataWithoutProgress.start_date,
+                default: taskDataWithoutProgress.start_date
             },
             {
                 label: __('Expected End Date'),
                 fieldname: 'exp_end_date',
                 fieldtype: 'Date',
-                read_only: !!taskDataWithoutProgress.exp_end_date,
-                default: taskDataWithoutProgress.exp_end_date
+                read_only: !!taskDataWithoutProgress.end_date,
+                default: taskDataWithoutProgress.end_date
             },
             {
                 label: __('Expected Time (in hours)'),

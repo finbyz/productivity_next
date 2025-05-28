@@ -243,161 +243,95 @@ def add_task_to_data(data, task, parent_children_map, level, user_first_names, s
             add_task_to_data(data, child, parent_children_map, level + 1, user_first_names, show_progress)
             
 
-def get_tasks(filters): 
+def get_tasks(filters):
     task_filters = {"is_template": 0}
-    task_or_filters = {}
 
-    # Filter by project
     if filters.get('project'):
         task_filters["project"] = filters['project']
 
-    # Filter by task
     if filters.get('task'):
-        sql = """WITH RECURSIVE `task_tree` AS (
-            SELECT * FROM `tabTask` WHERE name = '{0}' or parent_task = '{0}'
+        sql = """WITH RECURSIVE task_tree AS (
+            SELECT * FROM `tabTask` WHERE name = %(task)s OR parent_task = %(task)s
             UNION ALL
             SELECT t.* FROM `tabTask` t
             INNER JOIN task_tree tt ON t.parent_task = tt.name
         )
-        SELECT distinct name FROM task_tree"""
-        
-        if names := [row.name for row in frappe.db.sql(sql.format(filters.get('task')), as_dict=True)]:
-            task_filters['name'] = ('in', names)
+        SELECT DISTINCT name FROM task_tree"""
+        names = [row.name for row in frappe.db.sql(sql, {"task": filters["task"]}, as_dict=True)]
+        if names:
+            task_filters["name"] = ("in", names)
 
-    # Filter by assignee
+    if not filters.get('on_hold'):
+        task_filters["on_hold"] = 0
+
+    # ✅ Handle assignee (from both Task.assignee and ToDo.allocated_to)
     if filters.get('assignee'):
-        task_filters['assignee'] = filters['assignee']
+        assignee = filters["assignee"]
 
-    # # Filter by expected start date
-    conditions = []
-    values = {}
-    
-    if filters.get('exp_start_date'):
-        dates = filters.get('exp_start_date')
-        conditions.append(
-            "((act_start_date BETWEEN %(start)s AND %(end)s) OR (act_start_date IS NULL AND exp_start_date BETWEEN %(start)s AND %(end)s))"
-        )
-        values["start"] = dates[0]
-        values["end"] = dates[1]
+        # 1. Tasks where `assignee` is directly set
+        direct_tasks = frappe.get_all("Task", filters={"assignee": assignee}, pluck="name")
+
+        # 2. Tasks where the user is assigned via ToDo
+        todo_tasks = frappe.get_all("ToDo", filters={
+            "reference_type": "Task",
+            "allocated_to": assignee
+        }, pluck="reference_name")
+
+        # Combine and deduplicate
+        task_names = list(set(direct_tasks + todo_tasks))
+
+        # If no match found, return early
+        if not task_names:
+            return []
+
+        # Apply name filter
+        task_filters["name"] = ["in", task_names]
 
     # Filter by status
-    if filters.get('status'):
-        task_filters['status'] = ('in', filters.get('status'))
+    if filters.get("status"):
+        task_filters["status"] = ["in", filters["status"]]
 
-    # Filter by completed_on date if specified
-    if filters.get('completed_on'):
-        dates = filters.get('completed_on')
-
-        # If status is not set or is empty, default to all statuses
-        status_list = filters.get('status')
-        if not status_list:
-            # Fetch all possible statuses from Task doctype meta
-            status_list = frappe.get_meta('Task').get_field('status').options.split('\n')
-            status_list = [s for s in status_list if s]
-
-        task_filters.update({
-            "status": ("in", status_list),
-            "project": filters.get('project'),
-        })
-
-        conditions = [
-        "(completed_on BETWEEN %(start)s AND %(end)s OR completed_on IS NULL)",
-        "status IN %(status)s",
-        "is_template = 0"
-        ]
-        
-        values = {
-        "start": dates[0],
-        "end": dates[1],
-        "status": status_list,
-        "is_template": 0
-        }
-        
-        if filters.get("project"):
-            conditions.append("project = %(project)s")
-            values["project"] = filters.get("project")
-        
-        if filters.get("assignee"):
-            conditions.append("assignee = %(assignee)s")
-            values["assignee"] = filters.get("assignee")
-        # frappe.throw(str(query))
-        query = f"""
-        SELECT name, subject, status, priority, exp_start_date, exp_end_date,act_start_date, act_end_date,
-            expected_time, description, is_group, project, parent_task,
-            assignee, type, completed_on, completed_by
-        FROM `tabTask`
-        WHERE {' AND '.join(conditions)}
-        ORDER BY COALESCE(completed_on, '2999-12-31') DESC, name
-        """
-
-        return frappe.db.sql(query, values, as_dict=1)
-        # return frappe.db.sql("""
-        #     SELECT name, subject, status, priority, exp_start_date, exp_end_date,
-        #         expected_time, description, is_group, project, parent_task,
-        #         assignee, type, completed_on, completed_by
-        #     FROM `tabTask`
-        #     WHERE (completed_on BETWEEN %(start)s AND %(end)s OR completed_on IS NULL)
-        #         AND status IN %(status)s
-        #         AND project = %(project)s
-        #         AND is_template = %(is_template)s
-        #     ORDER BY COALESCE(completed_on, '2999-12-31') DESC, name
-        # """, {
-        #     "start": dates[0],
-        #     "end": dates[1],
-        #     "status": filters.get('status', []),
-        #     "project": filters.get('project'),
-        #     "is_template": 0
-        # }, as_dict=1)
-        
-    if not filters.get('on_hold'):
-        task_filters['on_hold'] = 0
-
-    direct_tasks = frappe.get_all(
+    # Fetch main tasks
+    tasks = frappe.get_all(
         "Task",
         filters=task_filters,
         fields=[
-            "name", "subject", "status", "priority", "exp_start_date", "exp_end_date","act_start_date", "act_end_date",
+            "name", "subject", "status", "priority", "exp_start_date", "exp_end_date", "act_start_date", "act_end_date",
             "expected_time", "description", "is_group", "project", "parent_task",
             "assignee", "type", "completed_on", "completed_by"
         ],
         order_by="name"
     )
 
-    # Get all parent tasks of matching tasks
+    # Include parent tasks
     parent_tasks = set()
-    for task in direct_tasks:
+    for task in tasks:
         current = task
-        while current.get('parent_task'):
-            parent_tasks.add(current.parent_task)
-            current = frappe.get_value('Task', 
-                current.parent_task, 
-                ['name', 'parent_task', 'subject', 'status', 'priority', 'exp_start_date', "act_start_date", "act_end_date",
-                 'exp_end_date', 'expected_time', 'description', 'is_group', 'project', 
-                 'assignee', 'type', 'completed_on', 'completed_by'], 
-                as_dict=1)
-           
+        while current.get("parent_task"):
+            parent_tasks.add(current["parent_task"])
+            current = frappe.get_value("Task", current["parent_task"], [
+                "name", "parent_task", "subject", "status", "priority", "exp_start_date", "act_start_date", "act_end_date",
+                "exp_end_date", "expected_time", "description", "is_group", "project",
+                "assignee", "type", "completed_on", "completed_by"
+            ], as_dict=1)
             if not current:
                 break
 
-    # Get the parent task details
     additional_tasks = []
     if parent_tasks:
         additional_tasks = frappe.get_all(
             "Task",
-            filters={"name": ("in", list(parent_tasks))},
+            filters={"name": ["in", list(parent_tasks)]},
             fields=[
-                "name", "subject", "status", "priority", "exp_start_date", "exp_end_date","act_start_date", "act_end_date",
+                "name", "subject", "status", "priority", "exp_start_date", "exp_end_date", "act_start_date", "act_end_date",
                 "expected_time", "description", "is_group", "project", "parent_task",
                 "assignee", "type", "completed_on", "completed_by"
             ],
-           
             order_by="name"
         )
 
-    # Combine direct tasks and parent tasks
-    all_tasks = direct_tasks + additional_tasks
-    
-    # Remove duplicates while preserving order
+    all_tasks = tasks + additional_tasks
+    # Remove duplicates
     seen = set()
     unique_tasks = []
     for task in all_tasks:

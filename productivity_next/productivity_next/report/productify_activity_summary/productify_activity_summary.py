@@ -1,6 +1,3 @@
-import frappe
-from datetime import datetime, timedelta
-import json
 from frappe import _
 import frappe
 from datetime import datetime, timedelta
@@ -40,6 +37,12 @@ def get_columns(filters=None):
             "fieldname": "productivity_score",
             "label": _("Productivity Score"),
             "fieldtype": "Data",  
+        },
+        {
+            "fieldname": "reason",
+            "label": _("Reason"),
+            "fieldtype": "Data",
+            "width": 200
         },
         {
             "fieldname": "total_hours",
@@ -116,12 +119,7 @@ def get_columns(filters=None):
             "label": _("Meetings Hours"),
             "fieldtype": "Data",
         }
-        , {
-            "fieldname": "reason",
-            "label": _("Reason"),
-            "fieldtype": "Data",
-            "width": 200
-        }
+      
     ]
 
     return columns
@@ -166,7 +164,6 @@ def get_data(filters):
             current_filters["to_date"] = end.strftime("%Y-%m-%d")
             
             user_analysis = user_analysis_data(current_filters.get("from_date"), current_filters.get("to_date"), current_filters)
-            
     
             summary = {
                 "starting_date": current_filters["from_date"],

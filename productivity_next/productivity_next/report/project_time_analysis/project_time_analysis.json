@@ -1,5 +1,6 @@
 {
  "add_total_row": 1,
+ "add_translate_data": 0,
  "columns": [],
  "creation": "2025-03-17 17:17:19.903375",
  "disabled": 0,
@@ -9,7 +10,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2025-03-17 17:17:19.903375",
+ "modified": "2025-05-14 12:14:31.980321",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Project Time Analysis",
