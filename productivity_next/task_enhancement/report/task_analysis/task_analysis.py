@@ -291,6 +291,16 @@ def get_tasks(filters):
     if filters.get("status"):
         task_filters["status"] = ["in", filters["status"]]
 
+    # ✅ Add this block here
+    if filters.get("completed_on"):
+        from_date, to_date = filters["completed_on"]
+        if from_date and to_date:
+            task_filters["completed_on"] = ["between", [from_date, to_date]]
+        elif from_date:
+            task_filters["completed_on"] = [">=", from_date]
+        elif to_date:
+            task_filters["completed_on"] = ["<=", to_date]
+
     # Fetch main tasks
     tasks = frappe.get_all(
         "Task",
@@ -306,13 +316,14 @@ def get_tasks(filters):
     # Include parent tasks
     parent_tasks = set()
     for task in tasks:
+        if not task.get("completed_on"):
+            continue 
+
         current = task
         while current.get("parent_task"):
             parent_tasks.add(current["parent_task"])
             current = frappe.get_value("Task", current["parent_task"], [
-                "name", "parent_task", "subject", "status", "priority", "exp_start_date", "act_start_date", "act_end_date",
-                "exp_end_date", "expected_time", "description", "is_group", "project",
-                "assignee", "type", "completed_on", "completed_by"
+                "name", "parent_task"
             ], as_dict=1)
             if not current:
                 break
