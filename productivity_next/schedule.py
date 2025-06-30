@@ -1355,7 +1355,7 @@ def create_timesheet_logs():
             log["to_time"] = log["to_time"] - timedelta(seconds=1)
             seconds = (log["to_time"] - log["from_time"]).total_seconds()
             hours = seconds / 3600
-            if seconds < 0:
+            if seconds <= 0:
                 continue
             activity_type = ""
             if log.get("meeting"):
@@ -1798,22 +1798,41 @@ def create_working_hours_exceptions():
 
         if not any(emp["employee"] == employee for emp in active_users):
             continue
-
+        
         productivity_score = float(row.get("productivity_score") or 0)
         total_hours = parse_hours(row.get("total_hours"))
         active_hours = parse_hours(row.get("active_hours"))
-
-       
+        
+        
         if day_name == "Sunday":
             continue
+        
+        required_productivity_score = 100
+        required_total_hours = total_hours_per_day if day_name != "Saturday" else total_hours_on_saturday
+        
+        leave = frappe.db.get_value(
+            "Leave Application",
+            {
+                "employee": employee,
+                "from_date": ["<=", from_date],
+                "to_date": [">=", from_date],
+                "status": "Approved"
+            },
+            ["name", "half_day"],
+            as_dict=True
+        )
+        
+        if leave:
+            if leave.half_day: 
+                if day_name == "Saturday":
+                    continue
+                required_productivity_score /= 2
+                required_total_hours /= 2
+            else:
+                continue
 
-     
-        if day_name == "Saturday":
-            if total_hours >= total_hours_on_saturday or productivity_score >= 100:
-                continue
-        else:  
-            if total_hours >= total_hours_per_day or productivity_score >= 100:
-                continue
+        if total_hours >= required_total_hours or productivity_score >= required_productivity_score:
+            continue
 
         try:
             emp_id = row.get("emp_id")
@@ -1865,9 +1884,6 @@ def create_working_hours_exceptions():
             frappe.msgprint(f"Failed to insert for {employee}: {str(e)}")
 
     frappe.db.commit()
-
-
-
 
 def parse_hours(duration_str):
     try:
