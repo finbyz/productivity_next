@@ -2103,6 +2103,8 @@ def submit_working_hour_exception_reason(doc_id,reason):
     doc = frappe.get_doc("Working Hours Exception", doc_id)
 
     # Store JSON as string (only if short enough)
+    if doc.reason:
+        frappe.throw("Reason has already been submitted and cannot be changed.")
     doc.reason = reason
     doc.save(ignore_permissions=True)
     frappe.db.commit()
