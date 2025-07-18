@@ -132,6 +132,29 @@ class Meeting(Document):
 			frappe.db.set_value("Address",self.address,"latitude",self.latitude)
 			frappe.db.set_value("Address",self.address,"longitude",self.longitude)
 
+		# --- Create Task on Submit ---
+		# Prepare subject
+		company_reps = ', '.join([rep.employee_name or rep.employee for rep in self.meeting_company_representative])
+		party_reps = ', '.join([rep.contact for rep in self.meeting_party_representative])
+		project_name = frappe.db.get_value("Project",self.project,"project_name")
+		subject = f"Meeting by {self.meeting_arranged_by} for {project_name or ''} with {company_reps} and {party_reps}"
+		# Create Task
+		task = frappe.new_doc("Task")
+		task.subject = subject
+		task.project = self.project
+		task.type = "Meeting"
+		task.status = "Completed"
+		task.completed_by = self.meeting_arranged_by
+		task.completed_on = self.meeting_to
+		task.exp_start_date = self.meeting_from
+		task.exp_end_date = self.meeting_to
+		task.reference_type = "Meeting"
+		task.reference_name = self.name
+		task.assignee = self.meeting_arranged_by
+		task.save(ignore_permissions=True)
+		# Link Task to Meeting
+		self.db_set("task", task.name)
+
 
 	def check_min_participants(self):
 		if self.internal_meeting == 1:

@@ -1274,7 +1274,8 @@ def split_logs(merged_logs, new_logs):
 
 def get_employee_meetings(employee, date):
     data = frappe.db.sql(f"""
-        SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, m.internal_meeting
+        SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, m.internal_meeting, m.project, m.task, 
+        m.meeting_arranged_by, m.meeting_company_representative, m.meeting_party_representative
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
         WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59'
@@ -1893,3 +1894,4 @@ def parse_hours(duration_str):
         return int(hours.strip()) + int(minutes.replace("m", "").strip()) / 60
     except Exception:
         return 0
+    

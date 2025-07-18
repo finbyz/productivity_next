@@ -99,7 +99,7 @@ scheduler_events = {
         "0 1 * * 2-7": [
             "productivity_next.api.task_mail_remainder",
         ],
-        "0 19 * * *" : [
+        "0 23 * * *" : [
             "productivity_next.schedule.create_timesheet_logs"
         ],
 
