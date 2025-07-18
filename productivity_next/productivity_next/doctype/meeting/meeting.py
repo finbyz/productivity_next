@@ -136,11 +136,13 @@ class Meeting(Document):
 		# Prepare subject
 		company_reps = ', '.join([rep.employee_name or rep.employee for rep in self.meeting_company_representative])
 		party_reps = ', '.join([rep.contact for rep in self.meeting_party_representative])
-		project_name = frappe.db.get_value("Project",self.project,"project_name")
+		project_name = frappe.db.get_value("Project", self.project, "project_name")
 		subject = f"Meeting by {self.meeting_arranged_by} for {project_name or ''} with {company_reps} and {party_reps}"
+
 		# Create Task
 		task = frappe.new_doc("Task")
-		task.subject = subject
+		task.subject = f"{project_name} - {'Internal' if self.internal_meeting else 'External'}"
+		task.description = subject
 		task.project = self.project
 		task.type = "Meeting"
 		task.status = "Completed"
