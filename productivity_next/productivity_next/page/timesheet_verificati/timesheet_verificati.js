@@ -48,30 +48,36 @@ frappe.pages['timesheet-verificati'].on_page_load = function(wrapper) {
         });
     }
 
-    // Fetch employees for filter
+    // Render employee select with only active employees
+    function render_employee_select(active_employees, default_value) {
+        let opts = active_employees.map(e => `<option value="${e.name}">${e.employee_name || e.name}</option>`).join("");
+        $("#employee_link_field").html(`<select id="employee_select" class="form-select">${opts}</select>`);
+        if (default_value) {
+            $("#employee_select").val(default_value);
+        }
+    }
+    // Fetch only active employees and render select
     frappe.call({
         method: "frappe.client.get_list",
         args: {
             doctype: "Employee",
             fields: ["name", "employee_name"],
+            filters: { status: 'Active' },
             limit_page_length: 1000
         },
         callback: function(r) {
-            let opts = r.message.map(e => `<option value="${e.name}">${e.employee_name || e.name}</option>`).join("");
-            $("#employee_select").html(opts);
+            let employees = r.message;
             // Set default to current user if possible
             frappe.call({
                 method: "frappe.client.get_value",
                 args: {
                     doctype: "Employee",
-                    filters: { user_id: frappe.session.user },
+                    filters: { user_id: frappe.session.user, status: 'Active' },
                     fieldname: "name"
                 },
                 callback: function(res) {
-                    if(res.message && res.message.name) {
-                        $("#employee_select").val(res.message.name);
-                    }
-                    // Set date to today
+                    let default_emp = res.message && res.message.name ? res.message.name : (employees[0] && employees[0].name);
+                    render_employee_select(employees, default_emp);
                     $("#date_select").val(frappe.datetime.get_today());
                     fetch_and_render_summary();
                 }

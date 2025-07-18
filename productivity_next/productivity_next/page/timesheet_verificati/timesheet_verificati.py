@@ -365,6 +365,14 @@ def create_timesheet_for_employee_date():
             "to_time": log["to_time"],
             "description": description
         })
+    log_dicts = [{
+        'from_time': row['from_time'] if isinstance(row, dict) else row.from_time,
+        'to_time': row['to_time'] if isinstance(row, dict) else row.to_time
+    } for row in timesheet.time_logs]
+    overlap, idx = has_overlap(log_dicts)
+    if overlap:
+        frappe.msgprint(f"Row {idx+1}: From Time and To Time is overlapping with previous row.")
+        return {"success": False, "message": f"Row {idx+1}: From Time and To Time is overlapping with previous row."}
     try:
         if timesheet.time_logs:
             timesheet.save()
@@ -487,3 +495,22 @@ def submit_timesheet(name):
     doc = frappe.get_doc("Timesheet", name)
     doc.submit()
     return {"success": True}
+
+def has_overlap(logs):
+    # Accepts a list of dicts or objects with from_time and to_time as datetime
+    # Ensure all times are datetime objects
+    from dateutil.parser import parse as parse_dt
+    def get_time(val):
+        if hasattr(val, 'isoformat'):
+            return val
+        try:
+            return parse_dt(str(val))
+        except Exception:
+            return None
+    logs = sorted(logs, key=lambda x: get_time(x['from_time']) if isinstance(x, dict) else get_time(x.from_time))
+    for i in range(1, len(logs)):
+        prev_to = get_time(logs[i-1]['to_time'] if isinstance(logs[i-1], dict) else logs[i-1].to_time)
+        curr_from = get_time(logs[i]['from_time'] if isinstance(logs[i], dict) else logs[i].from_time)
+        if prev_to and curr_from and curr_from < prev_to:
+            return True, i
+    return False, None
