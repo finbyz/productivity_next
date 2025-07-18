@@ -58,25 +58,22 @@ def get_summary_data():
     internal_dur = meeting_secs(internal)
     external_dur = meeting_secs(external)
     total_meet = meeting_secs(meetings)
-    # System Usage
-    app_logs = frappe.db.get_all(
-        'Application Usage log',
-        filters={
-            'date': date,
-            'employee': employee
-        },
-        fields=['from_time', 'to_time', 'domain']
-    )
-    app = [a for a in app_logs if a['domain'] == 'App']
-    web = [a for a in app_logs if a['domain'] == 'Web']
-    def app_secs(lst):
-        return sum([
-            time_diff_in_seconds(a['to_time'], a['from_time'])
-            for a in lst if a['from_time'] and a['to_time']
-        ])
-    app_dur = app_secs(app)
-    web_dur = app_secs(web)
-    total_sys = app_secs(app_logs)
+    # System Usage (segregate App/Web by url is null or not)
+    total_web_data = frappe.db.sql(f'''
+        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
+        FROM `tabApplication Usage log`
+        WHERE date = '{date}' and employee = '{employee}' and url is not null
+    ''', as_dict=True)[0]
+    total_app_data = frappe.db.sql(f'''
+        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
+        FROM `tabApplication Usage log`
+        WHERE date = '{date}' and employee = '{employee}' and url is null
+    ''', as_dict=True)[0]
+    app_dur = flt(total_app_data["total_app_duration"] or 0)
+    app_count = total_app_data["total_app_count"]
+    web_dur = flt(total_web_data["total_web_duration"] or 0)
+    web_count = total_web_data["total_web_count"]
+    total_sys = app_dur + web_dur
     return {
         "calls": {
             "incoming": {"duration": secs_to_hhmm(incoming_dur), "count": len(incoming)},
@@ -89,8 +86,8 @@ def get_summary_data():
             "total": secs_to_hhmm(total_meet)
         },
         "system": {
-            "app": {"duration": secs_to_hhmm(app_dur), "count": len(app)},
-            "web": {"duration": secs_to_hhmm(web_dur), "count": len(web)},
+            "app": {"duration": secs_to_hhmm(app_dur), "count": app_count},
+            "web": {"duration": secs_to_hhmm(web_dur), "count": web_count},
             "total": secs_to_hhmm(total_sys)
         }
     }
@@ -105,12 +102,13 @@ def get_calls_details():
             'date': date,
             'calltype': ["not in", ["Missed", "Rejected"]]
         },
-        fields=['name', 'client', 'duration', 'project', 'call_datetime', 'contact', 'link_name', 'calltype']
+        fields=['name', 'client', 'duration', 'project', 'call_datetime', 'contact', 'link_name', 'calltype', 'customer_no']
     )
     details = [
         {
             'name': c['name'],
-            'client_contact': c['client'],
+            'client': c['client'],
+            'customer_no': c['customer_no'],
             'duration': secs_to_hhmm(flt(c['duration'])),
             'project': c['project'],
             'call_datetime': c['call_datetime'],
@@ -159,8 +157,7 @@ def get_meetings_details():
     # Return project, discussion, arranged_by, company_representative, party_representative, duration
     meetings = frappe.db.sql('''
         SELECT m.project, m.discussion, m.meeting_arranged_by as arranged_by, 
-               m.organization as company_representative, 
-               m.party as party_representative, 
+               m.name as meeting_name, m.meeting_from, m.meeting_to, m.internal_meeting,
                TIMESTAMPDIFF(SECOND, m.meeting_from, m.meeting_to) as duration
         FROM `tabMeeting` m
         JOIN `tabMeeting Company Representative` mcr ON m.name = mcr.parent
@@ -168,6 +165,20 @@ def get_meetings_details():
           AND m.meeting_from >= %s AND m.meeting_to <= %s
     ''', (employee, f"{date} 00:00:00", f"{date} 23:59:59"), as_dict=True)
     for m in meetings:
+        # Company reps (all employee_name from child table)
+        company_reps = frappe.db.get_all(
+            "Meeting Company Representative",
+            filters={"parent": m["meeting_name"]},
+            fields=["employee_name"]
+        )
+        m["company_representative"] = ", ".join([cr["employee_name"] for cr in company_reps if cr["employee_name"]])
+        # Party reps (all contact from child table)
+        party_reps = frappe.db.get_all(
+            "Meeting Party Representative",
+            filters={"parent": m["meeting_name"]},
+            fields=["contact"]
+        )
+        m["party_representative"] = ", ".join([pr["contact"] for pr in party_reps if pr["contact"]])
         m['duration'] = secs_to_hhmm(m['duration']) if m['duration'] else "00:00"
     # Group by project for table summary
     project_map = {}
@@ -188,7 +199,6 @@ def get_meetings_details():
         'details': meetings,
         'project_summary': project_summary
     }
-
 @frappe.whitelist()
 def get_system_details():
     employee, date = get_employee_and_date()

@@ -230,6 +230,11 @@ frappe.pages['timesheet-verificati'].on_page_load = function(wrapper) {
                     callback: function(r) {
                         let d = r.message.details;
                         let project_summary = r.message.project_summary;
+						d = d.slice().sort((a, b) => {
+							if (a.project && !b.project) return -1;
+							if (!a.project && b.project) return 1;
+							return 0;
+						});
                         let html = `
                         <div class="card p-4">
                             <h4>Calls Details</h4>
@@ -237,30 +242,38 @@ frappe.pages['timesheet-verificati'].on_page_load = function(wrapper) {
                                 <table class="table table-bordered table-hover">
                                     <thead>
                                         <tr>
-                                            <th>Client Contact</th>
                                             <th>Call DateTime</th>
                                             <th>Contact</th>
                                             <th>Link Name</th>
+											<th>Client</th>
+											<th>Customer No.</th>
                                             <th>Type</th>
                                             <th>Duration</th>
-                                            <th style="min-width:220px">Project</th>
+                                            <th style="min-width:120px">Project</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${d.map((call, idx) => {
-                                            let opts = `<option value=''>No Project</option>` + projects.map(p => `<option value='${p.name}' ${call.project === p.name ? 'selected' : ''}>${p.project_name || p.name}</option>`).join("");
-                                            return `
-                                            <tr>
-                                                <td>${call.client_contact || ""}</td>
-                                                <td>${call.call_datetime || ""}</td>
-                                                <td>${call.contact || ""}</td>
-                                                <td>${call.link_name || ""}</td>
-                                                <td>${call.calltype || ""}</td>
-                                                <td>${call.duration || ""}</td>
-                                                <td style="min-width:220px"><select class="form-select project-select" data-idx="${idx}">${opts}</select></td>
-                                            </tr>
-                                            `;
-                                        }).join("")}
+									${d.map((call, idx) => {
+										let projectCell = "";
+										if (call.project) {
+											projectCell = `<span>${call.project}</span>`;
+										} else {
+											let opts = `<option value=''>No Project</option>` + projects.map(p => `<option value='${p.name}' ${call.project === p.name ? 'selected' : ''}>${p.project_name || p.name}</option>`).join("");
+											projectCell = `<select class=\"form-select project-select\" data-idx=\"${idx}\">${opts}</select>`;
+										}
+										return `
+										<tr>
+											<td>${call.call_datetime || ""}</td>
+											<td>${call.contact || ""}</td>
+											<td>${call.link_name || ""}</td>
+											<td>${call.client || ""}</td>
+											<td>${call.customer_no || ""}</td>
+											<td>${call.calltype || ""}</td>
+											<td>${call.duration || ""}</td>
+											<td style=\"min-width:220px\">${projectCell}</td>
+										</tr>
+										`;
+									}).join("")}
                                     </tbody>
                                 </table>
                             </div>
