@@ -212,9 +212,10 @@ def create_employee_log(fincall_log):
                     OR '{fincall_log.customer_no}' LIKE CONCAT("%", cp.phone))
                 ORDER BY 
                     CASE dl.link_doctype
-                        WHEN 'Customer' THEN 1
-                        WHEN 'Lead' THEN 2
-                        ELSE 3
+                        WHEN 'Employee' THEN 1
+                        WHEN 'Customer' THEN 2
+                        WHEN 'Lead' THEN 3
+                        ELSE 4
                     END,
                     c.modified DESC
                 LIMIT 1;
@@ -1274,10 +1275,13 @@ def split_logs(merged_logs, new_logs):
 
 def get_employee_meetings(employee, date):
     data = frappe.db.sql(f"""
-        SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, m.internal_meeting, m.project, m.task, 
-        m.meeting_arranged_by, m.meeting_company_representative, m.meeting_party_representative
+        SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, 
+           m.internal_meeting, m.project, m.task, m.meeting_arranged_by,
+           mcr.employee as company_rep_employee, mcr.employee_name as company_rep_name,
+            mpr.contact as party_rep_contact
         FROM `tabMeeting` as m
-        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        LEFT JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
+        LEFT JOIN `tabMeeting Party Representative` as mpr ON m.name = mpr.parent
         WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59'
         """, as_dict=True)
     return data

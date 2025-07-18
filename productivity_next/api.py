@@ -728,9 +728,10 @@ def create_fincall(
             OR '{customer_no}' LIKE CONCAT("%", cp.phone))
         ORDER BY 
             CASE dl.link_doctype
-                WHEN 'Customer' THEN 1
-                WHEN 'Lead' THEN 2
-                ELSE 3
+                WHEN 'Employee' THEN 1
+                WHEN 'Customer' THEN 2
+                WHEN 'Lead' THEN 3
+                ELSE 4
             END,
             c.modified DESC
         LIMIT 1;
