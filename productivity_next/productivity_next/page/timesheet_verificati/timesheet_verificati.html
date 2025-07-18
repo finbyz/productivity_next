@@ -1,0 +1,54 @@
+<div class="timesheet-verificati-filters card p-4 mb-4 shadow-sm">
+    <form class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label for="employee_select" class="form-label fw-bold">Employee</label>
+            <select id="employee_select" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label for="date_select" class="form-label fw-bold">Date</label>
+            <input type="date" id="date_select" class="form-control" />
+        </div>
+        <div class="col-md-6 d-flex justify-content-end align-items-center gap-2 mt-4 mt-md-0">
+            <button class="btn btn-primary btn-lg" id="fetch_btn" type="button"><i class="fa fa-search"></i> Fetch</button>
+            <button class="btn btn-outline-dark btn-lg" id="preview_timesheet_btn" type="button"><i class="fa fa-eye"></i> Preview Timesheet</button>
+            <button class="btn btn-success btn-lg" id="create_timesheet_btn" type="button"><i class="fa fa-plus"></i> Create Timesheet</button>
+        </div>
+    </form>
+</div>
+<div class="row mb-4" id="summary-cards">
+    <div class="col-md-4">
+        <div class="summary-card card-calls clickable" id="card-calls">
+            <div class="icon"><i class="fa fa-phone"></i></div>
+            <div class="title">Calls</div>
+            <div class="details">
+                <div><span id="calls-incoming-duration">00:00</span> · Incoming <span id="calls-incoming-count">0</span> <i class="fa fa-arrow-down"></i></div>
+                <div><span id="calls-outgoing-duration">00:00</span> · Outgoing <span id="calls-outgoing-count">0</span> <i class="fa fa-arrow-up"></i></div>
+            </div>
+            <div class="total"><span id="calls-total">00:00</span> <span class="unit">Hrs</span></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-card card-meetings clickable" id="card-meetings">
+            <div class="icon"><i class="fa fa-video"></i></div>
+            <div class="title">Meeting</div>
+            <div class="details">
+                <div><span id="meetings-internal-duration">00:00</span> · Internal <span id="meetings-internal-count">0</span> <i class="fa fa-users"></i></div>
+                <div><span id="meetings-external-duration">00:00</span> · External <span id="meetings-external-count">0</span> <i class="fa fa-video"></i></div>
+            </div>
+            <div class="total"><span id="meetings-total">00:00</span> <span class="unit">Hrs</span></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-card card-system clickable" id="card-system">
+            <div class="icon"><i class="fa fa-desktop"></i></div>
+            <div class="title">System</div>
+            <div class="details">
+                <div><span id="system-app-duration">00:00</span> · App <span id="system-app-count">0</span> <i class="fa fa-laptop"></i></div>
+                <div><span id="system-web-duration">00:00</span> · Web <span id="system-web-count">0</span> <i class="fa fa-cloud"></i></div>
+            </div>
+            <div class="total"><span id="system-total">00:00</span> <span class="unit">Hrs</span></div>
+        </div>
+    </div>
+</div>
+
+<div id="details-section" class="mb-4" style="display:none;"></div>

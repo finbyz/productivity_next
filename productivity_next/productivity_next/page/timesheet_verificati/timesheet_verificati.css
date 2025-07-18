@@ -1,0 +1,57 @@
+.summary-card {
+    border-radius: 24px;
+    color: #fff;
+    padding: 28px 28px 18px 28px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    transition: transform 0.1s;
+    cursor: pointer;
+    position: relative;
+    min-height: 200px;
+}
+.summary-card .icon {
+    font-size: 2.2rem;
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+.summary-card .title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.summary-card .details {
+    font-size: 1.05rem;
+    margin-bottom: 12px;
+    opacity: 0.95;
+}
+.summary-card .total {
+    font-size: 2.1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+.summary-card .unit {
+    font-size: 1.1rem;
+    font-weight: 400;
+    margin-left: 4px;
+}
+.summary-card.card-calls {
+    background: linear-gradient(135deg, #ff8a8a 0%, #ff6a6a 100%);
+}
+.summary-card.card-meetings {
+    background: linear-gradient(135deg, #7b8cff 0%, #5a6bff 100%);
+}
+.summary-card.card-system {
+    background: linear-gradient(135deg, #ffb347 0%, #ff9900 100%);
+}
+.summary-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.clickable { cursor: pointer; }
+#details-section {
+    animation: fadeIn 0.3s;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px);}
+    to { opacity: 1; transform: translateY(0);}
+}

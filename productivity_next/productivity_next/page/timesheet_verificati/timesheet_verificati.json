@@ -1,0 +1,23 @@
+{
+ "content": null,
+ "creation": "2025-07-18 12:57:24.493350",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2025-07-18 12:57:24.493350",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "timesheet-verificati",
+ "owner": "Administrator",
+ "page_name": "timesheet-verificati",
+ "roles": [
+  {
+   "role": "Employee"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Timesheet Verification"
+}
