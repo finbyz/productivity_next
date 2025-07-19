@@ -371,8 +371,17 @@ def create_timesheet_for_employee_date():
     } for row in timesheet.time_logs]
     overlap, idx = has_overlap(log_dicts)
     if overlap:
-        frappe.msgprint(f"Row {idx+1}: From Time and To Time is overlapping with previous row.")
-        return {"success": False, "message": f"Row {idx+1}: From Time and To Time is overlapping with previous row."}
+        # Fix overlaps by subtracting one second and rearranging times
+        fixed_logs = fix_overlaps(log_dicts)
+        
+        # Update the timesheet time_logs with fixed times
+        for i, row in enumerate(timesheet.time_logs):
+            if i < len(fixed_logs):
+                row.from_time = fixed_logs[i]['from_time']
+                row.to_time = fixed_logs[i]['to_time']
+                # Recalculate hours
+                seconds = (row.to_time - row.from_time).total_seconds()
+                row.hours = seconds / 3600
     try:
         if timesheet.time_logs:
             timesheet.save()
@@ -514,3 +523,48 @@ def has_overlap(logs):
         if prev_to and curr_from and curr_from < prev_to:
             return True, i
     return False, None
+
+def fix_overlaps(logs):
+    """
+    Fix overlaps by subtracting one second from to_time and rearranging times.
+    Returns the fixed logs list.
+    """
+    from dateutil.parser import parse as parse_dt
+    from datetime import timedelta
+    
+    def get_time(val):
+        if hasattr(val, 'isoformat'):
+            return val
+        try:
+            return parse_dt(str(val))
+        except Exception:
+            return None
+    
+    # Convert to list of dicts for easier manipulation
+    fixed_logs = []
+    for log in logs:
+        if isinstance(log, dict):
+            fixed_logs.append(log.copy())
+        else:
+            fixed_logs.append({
+                'from_time': log.from_time,
+                'to_time': log.to_time
+            })
+    
+    # Sort by from_time
+    fixed_logs.sort(key=lambda x: get_time(x['from_time']))
+    
+    # Fix overlaps by adjusting to_time and from_time
+    for i in range(1, len(fixed_logs)):
+        prev_to = get_time(fixed_logs[i-1]['to_time'])
+        curr_from = get_time(fixed_logs[i]['from_time'])
+        
+        if prev_to and curr_from and curr_from < prev_to:
+            # Subtract one second from previous to_time
+            fixed_logs[i-1]['to_time'] = prev_to - timedelta(seconds=1)
+            
+            # Ensure current from_time starts after previous to_time
+            if get_time(fixed_logs[i]['from_time']) <= get_time(fixed_logs[i-1]['to_time']):
+                fixed_logs[i]['from_time'] = get_time(fixed_logs[i-1]['to_time']) + timedelta(seconds=1)
+    
+    return fixed_logs
