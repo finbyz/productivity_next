@@ -754,7 +754,8 @@ def create_fincall(
         ec_doc.link_to = contact.get("link_doctype", "")
         ec_doc.contact = contact.get("name", None)
         ec_doc.link_name = contact.get("link_name", "")
-
+        if contact.get("link_doctype") == "Customer":    
+            ec_doc.project = frappe.db.get_value("Customer",contact.get("link_name"),"default_calls_project")
     ec_doc.flags.ignore_permissions = True
     ec_doc.save()
 
