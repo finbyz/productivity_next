@@ -755,7 +755,28 @@ def create_fincall(
         ec_doc.contact = contact.get("name", None)
         ec_doc.link_name = contact.get("link_name", "")
         if contact.get("link_doctype") == "Customer":    
-            ec_doc.project = frappe.db.get_value("Customer",contact.get("link_name"),"default_calls_project")
+            # Fetch all projects for the customer
+            projects = frappe.get_all(
+                "Project",
+                filters={"customer": contact.get("link_name")},
+                fields=["name", "resource_based_project", "based_on_hourly_package"]
+            )
+            selected_project = None
+            # Priority 1: resource_based_project
+            for proj in projects:
+                if proj.get("resource_based_project"):
+                    selected_project = proj["name"]
+                    break
+            # Priority 2: based_on_hourly_package
+            if not selected_project:
+                for proj in projects:
+                    if proj.get("based_on_hourly_package"):
+                        selected_project = proj["name"]
+                        break
+            # Priority 3: any other project
+            if not selected_project and projects:
+                selected_project = projects[0]["name"]
+            ec_doc.project = selected_project
     ec_doc.flags.ignore_permissions = True
     ec_doc.save()
 
@@ -1927,29 +1948,29 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
 @frappe.whitelist(methods=['POST'])
 def complete_todo(doctype, name, todo=None, assign_to=None, status="Completed", ignore_permissions=False):
 
-	if not ignore_permissions:
-		frappe.get_doc(doctype, name).check_permission()
-	try:
-		if not todo:
-			todo = frappe.db.get_value(
-				"ToDo",
-				{
-					"reference_type": doctype,
-					"reference_name": name,
-					"allocated_to": assign_to,
-					"status": ("!=", status),
-				},
-			)
-		if todo:
-			todo = frappe.get_doc("ToDo", todo)
-			todo.status = status
-			todo.save(ignore_permissions=True)
+    if not ignore_permissions:
+        frappe.get_doc(doctype, name).check_permission()
+    try:
+        if not todo:
+            todo = frappe.db.get_value(
+                "ToDo",
+                {
+                    "reference_type": doctype,
+                    "reference_name": name,
+                    "allocated_to": assign_to,
+                    "status": ("!=", status),
+                },
+            )
+        if todo:
+            todo = frappe.get_doc("ToDo", todo)
+            todo.status = status
+            todo.save(ignore_permissions=True)
 
-			notify_assignment(todo.assigned_by, todo.allocated_to, todo.reference_type, todo.reference_name)
-	except frappe.DoesNotExistError:
-		pass
+            notify_assignment(todo.assigned_by, todo.allocated_to, todo.reference_type, todo.reference_name)
+    except frappe.DoesNotExistError:
+        pass
 
-	return get({"doctype": doctype, "name": name})
+    return get({"doctype": doctype, "name": name})
 
 
 # @frappe.whitelist()
