@@ -128,6 +128,12 @@ def get_columns(filters):
             "width": 150
         },
         {
+            "fieldname": "project_type",
+            "label": _("Project Type"),
+            "fieldtype": "Data",
+            "width": 100
+        },
+        {
             "fieldname": "total_hours",
             "label": _("Total Hours"),
             "fieldtype": "Float",
@@ -186,7 +192,9 @@ def get_data(filters):
     customer_projects_map = {}
     
     projects_data = frappe.db.sql("""
-        SELECT p.name as project, p.customer, c.is_internal_customer
+        SELECT p.name as project, p.customer, c.is_internal_customer,p.based_on_hourly_package,
+        p.resource_based_project,
+        p.milestone_based_project
         FROM `tabProject` p
         JOIN `tabCustomer` c ON c.name = p.customer
         WHERE c.is_internal_customer = %s
@@ -215,7 +223,10 @@ def get_data(filters):
     
     # Filter to only get relevant projects
     query = f"""
-        SELECT name 
+        SELECT name,
+        based_on_hourly_package,
+        resource_based_project,
+        milestone_based_project
         FROM `tabProject` 
         WHERE customer IN (
             SELECT name FROM `tabCustomer` WHERE is_internal_customer = {is_internal}
@@ -223,7 +234,20 @@ def get_data(filters):
     """
     
     valid_projects = frappe.db.sql(query, params, as_dict=True)
-    valid_project_names = [p.name for p in valid_projects]
+    # valid_project_names = [p.name for p in valid_projects]
+    valid_project_names = []
+    project_type_map = {}
+    for p in valid_projects:
+        valid_project_names.append(p.name)
+
+        if p.based_on_hourly_package:
+            project_type_map[p.name] = "Hourly"
+        elif p.resource_based_project:
+            project_type_map[p.name] = "Dedicated"
+        elif p.milestone_based_project:
+            project_type_map[p.name] = "Milestone"
+        else:
+            project_type_map[p.name] = "Other" 
     
     # If no valid projects, return empty result
     if not valid_project_names:
@@ -392,17 +416,28 @@ def get_data(filters):
     
     # Round values for all rows
     for row in result_data:
+        row['project_type'] = project_type_map.get(row.get('project'), '')
         row['total_hours'] = round(row.get('total_hours', 0), 2)
         row['application_hours'] = round(row.get('application_hours', 0), 2)
         row['meeting_hours'] = round(row.get('meeting_hours', 0), 2)
         row['call_hours'] = round(row.get('call_hours', 0), 2)
         row['issue_hours'] = round(row.get('issue_hours', 0), 2)
+        
+        if row['project_type'] == 'Hourly':
+            row['total_hours'] = row['issue_hours']
     
     # Sort results appropriately based on filters
-    if filters.get("show_daily_data"):
-        result_data.sort(key=lambda x: (x['date'], -x['total_hours']))
+    # if filters.get("show_daily_data"):
+    #     result_data.sort(key=lambda x: (x['date'], -x['total_hours']))
+    # else:
+    #     result_data.sort(key=lambda x: -x['total_hours'])
+    if filters.get("show_employee"):
+        result_data.sort(key=lambda x: x.get('employee_name', ''))
+    elif filters.get("show_daily_data"):
+        result_data.sort(key=lambda x: (x.get('date'), -x.get('total_hours', 0)))
     else:
-        result_data.sort(key=lambda x: -x['total_hours'])
+        result_data.sort(key=lambda x: -x.get('total_hours', 0))
+
     
     return result_data
 

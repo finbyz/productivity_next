@@ -114,11 +114,15 @@ scheduler_events = {
 
 
 fixtures = [
-       {
-        
-         "dt": "Custom Field", 
-         "filters":[["module", "=", 'Task Enhancement']]
-	   }
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["name", "in", [
+                "Project-milestone_based_project",
+           
+            ]]
+        ]
+    }
 ]
 
 
