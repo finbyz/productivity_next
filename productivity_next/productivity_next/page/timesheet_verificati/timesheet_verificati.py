@@ -313,7 +313,22 @@ def create_timesheet_for_employee_date():
     merged_logs[employee] = merge_logs(applications.get(employee, []))
     merged_logs[employee] = merge_logs(merged_logs.get(employee, []) + calls.get(employee, []))
     merged_logs[employee] = split_logs(merged_logs.get(employee, []), meetings)
-    # merged_logs[employee] = split_logs(merged_logs.get(employee, []), calls.get(employee, []))
+    
+    # Validate and fix any remaining overlaps
+    employee_merged_logs = merged_logs.get(employee, [])
+    if employee_merged_logs:
+        # Check for overlaps and fix them
+        overlap, idx = has_overlap(employee_merged_logs)
+        if overlap:
+            frappe.log_error(f"Overlaps detected for employee {employee} at index {idx}, fixing...")
+            employee_merged_logs = fix_overlaps(employee_merged_logs)
+            # Re-check after fixing
+            overlap, idx = has_overlap(employee_merged_logs)
+            if overlap:
+                frappe.log_error(f"Overlaps still exist after fixing for employee {employee}")
+                # Use the ensure_no_overlaps function as a final fallback
+                employee_merged_logs = ensure_no_overlaps(employee_merged_logs)
+    
     # Create or update timesheet for this employee and date
     existing_timesheets = frappe.get_list(
         "Timesheet",
@@ -338,7 +353,6 @@ def create_timesheet_for_employee_date():
     if not employee_merged_logs:
         return {"success": False, "message": "No logs found for this employee and date."}
     for log in employee_merged_logs:
-        log["to_time"] = log["to_time"] - timedelta(seconds=1)
         seconds = (log["to_time"] - log["from_time"]).total_seconds()
         hours = seconds / 3600
         if seconds <= 0:
@@ -384,14 +398,23 @@ def create_timesheet_for_employee_date():
     #             row.hours = seconds / 3600
     try:
         if timesheet.time_logs:
-            for log in timesheet.time_logs:
-                frappe.msgprint(f"Timesheet created {log.from_time} {log.to_time} {log.hours}")
+            # Final validation before saving
+            log_dicts = [{
+                'from_time': row.from_time,
+                'to_time': row.to_time
+            } for row in timesheet.time_logs]
+            
+            overlap, idx = has_overlap(log_dicts)
+            if overlap:
+                frappe.log_error(f"Final overlap check failed for employee {employee} at index {idx}")
+                return {"success": False, "message": f"Overlapping time entries detected at position {idx+1}"}
+            
             timesheet.save()
             return {"success": True, "timesheet": timesheet.name}
         else:
             return {"success": False, "message": "No logs found for this employee and date."}
     except Exception as e:
-        frappe.log_error(f"Failed to create timesheet for {employee}",e)
+        frappe.log_error(f"Failed to create timesheet for {employee}", str(e))
         return {"success": False, "message": str(e)}
 
 
@@ -443,59 +466,109 @@ def merge_logs(logs):
     
     return merged_logs
 
+def ensure_no_overlaps(logs):
+    """
+    Ensure logs have no overlaps by adjusting times if necessary.
+    Returns a list of non-overlapping logs.
+    """
+    if not logs:
+        return logs
+    
+    # Sort by from_time
+    sorted_logs = sorted(logs, key=lambda x: x["from_time"])
+    fixed_logs = []
+    
+    for i, log in enumerate(sorted_logs):
+        if i == 0:
+            fixed_logs.append(log.copy())
+            continue
+        
+        prev_log = fixed_logs[-1]
+        current_log = log.copy()
+        
+        # If current log starts before previous log ends, adjust the start time
+        if current_log["from_time"] < prev_log["to_time"]:
+            current_log["from_time"] = prev_log["to_time"]
+        
+        # Only add if the log has a positive duration
+        if current_log["from_time"] < current_log["to_time"]:
+            fixed_logs.append(current_log)
+    
+    return fixed_logs
+
 def split_logs(merged_logs, new_logs):
-    # Both lists must be sorted by from_time
-    merged_logs = sorted(merged_logs, key=lambda x: x["from_time"])
-    new_logs = sorted(new_logs, key=lambda x: x["from_time"])
+    """
+    Split existing logs when new logs (like meetings) are inserted.
+    Returns a list of non-overlapping logs with new_logs taking priority.
+    """
+    if not merged_logs:
+        return new_logs
+    if not new_logs:
+        return merged_logs
+    
+    # Create copies to avoid modifying input
+    merged_logs = [log.copy() for log in merged_logs]
+    new_logs = [log.copy() for log in new_logs]
+    
+    # Sort both lists by from_time
+    merged_logs.sort(key=lambda x: x["from_time"])
+    new_logs.sort(key=lambda x: x["from_time"])
+    
     updated_logs = []
     i, j = 0, 0
-
-    while i < len(merged_logs):
+    
+    while i < len(merged_logs) and j < len(new_logs):
         old_log = merged_logs[i]
-        # If no more new logs, just add the rest of old logs
-        if j >= len(new_logs):
-            updated_logs.append(old_log)
-            i += 1
-            continue
-
         new_log = new_logs[j]
-
-        # No overlap, old log ends before new log starts
+        
+        # No overlap cases
         if old_log["to_time"] <= new_log["from_time"]:
+            # Old log ends before new log starts
             updated_logs.append(old_log)
             i += 1
-        # No overlap, new log ends before old log starts
         elif new_log["to_time"] <= old_log["from_time"]:
+            # New log ends before old log starts
             updated_logs.append(new_log)
             j += 1
         else:
-            # Overlap exists
-            # 1. Add the part of old_log before new_log (if any)
+            # Overlap exists - new_log takes priority
+            # Add part of old_log before new_log (if any)
             if old_log["from_time"] < new_log["from_time"]:
-                before = old_log.copy()
-                before["to_time"] = new_log["from_time"]
-                updated_logs.append(before)
-            # 2. Add the new_log itself
+                before_log = old_log.copy()
+                before_log["to_time"] = new_log["from_time"]
+                updated_logs.append(before_log)
+            
+            # Add the new_log
             updated_logs.append(new_log)
-            # 3. If old_log continues after new_log, keep the remainder for next round
+            
+            # Handle remaining part of old_log after new_log (if any)
             if old_log["to_time"] > new_log["to_time"]:
-                old_log = old_log.copy()
-                old_log["from_time"] = new_log["to_time"]
-                merged_logs[i] = old_log
-                j += 1  # move to next new_log, keep same old_log
-            else:
-                i += 1  # move to next old_log
-                j += 1  # move to next new_log
-
-    # Add any remaining new_logs
+                after_log = old_log.copy()
+                after_log["from_time"] = new_log["to_time"]
+                # Insert this remaining part back into merged_logs for next iteration
+                merged_logs.insert(i + 1, after_log)
+            
+            # Move to next new_log, old_log will be handled in next iteration
+            j += 1
+            i += 1
+    
+    # Add remaining old logs
+    while i < len(merged_logs):
+        updated_logs.append(merged_logs[i])
+        i += 1
+    
+    # Add remaining new logs
     while j < len(new_logs):
         updated_logs.append(new_logs[j])
         j += 1
-
-    # Ensure logs are sorted and non-overlapping
+    
+    # Final sort and remove any zero-duration logs
     updated_logs = sorted(updated_logs, key=lambda x: x["from_time"])
-    # Optionally, you can merge adjacent logs with same keys here if needed
-
+    updated_logs = [log for log in updated_logs if log["from_time"] < log["to_time"]]
+    
+    # Ensure no overlaps exist in the final result
+    updated_logs = ensure_no_overlaps(updated_logs)
+    
     return updated_logs
 
 def get_activity_description(activity):
