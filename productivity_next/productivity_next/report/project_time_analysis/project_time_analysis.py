@@ -635,10 +635,11 @@ def get_deployment_rate_data(filters):
             JOIN `tabTime Involvement` ti ON ti.parent = i.name
             JOIN `tabProject` p on i.project = p.name
             WHERE ti.user_name = '{user}'
+            AND i.project = '{project_list}'
             AND ti.date BETWEEN '{from_date}' AND '{to_date}'
             AND p.based_on_hourly_package = 1
         """, as_dict=True)
-        
+    
         # Get non-hourly issue hours 
         non_hourly_issue_hours_data = frappe.db.sql(f"""
             SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
@@ -831,12 +832,16 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
                 employee_id = data['details']['employee_id']
                 project = data['details']['project']
                 user_id = frappe.db.get_value('Employee', employee_id, 'user_id')
+                project_condition = ""
+                if filters.get('project'):
+                    project_condition = f"AND i.project = '{filters.get('project')}'"
                 if user_id:
                     issue_hours_data = frappe.db.sql(f"""
                         SELECT COALESCE(SUM(ti.time_involvement), 0) as total_issue_hours
                         FROM `tabIssue` i
                         JOIN `tabTime Involvement` ti ON ti.parent = i.name
                         WHERE ti.user_name = '{user_id}'
+                        {project_condition}
                         AND i.project = '{project}'
                         AND ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
                     """, as_dict=True)
