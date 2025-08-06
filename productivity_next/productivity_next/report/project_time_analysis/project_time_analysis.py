@@ -635,7 +635,6 @@ def get_deployment_rate_data(filters):
             JOIN `tabTime Involvement` ti ON ti.parent = i.name
             JOIN `tabProject` p on i.project = p.name
             WHERE ti.user_name = '{user}'
-            AND i.project = '{project_list}'
             AND ti.date BETWEEN '{from_date}' AND '{to_date}'
             AND p.based_on_hourly_package = 1
         """, as_dict=True)
