@@ -63,6 +63,12 @@ def get_columns(filters):
                 "width": 100
             },
             {
+                "fieldname": "milestone_hours",
+                "label": _("Milestone Hours"),
+                "fieldtype": "Float",
+                "width": 100
+            },
+            {
                 "fieldname": "support_hours",
                 "label": _("Support Hours"),
                 "fieldtype": "Float",
@@ -467,7 +473,7 @@ def get_deployment_rate_data(filters):
     
     # Get project types
     project_types = frappe.db.sql("""
-        SELECT p.name, p.resource_based_project, p.based_on_hourly_package, p.customer, c.is_internal_customer
+        SELECT p.name, p.resource_based_project, p.based_on_hourly_package,p.milestone_based_project, p.customer, c.is_internal_customer
         FROM `tabProject` p
         JOIN `tabCustomer` c ON c.name = p.customer
     """, as_dict=True)
@@ -475,6 +481,7 @@ def get_deployment_rate_data(filters):
     # Create project type lookup dictionaries
     resource_projects = {p.name for p in project_types if p.resource_based_project}
     internal_projects = {p.name for p in project_types if p.is_internal_customer}
+    milestone_based_project = {p.name for p in project_types if p.milestone_based_project}
     
     # For each employee, calculate their hours
     for emp in employees:
@@ -612,7 +619,9 @@ def get_deployment_rate_data(filters):
         project_intervals = {
             'dedicated': [],     # Resource-based projects (external customers)
             'internal': [],      # Projects with internal customers
-            'non_hourly': []     # Non-resource and non-hourly projects
+            'non_hourly': [],     # Non-resource and non-hourly projects
+            'milestone':[]
+       
         }
         
         # Categorize intervals by project type
@@ -620,12 +629,15 @@ def get_deployment_rate_data(filters):
             project = interval.get('project')
             if project in resource_projects and project not in internal_projects:
                 project_intervals['dedicated'].append((interval['start_time'], interval['end_time']))
+            elif project in milestone_based_project and project not in internal_projects:
+                project_intervals['milestone'].append((interval['start_time'], interval['end_time']))
             elif project in internal_projects:
                 project_intervals['internal'].append((interval['start_time'], interval['end_time']))
         
         # Calculate hours for each category
         dedicated_hours = calculate_non_overlapping_hours(project_intervals['dedicated'])
         internal_hours = calculate_non_overlapping_hours(project_intervals['internal'])
+        milestone_hours = calculate_non_overlapping_hours(project_intervals['milestone'])
         
         # Get support hours from Issue's time involvement table (hourly projects)
         user = emp.user_id
@@ -669,6 +681,7 @@ def get_deployment_rate_data(filters):
             "leaves": leave_days,
             "weekly_hours": available_hours,
             "dedicated_hours": round(dedicated_hours, 2),
+            'milestone_hours' : round(milestone_hours, 2),
             "support_hours": round(support_hours, 2),
             "internal_hours": round(internal_hours, 2),
             "non_hourly_issue_hours": round(non_hourly_issue_hours, 2),
