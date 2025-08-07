@@ -661,6 +661,7 @@ def get_deployment_rate_data(filters):
             AND ti.date BETWEEN '{from_date}' AND '{to_date}'
             AND p.based_on_hourly_package = 0 
             AND p.resource_based_project = 0
+            AND p.milestone_based_project = 0
         """, as_dict=True)
         
         support_hours = support_hours_data[0].total_support_hours if support_hours_data else 0
