@@ -478,10 +478,14 @@ def get_deployment_rate_data(filters):
         JOIN `tabCustomer` c ON c.name = p.customer
     """, as_dict=True)
     
+    
+
     # Create project type lookup dictionaries
     resource_projects = {p.name for p in project_types if p.resource_based_project}
     internal_projects = {p.name for p in project_types if p.is_internal_customer}
     milestone_based_project = {p.name for p in project_types if p.milestone_based_project}
+    
+    
     
     # For each employee, calculate their hours
     for emp in employees:
@@ -512,8 +516,10 @@ def get_deployment_rate_data(filters):
         
         leave_days = leaves[0].total_leaves if leaves else 0
         combined_projects = resource_projects.union(internal_projects)
-        project_list = "', '".join(combined_projects)
+        combined = combined_projects.union(milestone_based_project)
+        project_list = "', '".join(combined)
         project_list = f"('{project_list}')" if project_list else "(NULL)"
+        
         
         # Application intervals query
         application_intervals = frappe.db.sql(f"""
@@ -531,7 +537,7 @@ def get_deployment_rate_data(filters):
             AND a.project IN {project_list}
         """, as_dict=True)
         
-        # Meeting intervals query
+        # Meeting intervals queryzz
         meeting_intervals = frappe.db.sql(f"""
             SELECT 
                 mcr.employee AS employee_id,
@@ -629,10 +635,12 @@ def get_deployment_rate_data(filters):
             project = interval.get('project')
             if project in resource_projects and project not in internal_projects:
                 project_intervals['dedicated'].append((interval['start_time'], interval['end_time']))
-            elif project in milestone_based_project and project not in internal_projects:
+            elif project in milestone_based_project and project not in internal_projects and project not in resource_projects:
                 project_intervals['milestone'].append((interval['start_time'], interval['end_time']))
+                
             elif project in internal_projects:
                 project_intervals['internal'].append((interval['start_time'], interval['end_time']))
+        
         
         # Calculate hours for each category
         dedicated_hours = calculate_non_overlapping_hours(project_intervals['dedicated'])
@@ -668,8 +676,8 @@ def get_deployment_rate_data(filters):
         non_hourly_issue_hours = non_hourly_issue_hours_data[0].total_support_hours if non_hourly_issue_hours_data else 0
         
         # Calculate total billable and utilized hours
-        total_billable = dedicated_hours + support_hours
-        total_utilized_hours = dedicated_hours + support_hours + internal_hours + non_hourly_issue_hours
+        total_billable = dedicated_hours + support_hours +milestone_hours
+        total_utilized_hours = dedicated_hours + milestone_hours +support_hours + internal_hours + non_hourly_issue_hours
         
         # Calculate percentage billable
         percentage_billable = (total_billable / available_hours * 100) if available_hours > 0 else 0
