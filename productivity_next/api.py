@@ -2200,7 +2200,7 @@ def fetch_followup_contacts(link_doctype,link_name):
     return contacts
 
 
-@frappe.whitelist(methods=["GET"], allow_guest=True)
+@frappe.whitelist(methods=["GET"])
 def get_time_utilization_daily(from_date=None, to_date=None, employee=None, project=None):
     # Build filters for the report
     filters = {
@@ -2228,7 +2228,7 @@ def get_time_utilization_daily(from_date=None, to_date=None, employee=None, proj
     columns, data = project_time_analysis_execute(filters)
     return data    
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_projects(user):
     projects = frappe.db.sql(f"""
         SELECT DISTINCT p.name as name, p.project_name 
