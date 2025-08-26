@@ -2181,3 +2181,59 @@ def is_users_added_in_productify_subscription() -> bool:
         return True
 
     return count > 0
+
+@frappe.whitelist(methods=["POST"])
+def fetch_followup_contacts(link_doctype,link_name):
+    query = """
+        SELECT DISTINCT
+            c.full_name,
+            p.phone,
+            l.link_title
+        FROM `tabContact` c
+        JOIN `tabContact Phone` p ON p.parent = c.name
+        JOIN `tabDynamic Link` l ON l.parent = c.name
+        WHERE l.link_name = %s
+          AND l.link_doctype = %s
+    """
+    # pass params as a tuple (order must match the %s placeholders)
+    contacts = frappe.db.sql(query, (link_name, link_doctype), as_dict=True)
+    return contacts
+
+
+@frappe.whitelist(methods=["GET"], allow_guest=True)
+def get_time_utilization_daily(from_date=None, to_date=None, employee=None, project=None):
+    # Build filters for the report
+    filters = {
+        "from_date": from_date,
+        "to_date": to_date,
+        "project": project,
+        # Additional required filters
+        "show_employee": 1,
+        "show_daily_data": 1,
+    }
+
+    # Include employee filter only if provided
+    if employee:
+        filters["employee"] = employee
+
+    # Import and execute the report
+    try:
+        from productivity_next.productivity_next.report.project_time_analysis.project_time_analysis import execute as project_time_analysis_execute
+    except Exception:
+        # Fallback using dynamic import if direct import path changes
+        project_time_analysis_execute = frappe.get_attr(
+            "productivity_next.productivity_next.report.project_time_analysis.project_time_analysis.execute"
+        )
+
+    columns, data = project_time_analysis_execute(filters)
+    return data    
+
+@frappe.whitelist(allow_guest=True)
+def get_projects(user):
+    projects = frappe.db.sql(f"""
+        SELECT DISTINCT p.name as name, p.project_name 
+        from `tabProject` as p 
+        join `tabPortal User` as pu on p.customer = pu.parent 
+        where pu.user = '{user}'
+        order by  p.resource_based_project DESC""",as_dict=1)
+    return projects
