@@ -2247,3 +2247,44 @@ def user_activity_images(user, start_date=None, end_date=None, offset=0):
     for i in data:
         i["time_"] = frappe.format(i["time"], "Datetime")
     return data
+
+
+@frappe.whitelist(methods=["GET"]) 
+def get_task_list(from_date, to_date, project, assignee=None):
+    """
+    Return list of completed tasks within the given period, optionally filtered by project.
+
+    Params:
+    - from_date (YYYY-MM-DD)
+    - to_date (YYYY-MM-DD)
+    - project (optional)
+
+    Response rows contain: task_id, subject, assignee, completed_on
+    """
+    if not from_date or not to_date:
+        return []
+
+    filters = {
+        "status": "Completed",
+        "completed_on": ["between", [from_date, to_date]],
+    }
+
+    if project:
+        filters["project"] = project
+
+    if assignee:
+        filters["assignee"] = assignee
+
+    tasks = frappe.get_all(
+        "Task",
+        filters=filters,
+        fields=[
+            "name as task_id",
+            "subject",
+            "assignee",
+            "completed_on",
+        ],
+        order_by="completed_on desc",
+    )
+
+    return tasks
