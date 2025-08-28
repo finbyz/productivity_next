@@ -2240,7 +2240,7 @@ def get_projects(user):
 from dateutil.parser import parse
 @frappe.whitelist()
 def user_activity_images(user, start_date=None, end_date=None, offset=0):
-    employee = frappe.db.get_value("Employee", {"user_id": user})
+    employee = user
     if not employee:
         return []
     data = frappe.get_all("Screen Screenshot Log", filters={"employee": employee,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
