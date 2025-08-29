@@ -2293,6 +2293,8 @@ def get_task_list(from_date, to_date, project, assignee=None):
         raise frappe.PermissionError
     if not from_date or not to_date:
         return []
+    
+    assignee = frappe.db.get_value("Employee", assignee, "user_id")
 
     filters = {
         "status": "Completed",
