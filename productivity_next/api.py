@@ -2266,7 +2266,7 @@ def user_activity_images(user=None, start_date=None, end_date=None, project=None
     if frappe.session.user not in [user['user'] for user in portal_users]:
         raise frappe.PermissionError
     else:
-        data = frappe.get_all("Screen Screenshot Log", filters={ "project":project, "proxy_employee":user,"time": ["BETWEEN", [start_date, end_date]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
+        data = frappe.get_all("Screen Screenshot Log", filters={ "project":project, "employee":user,"time": ["BETWEEN", [start_date, end_date]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
         for i in data:
             i["time_"] = frappe.format(i["time"], "Datetime")
         return data
