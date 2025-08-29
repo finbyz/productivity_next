@@ -2202,12 +2202,18 @@ def fetch_followup_contacts(link_doctype,link_name):
 
 @frappe.whitelist(methods=["GET"])
 def get_time_utilization_daily(from_date=None, to_date=None, employee=None, project=None):
+    if not project:
+        return []
+    projects = get_projects()
+    project = projects[0].name
+    portal_users = frappe.db.sql(f"""select pu.user from `tabProject` as p join `tabPortal User` as pu on p.customer = pu.parent where p.name = '{project}'""", as_dict=1)
+    if frappe.session.user not in [user['user'] for user in portal_users]:
+        raise frappe.PermissionError
     # Build filters for the report
     filters = {
         "from_date": from_date,
         "to_date": to_date,
         "project": project,
-        # Additional required filters
         "show_employee": 1,
         "show_daily_data": 1,
     }
@@ -2230,23 +2236,40 @@ def get_time_utilization_daily(from_date=None, to_date=None, employee=None, proj
 
 @frappe.whitelist()
 def get_projects(user):
+    if not project:
+        return []
+    projects = get_projects()
+    project = projects[0].name
+    portal_users = frappe.db.sql(f"""select pu.user from `tabProject` as p join `tabPortal User` as pu on p.customer = pu.parent where p.name = '{project}'""", as_dict=1)
+    if frappe.session.user not in [user['user'] for user in portal_users]:
+        raise frappe.PermissionError
+    user2 = frappe.session.user
     projects = frappe.db.sql(f"""
         SELECT DISTINCT p.name as name, p.project_name 
         from `tabProject` as p 
         join `tabPortal User` as pu on p.customer = pu.parent 
-        where pu.user = '{user}'
+        where pu.user = '{user2}'
         order by  p.resource_based_project DESC""",as_dict=1)
     return projects
 from dateutil.parser import parse
 @frappe.whitelist()
-def user_activity_images(user, start_date=None, end_date=None, offset=0):
-    employee = user
-    if not employee:
+def user_activity_images(user=None, start_date=None, end_date=None, project=None, offset=0):
+    projects = get_projects()
+    project = projects[0].name
+    # parsed_datetime = datetime.strptime(start_date, '%d/%m/%Y, %I:%M:%S %p')
+    # start_date = parsed_datetime.strftime('%Y-%m-%d  %H:%M:%S')
+    # parsed_datetime_ = datetime.strptime(end_date, '%d/%m/%Y, %I:%M:%S %p')
+    # end_date = parsed_datetime_.strftime('%Y-%m-%d  %H:%M:%S')
+    if not project:
         return []
-    data = frappe.get_all("Screen Screenshot Log", filters={"employee": employee,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
-    for i in data:
-        i["time_"] = frappe.format(i["time"], "Datetime")
-    return data
+    portal_users = frappe.db.sql(f"""select pu.user from `tabProject` as p join `tabPortal User` as pu on p.customer = pu.parent where p.name = '{project}'""", as_dict=1)
+    if frappe.session.user not in [user['user'] for user in portal_users]:
+        raise frappe.PermissionError
+    else:
+        data = frappe.get_all("Screen Screenshot Log", filters={ "project":project, "proxy_employee":user,"time": ["BETWEEN", [start_date, end_date]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
+        for i in data:
+            i["time_"] = frappe.format(i["time"], "Datetime")
+        return data
 
 
 @frappe.whitelist(methods=["GET"]) 
@@ -2261,6 +2284,13 @@ def get_task_list(from_date, to_date, project, assignee=None):
 
     Response rows contain: task_id, subject, assignee, completed_on
     """
+    if not project:
+        return []
+    projects = get_projects()
+    project = projects[0].name
+    portal_users = frappe.db.sql(f"""select pu.user from `tabProject` as p join `tabPortal User` as pu on p.customer = pu.parent where p.name = '{project}'""", as_dict=1)
+    if frappe.session.user not in [user['user'] for user in portal_users]:
+        raise frappe.PermissionError
     if not from_date or not to_date:
         return []
 
@@ -2288,3 +2318,15 @@ def get_task_list(from_date, to_date, project, assignee=None):
     )
 
     return tasks
+
+@frappe.whitelist()
+def get_projects():
+    current_user = frappe.session.user
+    projects = frappe.db.sql(f"""
+        SELECT DISTINCT p.name as name, p.project_name 
+        from `tabProject` as p 
+        join `tabPortal User` as pu on p.customer = pu.parent 
+        where pu.user = '{current_user}'
+        order by  p.resource_based_project DESC
+        LIMIT 1""",as_dict=1)
+    return projects
