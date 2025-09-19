@@ -93,7 +93,7 @@ scheduler_events = {
             "productivity_next.schedule.create_auto_email_report_weekly",
         ],
         "0 0 * * *": [
-            # "productivity_next.schedule.submit_timesheet_created_by_productify",
+            "productivity_next.schedule.submit_timesheet_created_by_productify",
             "productivity_next.schedule.update_due_period",
         ],
         "0 1 * * 2-7": [
