@@ -72,6 +72,11 @@ def get_columns(filters):  # Added filters parameter
             "fieldtype": "Data",
             "width": 55
         },
+        {   
+            "label": "Actual Time in Hours (via Timesheet)", 
+            "fieldname": "actual_time", 
+            "fieldtype": "Float", 
+            "width": 180},
         {
             "fieldname": "priority",
             "label": _("Priority"),
@@ -177,6 +182,7 @@ def prepare_data(filters, projects, tasks):
                 "status_show": create_status_display(project.status),
                 "status":project.status,
                 "expected_time": None,
+                "actual_time": None,
                 "priority": project.priority,
                 "description": None,
                 "assignee": None,
@@ -223,6 +229,7 @@ def add_task_to_data(data, task, parent_children_map, level, user_first_names, s
         "status": task.status,
         "status_show": status_display,  
         "expected_time":task.expected_time,
+        "actual_time": task.actual_time,
         "priority": task.priority,
         "description": task.description,
         "indent": level,
@@ -307,7 +314,7 @@ def get_tasks(filters):
         filters=task_filters,
         fields=[
             "name", "subject", "status", "priority", "exp_start_date", "exp_end_date", "act_start_date", "act_end_date",
-            "expected_time", "description", "is_group", "project", "parent_task",
+            "expected_time", "actual_time", "description", "is_group", "project", "parent_task",
             "assignee", "type", "completed_on", "completed_by"
         ],
         order_by="name"
@@ -335,7 +342,7 @@ def get_tasks(filters):
             filters={"name": ["in", list(parent_tasks)]},
             fields=[
                 "name", "subject", "status", "priority", "exp_start_date", "exp_end_date", "act_start_date", "act_end_date",
-                "expected_time", "description", "is_group", "project", "parent_task",
+                "expected_time", "actual_time", "description", "is_group", "project", "parent_task",
                 "assignee", "type", "completed_on", "completed_by"
             ],
             order_by="name"
