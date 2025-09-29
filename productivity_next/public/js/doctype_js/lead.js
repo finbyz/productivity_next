@@ -133,7 +133,6 @@ frappe.ui.form.on('Lead', {
                                     $(".new-task-btn").off("click").on("click", _create_task);
                                 }
 
-                                // ✅ Load tasks
                                 load_tasks() {
                                     let me = this;
                                     frappe.call({
@@ -156,16 +155,51 @@ frappe.ui.form.on('Lead', {
                                                         <div class="task-item" data-task-name="${task.name}" 
                                                             style="width: 50%; margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; display: inline-block; margin-right: 2%; box-sizing: border-box;">
                                                             <div>
+                                                                <b><a href="/app/task/${task.name}" target="_blank">${task.name}</a></b>
+                                                                <button class="btn-complete-task" data-task-name="${task.name}" 
+                                                                        style="padding: 5px 10px; background-color: grey; color: white; 
+                                                                            border: none; border-radius: 3px; cursor: pointer; margin-left: 230px;">
+                                                                    Complete Task
+                                                                </button>
+
                                                                 <b>📝 Subject:</b> ${task.subject} <br>
                                                                 <b>👤 Assignee:</b> ${task.assignee || 'Not Assigned'} <br>
                                                                 <b>📅 Start Date:</b> ${task.exp_start_date || 'N/A'} <br>
                                                                 <b>⏳ Expected Time:</b> ${task.expected_time || 0} hrs
+                                                            
+                                                                
+
+                                                                
+                                                                
                                                             </div>
                                                         </div>
+
+                                                    
                                                     `;
                                                 });
 
                                                 me.frm.fields_dict['task_detail'].$wrapper.html(html);
+
+                                                me.frm.fields_dict['task_detail'].$wrapper.find(".btn-complete-task").on("click", function () {
+                                                    let task_name = $(this).data("task-name");
+
+                                                    frappe.call({
+                                                        method: "frappe.client.set_value",
+                                                        args: {
+                                                            doctype: "Task",
+                                                            name: task_name,
+                                                            fieldname: {
+                                                                status: "Completed"
+                                                            }
+                                                        },
+                                                        callback: function (r) {
+                                                            if (!r.exc) {
+                                                                // reload the task list
+                                                                me.load_tasks();
+                                                            }
+                                                        }
+                                                    });
+                                                });
                                             }
                                         }
                                     });

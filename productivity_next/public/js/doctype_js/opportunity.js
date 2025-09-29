@@ -121,6 +121,12 @@ frappe.ui.form.on('Opportunity', {
                                                 html += `
                                                     <div class="task-item" data-task-name="${task.name}" 
                                                         style="width: 50%; margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; display: inline-block; margin-right: 2%; box-sizing: border-box;">
+                                                        <b><a href="/app/task/${task.name}" target="_blank">${task.name}</a></b>
+                                                            <button class="btn-complete-task" data-task-name="${task.name}" 
+                                                                    style="padding: 5px 10px; background-color: grey; color: white; 
+                                                                        border: none; border-radius: 3px; cursor: pointer; margin-left: 230px;">
+                                                                Complete Task
+                                                            </button>
                                                         <div>
                                                             <b>📝 Subject:</b> ${task.subject} <br>
                                                             <b>👤 Assignee:</b> ${task.assignee || 'Not Assigned'} <br>
@@ -132,6 +138,27 @@ frappe.ui.form.on('Opportunity', {
                                             });
 
                                             me.frm.fields_dict['task_detail'].$wrapper.html(html);
+
+                                            me.frm.fields_dict['task_detail'].$wrapper.find(".btn-complete-task").on("click", function () {
+                                                    let task_name = $(this).data("task-name");
+
+                                                    frappe.call({
+                                                        method: "frappe.client.set_value",
+                                                        args: {
+                                                            doctype: "Task",
+                                                            name: task_name,
+                                                            fieldname: {
+                                                                status: "Completed"
+                                                            }
+                                                        },
+                                                        callback: function (r) {
+                                                            if (!r.exc) {
+                                                                // reload the task list
+                                                                me.load_tasks();
+                                                            }
+                                                        }
+                                                    });
+                                                });
                                         }
                                     }
                                 });
