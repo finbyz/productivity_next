@@ -160,7 +160,7 @@ frappe.ui.form.on('Lead', {
                                                                         style="padding: 5px 10px; background-color: grey; color: white; 
                                                                             border: none; border-radius: 3px; cursor: pointer; margin-left: 230px;">
                                                                     Complete Task
-                                                                </button>
+                                                                </button><br>
 
                                                                 <b>📝 Subject:</b> ${task.subject} <br>
                                                                 <b>👤 Assignee:</b> ${task.assignee || 'Not Assigned'} <br>
