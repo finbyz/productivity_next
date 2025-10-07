@@ -421,6 +421,12 @@ function sanitizeText(text) {
 
 function generateTableRows(data) {
     try {
+        // data.sort((a, b) => {
+        //     const nameA = (a.assignee_first_name || '').toLowerCase();
+        //     const nameB = (b.assignee_first_name || '').toLowerCase();
+        //     return nameA.localeCompare(nameB);
+        // });
+
         return data.map(row => {
             try {
                 const indent = row.indent || 0;
@@ -494,6 +500,17 @@ function generateTableRows(data) {
                         <td class="date-col">${frappe.datetime.str_to_user(row.start_date) || ''}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.end_date) || ''}</td>
                         <td class="date-col">${frappe.datetime.str_to_user(row.completed_on) || ''}</td>
+                        <td class="time-col">${
+                            row.expected_time
+                                ? parseFloat(row.expected_time).toFixed(2)
+                                : ''
+                        }</td>
+                        <td class="time-col">${
+                            row.actual_time
+                                ? parseFloat(row.actual_time).toFixed(2)
+                                : ''
+                        }</td>
+
                         <td class="status-col">
                             <span class="status-badge" style="background-color: ${statusBgColor}; color: ${statusColor}">
                                 ${sanitizeText(status)}
@@ -528,11 +545,11 @@ function showPrintView(tableRows) {
                     }
                     body {
                         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-                        font-size: 11px;
+                        font-size: 10px;
                         line-height: 1.4;
                         color: #333;
                         margin: 0;
-                        padding: 20px;
+                        padding: 10px;
                     }
                     table {
                         width: 100%;
@@ -552,10 +569,13 @@ function showPrintView(tableRows) {
                         color: #495057;
                         white-space: nowrap;
                     }
-                    .task-col { width: 40%; }
-                    .date-col { width: 14%; white-space: nowrap; }
-                    .status-col { width: 14%; }
-                    .other-col { width: 11%; }
+                    .task-col { width: 36%; }
+                    .date-col { width: 13%; }
+                    .status-col { width: 11%; }
+                    .other-col { width: 13%; }
+                    .time-col { width: 9%;
+                        text-align:center;
+                    }
                     .task-content {
                         margin: 4px 0;
                         padding: 2px 0;
@@ -600,15 +620,18 @@ function showPrintView(tableRows) {
                         <tr>
                             <th class="task-col">Task</th>
                             <th class="other-col">Assignee</th>
-                            <th class="date-col">Expected/Actual Start</th>
-                            <th class="date-col">Expected/Actual End</th>
-                            <th class="date-col">Completed On</th>
+                            <th class="date-col">Exp/Act <br>Start Dt.</th>
+                            <th class="date-col">Exp/Act <br>End Dt.</th>
+                            <th class="date-col">Completed<br>on</th>
+                            <th class="time-col">Expected <br>Time</th>
+                            <th class="time-col">Actual <br>Time</th>
                             <th class="status-col">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${tableRows}
                     </tbody>
+
                 </table>
                 <div style="text-align: right; font-size: 9px; color: #6c757d;">
                     Generated on ${frappe.datetime.str_to_user(currentDate)} at ${currentTime}
