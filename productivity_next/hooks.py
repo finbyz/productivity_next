@@ -61,6 +61,9 @@ doc_events = {
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
+    "Timesheet": {
+       "on_submit": "productivity_next.productivity_next.doc_events.timesheet.update_task_actual_time"
+   }
 }
 
 base_template_map = {
