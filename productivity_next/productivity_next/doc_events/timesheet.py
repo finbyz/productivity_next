@@ -17,5 +17,5 @@ def update_task_actual_time(self,method):
                     continue
 
                 # Update actual_time safely
-                task.actual_time =  log.hours or 0
-                task.save(ignore_permissions=True)
+                task.db_set('actual_time',log.hours or 0, update_modified=True)
+                
