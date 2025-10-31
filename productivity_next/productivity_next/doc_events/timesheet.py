@@ -19,6 +19,7 @@ import frappe
 #                 # Update actual_time safely
 #                 task.db_set('actual_time',log.hours or 0, update_modified=True)
 
+
 def update_task_actual_time(self, method):
     tasks = []
 
