@@ -1,0 +1,1522 @@
+// Copyright (c) 2025, Finbyz Tech Pvt Ltd and contributors
+// For license information, please see license.txt
+
+function htmlEscape(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+frappe.query_reports["Employee Activity Analysis"] = {
+    "filters": [
+        {
+            fieldname: "project",
+            label: __("Project"),
+            fieldtype: "Link",
+            options: "Project"
+        },
+        {
+            fieldname: "task",
+            label: __("Task"),
+            fieldtype: "Link",
+            options: "Task"
+        },
+        {
+            fieldname: "exp_start_date",
+            label: __("Expected Start Date"),
+            fieldtype: "DateRange"
+        },
+        {
+            fieldname: "assignee",
+            label: __("Assignee"),
+            fieldtype: "Link",
+            options: "User",
+        },
+        {
+            fieldname: "status",
+            label: __("Status"),
+            fieldtype: "MultiSelectList",
+            options: [],
+            // default: ["Open", "Scheduled", "Overdue", "In-Progress", "Pending Review"],  // 👈 This is the key
+            get_data: function() {
+                return [
+                    { value: "Open", description: __("Tasks that are not started"), selected: true },
+                    { value: "Unplanned", description: __("Tasks not Planned") },
+                    { value: "Scheduled", description: __("Tasks are Scheduled"), selected: true },
+                    { value: "Overdue", description: __("Tasks passed due date"), selected: true },
+                    { value: "In-Progress", description: __("Working on the task"), selected: true },
+                    { value: "Pending Review", description: __("Tasks are to be reviewed"), selected: true },
+                    { value: "Completed", description: __("Tasks that are completed") },
+                    { value: "Cancelled", description: __("Tasks that are cancelled") },
+                ];
+            }
+        },
+        {
+            fieldname: "completed_on",
+            label: __("Completed On"),
+            fieldtype: "DateRange" ,
+            default: [
+                frappe.datetime.add_days(frappe.datetime.get_today(), -1),
+                frappe.datetime.add_days(frappe.datetime.get_today(), -1)
+            ]
+        },
+        {
+            "fieldname": "on_hold",
+            "label": "Task On Hold",
+            "fieldtype": "Check",
+            "default": 0
+        }
+    ],
+
+    
+    onload: function(report) {
+        // Add refresh button
+        report.page.add_inner_button(__('Refresh'), () => {
+            report.refresh();
+        });
+
+        let status_filter = report.get_filter('status');
+        if (status_filter && (!status_filter.get_value() || status_filter.get_value().length === 0)) {
+            status_filter.set_value(["Completed"]);
+        }
+
+        // Ensure event handlers are added after page is fully loaded
+        $(document).ready(function() {
+            // Remove existing event handlers
+            $(document)
+                .off('click', '.edit-task-btn')
+                .off('click', '.copy-task-btn')
+                .off('click', '.delete-task-btn')
+                .off('click', '.add-subtask-btn')
+                .off('click', '.goto-task-btn');
+
+            // Add new event handlers using document-level delegation
+            $(document).on('click', '.edit-task-btn', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    let taskDataEncoded = $(this).attr('data-task');
+                    if (!taskDataEncoded) {
+                        console.error('No task data found');
+                        return;
+                    }
+                    let taskData = JSON.parse(decodeURIComponent(taskDataEncoded));
+                    
+                    showEditDialog(taskData, report);
+                } catch (error) {
+                    console.error('Error in edit task handler:', error);
+                }
+            });
+
+            $(document).on('click', '.copy-task-btn', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    let taskDataEncoded = $(this).attr('data-task');
+                    if (!taskDataEncoded) {
+                        console.error('No task data found');
+                        return;
+                    }
+                    
+                    let taskData = JSON.parse(decodeURIComponent(taskDataEncoded));
+                    
+                    showCopyDialog(taskData, report);
+                } catch (error) {
+                    console.error('Error in copy task handler:', error);
+                }
+            });
+
+            $(document).on('click', '.delete-task-btn', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    let taskDataEncoded = $(this).attr('data-task');
+                    if (!taskDataEncoded) {
+                        console.error('No task data found');
+                        return;
+                    }
+                    
+                    let taskData = JSON.parse(decodeURIComponent(taskDataEncoded));
+                    
+                    showDeleteDialog(taskData, report);
+                } catch (error) {
+                    console.error('Error in delete task handler:', error);
+                }
+            });
+
+            $(document).on('click', '.add-subtask-btn', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    let taskDataEncoded = $(this).attr('data-task');
+                    if (!taskDataEncoded) {
+                        console.error('No task data found');
+                        return;
+                    }
+                    
+                    let taskData = JSON.parse(decodeURIComponent(taskDataEncoded));
+                    showTaskDialog(taskData, report);
+                } catch (error) {
+                    console.error('Error in add subtask handler:', error);
+                }
+            });
+
+            $(document).on('click', '.goto-task-btn', function(e) {
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    let taskId = $(this).attr('data-task-id');
+                    if (taskId) {
+                        window.open(`/app/task/${taskId}`, '_blank');
+                    } else {
+                        console.error('No task ID found');
+                    }
+                } catch (error) {
+                    console.error('Error in go to task handler:', error);
+                }
+            });
+        });
+        $(document).on('click', '.copy-project-btn', function(e) {
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                let projectDataEncoded = $(this).attr('data-project')  // Changed from 'task' to 'data-project'
+                if (!projectDataEncoded) {
+                    return;
+                }
+                
+                let projectData = JSON.parse(decodeURIComponent(projectDataEncoded));
+                
+                showCopyProjectDialog(projectData, report);
+            } catch (error) {
+                console.error('Error in copy project handler:', error);
+            }
+        });
+        $(document).on('click', '.add-task-btn', function (e) {
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+        
+                let projectDataEncoded = $(this).attr('data-project');
+                console.log('Add Task button clicked. Data:', projectDataEncoded); // Debug log
+        
+                if (!projectDataEncoded) {
+                    console.error('No project data found');
+                    return;
+                }
+        
+                let projectData = JSON.parse(decodeURIComponent(projectDataEncoded));
+                console.log('Parsed Project Data:', projectData); // Debug log
+        
+                showTaskDialog({
+                    project: projectData.project, // Pass the project ID
+                    parent_task: null, // Ensure the parent task is empty for project-level tasks
+                }, report);
+            } catch (error) {
+                console.error('Error in add task handler:', error);
+            }
+        });
+        
+        
+        $(document).on('click', '.goto-project-btn', function(e) {
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+        
+                let projectId = $(this).attr('data-project-id');
+                if (projectId) {
+                    window.open(`/app/project/${projectId}`, '_blank');
+                } else {
+                    console.error('No project ID found');
+                }
+            } catch (error) {
+                console.error('Error in go to project handler:', error);
+            }
+        });
+        report.page.add_inner_button(__('Print View'), function () {
+            const data = report.data || [];
+            
+            // Reduce chunk size for better performance
+            const CHUNK_SIZE = 100; // Process 100 tasks at a time
+            const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+            
+            // Show loading dialog
+            const loadingDialog = new frappe.ui.Dialog({
+                title: __('Preparing Print View'),
+                fields: [{
+                    fieldtype: 'HTML',
+                    fieldname: 'status',
+                    options: `<div class="text-muted margin-top">
+                        <p>${__('Processing')} ${data.length} ${__('tasks')}...</p>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped active" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center text-muted" style="margin-top: 10px">
+                            <span class="processed-count">0</span> / ${data.length} ${__('tasks processed')}
+                        </div>
+                    </div>`
+                }]
+            });
+            
+            loadingDialog.show();
+            
+            try {
+                // Process chunks with setTimeout to prevent browser hanging
+                let processedHTML = '';
+                let currentChunk = 0;
+                let errorCount = 0;
+
+                function updateProgress(processed) {
+                    const progress = (processed / data.length) * 100;
+                    loadingDialog.$wrapper.find('.progress-bar').css('width', `${progress}%`);
+                    loadingDialog.$wrapper.find('.processed-count').text(processed);
+                }
+
+                function processChunk() {
+                    try {
+                        const start = currentChunk * CHUNK_SIZE;
+                        const end = Math.min(start + CHUNK_SIZE, data.length);
+                        const chunk = data.slice(start, end);
+                        
+                        // Process this chunk
+                        processedHTML += generateTableRows(chunk);
+                        
+                        // Update progress
+                        updateProgress(end);
+                        
+                        currentChunk++;
+                        
+                        if (currentChunk < totalChunks) {
+                            // Schedule next chunk with a small delay
+                            setTimeout(processChunk, 10);
+                        } else {
+                            // All chunks processed
+                            loadingDialog.hide();
+                            if (errorCount > 0) {
+                                frappe.show_alert({
+                                    message: __(`Print view generated with ${errorCount} errors`),
+                                    indicator: 'orange'
+                                });
+                            }
+                            showPrintView(processedHTML);
+                        }
+                    } catch (e) {
+                        console.error('Error processing chunk:', e);
+                        errorCount++;
+                        currentChunk++;
+                        
+                        if (currentChunk < totalChunks) {
+                            // Try next chunk despite error
+                            setTimeout(processChunk, 10);
+                        } else {
+                            loadingDialog.hide();
+                            if (processedHTML) {
+                                frappe.show_alert({
+                                    message: __(`Print view generated with ${errorCount} errors`),
+                                    indicator: 'orange'
+                                });
+                                showPrintView(processedHTML);
+                            } else {
+                                frappe.throw(__('Failed to generate print view'));
+                            }
+                        }
+                    }
+                }
+
+                // Start processing with a small delay
+                setTimeout(processChunk, 100);
+
+            } catch (e) {
+                console.error('Error in print view generation:', e);
+                loadingDialog.hide();
+                frappe.throw(__('Failed to generate print view'));
+            }
+        });
+        
+    },
+
+    "formatter": function(value, row, column, data, default_formatter) {
+        if (column.fieldname === "edit_task" && !data.is_project) {
+            // Create a copy of data and remove progress field
+            const dataWithoutProgress = {...data};
+            delete dataWithoutProgress.progress;
+            delete dataWithoutProgress.status_show;
+
+            // Safely handle potential undefined or null values
+            const safeTaskData = JSON.stringify({
+                task_id: dataWithoutProgress.task_id || '',
+                task: dataWithoutProgress.task ? dataWithoutProgress.task.toString().trim().split(' - <span')[0].trim() : '',
+                description: dataWithoutProgress.description ? dataWithoutProgress.description.toString().trim() : '',
+                // Add other relevant fields as needed
+                ...dataWithoutProgress
+            });
+
+            return `
+                <div class="btn-group">
+                    <button class="btn btn-xs btn-primary goto-task-btn" 
+                        data-task-id='${dataWithoutProgress.task_id || ''}'>
+                        <i class="fa fa-external-link"></i>
+                    </button>
+                    <button class="btn btn-xs btn-warning edit-task-btn" 
+                        data-task='${htmlEscape(encodeURIComponent(safeTaskData))}'>
+                        <i class="fa fa-pencil"></i>
+                    </button>
+                    <button class="btn btn-xs btn-info copy-task-btn" 
+                        data-task='${htmlEscape(encodeURIComponent(safeTaskData))}'>
+                        <i class="fa fa-copy"></i>
+                    </button>
+                    <button class="btn btn-xs btn-danger delete-task-btn" 
+                        data-task='${htmlEscape(encodeURIComponent(safeTaskData))}'>
+                        <i class="fa fa-trash"></i>
+                    </button>
+                    <button class="btn btn-xs btn-success add-subtask-btn" 
+                        data-task='${htmlEscape(encodeURIComponent(safeTaskData))}'>
+                        <i class="fa fa-plus"></i>
+                    </button>
+                </div>`;
+        }
+        if (column.fieldname === "edit_task" && data && data.is_project && !data.task_id) {
+            // Safely handle potential undefined or null values
+            const safeProjectData = JSON.stringify({
+                project: data.project_id || '',
+            });
+            return `
+                <div class="btn-group">
+                    <button class="btn btn-xs btn-primary goto-project-btn" 
+                        data-project-id='${data.project_id || ''}'>
+                        <i class="fa fa-external-link"></i>
+                    </button>
+                    <button class="btn btn-xs btn-info copy-project-btn" 
+                        data-project='${htmlEscape(encodeURIComponent(safeProjectData))}'>
+                        <i class="fa fa-copy"></i>
+                    </button>
+                    <button class="btn btn-xs btn-success add-task-btn" 
+                        data-project='${htmlEscape(encodeURIComponent(safeProjectData))}'>
+                        <i class="fa fa-plus"></i>
+                    </button>
+                </div>`;
+        }        
+        return default_formatter(value, row, column, data);
+    }
+}
+
+function sanitizeText(text) {
+    if (!text) return '';
+    try {
+        const temp = document.createElement('div');
+        temp.innerHTML = text;
+        let sanitized = temp.textContent || temp.innerText;
+        sanitized = sanitized.replace(/\s+/g, ' ').trim();
+        return frappe.utils.escape_html(sanitized);
+    } catch (e) {
+        console.error('Error sanitizing text:', e);
+        return frappe.utils.escape_html(String(text));
+    }
+}
+
+function generateTableRows(data) {
+    try {
+        // data.sort((a, b) => {
+        //     const nameA = (a.assignee_first_name || '').toLowerCase();
+        //     const nameB = (b.assignee_first_name || '').toLowerCase();
+        //     return nameA.localeCompare(nameB);
+        // });
+
+        return data.map(row => {
+            try {
+                const indent = row.indent || 0;
+                const status = row.status || "";
+                let statusColor = "#888";
+                let statusBgColor = "#f4f4f4";
+
+                // Format assignee - use first name if available
+                let assignee = row.assignee_first_name || "";
+                if (assignee.length > 15) {
+                    assignee = assignee.substring(0, 12) + '...';
+                }
+
+                // Format completed_by - extract username from email
+                let completed_by = row.completed_by || '';
+                if (completed_by.includes('@')) {
+                    completed_by = completed_by.split('@')[0];
+                }
+                if (completed_by.length > 15) {
+                    completed_by = completed_by.substring(0, 12) + '...';
+                }
+                
+                // Format description - strip HTML and truncate if needed
+                let description = row.description || '';
+                if (description) {
+                    // Create temporary element to strip HTML
+                    const temp = document.createElement('div');
+                    temp.innerHTML = description;
+                    description = temp.textContent || temp.innerText;
+                    // Truncate if too long
+                    if (description.length > 100) {
+                        description = description.substring(0, 97) + '...';
+                    }
+                }
+
+                // Status color mapping
+                switch (status) {
+                    case "Open": statusColor = "#9370DB"; statusBgColor = "#F8F0FF"; break;
+                    case "Scheduled": statusColor = "#20c997"; statusBgColor = "#E8F8F4"; break;
+                    case "In-Progress": statusColor = "#ffc107"; statusBgColor = "#FFF8E6"; break;
+                    case "Pending Review": statusColor = "#fd7e14"; statusBgColor = "#FFF4EC"; break;
+                    case "Completed": statusColor = "#28a745"; statusBgColor = "#F0FFF0"; break;
+                    case "Cancelled": statusColor = "#6c757d"; statusBgColor = "#F8F9FA"; break;
+                    default: statusColor = "#888"; statusBgColor = "#f4f4f4";
+                }
+
+                // Format task name and ID
+                const taskName = sanitizeText(row.task || '');
+                const taskId = row.id || '';
+                let displayTaskName = taskName;
+                if (displayTaskName.length > 50) {
+                    displayTaskName = displayTaskName.substring(0, 47) + '...';
+                }
+                const project = row.project || '';
+                // Create tree-like structure with status-colored border
+                const indentHtml = indent > 0 ? 
+                    `<div class="tree-indent" style="margin-left: ${(indent - 1) * 16}px; border-left: 2px solid ${statusColor};">` : '';
+                const indentCloseHtml = indent > 0 ? '</div>' : '';
+
+                return `
+                    <tr>
+                        <td class="other-col">${sanitizeText(assignee)}</td>
+                        <td class="task-col">
+                            ${indentHtml}
+                            <div class="task-content">
+                                <span class="task-name">${displayTaskName}${taskId ? ` <i>(${taskId})</i>` : ''}</span>
+                                ${description ? `<span class="task-description">${sanitizeText(description)}</span>` : ''}
+                            </div>
+                            ${indentCloseHtml}
+                        </td>
+                        <td class="date-col">${sanitizeText(project)}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.start_date) || ''}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.end_date) || ''}</td>
+                        <td class="date-col">${frappe.datetime.str_to_user(row.completed_on) || ''}</td>
+                        <td class="time-col">${
+                            row.expected_time
+                                ? parseFloat(row.expected_time).toFixed(2)
+                                : ''
+                        }</td>
+                        <td class="time-col">${
+                            row.actual_time
+                                ? parseFloat(row.actual_time).toFixed(2)
+                                : ''
+                        }</td>
+                    </tr>
+                `;
+            } catch (e) {
+                console.error('Error processing row:', e, row);
+                return '';
+            }
+        }).join('');
+    } catch (e) {
+        console.error('Error in generateTableRows:', e);
+        return '';
+    }
+}
+
+function showPrintView(tableRows) {
+    try {
+        const currentDate = frappe.datetime.now_date();
+        const currentTime = frappe.datetime.now_time();
+
+        const html = `
+            <html>
+            <head>
+                <title>Task Analysis Report</title>
+                <meta charset="UTF-8">
+                <style>
+                    @media print {
+                        @page { size: landscape; margin: 15mm; }
+                    }
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                        font-size: 10px;
+                        line-height: 1.4;
+                        color: #333;
+                        margin: 0;
+                        padding: 10px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        table-layout: fixed;
+                        margin-bottom: 20px;
+                    }
+                    th, td {
+                        border: 1px solid #e0e0e0;
+                        padding: 8px;
+                        text-align: left;
+                        vertical-align: top;
+                    }
+                    th {
+                        background-color: #f8f9fa;
+                        font-weight: 600;
+                        color: #495057;
+                        white-space: nowrap;
+                    }
+                    .task-col { width: 36%; }
+                    .date-col { width: 13%; }
+                    .status-col { width: 11%; }
+                    .other-col { width: 14%; }
+                    .time-col { width: 9%;
+                        text-align:center;
+                    }
+                    .task-content {
+                        margin: 4px 0;
+                        padding: 2px 0;
+                    }
+                    .task-name {
+                        color: #2c3338;
+                        display: block;
+                    }
+                    .task-id {
+                        color: #6c757d;
+                        font-size: 9px;
+                        font-style: italic;
+                        margin-top: 2px;
+                        display: block;
+                    }
+                    .task-description {
+                        color: #666;
+                        font-size: 10px;
+                        margin-top: 4px;
+                        display: block;
+                        font-style: italic;
+                    }
+                    .tree-indent {
+                        border-left: 2px solid #e0e0e0;
+                        margin: 4px 0;
+                        padding-left: 12px;
+                    }
+                    .status-badge {
+                        display: inline-block;
+                        padding: 3px 8px;
+                        border-radius: 12px;
+                        font-size: 10px;
+                        font-weight: 500;
+                        text-align: center;
+                    }
+                </style>
+            </head>
+            <body>
+                <h2 style="text-align: center; margin-bottom: 20px;">Task Analysis Report</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="other-col">Assignee</th>
+                            <th class="task-col">Task</th>
+                            <th class="time-col">Project</th>
+                            <th class="date-col">Exp/Act <br>Start Dt.</th>
+                            <th class="date-col">Exp/Act <br>End Dt.</th>
+                            <th class="date-col">Completed<br>on</th>
+                            <th class="time-col">Expected <br>Time</th>
+                            <th class="time-col">Actual <br>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+
+                </table>
+                <div style="text-align: right; font-size: 9px; color: #6c757d;">
+                    Generated on ${frappe.datetime.str_to_user(currentDate)} at ${currentTime}
+                </div>
+            </body>
+            </html>`;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            frappe.throw(__('Pop-up blocker is enabled! Please allow pop-ups for this site to print.'));
+            return;
+        }
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        
+        // Wait for resources to load
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 250);
+    } catch (e) {
+        console.error('Error in showPrintView:', e);
+        frappe.throw(__('Failed to generate print view'));
+    }
+}
+
+// Function to show edit dialog
+function showEditDialog(taskData, report) {
+    // Create a copy of taskData and remove progress field
+    const taskDataWithoutProgress = {...taskData};
+    delete taskDataWithoutProgress.progress;
+    delete taskDataWithoutProgress.status_show;
+
+    let d = new frappe.ui.Dialog({
+        title: __('Edit Task'),
+        fields: [
+            {
+                label: __('Task Name'),
+                fieldname: 'task',
+                fieldtype: 'Data',
+                default: taskDataWithoutProgress.task.trim()
+            },
+            {
+                label: __('Type'),
+                fieldname: 'type',
+                fieldtype: 'Link',
+                options: 'Task Type',
+                default: taskDataWithoutProgress.type
+            },
+            {
+                label: __('Assignee'),
+                fieldname: 'assignee',
+                fieldtype: 'Link',
+                options: 'User',
+                default: taskDataWithoutProgress.assignee
+            },
+            {
+                label: __('Parent Task'),
+                fieldname: 'parent_task',
+                fieldtype: 'Link',
+                options: 'Task',
+                default: taskDataWithoutProgress.parent_task || "",
+                get_query: function() {
+                    let filters = { is_group: 1 };
+                    // Only filter by project if it's available
+                    if (taskDataWithoutProgress.project) {
+                        filters.project = taskDataWithoutProgress.project;
+                    }
+
+                    return { filters };
+                },
+                on_change: function() {
+                    let parent_task = d.get_value("parent_task");
+                    if (parent_task) {
+                        frappe.db.get_value("Task", parent_task, ["name"], function(value) {
+                            if (value) {
+                                d.set_value("parent_task", value.name);
+                            }
+                        });
+                    }
+                }
+            },
+            {
+                label: __('Status'),
+                fieldname: 'status',
+                fieldtype: 'Select',
+                read_only:1,
+                options: 'Open\nPlanned\nScheduled\nCompleted\nCancelled\nIn-Progress\nWorking\nPending Review\nUnplanned\nRequest For Cancel\nUnplanned',
+                default: taskDataWithoutProgress.status || "Unplanned"
+            },
+            {
+                label: __('Priority'),
+                fieldname: 'priority',
+                fieldtype: 'Select',
+                options: 'Low\nMedium\nHigh',
+                default: taskDataWithoutProgress.priority
+            },
+            {
+                label: __('Expected Start Date'),
+                fieldname: 'exp_start_date',
+                fieldtype: 'Date',
+                read_only: !!taskDataWithoutProgress.start_date,
+                default: taskDataWithoutProgress.start_date
+            },
+            {
+                label: __('Expected End Date'),
+                fieldname: 'exp_end_date',
+                fieldtype: 'Date',
+                read_only: !!taskDataWithoutProgress.end_date,
+                default: taskDataWithoutProgress.end_date
+            },
+            {
+                label: __('Expected Time (in hours)'),
+                fieldname: 'expected_time',
+                fieldtype: 'Float',
+                default: taskDataWithoutProgress.expected_time
+            },
+            {
+                label: __('Description'),
+                fieldname: 'description',
+                fieldtype: 'Text Editor',
+                default: taskDataWithoutProgress.description
+            }
+        ],
+
+        
+
+        primary_action_label: __('Update Task'),
+        secondary_action_label: taskDataWithoutProgress.is_group ? __('Update All Child Tasks') : null,
+        
+        primary_action: function() {
+            updateTask(d, taskDataWithoutProgress, report, 'single');
+        }
+    });
+
+    // Add secondary action for parent tasks
+    if (taskDataWithoutProgress.is_group) {
+        d.set_secondary_action(() => {
+            updateTask(d, taskDataWithoutProgress, report, 'all');
+        });
+    }
+
+    d.show();
+
+    
+}
+
+// Function to show copy dialog
+function showCopyDialog(taskData, report) {
+    // Create a copy of taskData and remove progress field
+    const taskDataWithoutProgress = {...taskData};
+    delete taskDataWithoutProgress.progress;
+    delete taskDataWithoutProgress.status_show;
+
+    let d = new frappe.ui.Dialog({
+        title: __('Copy Task Hierarchy'),
+        fields: [
+            {
+                label: __('Original Task'),
+                fieldname: 'task',
+                fieldtype: 'Data',
+                read_only: 1,
+                default: taskDataWithoutProgress.task.trim()
+            },
+            {
+                label: __('New Project'),
+                fieldname: 'new_project',
+                fieldtype: 'Link',
+                options: 'Project',
+                description: __('Leave empty to copy without project assignment')
+            },
+            {
+                label: __('New Assignee'),
+                fieldname: 'new_assignee',
+                fieldtype: 'Link',
+                options: 'User',
+                description: __('Leave empty to keep original Assignees')
+            },
+            {
+                fieldname: 'copy_info',
+                fieldtype: 'HTML',
+                options: `
+                    <div class="alert alert-info">
+                        <p><strong>${__('Note')}:</strong></p>
+                        <ul>
+                            <li>${__('This will copy the entire task hierarchy including:')}</li>
+                            <li>${__('- All child tasks')}</li>
+                            <li>${__('- Descriptions')}</li>
+                            <li>${__('- Attachments')}</li>
+                            ${!taskDataWithoutProgress.is_project ? 
+                                `<li>${__('If no project is selected, the project name will be included in the task subject')}</li>` 
+                                : ''}
+                        </ul>
+                    </div>`
+            }
+        ],
+        primary_action_label: __('Copy'),
+        primary_action: function() {
+            copyTaskHierarchy(d, taskDataWithoutProgress, report);
+        }
+    });
+
+    d.show();
+}
+
+function showCopyProjectDialog(projectData, report) {
+    let d = new frappe.ui.Dialog({
+        title: __('Copy Project Tasks'),
+        fields: [
+            {
+                label: __('Original Project'),
+                fieldname: 'original_project',
+                fieldtype: 'Data',
+                read_only: 1,
+                default: projectData.project
+            },
+            {
+                label: __('New Project Name'),
+                fieldname: 'new_project_name',
+                fieldtype: 'Link',
+                options: 'Project',
+                reqd: 1,
+                description: __('Name of the new project to copy tasks to')
+            },
+            {
+                label: __('New Assignee'),
+                fieldname: 'new_assignee',
+                fieldtype: 'Link',
+                options: 'User',
+                description: __('Leave empty to keep original Assignees')
+            },
+            {
+                fieldname: 'copy_info',
+                fieldtype: 'HTML',
+                options: `
+                    <div class="alert alert-info">
+                        <p><strong>${__('Note')}:</strong></p>
+                        <ul>
+                            <li>${__('This will copy all tasks from the current project')}</li>
+                            <li>${__('- All task details will be copied')}</li>
+                            <li>${__('- Attachments and descriptions will be preserved')}</li>
+                            <li>${__('- Assignees can be optionally changed')}</li>
+                        </ul>
+                    </div>`
+            }
+        ],
+        primary_action_label: __('Copy Project Tasks'),
+        primary_action: function() {
+            copyProjectTasks(d, projectData, report);
+        }
+    });
+
+    d.show();
+}
+
+// Function to handle project tasks copying
+function copyProjectTasks(dialog, projectData, report) {
+    let values = dialog.get_values();
+    if (!values.new_project_name) {
+        frappe.throw(__('Please provide a name for the new project'));
+        return;
+    }
+
+    frappe.call({
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks_async',
+        args: {
+            original_project: values.original_project,
+            new_project_name: values.new_project_name,
+            new_assignee: values.new_assignee
+        },
+        freeze: true,
+        freeze_message: __('Starting background job to copy project tasks...'),
+        callback: function (r) {
+            if (r.message && r.message.status === 'queued') {
+                frappe.show_alert({
+                    message: r.message.message || __('Background job started to copy project tasks.'),
+                    indicator: 'blue'
+                });
+
+                // Optional: listen for completion event
+                frappe.realtime.on('task_copy_done', (data) => {
+                    frappe.show_alert({
+                        message: data.message || __('Project tasks copied successfully!'),
+                        indicator: 'green'
+                    });
+                    if (dialog) dialog.hide();
+                    if (report && report.refresh) report.refresh();
+                });
+            } else {
+                frappe.msgprint({
+                    title: __('Error'),
+                    indicator: 'red',
+                    message: __('Failed to start task copy background job.')
+                });
+            }
+        },
+        error: function (err) {
+            frappe.msgprint({
+                title: __('Server Error'),
+                indicator: 'red',
+                message: err.message || __('Unexpected error occurred while queuing the task copy job.')
+            });
+        }
+    });
+}
+
+// Function to show delete dialog
+function showDeleteDialog(taskData, report) {
+    // Create a copy of taskData and remove progress field
+    const taskDataWithoutProgress = {...taskData};
+    delete taskDataWithoutProgress.progress;
+    delete taskDataWithoutProgress.status_show;
+
+    let d = new frappe.ui.Dialog({
+        title: __('Delete Task'),
+        fields: [
+            {
+                label: __('Task Name'),
+                fieldname: 'task',
+                fieldtype: 'Data',
+                read_only: 1,
+                default: taskDataWithoutProgress.task.trim()
+            },
+            {
+                label: __('Delete Mode'),
+                fieldname: 'delete_mode',
+                fieldtype: 'Select',
+                options: [
+                    {label: __('Delete Single Task'), value: 'single'},
+                    {label: __('Delete Task with Children'), value: 'all'}
+                ],
+                default: 'single',
+                depends_on: `eval:${taskDataWithoutProgress.is_group}`,
+                mandatory: 1
+            },
+            {
+                fieldname: 'warning',
+                fieldtype: 'HTML',
+                options: `
+                    <div class="alert alert-warning">
+                        <p><strong>${__('Warning')}:</strong> ${__('This action cannot be undone.')}</p>
+                        ${taskDataWithoutProgress.is_group ? 
+                            `<p>${__('This task has child tasks. Selecting "Delete Task with Children" will delete all child tasks as well.')}</p>` 
+                            : ''}
+                    </div>`
+            },
+            {
+                label: __('Confirmation'),
+                fieldname: 'confirmation',
+                fieldtype: 'Check',
+                label: __('I understand this action cannot be undone'),
+                reqd: 1
+            }
+        ],
+        primary_action_label: __('Delete Task'),
+        primary_action: function() {
+            deleteTask(d, taskDataWithoutProgress, report);
+        }
+    });
+
+    d.show();
+}
+
+
+// Function to handle task update
+function updateTask(dialog, taskData, report, update_mode) {
+    let values = dialog.get_values();
+    if (!values) return;
+
+    // Validate dates
+    if (values.exp_start_date && values.exp_end_date && 
+        frappe.datetime.str_to_obj(values.exp_start_date) > frappe.datetime.str_to_obj(values.exp_end_date)) {
+        frappe.throw(__("Expected End Date cannot be before Expected Start Date"));
+        return;
+    }
+
+    frappe.call({
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.update_task',
+        args: {
+            task_id: taskData.task_id,
+            task_data: values,
+            update_mode: update_mode
+        },
+        freeze: true,
+        freeze_message: update_mode === 'single' ? 
+            __('Updating Task...') : 
+            __('Updating Task and Child Tasks...'),
+        callback: function(r) {
+            if (!r.exc) {
+                frappe.show_alert({
+                    message: update_mode === 'single' ? 
+                        __('Task updated successfully') : 
+                        __('Task and child tasks updated successfully'),
+                    indicator: 'green'
+                });
+                dialog.hide();
+                report.refresh();
+            } else {
+                frappe.msgprint({
+                    title: __('Error'),
+                    indicator: 'red',
+                    message: r.exc
+                });
+            }
+        }
+    });
+}
+
+// Function to handle task deletion
+function deleteTask(dialog, taskData, report) {
+    let values = dialog.get_values();
+    
+    if (!values.confirmation) {
+        frappe.throw(__('Please confirm deletion'));
+        return;
+    }
+
+    frappe.call({
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.delete_task',
+        args: {
+            task_data: values,
+            delete_mode: values.delete_mode || 'single'
+        },
+        freeze: true,
+        freeze_message: values.delete_mode === 'single' ? 
+            __('Deleting Task...') : 
+            __('Deleting Task and Child Tasks...'),
+        callback: function(r) {
+            if (!r.exc) {
+                frappe.show_alert({
+                    message: values.delete_mode === 'single' ? 
+                        __('Task deleted successfully') : 
+                        __('Task and child tasks deleted successfully'),
+                    indicator: 'green'
+                });
+                dialog.hide();
+                report.refresh();
+            } else {
+                frappe.msgprint({
+                    title: __('Error'),
+                    indicator: 'red',
+                    message: r.exc
+                });
+            }
+        }
+    });
+}
+
+// Function to handle task hierarchy copying
+function copyTaskHierarchy(dialog, taskData, report) {
+    let values = dialog.get_values();
+    
+    frappe.call({
+        method: 'productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_task_hierarchy',
+        args: {
+            task_data: taskData,
+            new_project: values.new_project,
+            new_assignee: values.new_assignee
+        },
+        freeze: true,
+        freeze_message: __('Copying Task Hierarchy...'),
+        callback: function(r) {
+            if (!r.exc) {
+                frappe.show_alert({
+                    message: __('Task hierarchy copied successfully'),
+                    indicator: 'green'
+                });
+                dialog.hide();
+                report.refresh();
+                
+                // Open the new task in a new tab
+                // if (r.message && r.message.new_task_id) {
+                //     frappe.set_route('Form', 'Task', r.message.new_task_id);
+                // }
+            } else {
+                frappe.msgprint({
+                    title: __('Error'),
+                    indicator: 'red',
+                    message: r.exc
+                });
+            }
+        }
+    });
+}
+
+function showTaskDialog(taskData, report) {
+    // Initial dialog for selecting task type
+    const initialDialog = new frappe.ui.Dialog({
+        title: __('Select Task Type'),
+        fields: [
+            {
+                label: __('Task Type'),
+                fieldname: 'task_type',
+                fieldtype: 'Select',
+                options: 'Single\nMultiple',
+                default: 'Single'
+            }
+        ],
+        primary_action_label: __('Continue'),
+        primary_action(values) {
+            initialDialog.hide();
+            if (values.task_type === 'Single') {
+                showSingleTaskDialog();
+            } else {
+                showMultipleTaskDialog();
+            }
+        }
+    });
+
+    // Dialog for single task
+    function showSingleTaskDialog() {
+        const singleTaskDialog = new frappe.ui.Dialog({
+            title: __('Add Single Task'),
+            fields: [
+                {
+                    label: __('Parent Task'),
+                    fieldname: 'parent_task',
+                    fieldtype: 'Data',
+                    read_only: 1,
+                    default: taskData.task_id
+                },
+                {
+                    label: __('Project'),
+                    fieldname: 'project',
+                    fieldtype: 'Data',
+                    read_only: 1,
+                    default: taskData.project
+                },
+                {
+                    label: __('Task Subject'),
+                    fieldname: 'subject',
+                    fieldtype: 'Data',
+                    reqd: 1
+                },
+                {
+                    label: __('Type'),
+                    fieldname: 'type',
+                    fieldtype: 'Link',
+                    options: 'Task Type'
+                },
+                {
+                    label: __('Assignee'),
+                    fieldname: 'assignee',
+                    fieldtype: 'Link',
+                    options: 'User',
+                    default: taskData.assignee
+                },
+                {
+                    label: __('Is Group'),
+                    fieldname: 'is_group',
+                    fieldtype: 'Check',
+                    default: taskData.is_group
+                },
+                {
+                    label: __('Priority'),
+                    fieldname: 'priority',
+                    fieldtype: 'Select',
+                    options: 'Low\nMedium\nHigh',
+                    default: taskData.priority || 'Medium'
+                },
+                {
+                    label: __('Expected Start Date'),
+                    fieldname: 'exp_start_date',
+                    fieldtype: 'Date',
+                },
+                {
+                    label: __('Expected End Date'),
+                    fieldname: 'exp_end_date',
+                    fieldtype: 'Date',
+                },
+                {
+                    label: __('Description'),
+                    fieldname: 'description',
+                    fieldtype: 'Text Editor'
+                }
+            ],
+            primary_action_label: __('Create Task'),
+            primary_action(values) {
+                if (validateDates(values)) {
+                    if (values.parent_task) {
+                        // Only in this case, check if the parent is a group
+                        checkAndUpdateParentTaskIsGroup(values.parent_task, function(isGroup) {
+                            if (isGroup) {
+                                createSingleTask(values);
+                                singleTaskDialog.hide();
+                            } else {
+                                frappe.msgprint({
+                                    title: __('Error'),
+                                    message: __('Cannot create a sub-task. Parent Task must be a group.'),
+                                    indicator: 'red'
+                                });
+                            }
+                        });
+                    } else {
+                        createSingleTask(values);
+                        singleTaskDialog.hide();
+                    }
+                }
+            },
+            secondary_action_label: __('Back'),
+            secondary_action() {
+                singleTaskDialog.hide();
+                initialDialog.show();
+            }
+        });
+        singleTaskDialog.show();
+    }
+
+    // Dialog for multiple tasks
+    function showMultipleTaskDialog() {
+        const multipleTaskDialog = new frappe.ui.Dialog({
+            title: __('Add Multiple Tasks'),
+            fields: [
+                {
+                    label: __('Parent Task'),
+                    fieldname: 'parent_task',
+                    fieldtype: 'Data',
+                    read_only: 1,
+                    default: taskData.task_id
+                },
+                {
+                    label: __('Project'),
+                    fieldname: 'project',
+                    fieldtype: 'Data',
+                    read_only: 1,
+                    default: taskData.project
+                },
+                {
+                    fieldname: 'tasks_section',
+                    fieldtype: 'Section Break',
+                    label: __('Tasks')
+                },
+                {
+                    fieldname: 'tasks',
+                    fieldtype: 'Table',
+                    label: __('Tasks'),
+                    reqd: 1,
+                    fields: [
+                        {
+                            label: __('Subject'),
+                            fieldname: 'subject',
+                            fieldtype: 'Data',
+                            in_list_view: 1,
+                            reqd: 1
+                        },
+                        {
+                            label: __('Type'),
+                            fieldname: 'type',
+                            fieldtype: 'Link',
+                            options: 'Task Type',
+                            in_list_view: 1,
+                        },
+                        {
+                            label: __('Assignee'),
+                            fieldname: 'assignee',
+                            fieldtype: 'Link',
+                            options: 'User',
+                            in_list_view: 1,
+                            default: taskData.assignee
+                        },
+                        {
+                            label: __('Is Group'),
+                            fieldname: 'is_group',
+                            fieldtype: 'Check',
+                            default: taskData.is_group
+                        },
+                        {
+                            label: __('Priority'),
+                            fieldname: 'priority',
+                            fieldtype: 'Select',
+                            options: 'Low\nMedium\nHigh',
+                            in_list_view: 1,
+                            default: taskData.priority || 'Medium'
+                        },
+                        {
+                            label: __('Start Date'),
+                            fieldname: 'exp_start_date',
+                            fieldtype: 'Date',
+                            in_list_view: 1
+                        },
+                        {
+                            label: __('End Date'),
+                            fieldname: 'exp_end_date',
+                            fieldtype: 'Date',
+                            in_list_view: 1
+                        },
+                        {
+                            label: __('Description'),
+                            fieldname: 'description',
+                            fieldtype: 'Small Text'
+                        }
+                    ]
+                }
+            ],
+            primary_action_label: __('Create Tasks'),
+            primary_action(values) {
+                if (validateMultipleTasks(values)) {
+                    // createMultipleTasks(values);
+                    // multipleTaskDialog.hide();
+                    checkAndUpdateParentTaskIsGroup(values.parent_task, function(isGroup) {
+                        if (isGroup) {
+                            createMultipleTasks(values);
+                            multipleTaskDialog.hide();
+                        } else {
+                            frappe.msgprint({
+                                title: __('Error'),
+                                message: __('Failed to update the Parent Task. Cannot create a sub-task.'),
+                                indicator: 'red'
+                            });
+                        }
+                    });
+                }
+            },
+            secondary_action_label: __('Back'),
+            secondary_action() {
+                multipleTaskDialog.hide();
+                initialDialog.show();
+            }
+        });
+        multipleTaskDialog.show();
+    }
+
+    // Validation functions remain the same
+    function validateDates(values) {
+        if (values.exp_start_date && values.exp_end_date) {
+            if (frappe.datetime.str_to_obj(values.exp_start_date) > 
+                frappe.datetime.str_to_obj(values.exp_end_date)) {
+                frappe.throw(__('End Date cannot be before Start Date'));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function validateMultipleTasks(values) {
+        if (!values.tasks || !values.tasks.length) {
+            frappe.throw(__('Please add at least one task'));
+            return false;
+        }
+
+        for (let task of values.tasks) {
+            if (!task.subject) {
+                frappe.throw(__('Subject is required for all tasks'));
+                return false;
+            }
+            if (task.exp_start_date && task.exp_end_date) {
+                if (frappe.datetime.str_to_obj(task.exp_start_date) > 
+                    frappe.datetime.str_to_obj(task.exp_end_date)) {
+                    frappe.throw(__(`End Date cannot be before Start Date for task "${task.subject}"`));
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function checkAndUpdateParentTaskIsGroup(task_id, callback) {
+        frappe.call({
+            method: 'frappe.client.get',
+            args: {
+                doctype: 'Task',
+                name: task_id
+            },
+            callback: function(response) {
+                if (response.message) {
+                    let task = response.message;
+    
+                    if (task.is_group) {
+                        callback(true); // Proceed if already a group
+                    } else {
+                        // Update the parent task to a group
+                        frappe.call({
+                            method: 'frappe.client.set_value',
+                            args: {
+                                doctype: 'Task',
+                                name: task_id,
+                                fieldname: 'is_group',
+                                value: 1
+                            },
+                            callback: function(updateResponse) {
+                                if (!updateResponse.exc) {
+                                    frappe.msgprint({
+                                        title: __('Updated'),
+                                        message: __('The Parent Task has been updated to a Group automatically.'),
+                                        indicator: 'green'
+                                    });
+                                    callback(true); // Now proceed to create the task
+                                } else {
+                                    frappe.msgprint({
+                                        title: __('Error'),
+                                        message: __('Failed to update the Parent Task.'),
+                                        indicator: 'red'
+                                    });
+                                    callback(false);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
+    
+
+    // Task creation functions
+    function createSingleTask(values) {
+        frappe.call({
+            method: 'frappe.client.insert',
+            args: {
+                doc: {
+                    doctype: 'Task',
+                    subject: values.subject,
+                    parent_task: values.parent_task,
+                    project: values.project,
+                    assignee: values.assignee,
+                    is_group : values.is_group,
+                    priority: values.priority,
+                    exp_start_date: values.exp_start_date,
+                    exp_end_date: values.exp_end_date,
+                    description: values.description,
+                    type:values.type
+                }
+            },
+            callback: function(r) {
+                if (!r.exc) {
+                    frappe.show_alert({
+                        message: __('Task created successfully'),
+                        indicator: 'green'
+                    });
+                    report.refresh();
+                }
+            }
+        });
+    }
+
+    function createMultipleTasks(values) {
+        let completed = 0;
+        const total = values.tasks.length;
+
+        frappe.show_progress(__('Creating Tasks'), completed, total);
+
+        function createNextTask(index) {
+            if (index >= values.tasks.length) {
+                frappe.hide_progress();
+                frappe.show_alert({
+                    message: __('All tasks created successfully'),
+                    indicator: 'green'
+                });
+                report.refresh();
+                return;
+            }
+
+            const task = values.tasks[index];
+            frappe.call({
+                method: 'frappe.client.insert',
+                args: {
+                    doc: {
+                        doctype: 'Task',
+                        subject: task.subject,
+                        parent_task: values.parent_task,
+                        project: values.project,
+                        task: values.task,
+                        assignee: task.assignee,
+                        is_group : task.is_group,
+                        priority: task.priority,
+                        exp_start_date: task.exp_start_date,
+                        exp_end_date: task.exp_end_date,
+                        description: task.description,
+                        type:task.type
+                    }
+                },
+                callback: function(r) {
+                    if (!r.exc) {
+                        completed++;
+                        frappe.show_progress(__('Creating Tasks'), completed, total);
+                        createNextTask(index + 1);
+                    }
+                }
+            });
+        }
+
+        createNextTask(0);
+    }
+
+    // Show initial dialog
+    initialDialog.show();
+}
+
