@@ -1,5 +1,9 @@
 import frappe
 
+def before_submit(doc,method):
+    for row in doc.time_logs:
+        if not row.activity_type:
+            row.db_set("activity_type", "No Task")
 # def update_task_actual_time(self,method):
 #     # List of statuses where actual_time should NOT be updated
         

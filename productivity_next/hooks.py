@@ -62,7 +62,8 @@ doc_events = {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
     "Timesheet": {
-       "on_submit": "productivity_next.productivity_next.doc_events.timesheet.update_task_actual_time"
+       "on_submit": "productivity_next.productivity_next.doc_events.timesheet.update_task_actual_time",
+        "before_submit": "productivity_next.productivity_next.doc_events.timesheet.before_submit",
    }
 }
 

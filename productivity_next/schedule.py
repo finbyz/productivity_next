@@ -1373,6 +1373,8 @@ def create_timesheet_logs():
                 activity_type = "Project"
             elif log.get("call_id"):
                 activity_type = "Call"
+            else:
+                activity_type = "No Task"
 
             description = get_activity_description(log)
             timesheet.append("time_logs", {
