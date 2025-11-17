@@ -885,10 +885,11 @@ def send_weekly_report():
 def submit_timesheet_created_by_productify():
     if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
         frappe.throw("Custom Field 'is_created_by_productify' not found")
-    yeasterday = get_datetime().replace(hour=0,minute=0,second=0) - timedelta(days=1)
+    three_days_before  = get_datetime().replace(hour=0,minute=0,second=0) - timedelta(days=3)
+    
     timesheets = frappe.get_all(
         "Timesheet",
-        filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">=", yeasterday)},
+        filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">=", three_days_before)},
         fields=["name"],
     )
     errors = ""
