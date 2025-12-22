@@ -885,25 +885,65 @@ def send_weekly_report():
 def submit_timesheet_created_by_productify():
     if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
         frappe.throw("Custom Field 'is_created_by_productify' not found")
-    three_days_before  = get_datetime().replace(hour=0,minute=0,second=0) - timedelta(days=3)
-    
+
+    three_days_before = (
+        get_datetime()
+        .replace(hour=0, minute=0, second=0)
+        - timedelta(days=3)
+    )
+
     timesheets = frappe.get_all(
         "Timesheet",
-        filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">=", three_days_before)},
-        fields=["name"],
+        filters={
+            "docstatus": 0,
+            "is_created_by_productify": 1,
+            "creation": (">=", three_days_before),
+        },
+        pluck="name",
     )
-    errors = ""
-    for timesheet in timesheets:
-        try:
-            doc = frappe.get_doc("Timesheet", timesheet.name)
-            doc.submit()
-        except Exception as e:
-            errors += f'error {timesheet.name} {e}\n'
-    if errors:
-        frappe.log_error(
-            title="Error while timesheet auto submission",
-            message=errors
+
+    for ts_name in timesheets:
+        frappe.enqueue(
+            method="productivity_next.schedule.submit_timesheet_job",
+            queue="long",
+            job_name=f"Submit Timesheet {ts_name}",
+            timesheet_name=ts_name,
         )
+
+
+def submit_timesheet_job(timesheet_name):
+    try:
+        doc = frappe.get_doc("Timesheet", timesheet_name)
+        doc.submit()
+    except Exception:
+        frappe.log_error(
+            title=f"Timesheet Auto Submission Failed: {timesheet_name}",
+            message=frappe.get_traceback(),
+        )
+
+
+# def submit_timesheet_created_by_productify():
+#     if not frappe.db.exists("Custom Field", {"fieldname": "is_created_by_productify"}):
+#         frappe.throw("Custom Field 'is_created_by_productify' not found")
+#     three_days_before  = get_datetime().replace(hour=0,minute=0,second=0) - timedelta(days=3)
+    
+#     timesheets = frappe.get_all(
+#         "Timesheet",
+#         filters={"docstatus": 0, "is_created_by_productify": 1,"creation": (">=", three_days_before)},
+#         fields=["name"],
+#     )
+#     errors = ""
+#     for timesheet in timesheets:
+#         try:
+#             doc = frappe.get_doc("Timesheet", timesheet.name)
+#             doc.submit()
+#         except Exception as e:
+#             errors += f'error {timesheet.name} {e}\n'
+#     if errors:
+#         frappe.log_error(
+#             title="Error while timesheet auto submission",
+#             message=errors
+#         )
 
 
 
@@ -1317,24 +1357,37 @@ def create_timesheet_logs():
     merged_logs = {}
     applications = group_logs_by_employee(applications)
     calls = group_logs_by_employee(calls)
+    print("Employees with App Logs:", list(applications.keys()))
+    print("Employees with Call Logs:", list(calls.keys()))
     employees = frappe.get_all('List of User', fields=['employee'],pluck='employee')
+
+    print("Total employees:", len(employees))
+    frappe.log_error("DEBUG", f"Employees found: {len(employees)}")
     
     # merge application logs
     for employee, logs in applications.items():
         merged_logs[employee] = merge_logs(logs)
+
+    print("After merging app logs:", {k: len(v) for k,v in merged_logs.items()})
     
 
     # split meeting logs
     for employee in employees:
         meetings = get_employee_meetings(employee, today())
+        print(f"Meetings for {employee}: {len(meetings)}")
         merged_logs[employee] = split_logs(merged_logs.get(employee,[]),meetings)
     
     # split call logs
     for employee, logs in calls.items():
+        print(f"Call logs for {employee}: {len(logs)}")
         merged_logs[employee] = split_logs(merged_logs.get(employee,[]),logs)
+    print("Merged logs final:", {k: len(v) for k,v in merged_logs.items()})
+    frappe.log_error("DEBUG", f"Merged logs final: {merged_logs}")
+
+    created_count = 0
     
     for employee in employees:
-        
+        print("\nProcessing employee:", employee)
         existing_timesheets = frappe.get_list(
             "Timesheet",
             filters={
@@ -1349,19 +1402,25 @@ def create_timesheet_logs():
 
         if existing_timesheets:
             timesheet = frappe.get_doc("Timesheet", existing_timesheets[0]["name"])
+            print("Existing Draft Timesheet:", timesheet.name)
             timesheet.time_logs = []
         else:
             timesheet = frappe.new_doc("Timesheet")
             timesheet.employee = employee
+            print("Creating new Timesheet for:", employee)
         timesheet.is_created_by_productify = True
         employee_merged_logs = merged_logs.get(employee, [])
+
+        print("Logs for employee:", len(employee_merged_logs))
         if not employee_merged_logs:
+            print("No logs found for employee, skipping timesheet creation")
             continue
         for log in employee_merged_logs:
             log["to_time"] = log["to_time"] - timedelta(seconds=1)
             seconds = (log["to_time"] - log["from_time"]).total_seconds()
             hours = seconds / 3600
             if seconds <= 0:
+                print("Invalid log duration, skipping:", log)
                 continue
             activity_type = ""
             if log.get("meeting"):
@@ -1391,13 +1450,19 @@ def create_timesheet_logs():
         try:
             if timesheet.time_logs:
                 timesheet.save()
+                created_count += 1
+                print("Timesheet created for:", employee)
         except Exception as e:
             frappe.log_error(f"Failed to create timesheet for {employee}",e)
+    
+    print(f"Total employees processed: {len(employees)}")
+    print(f"Total timesheets created: {created_count}")
 
 def generate_daily_timesheets():
     """Generate timesheets for all employees based on application usage logs, meetings, and calls"""
     yesterday = frappe.utils.add_days(frappe.utils.today(), -1)
-    print(f"\n=== Starting Timesheet Generation for date: {yesterday} ===")
+    today = frappe.utils.today()
+    print(f"\n=== Starting Timesheet Generation for date Today: {today} ===")
     
     # Get all employees from List of User
     employees = frappe.db.sql("""
