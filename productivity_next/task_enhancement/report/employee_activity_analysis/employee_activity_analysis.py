@@ -78,6 +78,12 @@ def get_columns(filters):
             "fieldtype": "Data",
             "width": 55
         },
+         {
+            "fieldname": "completed_on",
+            "label": _("Completed On"),
+            "fieldtype": "Date",
+            "width": 110
+        },
         {   
             "label": "Actual Time in Hours (via Timesheet)", 
             "fieldname": "actual_time", 
