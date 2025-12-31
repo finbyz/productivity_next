@@ -499,7 +499,7 @@ def get_deployment_rate_data(filters):
             flt(daily_working_hours), 
             flt(saturday_working_hours)
         )
-        
+        # frappe.throw(str(available_hours))
         # Get days in the date range
         from_date_obj = datetime.strptime(str(from_date), '%Y-%m-%d')
         to_date_obj = datetime.strptime(str(to_date), '%Y-%m-%d')
@@ -923,11 +923,10 @@ def calculate_non_overlapping_hours(intervals):
 
 
 @frappe.whitelist()
-def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
+def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours,saturday_working_hours):
     from_date = datetime.strptime(str(from_date), '%Y-%m-%d')
     to_date = datetime.strptime(str(to_date), '%Y-%m-%d')
     date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
-
     holidays = frappe.db.sql("""
         SELECT holiday_date 
         FROM `tabHoliday` 
@@ -939,13 +938,12 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         leaves = []
     else:
         leaves = frappe.db.sql("""
-            SELECT from_date, to_date, half_day
+            SELECT from_date, to_date, half_day,half_day_date
             FROM `tabLeave Application`
             WHERE employee = %s
             AND status = 'Approved'
             AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
         """, (employee, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
-
     total_working_hours = 0
     for date in date_range:
         current_date = date.date()
@@ -972,7 +970,10 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
         # Apply leave deductions
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
-                if leave.half_day:
+                if not leave.half_day:
+                    day_hours = 0
+                    break
+                if leave.half_day  and leave.half_day_date == current_date:
                     # For half-day leaves:
                     # If Saturday, set to 0 hours (skip the day)
                     # For other days, apply half of the daily hours
@@ -980,8 +981,8 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
                         day_hours = 0
                     else:
                         day_hours *= 0.5
-                else:
-                    day_hours = 0  # Full day leave
+                    break
+                day_hours = 0
                 break
 
         total_working_hours += day_hours
