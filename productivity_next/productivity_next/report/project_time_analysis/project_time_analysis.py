@@ -968,23 +968,29 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
             continue
             
         # Apply leave deductions
+        half_day_count = 0
         for leave in leaves:
             if leave.from_date <= current_date <= leave.to_date:
                 if not leave.half_day:
                     day_hours = 0
                     break
                 if leave.half_day  and leave.half_day_date == current_date:
+                    half_day_count += 1
+                    continue
+                    
+                day_hours = 0
+                break
                     # For half-day leaves:
                     # If Saturday, set to 0 hours (skip the day)
                     # For other days, apply half of the daily hours
-                    if is_saturday:
-                        day_hours = 0
-                    else:
-                        day_hours *= 0.5
-                    break
+        if day_hours > 0:
+            if half_day_count >= 2:
                 day_hours = 0
-                break
-
+            elif half_day_count == 1:
+                if is_saturday:
+                    day_hours = 0
+                else:
+                    day_hours *= 0.5
         total_working_hours += day_hours
 
     return total_working_hours
