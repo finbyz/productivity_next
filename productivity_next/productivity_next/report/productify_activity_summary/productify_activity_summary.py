@@ -581,7 +581,16 @@ def user_analysis_data(start_date=None, end_date=None, filters=None):
 # User Analysis (User Productivity Stats) Code Ends
 @frappe.whitelist()
 def get_employees():
-    employees = frappe.get_all("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
+    
+    employees = frappe.db.sql("""
+        SELECT DISTINCT
+            e.name, e.employee_name
+        FROM `tabList of User` lou
+        JOIN `tabEmployee` e ON e.name = lou.employee
+        WHERE lou.parent = 'Productify Subscription'
+          AND lou.parenttype = 'Productify Subscription'
+          AND e.status = 'Active'
+    """, as_dict=True)
     if not employees:
         return []
     return employees
