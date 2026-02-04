@@ -94,21 +94,21 @@ def get_columns(filters=None):
             "label": _("Rejected Calls"),
             "fieldtype": "Data",
         },
-        {
-            "fieldname": "keyboard",
-            "label": _("Keyboard"),
-            "fieldtype": "Data",
-        },
-        {
-            "fieldname": "mouse",
-            "label": _("Mouse"),
-            "fieldtype": "Data",
-        },
-        {
-            "fieldname": "scroll",
-            "label": _("Scroll"),
-            "fieldtype": "Data",
-        },
+        # {
+        #     "fieldname": "keyboard",
+        #     "label": _("Keyboard"),
+        #     "fieldtype": "Data",
+        # },
+        # {
+        #     "fieldname": "mouse",
+        #     "label": _("Mouse"),
+        #     "fieldtype": "Data",
+        # },
+        # {
+        #     "fieldname": "scroll",
+        #     "label": _("Scroll"),
+        #     "fieldtype": "Data",
+        # },
         {
             "fieldname": "meetings",
             "label": _("Meetings"),
@@ -179,9 +179,9 @@ def get_data(filters):
                 "outgoing_hours": 0,
                 "missed_calls": 0,
                 "rejected_calls": 0,
-                "keyboard": 0,
-                "mouse": 0,
-                "scroll": 0,
+                # "keyboard": 0,
+                # "mouse": 0,
+                # "scroll": 0,
                 "meetings": 0,
                 "meetings_hours": 0
             }
@@ -213,9 +213,9 @@ def get_data(filters):
                         "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
                         "missed_calls": employee_data.get("missed_fincall_count", 0),
                         "rejected_calls": employee_data.get("rejected_fincall_count", 0),
-                        "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
-                        "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
-                        "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
+                        # "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
+                        # "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
+                        # "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
                         "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
                         "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
                     }
@@ -239,9 +239,9 @@ def get_data(filters):
                         "outgoing_hours": employee_data.get("total_outgoing_duration", 0),
                         "missed_calls": employee_data.get("missed_fincall_count", 0),
                         "rejected_calls": employee_data.get("rejected_fincall_count", 0),
-                        "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
-                        "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
-                        "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
+                        # "keyboard": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_keystrokes", 0),
+                        # "mouse": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_mouse_clicks", 0),
+                        # "scroll": user_analysis.get("work_intensity_data", {}).get(employee, {}).get("total_scroll", 0),
                         "meetings": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("count", 0),
                         "meetings_hours": user_analysis.get("meeting_employee_data", {}).get(employee, {}).get("duration", 0)
                     }
@@ -535,25 +535,26 @@ def user_analysis_data(start_date=None, end_date=None, filters=None):
     for i in meetings_external_employee_raw:
         meetings_external_employee[i['employee']] = { "duration":i['total_meeting_duration'], "count":i['meeting_count']}
 
-    work_intensity = frappe.db.sql(f"""
-        SELECT 
-            employee,
-            COALESCE(SUM(key_strokes), 0) AS total_keystrokes,
-            COALESCE(SUM(mouse_clicks), 0) AS total_mouse_clicks,
-            COALESCE(SUM(mouse_scrolls), 0) AS total_scroll
-        FROM `tabWork Intensity`
-        WHERE time >= '{start_date} 00:00:00' AND time <= '{end_date} 23:59:59' {employee_condition}
-        GROUP BY employee
-    """, as_dict=True)
+    # work_intensity = frappe.db.sql(f"""
+    #     SELECT 
+    #         employee,
+    #         COALESCE(SUM(key_strokes), 0) AS total_keystrokes,
+    #         COALESCE(SUM(mouse_clicks), 0) AS total_mouse_clicks,
+    #         COALESCE(SUM(mouse_scrolls), 0) AS total_scroll
+    #     FROM `tabWork Intensity`
+    #     WHERE time >= '{start_date} 00:00:00' AND time <= '{end_date} 23:59:59' {employee_condition}
+    #     GROUP BY employee
+    # """, as_dict=True)
     
-    work_intensity_data = {}
-    for item in work_intensity:
-        employee = item['employee']
-        work_intensity_data[employee] = {
-            'total_keystrokes': item['total_keystrokes'],
-            'total_mouse_clicks': item['total_mouse_clicks'],
-            'total_scroll': item['total_scroll']
-        }  
+        
+    # work_intensity_data = {}
+    # for item in work_intensity:
+    #     employee = item['employee']
+    #     work_intensity_data[employee] = {
+    #         'total_keystrokes': item['total_keystrokes'],
+    #         'total_mouse_clicks': item['total_mouse_clicks'],
+    #         'total_scroll': item['total_scroll']
+    #     }  
     
     productivity_score = {}
     # Retrieve working hours per day and on Saturday from the database
@@ -575,7 +576,7 @@ def user_analysis_data(start_date=None, end_date=None, filters=None):
         "total_idle_time": total_idle_time,
         "employee_fincall_data": employee_fincall_data,
         "meeting_employee_data": meetings_external_employee,
-        "work_intensity_data": work_intensity_data,
+        # "work_intensity_data": work_intensity_data,
         "productivity_score": productivity_score
     }
 # User Analysis (User Productivity Stats) Code Ends
