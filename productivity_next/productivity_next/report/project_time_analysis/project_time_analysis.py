@@ -264,7 +264,11 @@ def get_data(filters):
     project_list = f"('{project_list}')" if project_list else "(NULL)"
     
     # Application intervals query
-    employee_filter = f"AND a.employee = '{employee}'" if employee else ""
+    if employee and filters.get("show_employee"):
+        emp_list = employee if isinstance(employee, list) else [employee]
+        employee_filter = f"AND a.employee IN ({', '.join(frappe.db.escape(e) for e in emp_list)})"
+    else:
+        employee_filter = ""
     start_time = frappe.utils.now_datetime()
     application_intervals = frappe.db.sql(f"""
         SELECT 
@@ -287,7 +291,11 @@ def get_data(filters):
         message=f"time in application_intervals {start_time} {end_time} {duration}"
     )
     # Meeting intervals query
-    employee_filter = f"AND mcr.employee = '{employee}'" if employee else ""
+    if employee and filters.get("show_employee"):
+        emp_list = employee if isinstance(employee, list) else [employee]
+        employee_filter = f"AND mcr.employee IN ({', '.join(frappe.db.escape(e) for e in emp_list)})"
+    else:
+        employee_filter = ""
     meeting_intervals = frappe.db.sql(f"""
         SELECT 
             mcr.employee AS employee_id,
@@ -322,7 +330,11 @@ def get_data(filters):
         customer_list = "(NULL)"  # No valid customers
     
     # Calls intervals query
-    employee_filter = f"AND employee = '{employee}'" if employee else ""
+    if employee and filters.get("show_employee"):
+        emp_list = employee if isinstance(employee, list) else [employee]
+        employee_filter = f"AND employee IN ({', '.join(frappe.db.escape(e) for e in emp_list)})"
+    else:
+        employee_filter = ""
     calls_intervals = frappe.db.sql(f"""
         SELECT 
             employee AS employee_id,
@@ -455,8 +467,10 @@ def get_deployment_rate_data(filters):
     from_date = filters.get("from_date")
     to_date = filters.get("to_date")
     employee_condition = ""
-    if filters.get("employee"):
-        employee_condition = f"AND employee = '{filters.get('employee')}'"
+    if filters.get("employee") and filters.get("show_employee"):
+        employee = filters.get("employee")
+        emp_list = employee if isinstance(employee, list) else [employee]
+        employee_condition = f"AND employee IN ({', '.join(frappe.db.escape(e) for e in emp_list)})"
 
     employees = frappe.db.sql(f"""
         SELECT employee as name, employee_name, user_id

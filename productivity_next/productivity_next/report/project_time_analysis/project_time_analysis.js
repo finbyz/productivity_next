@@ -2,8 +2,8 @@
 // For license information, please see license.txt
 
 frappe.query_reports["Project Time Analysis"] = {
-	"filters": [
-		{
+    "filters": [
+        {
             "fieldname": "from_date",
             "label": "From Date",
             "fieldtype": "Date",
@@ -41,8 +41,11 @@ frappe.query_reports["Project Time Analysis"] = {
         {
             "fieldname": "employee",
             "label": "Employee",
-            "fieldtype": "Link",
+            "fieldtype": "MultiSelectList",
             "options": "Employee",
+            "get_data": function (txt) {
+                return frappe.db.get_link_options('Employee', txt);
+            },
             "depends_on": "show_employee"
         },
         {
@@ -67,5 +70,5 @@ frappe.query_reports["Project Time Analysis"] = {
             "label": "Show Deployment Rate",
             "fieldtype": "Check",
         }
-	]
+    ]
 };
