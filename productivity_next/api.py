@@ -729,8 +729,8 @@ def create_fincall(
         ORDER BY 
             CASE dl.link_doctype
                 WHEN 'Employee' THEN 1
-                WHEN 'Customer' THEN 2
-                WHEN 'Lead' THEN 3
+                WHEN 'Lead' THEN 2
+                WHEN 'Customer' THEN 3
                 ELSE 4
             END,
             c.modified DESC

@@ -193,6 +193,75 @@ def enqueue_create_contact(
     contact_doc_resave.save()
     frappe.msgprint("Contact has been created.")
     
+@frappe.whitelist()
+def get_relink_suggestions(docname):
+    """Return contact/document matches for the customer_no on this fincall,
+    using the same lookup logic as create_fincall in api.py."""
+    customer_no = frappe.db.get_value("Employee Fincall", docname, "customer_no")
+    if not customer_no:
+        return []
+
+    contact_query = f"""
+        SELECT
+            c.name,
+            dl.link_doctype,
+            dl.link_name
+        FROM
+            `tabContact` AS c
+        JOIN
+            `tabContact Phone` AS cp ON cp.parent = c.name
+        JOIN
+            `tabDynamic Link` AS dl ON dl.parent = c.name
+        WHERE
+            LENGTH(cp.phone) >= 10
+            AND (cp.phone = '{customer_no}'
+            OR cp.phone LIKE '%{customer_no}'
+            OR '{customer_no}' LIKE CONCAT('%', cp.phone))
+        ORDER BY
+            CASE dl.link_doctype
+                WHEN 'Employee'  THEN 1
+                WHEN 'Lead'      THEN 2
+                WHEN 'Customer'  THEN 3
+                ELSE 4
+            END,
+            c.modified DESC
+        LIMIT 10;
+    """
+    results = frappe.db.sql(contact_query, as_dict=True)
+
+    # Fall back to Job Applicant if no Contact match
+    if not results:
+        results = frappe.db.sql(
+            f"""SELECT name AS name, 'Job Applicant' AS link_doctype, name AS link_name
+                FROM `tabJob Applicant`
+                WHERE LENGTH(mobile_number) >= 10
+                  AND (mobile_number = '{customer_no}'
+                  OR mobile_number LIKE '%{customer_no}'
+                  OR '{customer_no}' LIKE CONCAT('%', mobile_number))
+                LIMIT 10""",
+            as_dict=True,
+        )
+
+    return results
+
+
+@frappe.whitelist()
+def relink_call(docname, link_to, link_name, contact=None):
+    """Re-associate an Employee Fincall with a different document/contact."""
+    doc = frappe.get_doc("Employee Fincall", docname)
+    doc.link_to = link_to
+    doc.link_name = link_name
+    doc.contact = contact or None
+    doc.flags.ignore_permissions = True
+    doc.save()
+    frappe.msgprint(
+        frappe._("Call {0} has been relinked to {1} {2}.").format(docname, link_to, link_name),
+        alert=True,
+    )
+
+
 def on_doctype_update():
+
+
     frappe.db.add_unique("Employee Fincall", ["date", "employee", "call_datetime","customer_no"])
     frappe.db.add_index("Employee Fincall", ["date", "employee", "calltype"])

@@ -2,6 +2,144 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Employee Fincall", {
+	refresh(frm) {
+		frm.add_custom_button(__("Relink Call"), function () {
+			// First, fetch available suggestions using the same phone-number lookup
+			// logic as create_fincall in api.py, then open the dialog pre-populated.
+			frappe.call({
+				method: "productivity_next.productivity_next.doctype.employee_fincall.employee_fincall.get_relink_suggestions",
+				args: { docname: frm.doc.name },
+				callback: function (r) {
+					let suggestions = r.message || [];
+					let best = suggestions[0] || null;
+
+					// Build select options from all returned suggestions
+					let suggestion_options = suggestions.map((s) =>
+						`${s.link_doctype}: ${s.link_name}${s.name ? " [" + s.name + "]" : ""}`
+					);
+
+                    let dialog;
+					let fields = [
+						{
+							label: __("Available Matches (from phone number lookup)"),
+							fieldtype: "Select",
+							fieldname: "suggestion",
+							options: ["-- select a match or fill manually below --", ...suggestion_options],
+							default: best
+								? `${best.link_doctype}: ${best.link_name}${best.name ? " [" + best.name + "]" : ""}`
+								: "-- select a match or fill manually below --",
+							change: function () {
+								let val = this.get_value();
+								if (!val || val.startsWith("--")) return;
+								// Parse "DocType: link_name [contact_name]"
+								let match = val.match(/^(.+?):\s*(.+?)(?:\s*\[(.+)\])?$/);
+								if (match) {
+                                    dialog.set_value("party_type", match[1].trim());
+                                    dialog.set_value("party", match[2].trim());
+									if (match[3]) {
+                                        dialog.set_value("contact", match[3].trim());
+									}
+								}
+							},
+						},
+						{ fieldtype: "Section Break", label: __("Or specify manually") },
+						{
+							label: __("Party Type"),
+							fieldtype: "Link",
+							options: "DocType",
+							fieldname: "party_type",
+							reqd: 1,
+							default: best ? best.link_doctype : frm.doc.link_to,
+							get_query: function () {
+								return {
+									filters: {
+										name: ["in", ["Customer", "Supplier", "Lead", "Company", "Job Applicant"]],
+									},
+								};
+							},
+							change: function () {
+                                let party_field = dialog.get_field("party");
+                                party_field.df.options = this.get_value();
+                                party_field.set_value("");
+                                party_field.refresh();
+							},
+						},
+						{
+							label: __("Party"),
+							fieldtype: "Dynamic Link",
+							options: "party_type",
+							fieldname: "party",
+							reqd: 1,
+							default: best ? best.link_name : frm.doc.link_name,
+						},
+						{ fieldtype: "Column Break" },
+						{
+							label: __("Contact"),
+							fieldtype: "Link",
+							options: "Contact",
+							fieldname: "contact",
+							default: best ? (best.name || "") : (frm.doc.contact || ""),
+							get_query: function () {
+                                let party_type = dialog.get_value("party_type");
+                                let party = dialog.get_value("party");
+                                return {
+                                    query: 'frappe.contacts.doctype.contact.contact.contact_query',
+                                    filters: {
+                                        link_doctype: party_type,
+                                        link_name: party
+                                    }
+                                };
+							},
+						},
+					];
+
+                    dialog = new frappe.ui.Dialog({
+						title: __("Relink Call"),
+						fields: fields,
+						primary_action_label: __("Relink"),
+						primary_action: function (values) {
+							if (!values.party_type || !values.party) {
+								frappe.msgprint(__("Please select a Party Type and Party."));
+								return;
+							}
+							frappe.call({
+								method: "productivity_next.productivity_next.doctype.employee_fincall.employee_fincall.relink_call",
+								args: {
+									docname: frm.doc.name,
+									link_to: values.party_type,
+									link_name: values.party,
+									contact: values.contact || "",
+								},
+								callback: function (r) {
+									if (!r.exc) {
+										frappe.show_alert(
+											{ message: __("Call relinked successfully."), indicator: "green" },
+											3
+										);
+										dialog.hide();
+										frm.reload_doc();
+									}
+								},
+							});
+						},
+					});
+
+					if (!best) {
+						frappe.show_alert(
+							{
+								message: __("No automatic match found for {0}. Please fill in manually.", [frm.doc.customer_no]),
+								indicator: "orange",
+							},
+							5
+						);
+					}
+
+					dialog.show();
+				},
+			});
+		});
+	},
+
 	create_contact(frm) {
         let d = frm.doc;
 
@@ -37,14 +175,13 @@ frappe.ui.form.on("Employee Fincall", {
                 depends_on: 'eval:doc.update_existing_client',
                 fieldname: 'update_client',
                 change: function(){
-					let merge = this.get_value();
-					let contact = this.layout.get_value('update_client');
+                    let contact = this.get_value();
                     if(contact){
                         console.log(contact)
                         frappe.db.get_doc("Contact", contact).then(doc => {
                             console.log(doc);
-                            this.layout.get_field('party_type').set_input(doc.links[0].link_doctype);
-                            this.layout.get_field('party').set_input(doc.links[0].link_name);
+                            dialog.set_value('party_type', doc.links[0].link_doctype);
+                            dialog.set_value('party', doc.links[0].link_name);
                         }).catch(err => {
                             console.error("Error fetching document:", err);
                         });
@@ -101,7 +238,7 @@ frappe.ui.form.on("Employee Fincall", {
             }
         ];
 
-        let dialog = new frappe.ui.Dialog({
+        let dialog = new frappe.ui.Dialog({ // dialog is declared here, fields above reference it via closure in create_contact
             title: __("Create Contact"),
             fields: fields,
             primary_action_label: __("Create"),
@@ -145,7 +282,15 @@ frappe.ui.form.on("Employee Fincall", {
                 }
             }
         });
-
+        dialog.fields_dict.contact_person.get_query = function (doc) {
+            return {
+                query: 'frappe.contacts.doctype.contact.contact.contact_query',
+                filters: {
+                    link_doctype: frm.doc.party_type,
+                    link_name: frm.doc.party
+                }
+            }
+        };
         dialog.show();
         console.log("BUTTON DAB GAYA");
     },
