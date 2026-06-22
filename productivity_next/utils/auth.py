@@ -58,7 +58,6 @@ def get_bearer_token(user, expires_in_days=7, purpose=None, date=None):
     bearer_token.user = user
     bearer_token.purpose = purpose
     bearer_token.save(ignore_permissions=True)
-    frappe.db.commit()
 
     # ID Token
     id_token_header = {"typ": "jwt", "alg": "HS256"}

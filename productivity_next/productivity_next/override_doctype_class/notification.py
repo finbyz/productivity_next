@@ -1,56 +1,12 @@
 import json
 import frappe
 from frappe.utils import nowdate, add_days, add_months, add_years
-from frappe.email.doctype.notification.notification import Notification as _Notification, get_context
 from jinja2 import Template
 from frappe.desk.form import assign_to
 
-class Notification(_Notification):
-	# begin: auto-generated types
-	# This code is auto-generated. Do not modify anything in this block.
 
-	from typing import TYPE_CHECKING
-
-	if TYPE_CHECKING:
-		from frappe.email.doctype.notification_recipient.notification_recipient import NotificationRecipient
-		from frappe.types import DF
-
-		attach_print: DF.Check
-		channel: DF.Literal["Email", "Slack", "System Notification", "SMS", "WhatsApp", "Task"]
-		condition: DF.Code | None
-		date_changed: DF.Literal[None]
-		days_in_advance: DF.Int
-		document_type: DF.Link
-		enabled: DF.Check
-		event: DF.Literal[
-			"",
-			"New",
-			"Save",
-			"Submit",
-			"Cancel",
-			"Days After",
-			"Days Before",
-			"Value Change",
-			"Method",
-			"Custom",
-		]
-		is_standard: DF.Check
-		message: DF.Code | None
-		message_type: DF.Literal["Markdown", "HTML", "Plain Text"]
-		method: DF.Data | None
-		module: DF.Link | None
-		print_format: DF.Link | None
-		property_value: DF.Data | None
-		recipients: DF.Table[NotificationRecipient]
-		send_system_notification: DF.Check
-		send_to_all_assignees: DF.Check
-		sender: DF.Link | None
-		sender_email: DF.Data | None
-		set_property_after_alert: DF.Literal[None]
-		slack_webhook_url: DF.Link | None
-		subject: DF.Data | None
-		value_changed: DF.Literal[None]
-	# end: auto-generated types
+class Notification:
+	"""Mixin for extend_doctype_class — adds Task channel support to Notification."""
 
 	def send(self, doc):
 		"""Build recipients and send Notification"""
@@ -82,7 +38,7 @@ class Notification(_Notification):
 
 	def get_assign_to_user(self, doc, context):
 		assign_to_users = []
-		
+
 		for recipient in self.recipients:
 			if recipient.condition:
 				if not frappe.safe_eval(recipient.condition, None, context):
@@ -98,10 +54,9 @@ class Notification(_Notification):
 					assign_to_users.append(doc.get(fields[0]))
 
 		return set(assign_to_users)
-   
-     
+
 	def create_task(self, doc, context):
-		"""Create Task"""
+		"""Create Task from Notification"""
 		assign_to_users = self.get_assign_to_user(doc, context)
 		try:
 			# Render subject and message using templates
@@ -129,7 +84,7 @@ class Notification(_Notification):
 			task.type = self.type
 			task.project = self.project
 			task.priority = self.priority
-			task.flags.ignore_mandatory = True 
+			task.flags.ignore_mandatory = True
 			if self.assignee and doc.get(self.assignee):
 				task.assignee = doc.get(self.assignee)
 			task.save(ignore_permissions=True)
@@ -149,7 +104,7 @@ class Notification(_Notification):
 			for assign_to_user in assign_to_users:
 				if assign_to_user == "Guest" or not assign_to_user:
 					continue
- 
+
 				assign_to.add(
 					dict(
 						assign_to=[assign_to_user],

@@ -1,9 +1,10 @@
 import frappe
-from frappe.automation.doctype.auto_repeat.auto_repeat import AutoRepeat as _AutoRepeat
-from frappe.utils import date_diff, nowdate, add_days, add_months, add_years
+from frappe.utils import nowdate, add_days, add_months, add_years
 
 
-class AutoRepeat(_AutoRepeat):
+class AutoRepeat:
+	"""Mixin for extend_doctype_class — overrides update_doc and set_start_and_end_date."""
+
 	def update_doc(self, new_doc, reference_doc):
 		new_doc.docstatus = 0
 		if new_doc.meta.get_field("set_posting_time"):
@@ -36,13 +37,13 @@ class AutoRepeat(_AutoRepeat):
 		# for any action that needs to take place after the recurring document creation
 		# on recurring method of that doctype is triggered
 		new_doc.run_method("on_recurring", reference_doc=reference_doc, auto_repeat_doc=auto_repeat_doc)
-	
+
 	def set_start_and_end_date(self, new_doc, reference_doc):
 		for row in self.task_due_date or []:
 			if row.date_field:
 				if row.frequency == "Day":
-					new_doc.set(row.date_field ,add_days(nowdate(), row.end_date_after))
+					new_doc.set(row.date_field, add_days(nowdate(), row.end_date_after))
 				elif row.frequency == "Month":
-					new_doc.set(row.date_field ,add_months(nowdate(), row.end_date_after))
+					new_doc.set(row.date_field, add_months(nowdate(), row.end_date_after))
 				elif row.frequency == "Year":
-					new_doc.set(row.date_field ,add_years(nowdate(), row.end_date_after))
+					new_doc.set(row.date_field, add_years(nowdate(), row.end_date_after))

@@ -296,13 +296,13 @@ def create_timesheet_for_employee_date():
         }
     )
     # Get call logs for this employee and date
-    calls = frappe.get_all(
-        "Employee Fincall",
-        fields=["name as call_id","employee","call_datetime as from_time","ADDTIME(call_datetime, SEC_TO_TIME(duration)) as to_time", "issue", "task", "project"],
-        filters={
-            "employee": employee,
-            "call_datetime": ["between", [f"{date} 00:00:00", f"{date} 23:59:59"]],
-        }
+    calls = frappe.db.sql(
+        """SELECT name AS call_id, employee, call_datetime AS from_time,
+                  ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS to_time,
+                  issue, task, project
+           FROM `tabEmployee Fincall`
+           WHERE employee = %(employee)s AND DATE(call_datetime) = %(date)s""",
+        {"employee": employee, "date": date}, as_dict=True,
     )
     # Get meeting logs for this employee and date
     meetings = get_employee_meetings(employee, date)

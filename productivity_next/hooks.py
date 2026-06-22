@@ -17,17 +17,6 @@ app_include_js = [
     "assets/productivity_next/productivity_next/setup.js",
 ]
 
-from . import __version__ as app_version
-
-app_name = "productivity_next"
-app_title = "Productivity Next"
-app_publisher = "Finbyz Tech Pvt Ltd"
-app_description = "Productivity Next"
-app_email = "info@finbyz.com"
-app_license = "GPL 3.0"
-
-on_session_creation = "productivity_next.session.on_session_creation"
-
 doctype_js = {
     "Lead": "public/js/doctype_js/lead.js",
     "Customer": "public/js/doctype_js/customer.js",
@@ -37,8 +26,6 @@ doctype_js = {
     "Task": "public/js/doctype_js/task.js",
 }
 
-
-
 doctype_list_js = {
     "Task": "public/js/list_js/task.js",
 }
@@ -47,10 +34,18 @@ doctype_calendar_js = {
     "Task": "overrides/task/task_calendar.js"
 }
 
+# override_doctype_class is kept for Task because it inherits from ERPNext's
+# Task class via super() — a true class replacement, not a mixin.
+# Notification and AutoRepeat use extend_doctype_class (v16 mixin pattern).
 override_doctype_class = {
     "Task": "productivity_next.task_enhancement.overrides.doctype.task.Task",
-	"Notification": "productivity_next.productivity_next.override_doctype_class.notification.Notification",
-	"Auto Repeat": "productivity_next.productivity_next.override_doctype_class.auto_repeat.AutoRepeat",
+}
+
+# extend_doctype_class (v16): mixin-based, stackable — replaces override_doctype_class
+# for classes that don't need to inherit from the original base class.
+extend_doctype_class = {
+    "Notification": ["productivity_next.productivity_next.override_doctype_class.notification.Notification"],
+    "Auto Repeat": ["productivity_next.productivity_next.override_doctype_class.auto_repeat.AutoRepeat"],
 }
 
 # Document Events
@@ -74,7 +69,6 @@ base_template_map = {
 override_whitelisted_methods = {
     "erpnext.crm.doctype.lead.lead.get_activities": "productivity_next.productivity_next.lead.get_activities"
  }
-
 
 
 # Scheduled Tasks

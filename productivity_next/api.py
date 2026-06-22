@@ -1,35 +1,32 @@
 import json
 import frappe
 from frappe.auth import LoginManager
-from frappe.boot import DocType
-from frappe.desk.form.assign_to import get
-from frappe.share import notify_assignment
+from frappe.desk.form.assign_to import get, notify_assignment
 import frappe.utils
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
-from frappe.utils import nowdate, today
-from frappe.utils import nowdate, get_datetime
-from frappe.utils import time_diff_in_seconds
-from frappe.utils import flt
-from datetime import datetime,date
+from frappe.utils import (
+    cint,
+    convert_utc_to_system_timezone,
+    flt,
+    get_datetime,
+    get_fullname,
+    get_url_to_form,
+    getdate,
+    now_datetime,
+    nowdate,
+    time_diff_in_seconds,
+    today,
+    validate_email_address,
+)
+from frappe.query_builder import Order
+from datetime import datetime, date
 import requests
 from werkzeug import Response
 import pytz
 from frappe import _
 import logging
 from frappe.model.mapper import get_mapped_doc
-from frappe.utils import (
-    cint,
-    getdate,
-    get_fullname,
-    get_url_to_form,
-    now_datetime,
-    validate_email_address,
-)
-from frappe.query_builder import Order
-
-from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
 from geopy.distance import geodesic
-from frappe.query_builder import Order
 
 
 @frappe.whitelist(allow_guest=True)
@@ -295,16 +292,16 @@ def get_employee_time(employee=None):
     if not employee:
         return 0
 
-    total_application_time = frappe.db.get_all(
-        "Application Usage log",
-        filters={"employee": employee, "date": nowdate()},
-        fields=["sum(duration) as duration"],
+    total_application_time = frappe.db.sql(
+        """SELECT SUM(duration) AS duration FROM `tabApplication Usage log`
+           WHERE employee = %(employee)s AND date = %(date)s""",
+        {"employee": employee, "date": nowdate()}, as_dict=True,
     )
 
-    idle_application_time = frappe.db.get_all(
-        "Employee Idle Time",
-        filters={"employee": employee, "date": nowdate()},
-        fields=["sum(duration) as duration"],
+    idle_application_time = frappe.db.sql(
+        """SELECT SUM(duration) AS duration FROM `tabEmployee Idle Time`
+           WHERE employee = %(employee)s AND date = %(date)s""",
+        {"employee": employee, "date": nowdate()}, as_dict=True,
     )
 
     if total_application_time:
@@ -1887,11 +1884,15 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
     filters['employee'] = employee
     filters["task"] = ["in", tasks]
     
-    data = frappe.db.get_all(
-        "Application Usage log",
-        filters=filters,
-        fields=["task", "sum(duration) as total_duration"],
-        group_by="task"
+    task_in = ", ".join(["%s"] * len(tasks))
+    employee_filter = filters.get("employee")
+    data = frappe.db.sql(
+        f"""SELECT task, SUM(duration) AS total_duration
+            FROM `tabApplication Usage log`
+            WHERE employee = %s AND task IN ({task_in})
+            GROUP BY task""",
+        [employee_filter] + list(tasks),
+        as_dict=True,
     )
     
     data_tasks = [row.task for row in data]
@@ -2130,7 +2131,6 @@ def submit_working_hour_exception_reason(doc_id,reason):
         frappe.throw("Reason has already been submitted and cannot be changed.")
     doc.reason = reason
     doc.save(ignore_permissions=True)
-    frappe.db.commit()
     return "success"
 
 @frappe.whitelist()

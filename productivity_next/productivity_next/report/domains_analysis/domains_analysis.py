@@ -110,51 +110,30 @@ def get_columns(filters):
 
 
 def get_data(filters):
-    kwargs = {
-        "filters": {
-            "date": ["between", [filters.from_date, filters.to_date]],
-            "domain": ["!=", ""],
-        },
-        "fields": [
-            "domain",
-            "date",
-            "employee_name as employee",
-            "from_time",
-            "to_time",
-            "duration",
-            "application_name as application",
-            "url",
-        ],
-        "order_by": "employee asc ,duration desc", 
-    }
+    where = "date BETWEEN %(from_date)s AND %(to_date)s AND domain IS NOT NULL AND domain != ''"
+    values = {"from_date": filters.from_date, "to_date": filters.to_date}
     if filters.employee:
-        kwargs["filters"]["employee"] = filters.employee
+        where += " AND employee = %(employee)s"
+        values["employee"] = filters.employee
 
-    elif filters.group_by_domain:
-        kwargs["group_by"] = "domain"
-        kwargs["fields"].remove("from_time")
-        kwargs["fields"].remove("to_time")
-        kwargs["fields"].remove("duration")
-        kwargs["fields"].append("sum(duration) as duration")
-        kwargs["order_by"] = "sum(duration) desc"
-
-
-    elif filters.group_by_employee_and_domain:
-        kwargs["group_by"] = "employee, domain"
-        kwargs["fields"].remove("from_time")
-        kwargs["fields"].remove("to_time")
-        kwargs["fields"].remove("duration")
-        kwargs["fields"].append("sum(duration) as duration")
-        kwargs["order_by"] = "employee asc, sum(duration) desc"
-
+    if filters.get("group_by_domain"):
+        sql = f"""SELECT domain, SUM(duration) AS duration
+                  FROM `tabApplication Usage log`
+                  WHERE {where}
+                  GROUP BY domain ORDER BY SUM(duration) DESC"""
+    elif filters.get("group_by_employee_and_domain"):
+        sql = f"""SELECT employee_name AS employee, domain, SUM(duration) AS duration
+                  FROM `tabApplication Usage log`
+                  WHERE {where}
+                  GROUP BY employee, domain ORDER BY employee ASC, SUM(duration) DESC"""
     else:
-        kwargs["order_by"] = "employee asc, from_time desc"
+        sql = f"""SELECT employee_name AS employee, from_time, to_time, duration,
+                         application_name AS application, domain, url
+                  FROM `tabApplication Usage log`
+                  WHERE {where}
+                  ORDER BY employee ASC, from_time DESC"""
 
-
-    data = frappe.get_list(
-        "Application Usage log",
-        **kwargs,
-    )
+    data = frappe.db.sql(sql, values, as_dict=True)
     for row in data:
         row["duration"] = format_duration(row["duration"], hide_days=True) or "0s"
     return data
