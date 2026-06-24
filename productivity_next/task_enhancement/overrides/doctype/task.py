@@ -457,10 +457,9 @@ class Task(_Task):
 			FROM `tabCommunication`
 			WHERE reference_name = %s
 			AND communication_date >= %s
-			AND communication_date < DATE_ADD(%s, INTERVAL 1 DAY)
 			LIMIT 1
 			""",
-			(self.lead, self.exp_start_date, today),
+			(self.lead, self.exp_start_date),
 		)
 
 		has_attachment = frappe.db.exists(
