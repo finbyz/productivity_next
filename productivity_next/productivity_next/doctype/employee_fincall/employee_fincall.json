@@ -27,7 +27,8 @@
   "fincall_log_ref",
   "create_contact",
   "spoke_about",
-  "comment"
+  "comment",
+  "call_outcome"
  ],
  "fields": [
   {
@@ -38,7 +39,6 @@
    "label": "Employee",
    "no_copy": 1,
    "options": "Employee",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -56,16 +56,14 @@
    "fieldtype": "Link",
    "label": "Link To",
    "no_copy": 1,
-   "options": "DocType",
-   "read_only": 1
+   "options": "DocType"
   },
   {
    "fieldname": "contact",
    "fieldtype": "Link",
    "label": "Contact",
    "no_copy": 1,
-   "options": "Contact",
-   "read_only": 1
+   "options": "Contact"
   },
   {
    "fieldname": "column_break_qqss0",
@@ -81,7 +79,6 @@
    "in_standard_filter": 1,
    "label": "Call DateTime",
    "no_copy": 1,
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -99,7 +96,6 @@
    "label": "Employee Mobile",
    "no_copy": 1,
    "options": "Phone",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -111,28 +107,24 @@
    "label": "Customer No",
    "no_copy": 1,
    "options": "Phone",
-   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "client",
    "fieldtype": "Data",
-   "label": "Client",
-   "read_only": 1
+   "label": "Client"
   },
   {
    "fieldname": "duration",
    "fieldtype": "Duration",
    "label": "Duration",
    "no_copy": 1,
-   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "date",
    "fieldtype": "Date",
    "label": "Date",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -143,7 +135,6 @@
    "in_standard_filter": 1,
    "label": "Call Type",
    "no_copy": 1,
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -152,8 +143,7 @@
    "in_list_view": 1,
    "label": "Link Name",
    "no_copy": 1,
-   "options": "link_to",
-   "read_only": 1
+   "options": "link_to"
   },
   {
    "depends_on": "eval:!doc.contact && !doc.link_name",
@@ -190,11 +180,18 @@
    "fieldtype": "Link",
    "label": "Project",
    "options": "Project"
+  },
+  {
+   "fieldname": "call_outcome",
+   "fieldtype": "Select",
+   "label": "Call Outcome",
+   "options": "\nInterested\nNot Interested"
   }
  ],
+ "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-10-21 15:01:53.883964",
+ "modified": "2026-07-07 17:59:14.322818",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Fincall",
@@ -225,6 +222,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

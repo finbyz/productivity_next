@@ -2,6 +2,93 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Employee Fincall", {
+	refresh(frm) {
+		frm.add_custom_button(__("Create Task"), () => {
+			frm.events.open_create_task_dialog(frm);
+		});
+	},
+
+	open_create_task_dialog(frm) {
+		let dialog = new frappe.ui.Dialog({
+			title: __("Create Task"),
+			fields: [
+				{
+					label: __("Subject"),
+					fieldtype: 'Data',
+					fieldname: 'subject',
+					reqd: 1,
+					default: frm.doc.client ? __("Follow-up {0}", [frm.doc.client]) : undefined,
+				},
+				{
+					label: __("Assignee"),
+					fieldtype: 'Link',
+					options: "User",
+					fieldname: 'assignee',
+					reqd: 1,
+				},
+				{
+					label: __("Expected Date"),
+					fieldtype: 'Date',
+					fieldname: 'exp_end_date',
+					reqd: 1,
+					default: frappe.datetime.get_today(),
+				},
+				{
+					label: __("Project"),
+					fieldtype: 'Link',
+					options: "Project",
+					fieldname: 'project',
+					default: frm.doc.project,
+				},
+				{
+					label: __("Type"),
+					fieldtype: 'Link',
+					options: "Task Type",
+					fieldname: 'type',
+					reqd: 1,
+				},
+			],
+			primary_action_label: __("Create"),
+			primary_action: function(values) {
+				dialog.disable_primary_action();
+				frappe.db.insert({
+					doctype: "Task",
+					subject: values.subject,
+					assignee: values.assignee,
+					exp_start_date: values.exp_end_date,
+                    exp_end_date: values.exp_end_date,
+					project: values.project || null,
+					type: values.type,
+				}).then((doc) => {
+					dialog.hide();
+					frappe.show_alert({
+						message: __("Task {0} created", [
+							`<a href="/app/task/${encodeURIComponent(doc.name)}">${frappe.utils.escape_html(values.subject)}</a>`,
+						]),
+						indicator: "green",
+					});
+					// Link the new task back onto this Fincall record.
+					frm.set_value("task", doc.name);
+					if (!frm.is_new()) frm.save();
+				}).catch(() => {
+					dialog.enable_primary_action();
+				});
+			}
+		});
+
+		// Default the assignee to the linked employee's user, if available.
+		if (frm.doc.employee) {
+			frappe.db.get_value("Employee", frm.doc.employee, "user_id").then((r) => {
+				const user_id = r && r.message && r.message.user_id;
+				if (user_id && !dialog.get_value("assignee")) {
+					dialog.set_value("assignee", user_id);
+				}
+			});
+		}
+
+		dialog.show();
+	},
+
 	create_contact(frm) {
         let d = frm.doc;
 
