@@ -927,10 +927,6 @@ def calculate_non_overlapping_hours(intervals):
     
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
-    frappe.log_error(
-        title=f'calculate_non_overlapping_hours {duration}', 
-        message=f"time in calculate_non_overlapping_hours {start_time} {end_time} {duration}"
-    )
     
     # Convert to hours
     return total_seconds / 3600

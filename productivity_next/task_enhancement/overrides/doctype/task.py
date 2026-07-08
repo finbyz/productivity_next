@@ -99,32 +99,57 @@ class Task(_Task):
 			frappe.throw(_("Parent Task must belong to the same project"))
 
 	def validate_status(self):
-		# Added this code
-		if self.status == "Scheduled" and (not self.exp_start_date or not self.exp_end_date):
-			frappe.throw("Expected Start Date and Expected End Date are required to set this task's status to Scheduled.")
-		
-		if self.exp_start_date and self.exp_end_date and self.status in ["Unplanned", "Open"]:
+		if self.status == "Scheduled" and (
+			not self.exp_start_date or not self.exp_end_date
+		):
+			frappe.throw(
+				_(
+					"Expected Start Date and Expected End Date are required to set this task's status to Scheduled."
+				)
+			)
+
+		if (
+			self.exp_start_date
+			and self.exp_end_date
+			and self.status in {"Unplanned", "Open"}
+		):
 			self.workflow_state = "Scheduled"
 			self.status = "Scheduled"
 
-		if self.is_group and self.status not in ["Open", "Completed", "Cancelled"]:
+		if self.is_group and self.status not in {"Open", "Completed", "Cancelled"}:
 			self.status = "Open"
-		# Code ended here
-		
+
 		if self.is_template and self.status != "Template":
 			self.status = "Template"
-		
-		if self.status != self.get_db_value("status") and self.status == "Completed":
-			for d in self.depends_on:
-				if frappe.db.get_value("Task", d.task, "status") not in ("Completed", "Cancelled"):
-					frappe.throw(
-						_(
-							"Cannot complete task {0} as its dependant task {1} are not completed / cancelled."
-						).format(frappe.bold(self.name), frappe.bold(d.task))
-					)
 
-			clomplete_all_assignments(self.doctype, self.name) # Instead of closing all assignments, we will complete them
-	
+		# Only validate dependencies when transitioning to Completed
+		if self.status != "Completed" or not self.has_value_changed("status"):
+			return
+
+		dependency_tasks = [d.task for d in self.depends_on]
+
+		if dependency_tasks:
+			incomplete_task = frappe.get_all(
+				"Task",
+				filters={
+					"name": ["in", dependency_tasks],
+					"status": ["not in", ["Completed", "Cancelled"]],
+				},
+				pluck="name",
+				limit_page_length=1,
+			)
+
+			if incomplete_task:
+				frappe.throw(
+					_(
+						"Cannot complete task {0} as its dependant task {1} is not completed / cancelled."
+					).format(
+						frappe.bold(self.name),
+						frappe.bold(incomplete_task[0]),
+					)
+				)
+
+		clomplete_all_assignments(self.doctype, self.name)
 	def validate(self):
 		super().validate()
 		self.validate_status()
@@ -186,103 +211,109 @@ class Task(_Task):
 				
 	# 			frappe.db.set_value("Task", parent_task, "expected_time", expected_time, update_modified=False)
 	def update_parent_task(self):
-		if self.parent_task:
-			parent_tasks = frappe.db.sql(f"""
-				WITH RECURSIVE parent_task AS (
-					SELECT * FROM `tabTask` WHERE name = '{self.name}'
+		if not self.parent_task:
+			return
+
+		# Skip expensive recursive update when nothing relevant has changed.
+		# This is the primary performance guard — without it every save
+		# triggers multiple recursive CTEs for every ancestor group.
+		_watched = (
+			"status",
+			"expected_time",
+			"exp_start_date",
+			"exp_end_date",
+			"completed_on",
+			"completed_by",
+		)
+		if not self.is_new() and not any(self.has_value_changed(f) for f in _watched):
+			return
+
+		# Walk upward once to collect all ancestor group tasks.
+		parent_tasks = frappe.db.sql(
+			"""
+			WITH RECURSIVE parent_task AS (
+				SELECT name, parent_task, is_group
+				FROM `tabTask`
+				WHERE name = %(name)s
+				UNION ALL
+				SELECT t.name, t.parent_task, t.is_group
+				FROM `tabTask` t
+				INNER JOIN parent_task pt ON t.name = pt.parent_task
+			)
+			SELECT DISTINCT name FROM parent_task WHERE is_group = 1
+			""",
+			{"name": self.name},
+			pluck="name",
+		)
+
+		for parent_task in parent_tasks:
+			# Single combined CTE: replaces 5 separate recursive queries.
+			# The tree is walked only once per parent; all aggregates are
+			# computed in a single pass over the leaf-task result set.
+			result = frappe.db.sql(
+				"""
+				WITH RECURSIVE task_tree AS (
+					SELECT name, parent_task, is_group,
+						   expected_time, exp_start_date, exp_end_date,
+						   status, completed_on, completed_by
+					FROM `tabTask`
+					WHERE name = %(parent)s
 					UNION ALL
-					SELECT t.* FROM `tabTask` t
-					INNER JOIN parent_task pt ON t.name = pt.parent_task
+					SELECT t.name, t.parent_task, t.is_group,
+						   t.expected_time, t.exp_start_date, t.exp_end_date,
+						   t.status, t.completed_on, t.completed_by
+					FROM `tabTask` t
+					INNER JOIN task_tree tt ON t.parent_task = tt.name
+				),
+				leaf_tasks AS (
+					SELECT DISTINCT name, expected_time, exp_start_date,
+						   exp_end_date, status, completed_on, completed_by
+					FROM task_tree
+					WHERE is_group != 1
 				)
-				SELECT DISTINCT name FROM parent_task WHERE is_group = 1
-			""", pluck='name')
-			
-			for parent_task in parent_tasks:
-				# Expected time
-				sum_child_task = frappe.db.sql(f"""
-					WITH RECURSIVE task_tree AS (
-						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
-						UNION ALL
-						SELECT t.* FROM `tabTask` t
-						INNER JOIN task_tree tt ON t.parent_task = tt.name
-					)
-					SELECT SUM(expected_time) AS total_expected_time
-					FROM (
-						SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
-					) AS unique_tasks
-				""")
+				SELECT
+					SUM(expected_time)                                         AS total_expected_time,
+					MIN(exp_start_date)                                        AS min_start,
+					MAX(exp_end_date)                                          AS max_end,
+					SUM(CASE WHEN status != 'Completed' THEN 1 ELSE 0 END)     AS incomplete_count,
+					MAX(CASE WHEN status = 'Completed' THEN completed_on END)  AS latest_completed_on,
+					(SELECT completed_by
+					 FROM leaf_tasks
+					 WHERE status = 'Completed'
+					 ORDER BY completed_on DESC
+					 LIMIT 1)                                                  AS latest_completed_by
+				FROM leaf_tasks
+				""",
+				{"parent": parent_task},
+				as_dict=True,
+			)
 
-				# Date range
-				date_range = frappe.db.sql(f"""
-					WITH RECURSIVE task_tree AS (
-						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
-						UNION ALL
-						SELECT t.* FROM `tabTask` t
-						INNER JOIN task_tree tt ON t.parent_task = tt.name
-					)
-					SELECT 
-						MIN(exp_start_date) AS min_start,
-						MAX(exp_end_date) AS max_end
-					FROM (
-						SELECT DISTINCT name, exp_start_date, exp_end_date FROM task_tree WHERE is_group != 1
-					) AS unique_tasks
-				""", as_dict=True)
+			if not result:
+				continue
 
-				# Check if all are completed
-				all_completed = frappe.db.sql(f"""
-					WITH RECURSIVE task_tree AS (
-						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
-						UNION ALL
-						SELECT t.* FROM `tabTask` t
-						INNER JOIN task_tree tt ON t.parent_task = tt.name
-					)
-					SELECT COUNT(*) 
-					FROM (
-						SELECT DISTINCT name, status FROM task_tree WHERE is_group != 1
-					) AS leaf_tasks
-					WHERE status != 'Completed'
-				""")[0][0] == 0
+			row = result[0]
+			all_completed = row.incomplete_count == 0
 
-				# Latest completed_on & completed_by
-				latest_completed = frappe.db.sql(f"""
-					WITH RECURSIVE task_tree AS (
-						SELECT * FROM `tabTask` WHERE name = '{parent_task}'
-						UNION ALL
-						SELECT t.* FROM `tabTask` t
-						INNER JOIN task_tree tt ON t.parent_task = tt.name
-					)
-					SELECT completed_on, completed_by FROM (
-						SELECT DISTINCT name, completed_on, completed_by FROM task_tree 
-						WHERE is_group != 1 AND status = 'Completed'
-					) AS completed_tasks
-					ORDER BY completed_on DESC
-					LIMIT 1
-				""", as_dict=True)
-
-				expected_time = flt(sum_child_task[0][0] or 0) if sum_child_task else 0
-				exp_start_date = date_range[0]["min_start"] if date_range else None
-				exp_end_date = date_range[0]["max_end"] if date_range else None
-				status = "Completed" if all_completed else "Open"
-				completed_on = latest_completed[0]["completed_on"] if (all_completed and latest_completed) else None
-				completed_by = latest_completed[0]["completed_by"] if (all_completed and latest_completed) else None
-
-				# Update parent task
-				frappe.db.set_value("Task", parent_task, {
-					"expected_time": expected_time,
-					"exp_start_date": exp_start_date,
-					"exp_end_date": exp_end_date,
-					"status": status,
-					"completed_on": completed_on,
-					"completed_by": completed_by
-				}, update_modified=False)
-
-
+			frappe.db.set_value(
+				"Task",
+				parent_task,
+				{
+					"expected_time": flt(row.total_expected_time or 0),
+					"exp_start_date": row.min_start,
+					"exp_end_date": row.max_end,
+					"status": "Completed" if all_completed else "Open",
+					"completed_on": row.latest_completed_on if all_completed else None,
+					"completed_by": row.latest_completed_by if all_completed else None,
+				},
+				update_modified=False,
+			)
 
 	def update_if_is_group(self):
 		if self.is_group:
 			self.status = "Open"
-			
-			sum_child_task = frappe.db.sql(f"""
+
+			sum_child_task = frappe.db.sql(
+				f"""
 				WITH RECURSIVE `task_tree` AS (
 					SELECT * FROM `tabTask` WHERE name = '{self.name}'
 					UNION ALL
@@ -293,13 +324,14 @@ class Task(_Task):
 				FROM (
 					SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
 				) AS unique_tasks
-			""")
-			
+			"""
+			)
+
 			if sum_child_task:
-				self.db_set('expected_time', flt(sum_child_task[0][0]))
+				self.db_set("expected_time", flt(sum_child_task[0][0]))
 			else:
-				self.db_set('expected_time', 0)
-			
+				self.db_set("expected_time", 0)
+
 	def unassign_todo(self):
 		if self.status == "Completed":
 			clomplete_all_assignments(self.doctype, self.name)
@@ -307,26 +339,52 @@ class Task(_Task):
 			clear(self.doctype, self.name)
 
 	def assign_to_assignee_and_task_approver(self):
-		if self.assignee and not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': self.assignee, 'status': ['!=', 'Cancelled']}):
-			frappe.desk.form.assign_to.add({
-				'assign_to': [self.assignee],
-				'doctype': "Task",
-				'name': self.name,
-				'description': f"Task assigned to {self.assignee}",
-				'assign_by': frappe.session.user  # Correct user session reference
-			})
-		
-		for row in self.approver:
-			if not frappe.get_value("ToDo", filters={'reference_type': "Task", 'reference_name': self.name, 'allocated_to': row.user, 'status': ['!=', 'Cancelled']}):
-				frappe.desk.form.assign_to.add({
-				'assign_to': [row.user],
-				'doctype': "Task",
-				'name': self.name,
-				'description': f"Task Approver assigned to {row.user}",
-				'assign_by': frappe.session.user  # Correct user session reference
-			})
-		
-	
+		# Only run on first save or when assignee / approver list has changed
+		# to avoid redundant ToDo lookups on every unrelated save.
+		assignee_changed = self.is_new() or self.has_value_changed("assignee")
+		approver_changed = self.is_new() or self.has_value_changed("approver")
+
+		if assignee_changed and self.assignee:
+			if not frappe.get_value(
+				"ToDo",
+				filters={
+					"reference_type": "Task",
+					"reference_name": self.name,
+					"allocated_to": self.assignee,
+					"status": ["!=", "Cancelled"],
+				},
+			):
+				frappe.desk.form.assign_to.add(
+					{
+						"assign_to": [self.assignee],
+						"doctype": "Task",
+						"name": self.name,
+						"description": f"Task assigned to {self.assignee}",
+						"assign_by": frappe.session.user,
+					}
+				)
+
+		if approver_changed:
+			for row in self.approver:
+				if not frappe.get_value(
+					"ToDo",
+					filters={
+						"reference_type": "Task",
+						"reference_name": self.name,
+						"allocated_to": row.user,
+						"status": ["!=", "Cancelled"],
+					},
+				):
+					frappe.desk.form.assign_to.add(
+						{
+							"assign_to": [row.user],
+							"doctype": "Task",
+							"name": self.name,
+							"description": f"Task Approver assigned to {row.user}",
+							"assign_by": frappe.session.user,
+						}
+					)
+
 	def set_completed_on_and_completed_by(self):
 		if self.status == "Completed":
 			if not self.completed_on:
@@ -336,7 +394,7 @@ class Task(_Task):
 		else:
 			self.completed_on = None
 			self.completed_by = None
-	
+
 	def set_color(self):
 		match self.status:
 			case "Completed":
@@ -355,67 +413,82 @@ class Task(_Task):
 				self.color = None
 
 	def check_employee_fincall_for_lead(self):
-		config = frappe.db.sql("""
+		# Guard 1: Only relevant when the task is being marked Completed.
+		# Skip the DB config query entirely on every other save.
+		if self.status != "Completed" or not self.has_value_changed("status"):
+			return
+
+		# Guard 2: Needs a linked lead and a start date to validate.
+		if not self.lead or not self.exp_start_date:
+			return
+
+		config = frappe.db.sql(
+			"""
 			SELECT 
 				MAX(CASE WHEN field = 'validate_marketing_follow_up_with_calls' THEN value END) AS validate_marketing_follow_up_with_calls,
 				MAX(CASE WHEN field = 'default_marketing_project' THEN value END) AS default_marketing_project,
 				MAX(CASE WHEN field = 'task_type' THEN value END) AS task_type
 			FROM `tabSingles`
 			WHERE doctype = 'Productify Configuration'
-		""", as_dict=True)
+		""",
+			as_dict=True,
+		)
 
-		if not config or not frappe.utils.cint(config[0].validate_marketing_follow_up_with_calls):
+		if not config or not frappe.utils.cint(
+			config[0].validate_marketing_follow_up_with_calls
+		):
 			return
 
-		if self.project != config[0].default_marketing_project or config[0].task_type != self.type:
+		if (
+			self.project != config[0].default_marketing_project
+			or config[0].task_type != self.type
+		):
 			return
 
 		today = date.today()
-		if self.status == "Completed":
-			if self.lead and self.exp_start_date:
-				fincall_exists = frappe.db.exists(
-					"Employee Fincall",
-					{
-						"link_name": self.lead,
-						"date": ["between", [self.exp_start_date, today]]
-					}
+		fincall_exists = frappe.db.exists(
+			"Employee Fincall",
+			{"link_name": self.lead, "date": ["between", [self.exp_start_date, today]]},
+		)
+
+		communication_exists = frappe.db.sql(
+			"""
+			SELECT 1
+			FROM `tabCommunication`
+			WHERE reference_name = %s
+			AND communication_date >= %s
+			LIMIT 1
+			""",
+			(self.lead, self.exp_start_date),
+		)
+
+		has_attachment = frappe.db.exists(
+			"File", {"attached_to_doctype": self.doctype, "attached_to_name": self.name}
+		)
+
+		if not fincall_exists and not has_attachment and not communication_exists:
+			frappe.throw(
+				_(
+					"No follow-up found for this Lead. Please attach a screenshot of the follow-up on Email or WhatsApp as evidence for closure of this task."
 				)
-
-				communication_exists = frappe.db.sql("""
-					SELECT name FROM `tabCommunication`
-					WHERE reference_name = %s 
-					AND DATE(communication_date) BETWEEN %s AND %s
-					LIMIT 1
-				""", (self.lead, self.exp_start_date, today))
-
-				has_attachment = frappe.db.exists(
-					"File",
-					{
-						"attached_to_doctype": self.doctype,
-						"attached_to_name": self.name
-					}
-				)
-
-				if not fincall_exists and not has_attachment and not communication_exists:
-					frappe.throw(_("No follow-up found for this Lead. Please attach a screenshot of the follow-up on Email or WhatsApp as evidence for closure of this task."))
-
+			)
 
 	@frappe.whitelist()
 	def fetch_process_flow_steps(self):
 		return frappe.get_all(
-			"Process Flow Step", 
-			filters={"parenttype": "Process Flow", "parent": self.process_flow}, 
-			order_by="idx", 
-			fields=['process_step', 'description', 'document_url']
+			"Process Flow Step",
+			filters={"parenttype": "Process Flow", "parent": self.process_flow},
+			order_by="idx",
+			fields=["process_step", "description", "document_url"],
 		)
 
 	@frappe.whitelist()
 	def fetch_process_flow_checks(self):
 		return frappe.get_all(
-			"Process Flow Check", 
-			filters={"parenttype": "Process Flow", "parent": self.process_flow}, 
-			order_by="idx", 
-			fields=['required_check']
+			"Process Flow Check",
+			filters={"parenttype": "Process Flow", "parent": self.process_flow},
+			order_by="idx",
+			fields=["required_check"],
 		)
 
 
