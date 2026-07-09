@@ -4,16 +4,16 @@
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2026-07-03 19:27:55.915743",
+ "modified": "2026-07-09 11:52:03.666328",
  "modified_by": "Administrator",
  "module": "Productivity Next",
- "name": "project-time-analysi-1",
+ "name": "project-time-analysis-dashboard",
  "owner": "Administrator",
- "page_name": "project-time-analysi-1",
+ "page_name": "project-time-analysis-dashboard",
  "roles": [],
  "script": null,
  "standard": "Yes",
  "style": null,
  "system_page": 0,
- "title": "Project Time Analysis"
+ "title": "Project Time Analysis Dashboard"
 }

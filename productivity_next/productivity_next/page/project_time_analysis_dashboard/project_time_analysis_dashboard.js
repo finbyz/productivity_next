@@ -1,7 +1,7 @@
-frappe.pages["project-time-analysis"].on_page_load = function (wrapper) {
+frappe.pages["project-time-analysis-dashboard"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: "Project Time Analysis",
+		title: "Project Time Analysis Dashboard",
 		single_column: true,
 	});
 
@@ -984,7 +984,7 @@ class ProjectTimeHierarchy {
 	// =================================================================
 	load_columns(cb) {
 		frappe.call({
-			method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_columns",
+			method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_columns",
 			args: { show_deployment_rate: this.deployment_field.get_value() ? 1 : 0 },
 			callback: (r) => {
 				this.columns = (r.message || []).filter((c) => c.fieldname !== "employee_name");
@@ -996,7 +996,7 @@ class ProjectTimeHierarchy {
 	load_tree() {
 		this.$main_container.find('.pta-tree-inner').html('<div class="pta-loading">Loading hierarchy...</div>');
 		frappe.call({
-			method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_team_tree",
+			method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_team_tree",
 			callback: (r) => {
 				const msg = r.message || {};
 				this.is_admin = !!msg.is_admin;
@@ -1213,7 +1213,7 @@ class ProjectTimeHierarchy {
 		let leadData = this.data_cache[leadCacheKey];
 		if (!leadData) {
 			const r = await frappe.call({
-				method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_node_data",
+				method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
 				args: { employee: leadNode.id, include_subtree: 0, ...dateParams, ...filters }
 			});
 			leadData = r.message || [];
@@ -1228,7 +1228,7 @@ class ProjectTimeHierarchy {
 				let childData = this.data_cache[childCacheKey];
 				if (!childData) {
 					const r = await frappe.call({
-						method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_node_data",
+						method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
 						args: { employee: child.id, include_subtree: 0, ...dateParams, ...filters }
 					});
 					childData = r.message || [];
@@ -1263,7 +1263,7 @@ class ProjectTimeHierarchy {
 		let data = this.data_cache[cacheKey];
 		if (!data) {
 			const r = await frappe.call({
-				method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_node_data",
+				method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
 				args: { employee: node.id, include_subtree: 0, ...dateParams, ...filters }
 			});
 			data = r.message || [];
@@ -1495,7 +1495,7 @@ class ProjectTimeHierarchy {
 			const cacheKey = JSON.stringify({ employee: emp.id, ...dateParams, ...filters });
 			if (!this.data_cache[cacheKey]) {
 				const r = await frappe.call({
-					method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_node_data",
+					method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
 					args: { employee: emp.id, include_subtree: 0, ...dateParams, ...filters }
 				});
 				this.data_cache[cacheKey] = r.message || [];
@@ -1585,7 +1585,7 @@ class ProjectTimeHierarchy {
 			const cacheKey = JSON.stringify({ employee: emp.id, ...dateParams, ...filters });
 			if (!this.data_cache[cacheKey]) {
 				const r = await frappe.call({
-					method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_node_data",
+					method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
 					args: { employee: emp.id, include_subtree: 0, ...dateParams, ...filters }
 				});
 				this.data_cache[cacheKey] = r.message || [];
@@ -1744,7 +1744,7 @@ class ProjectTimeHierarchy {
 			const cacheKey = JSON.stringify({ employee: emp.id, ...dateParams, ...filters });
 			if (!this.data_cache[cacheKey]) {
 				const r = await frappe.call({
-					method: "productivity_next.productivity_next.page.project_time_analysi.project_time_analysi.get_node_data",
+					method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
 					args: { employee: emp.id, include_subtree: 0, ...dateParams, ...filters }
 				});
 				this.data_cache[cacheKey] = r.message || [];
@@ -1907,7 +1907,7 @@ class ProjectTimeHierarchy {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `project_time_analysis_${frappe.datetime.get_today()}.csv`;
+		a.download = `project_time_analysis_dashboard_${frappe.datetime.get_today()}.csv`;
 		a.click();
 		URL.revokeObjectURL(url);
 		
