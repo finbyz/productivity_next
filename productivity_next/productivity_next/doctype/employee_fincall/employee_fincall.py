@@ -68,19 +68,36 @@ class EmployeeFincall(Document):
             f"for {call_time} {spoken_about}"
         )
         return TEXT
+    
+    def update_comment_with_call_outcome(self, employee_fincall_url) -> str:
+        if self.get_contact_name is None and self.link_name is None:
+            return ""
+        call_time = format_duration(self.duration)
+        formatted_datetime = format_datetime(self.call_datetime, "dd-MM-yyyy HH:mm:ss")
+        spoken_about = f"<br><b>Discussed: </b><p>{self.spoke_about}</p>" if self.spoke_about else ""
+        call_outcome = f"<br><b> Call Outcome : </b><p>{self.get_contact_name} Was {self.call_outcome}</p>" if self.call_outcome else ""
+        TEXT = (
+            f"<b>{self.employee_name}</b> <a href='{employee_fincall_url}'>{self.get_svg}</a> "
+            f"<b>{self.get_contact_name or self.link_name}</b> at {formatted_datetime} "
+            f"for {call_time} {spoken_about}"
+            f"{call_outcome}"
+        )
+        return TEXT
+    
+  
 
     def before_save(self):
         comment = self.get_comment()
         if not comment:
             return
 
-        comment.update(
-            {
-                "content": self.get_comment_text(self.get_url()),
-            }
-        )
-        comment.save(ignore_permissions=True)
+        if self.call_outcome:
+            content = self.update_comment_with_call_outcome(self.get_url())
+        else:
+            content = self.get_comment_text(self.get_url())
 
+        comment.update({"content": content})
+        comment.save(ignore_permissions=True)
 
 @frappe.whitelist()
 def update_contact(
