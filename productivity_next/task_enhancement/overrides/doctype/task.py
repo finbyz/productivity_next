@@ -7,7 +7,8 @@ from frappe.utils import flt
 from datetime import date
 from erpnext.projects.doctype.task.task import Task as _Task
 
-from frappe.model.workflow import set_workflow_state_on_action, WorkflowPermissionError, get_workflow, get_transitions
+from frappe.model.workflow import set_workflow_state_on_action, WorkflowPermissionError, ge
+t_workflow, get_transitions
 
 
 class Task(_Task):

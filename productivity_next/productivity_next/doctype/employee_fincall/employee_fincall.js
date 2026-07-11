@@ -2,11 +2,7 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Employee Fincall", {
-	refresh(frm) {
-		frm.add_custom_button(__("Create Task"), () => {
-			frm.events.open_create_task_dialog(frm);
-		});
-	},
+
 
 	open_create_task_dialog(frm) {
 		let dialog = new frappe.ui.Dialog({
@@ -90,6 +86,9 @@ frappe.ui.form.on("Employee Fincall", {
 	},
 
 	refresh(frm) {
+		frm.add_custom_button(__("Create Task"), function () {
+			frm.events.open_create_task_dialog(frm);
+		});
 		frm.add_custom_button(__("Relink Call"), function () {
 			// First, fetch available suggestions using the same phone-number lookup
 			// logic as create_fincall in api.py, then open the dialog pre-populated.
