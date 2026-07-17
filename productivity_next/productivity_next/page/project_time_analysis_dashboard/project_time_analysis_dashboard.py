@@ -79,104 +79,129 @@ def get_all_subscribed_employees():
     return employees
 
 
-def build_node(employee_id, employee_name, valid_employees=None):
+MAX_TREE_DEPTH = 50
+
+
+def _get_active_employees():
+    """Every active Employee, fetched once, so the tree is built in memory."""
+    return frappe.get_all(
+        "Employee",
+        filters={"status": "Active"},
+        fields=["name", "employee_name", "reports_to"],
+        order_by="employee_name",
+    )
+
+
+def _build_children_map(rows):
     """
-    Recursively build a team-hierarchy node from Employee.reports_to.
-    Only includes employees that are in the valid_employees list (subscribed employees).
+    Map parent employee id -> list of direct reports.
+
+    An employee whose `reports_to` points at an inactive/missing Employee is
+    treated as a root, so nobody is lost when a manager leaves.
+    """
+    known = {r.name for r in rows}
+    children_map = {}
+    for row in rows:
+        parent = row.reports_to if row.reports_to in known else None
+        children_map.setdefault(parent, []).append(row)
+    return children_map
+
+
+def build_node(employee_id, employee_name, valid_employees=None, children_map=None,
+               _depth=0, _seen=None):
+    """
+    Recursively build a hierarchy node from Employee.reports_to.
+
+    Subscription only decides whether a *leaf* is worth showing. An employee who
+    is not subscribed but who has subscribed people under them is kept, so the
+    branch below them stays reachable instead of being cut off mid-chain.
+
+    Returns None when this node and its whole subtree are irrelevant.
     """
     if valid_employees is None:
         valid_employees = get_all_subscribed_employees()
+    if children_map is None:
+        children_map = _build_children_map(_get_active_employees())
 
-    if not valid_employees:
-        return {
-            "id": employee_id,
-            "name": employee_name,
-            "children": [],
-        }
+    valid = set(valid_employees or [])
+    _seen = _seen or frozenset()
 
-    # Get children who report to this employee AND are in the valid list
-    children_rows = frappe.get_all(
-        "Employee",
-        filters={
-            "reports_to": employee_id,
-            "status": "Active",
-            "name": ["in", valid_employees]
-        },
-        fields=["name", "employee_name"],
-        order_by="employee_name",
-    )
+    # reports_to cycles would otherwise recurse forever
+    if employee_id in _seen or _depth > MAX_TREE_DEPTH:
+        return None
+
+    children = []
+    for child in children_map.get(employee_id, []):
+        node = build_node(
+            child.name, child.employee_name, valid_employees, children_map,
+            _depth + 1, _seen | {employee_id},
+        )
+        if node:
+            children.append(node)
+
+    is_subscribed = employee_id in valid
+    if not is_subscribed and not children:
+        return None
 
     return {
         "id": employee_id,
         "name": employee_name,
-        "children": [build_node(c.name, c.employee_name, valid_employees) for c in children_rows],
+        "subscribed": is_subscribed,
+        "children": children,
     }
+
+
+def _find_node(tree, employee_id):
+    for node in tree:
+        if node["id"] == employee_id:
+            return node
+        found = _find_node(node.get("children", []), employee_id)
+        if found:
+            return found
+    return None
 
 
 @frappe.whitelist()
 def get_team_tree():
     """
-    Get team hierarchy based on subscribed employees.
-    - Administrator / System Manager -> full forest of every top-level team lead
-    - Anyone else -> a single tree rooted at their own Employee record
+    Get the full team hierarchy.
+    - Administrator / System Manager -> forest of every top-level employee
+    - Anyone else -> the subtree rooted at their own Employee record
     """
     user = frappe.session.user
-
-    # Get all valid employees
     valid_employees = get_all_subscribed_employees()
 
     if not valid_employees:
         return {"is_admin": False, "tree": []}
 
+    rows = _get_active_employees()
+    children_map = _build_children_map(rows)
+
+    # Roots: no reports_to, or reports_to an employee who is no longer active
+    forest = []
+    for root in children_map.get(None, []):
+        node = build_node(root.name, root.employee_name, valid_employees, children_map)
+        if node:
+            forest.append(node)
+
     if is_admin_user(user):
-        # Get top-level employees (no reports_to) from valid employees
-        roots = frappe.get_all(
-            "Employee",
-            filters={
-                "reports_to": ["in", ["", None]],
-                "status": "Active",
-                "name": ["in", valid_employees]
-            },
-            fields=["name", "employee_name"],
-            order_by="employee_name",
-        )
+        return {"is_admin": True, "tree": forest}
 
-        # If no top-level employees found, get the highest in hierarchy
-        if not roots:
-            # Get all valid employees with their reports_to
-            all_emps = frappe.get_all(
-                "Employee",
-                filters={
-                    "status": "Active",
-                    "name": ["in", valid_employees]
-                },
-                fields=["name", "employee_name", "reports_to"]
-            )
-
-            # Find employees whose reports_to is not in valid_employees (virtual top-level)
-            emp_ids = [e.name for e in all_emps]
-            roots_data = [e for e in all_emps if e.reports_to not in emp_ids or not e.reports_to]
-
-            tree = [build_node(r.name, r.employee_name, valid_employees) for r in roots_data]
-        else:
-            tree = [build_node(r.name, r.employee_name, valid_employees) for r in roots]
-
-        return {"is_admin": True, "tree": tree}
-
-    # Non-admin: get their own employee record
     emp = get_employee_for_user(user)
     if not emp:
         frappe.throw(_("No active Employee record is linked to your user account."))
 
-    if emp not in valid_employees:
-        # If employee not in valid list, still show their own tree
-        emp_name = frappe.db.get_value("Employee", emp, "employee_name")
-        tree = [build_node(emp, emp_name, valid_employees)]
-        return {"is_admin": False, "tree": tree}
+    # Re-root the forest at this user, keeping their whole subtree intact
+    own_node = _find_node(forest, emp)
+    if not own_node:
+        own_node = build_node(
+            emp,
+            frappe.db.get_value("Employee", emp, "employee_name"),
+            valid_employees + [emp],
+            children_map,
+        )
 
-    emp_name = frappe.db.get_value("Employee", emp, "employee_name")
-    tree = [build_node(emp, emp_name, valid_employees)]
-    return {"is_admin": False, "tree": tree}
+    return {"is_admin": False, "tree": [own_node] if own_node else []}
 
 
 def flatten_ids(node):
@@ -184,6 +209,30 @@ def flatten_ids(node):
     ids = [node["id"]]
     for child in node.get("children", []):
         ids.extend(flatten_ids(child))
+    return ids
+
+
+@frappe.whitelist()
+def get_subtree_ids(employee):
+    """
+    Every active employee at or below `employee` in the reports_to chain,
+    at any depth. Used when a lead is selected and the whole team's data
+    should be aggregated.
+    """
+    children_map = _build_children_map(_get_active_employees())
+
+    ids = []
+    stack = [(employee, 0)]
+    seen = set()
+    while stack:
+        emp_id, depth = stack.pop()
+        if emp_id in seen or depth > MAX_TREE_DEPTH:
+            continue
+        seen.add(emp_id)
+        ids.append(emp_id)
+        for child in children_map.get(emp_id, []):
+            stack.append((child.name, depth + 1))
+
     return ids
 
 
@@ -235,16 +284,53 @@ def get_node_data(
     include_subtree = cint(include_subtree)
 
     if include_subtree:
-        # Get valid employees for subtree
-        valid_employees = get_all_subscribed_employees()
-        node = build_node(
-            employee,
-            frappe.db.get_value("Employee", employee, "employee_name"),
-            valid_employees
-        )
-        employee_list = flatten_ids(node)
+        employee_list = get_subtree_ids(employee)
     else:
         employee_list = [employee]
+
+    filters = _build_filters(
+        {
+            "from_date": from_date,
+            "to_date": to_date,
+            "employee": employee_list,
+            "show_employee": 1,
+            "project": project,
+            "resource_based_project": cint(resource_based_project),
+            "hourly_based_project": cint(hourly_based_project),
+            "show_daily_data": cint(show_daily_data),
+            "is_internal_project": cint(is_internal_project),
+            "show_deployment_rate": cint(show_deployment_rate),
+        }
+    )
+
+    return report_get_data(filters)
+
+
+@frappe.whitelist()
+def get_employees_data(
+    employees,
+    from_date,
+    to_date,
+    project=None,
+    resource_based_project=0,
+    hourly_based_project=0,
+    show_daily_data=0,
+    is_internal_project=0,
+    show_deployment_rate=0,
+):
+    """
+    Fetch rows for an explicit set of employees in a single report call.
+
+    Unlike get_node_data(include_subtree=1), the caller decides exactly who is
+    in the set, so leads can be included or excluded independently of the
+    reports_to chain. Used by the quick-stat tiles.
+    """
+    if isinstance(employees, str):
+        employees = frappe.parse_json(employees)
+
+    employee_list = [e for e in (employees or []) if e]
+    if not employee_list:
+        return []
 
     filters = _build_filters(
         {

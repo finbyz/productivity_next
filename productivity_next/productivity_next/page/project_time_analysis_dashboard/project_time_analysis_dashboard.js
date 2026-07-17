@@ -37,7 +37,12 @@ class ProjectTimeHierarchy {
 			high_utilization: 90,
 			no_activity_days: 3
 		};
-		
+		// Registry of rendered tree DOM nodes, keyed by employee id, so we can
+		// programmatically expand ancestor rows (e.g. when restoring a
+		// selection) without simulating clicks that would also re-select /
+		// re-load data for those ancestors.
+		this.node_dom = {};
+
 		this.init();
 	}
 
@@ -56,17 +61,17 @@ class ProjectTimeHierarchy {
 		const today = frappe.datetime.get_today();
 
 		// Committed date filter values actually used by data loads.
-		// These only update when the user explicitly applies the filters
-		// (via the existing Refresh button) — not on every keystroke/change
-		// of the date fields below. This mirrors the CRM Insight page's
-		// "pick values, then Apply" logic, while keeping the exact same
-		// field UI (Period / From Date / To Date) as before.
+		// Presets commit these values immediately. Manually entered dates now
+		// also commit immediately (see from_date_field / to_date_field change
+		// handlers below). Refresh still works as a manual "reload" trigger.
 		this.date_filters = {
 			from_date: today,
 			to_date: today,
 		};
 
-		// Date Presets for quick selection
+		// Date Presets for quick selection. "Custom" is shown automatically
+		// whenever the From/To dates don't match any named preset, and is
+		// never something the user needs to pick themselves.
 		this.date_preset_field = this.page.add_field({
 			fieldname: "date_preset",
 			label: "",
@@ -78,16 +83,15 @@ class ProjectTimeHierarchy {
 				"This Month",
 				"Last Week",
 				"Last Month",
-				"Last Quarter"
+				"Last Quarter",
+				"Custom"
 			],
 			default: "Today",
-			change: () => {
-				// Only updates the From/To fields on screen; does NOT
-				// refresh data. The user still needs to hit Refresh
-				// (or change project/checkbox filters, which do apply
-				// immediately) to load data with the new date range.
+			change: async () => {
 				const preset = this.date_preset_field.get_value();
-				this.set_date_preset(preset);
+				if (preset === "Custom") return; // nothing to compute; dates are already set
+				await this.set_date_preset(preset);
+				this.apply_filters();
 			}
 		});
 
@@ -97,9 +101,7 @@ class ProjectTimeHierarchy {
 			fieldtype: "Date",
 			default: today,
 			reqd: 1,
-			change: () => {
-				// Manual edits no longer use a "Custom" preset option.
-			},
+			change: () => this.sync_preset_and_apply(),
 		});
 
 		this.to_date_field = this.page.add_field({
@@ -108,9 +110,7 @@ class ProjectTimeHierarchy {
 			fieldtype: "Date",
 			default: today,
 			reqd: 1,
-			change: () => {
-				// Manual edits no longer use a "Custom" preset option.
-			},
+			change: () => this.sync_preset_and_apply(),
 		});
 
 		this.project_field = this.page.add_field({
@@ -156,6 +156,7 @@ class ProjectTimeHierarchy {
 			fieldtype: "Check",
 			change: () => this.refresh_all(),
 		});
+		this.show_employee_field.$wrapper.hide();
 
 		this.deployment_field = this.page.add_field({
 			fieldname: "show_deployment_rate",
@@ -167,6 +168,7 @@ class ProjectTimeHierarchy {
 				this.load_columns(() => this.refresh_all());
 			},
 		});
+		this.deployment_field.$wrapper.hide();
 
 		// Admin navigation
 		this.admin_filter_field = this.page.add_field({
@@ -208,7 +210,15 @@ class ProjectTimeHierarchy {
 		// this.page.add_menu_item("Pick Columns", () => this.open_pick_columns_dialog());
 	}
 
-	set_date_preset(preset) {
+	// Add this as a new method on the class
+// Returns the Sunday that starts the week containing date_str
+	get_week_sunday(date_str) {
+		const d = frappe.datetime.str_to_obj(date_str);
+		const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
+		return frappe.datetime.add_days(date_str, -day);
+	}
+
+	async set_date_preset(preset) {
 		const today = frappe.datetime.get_today();
 		let from_date, to_date;
 
@@ -230,14 +240,18 @@ class ProjectTimeHierarchy {
 				from_date = frappe.datetime.month_start(today);
 				to_date = frappe.datetime.month_end(today);
 				break;
-			case "Last Week":
-				from_date = frappe.datetime.add_days(today, -7);
-				to_date = today;
+			case "Last Week": {
+				const this_week_sunday = this.get_week_sunday(today);
+				from_date = frappe.datetime.add_days(this_week_sunday, -7); // last Sunday
+				to_date = frappe.datetime.add_days(this_week_sunday, -1);   // last Saturday
 				break;
-			case "Last Month":
-				from_date = frappe.datetime.add_days(today, -30);
-				to_date = today;
+			}
+			case "Last Month": {
+				const this_month_start = frappe.datetime.month_start(today);
+				from_date = frappe.datetime.add_months(this_month_start, -1); // 1st of previous month
+				to_date = frappe.datetime.add_days(this_month_start, -1);     // last day of previous month
 				break;
+			}
 			case "Last Quarter":
 				from_date = frappe.datetime.add_months(today, -3);
 				to_date = today;
@@ -246,19 +260,92 @@ class ProjectTimeHierarchy {
 				return;
 		}
 
-		this.from_date_field.set_value(from_date);
-		this.to_date_field.set_value(to_date);
+		// Frappe controls update asynchronously. Wait for both fields so the
+		// refresh below cannot read the previously committed (usually Today)
+		// range.
+		await Promise.all([
+			this.from_date_field.set_value(from_date),
+			this.to_date_field.set_value(to_date),
+		]);
+	}
+
+	// Works out which preset (if any) the currently-picked From/To dates
+	// match, so the dropdown reflects reality (e.g. shows "Today" if the
+	// user manually typed today's date into both fields) instead of going
+	// blank or staying stuck on whatever was last selected.
+	detect_matching_preset(from_date, to_date) {
+	const today = frappe.datetime.get_today();
+	const this_week_sunday = this.get_week_sunday(today);
+	const this_month_start = frappe.datetime.month_start(today);
+
+	const candidates = {
+		"Today": [today, today],
+		"Yesterday": [frappe.datetime.add_days(today, -1), frappe.datetime.add_days(today, -1)],
+		"This Week": [this_week_sunday, frappe.datetime.add_days(this_week_sunday, 6)],
+		"This Month": [frappe.datetime.month_start(today), frappe.datetime.month_end(today)],
+		"Last Week": [
+			frappe.datetime.add_days(this_week_sunday, -7),
+			frappe.datetime.add_days(this_week_sunday, -1),
+		],
+		"Last Month": [
+			frappe.datetime.add_months(this_month_start, -1),
+			frappe.datetime.add_days(this_month_start, -1),
+		],
+		"Last Quarter": [frappe.datetime.add_months(today, -3), today],
+	};
+
+	for (const preset in candidates) {
+		const [f, t] = candidates[preset];
+		if (from_date === f && to_date === t) return preset;
+	}
+	return "Custom";
+}
+
+	// Called whenever From/To is edited manually. Keeps the preset dropdown
+	// in sync with whatever range is actually selected, then applies it.
+	sync_preset_and_apply() {
+		const from_date = this.from_date_field.get_value();
+		const to_date = this.to_date_field.get_value();
+		if (!from_date || !to_date) return; // still typing / cleared
+
+		const matched = this.detect_matching_preset(from_date, to_date);
+		const current_preset = this.date_preset_field.get_value();
+
+		if (matched !== current_preset) {
+			// set_value() re-triggers the Select's own change handler. For a
+			// real preset match that handler will call set_date_preset() +
+			// apply_filters() itself, so we don't need to call apply_filters()
+			// again here. For "Custom" the handler is a no-op, so we do.
+			this.date_preset_field.set_value(matched);
+			if (matched === "Custom") {
+				this.apply_filters();
+			}
+		} else {
+			this.apply_filters();
+		}
 	}
 
 	// Commits the current From/To field values into this.date_filters
-	// and then refreshes. This is the single point where date changes
-	// actually take effect, matching the "select, then Apply" logic of
-	// the reference page — triggered here by the existing Refresh button
-	// rather than any new UI element.
+	// and then refreshes. Preset changes call this immediately; manually
+	// entered dates now call it immediately too (via sync_preset_and_apply).
 	apply_filters() {
-		this.date_filters.from_date = this.from_date_field.get_value();
-		this.date_filters.to_date = this.to_date_field.get_value();
+		const from_date = this.from_date_field.get_value();
+		const to_date = this.to_date_field.get_value();
+
+		if (!from_date || !to_date) return; // still typing / cleared
+		if (from_date > to_date) {
+			frappe.show_alert({ message: 'From Date must be before To Date', indicator: 'orange' });
+			return;
+		}
+
+		this.date_filters.from_date = from_date;
+		this.date_filters.to_date = to_date;
 		this.refresh_all();
+	}
+
+	apply_filters_debounced() {
+		clearTimeout(this._apply_filters_timeout);
+		this._apply_filters_timeout = setTimeout(() => this.apply_filters(), 250);
 	}
 
 	get_from_date() {
@@ -406,7 +493,7 @@ class ProjectTimeHierarchy {
 			.pta-main-wrapper {
 				display: flex;
 				flex-direction: column;
-				height: calc(100vh - 200px);
+				min-height: calc(100vh - 200px);
 				background: linear-gradient(135deg, #f5f7fb 0%, #f0f2f7 100%);
 			}
 
@@ -510,6 +597,8 @@ class ProjectTimeHierarchy {
 				border-bottom: 1px solid rgba(224, 229, 236, 0.5);
 				flex-shrink: 0;
 				backdrop-filter: blur(10px);
+				position: sticky;
+				top: 0;
 			}
 			.pta-toolbar-left {
 				display: flex;
@@ -566,11 +655,17 @@ class ProjectTimeHierarchy {
 				gap: 8px;
 			}
 
-			/* Content Area */
+			/* Content Area
+			   The tree (left) and data (right) panels sit side by side ("left and
+			   right side" layout). The tree panel keeps its own internal scroll
+			   (sticky, capped height) since a long hierarchy shouldn't push the
+			   whole page down. The data panel does NOT scroll internally anymore
+			   -- it grows naturally so the *whole page* scrolls at the bottom,
+			   which is what was asked for. */
 			.pta-content-area {
 				display: flex;
+				align-items: flex-start;
 				flex: 1;
-				overflow: hidden;
 				gap: 12px;
 				padding: 12px;
 			}
@@ -584,6 +679,9 @@ class ProjectTimeHierarchy {
 				border-radius: 12px;
 				box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 				overflow: hidden;
+				position: sticky;
+				top: 66px; /* sits just below the sticky toolbar */
+				max-height: calc(100vh - 90px);
 			}
 			.pta-tree-header {
 				display: flex;
@@ -592,6 +690,7 @@ class ProjectTimeHierarchy {
 				padding: 14px 16px;
 				border-bottom: 1px solid rgba(224, 229, 236, 0.5);
 				background: linear-gradient(135deg, #f8fafc, #f0f2f7);
+				flex-shrink: 0;
 			}
 			.pta-tree-header h4 {
 				margin: 0;
@@ -604,13 +703,14 @@ class ProjectTimeHierarchy {
 				flex: 1;
 				overflow-y: auto;
 				padding: 10px;
+				min-height: 0;
 			}
 			.pta-data-panel {
 				flex: 1;
+				min-width: 0;
 				background: rgba(255, 255, 255, 0.95);
 				display: flex;
 				flex-direction: column;
-				overflow: hidden;
 				border-radius: 12px;
 				box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 			}
@@ -630,7 +730,6 @@ class ProjectTimeHierarchy {
 			}
 			.pta-data-inner {
 				flex: 1;
-				overflow: auto;
 				padding: 18px;
 			}
 
@@ -938,45 +1037,85 @@ class ProjectTimeHierarchy {
 				}
 				break;
 			case 'all_employees':
+				// The left-hand tree panel stays visible on every tab, but the
+				// blue "selected" mark only means something on Team Hierarchy
+				// (it shows whose data is loaded on the right). Clear it here
+				// so it doesn't stay stuck on the last-clicked employee while
+				// looking at a different tab.
+				this.$main_container.find('.pta-tree-head.selected, .pta-member-row.selected').removeClass('selected');
 				this.render_all_employees();
 				break;
 			case 'dashboard':
+				this.$main_container.find('.pta-tree-head.selected, .pta-member-row.selected').removeClass('selected');
 				this.show_dashboard();
 				break;
 		}
 	}
 
+	// Called whenever the user clicks an employee directly in the left-hand
+	// tree while looking at a different tab (Dashboard / All Employees).
+	// Clicking an employee is an implicit "take me to their Team Hierarchy
+	// report", so the tab (and its blue highlight) should follow, instead of
+	// silently loading the employee's data under whichever tab happens to be
+	// showing. Unlike switch_view('hierarchy'), this does NOT call
+	// render_tree() - the click is already happening inside the live tree
+	// DOM, so rebuilding it here would destroy the very row being clicked.
+	ensure_hierarchy_view_active() {
+		if (this.current_view === 'hierarchy') return;
+		this.current_view = 'hierarchy';
+		this.$main_container.find('.pta-tab').removeClass('active');
+		this.$main_container.find(`.pta-tab[data-view="hierarchy"]`).addClass('active');
+	}
+
 	restore_selected_employee() {
 		if (!this.selected_employee) return;
-		
-		// Find and select the employee element
-		const selector = `.pta-tree-head[data-employee="${this.selected_employee.id}"], .pta-member-row[data-employee="${this.selected_employee.id}"]`;
-		const $element = this.$main_container.find(selector);
-		
-		if ($element.length) {
-			// Remove selected class from all elements
-			this.$main_container.find('.pta-tree-head.selected, .pta-member-row.selected').removeClass('selected');
-			// Add selected class to the element
-			$element.addClass('selected');
-			
-			// Trigger click to load the data
-			if (this.selected_employee.type === 'lead') {
-				// Find the lead node in the tree
-				const leadNode = this.tree.find(node => node.id === this.selected_employee.id);
-				if (leadNode) this.load_team_data(leadNode);
-			} else {
-				// Find the member node in the tree
-				let memberNode = null;
-				for (let lead of this.tree) {
-					const found = this.flatten_tree(lead).find(node => node.id === this.selected_employee.id);
-					if (found) {
-						memberNode = found;
-						break;
-					}
-				}
-				if (memberNode) this.load_employee_data(memberNode);
+
+		// Find the node anywhere in the tree - independent of whether its row is
+		// currently rendered in the DOM. render_tree() rebuilds everything
+		// collapsed, so nested rows may not exist in the DOM yet even though
+		// the node itself is still selected.
+		let node = null;
+		for (let lead of this.tree) {
+			const found = this.flatten_tree(lead).find(n => n.id === this.selected_employee.id);
+			if (found) {
+				node = found;
+				break;
 			}
 		}
+		if (!node) return;
+
+		// Always reload data for the current date range, regardless of DOM state.
+		if (node.children && node.children.length) {
+			this.load_team_data(node);
+		} else {
+			this.load_employee_data(node);
+		}
+
+		// Expand every ancestor row leading down to the selected employee so
+		// its row actually exists in the DOM, then mark it with the blue
+		// "selected" highlight. This is what makes the highlight reappear
+		// when you jump to Dashboard / All Employees and come back to
+		// Team Hierarchy.
+		this.expand_path_to(this.selected_employee.id);
+
+		const selector = `.pta-tree-head[data-employee="${this.selected_employee.id}"], .pta-member-row[data-employee="${this.selected_employee.id}"]`;
+		const $element = this.$main_container.find(selector);
+		if ($element.length) {
+			this.$main_container.find('.pta-tree-head.selected, .pta-member-row.selected').removeClass('selected');
+			$element.addClass('selected');
+			this.scroll_tree_into_view($element);
+		}
+	}
+
+	// Scrolls the Team Hierarchy panel (not the whole page) so the given row
+	// is visible, without disturbing page scroll position.
+	scroll_tree_into_view($element) {
+		const $scrollBox = this.$main_container.find('.pta-tree-inner');
+		if (!$scrollBox.length || !$element.length) return;
+		const boxTop = $scrollBox.offset().top;
+		const elTop = $element.offset().top;
+		const target = $scrollBox.scrollTop() + (elTop - boxTop) - ($scrollBox.height() / 2);
+		$scrollBox.stop().animate({ scrollTop: Math.max(target, 0) }, 200);
 	}
 
 	// =================================================================
@@ -1031,6 +1170,22 @@ class ProjectTimeHierarchy {
 		this.data_cache = {};
 		this.render_tree();
 		this.update_quick_stats();
+
+		if (this.current_view === 'all_employees') {
+			this.render_all_employees();
+			return;
+		}
+
+		if (this.current_view === 'dashboard') {
+			this.show_dashboard();
+			return;
+		}
+
+		if (this.selected_employee) {
+			this.restore_selected_employee();
+			return;
+		}
+
 		this.$main_container.find('.pta-data-inner').html(`
 			<div class="pta-welcome">
 				<h4>Select a team member</h4>
@@ -1051,7 +1206,10 @@ class ProjectTimeHierarchy {
 	// =================================================================
 	render_tree() {
 		const $tree = this.$main_container.find('.pta-tree-inner').empty();
-		
+		// Reset the DOM registry - render_team_node/render_member_node will
+		// repopulate it as nodes are (re)built.
+		this.node_dom = {};
+
 		if (!this.tree.length) {
 			$tree.html('<div class="pta-loading">No team data available</div>');
 			return;
@@ -1068,6 +1226,44 @@ class ProjectTimeHierarchy {
 		if (node.name.toLowerCase().includes(this.search_term)) return true;
 		if (node.children && node.children.some(c => this.match_search(c))) return true;
 		return false;
+	}
+
+	// Finds the path of ancestor nodes (root -> ... -> parent) leading to the
+	// node with the given id. Returns null if not found. The target node
+	// itself is not included, only its ancestors.
+	find_ancestor_path(nodes, target_id, path = []) {
+		for (const node of nodes || []) {
+			if (node.id === target_id) return path;
+			if (node.children && node.children.length) {
+				const found = this.find_ancestor_path(node.children, target_id, [...path, node]);
+				if (found) return found;
+			}
+		}
+		return null;
+	}
+
+	// Programmatically expands every ancestor row leading to `target_id`,
+	// rendering lazily-built children as needed, WITHOUT triggering the
+	// click handler's selection/data-load side effects on those ancestors.
+	expand_path_to(target_id) {
+		const path = this.find_ancestor_path(this.tree, target_id);
+		if (!path) return;
+
+		path.forEach((ancestorNode) => {
+			const ref = this.node_dom[ancestorNode.id];
+			if (!ref) return;
+
+			if (!ref.childrenRendered) {
+				(ancestorNode.children || []).forEach((child) => {
+					ref.$children.append(this.render_member_node(child));
+				});
+				ref.childrenRendered = true;
+			}
+			if (!ref.$children.hasClass('open')) {
+				ref.$children.addClass('open');
+				ref.$arrow.addClass('open');
+			}
+		});
 	}
 
 	render_team_node(node) {
@@ -1089,7 +1285,9 @@ class ProjectTimeHierarchy {
 		`);
 
 		const $children = $(`<div class="pta-tree-children"></div>`);
-		let childrenRendered = false;
+		const $arrow = $head.find('.pta-tree-arrow');
+		const ref = { $head, $children, $arrow, node, childrenRendered: false };
+		this.node_dom[node.id] = ref;
 
 		$head.on('click', '.pta-add-compare', (e) => {
 			e.stopPropagation();
@@ -1101,7 +1299,6 @@ class ProjectTimeHierarchy {
 			e.stopPropagation();
 			
 			if (hasChildren) {
-				const $arrow = $head.find('.pta-tree-arrow');
 				if ($children.hasClass('open')) {
 					$children.removeClass('open');
 					$arrow.removeClass('open');
@@ -1109,17 +1306,18 @@ class ProjectTimeHierarchy {
 					$children.addClass('open');
 					$arrow.addClass('open');
 					
-					if (!childrenRendered) {
+					if (!ref.childrenRendered) {
 						node.children.forEach(child => {
 							$children.append(this.render_member_node(child));
 						});
-						childrenRendered = true;
+						ref.childrenRendered = true;
 					}
 				}
 			}
 			
 			this.$main_container.find('.pta-tree-head.selected, .pta-member-row.selected').removeClass('selected');
 			$head.addClass('selected');
+			this.ensure_hierarchy_view_active();
 			this.load_team_data(node);
 		});
 
@@ -1147,7 +1345,9 @@ class ProjectTimeHierarchy {
 		`);
 
 		const $children = $(`<div class="pta-tree-children"></div>`);
-		let childrenRendered = false;
+		const $arrow = $row.find('.pta-tree-arrow');
+		const ref = { $head: $row, $children, $arrow, node, childrenRendered: false };
+		this.node_dom[node.id] = ref;
 
 		$row.on('click', '.pta-add-compare', (e) => {
 			e.stopPropagation();
@@ -1159,7 +1359,6 @@ class ProjectTimeHierarchy {
 			e.stopPropagation();
 			
 			if (hasChildren) {
-				const $arrow = $row.find('.pta-tree-arrow');
 				if ($children.hasClass('open')) {
 					$children.removeClass('open');
 					$arrow.removeClass('open');
@@ -1167,18 +1366,23 @@ class ProjectTimeHierarchy {
 					$children.addClass('open');
 					$arrow.addClass('open');
 					
-					if (!childrenRendered) {
+					if (!ref.childrenRendered) {
 						node.children.forEach(child => {
 							$children.append(this.render_member_node(child));
 						});
-						childrenRendered = true;
+						ref.childrenRendered = true;
 					}
 				}
 			}
 			
 			this.$main_container.find('.pta-tree-head.selected, .pta-member-row.selected').removeClass('selected');
 			$row.addClass('selected');
-			this.load_employee_data(node);
+			this.ensure_hierarchy_view_active();
+			if (hasChildren) {
+				this.load_team_data(node);
+			} else {
+				this.load_employee_data(node);
+			}
 		});
 
 		$item.append($row);
@@ -1220,22 +1424,20 @@ class ProjectTimeHierarchy {
 			this.data_cache[leadCacheKey] = leadData;
 		}
 
-		// Load all member data
+		// Load data for every descendant, at any depth - not just direct reports
 		const membersData = [];
-		if (leadNode.children && leadNode.children.length) {
-			for (const child of leadNode.children) {
-				const childCacheKey = JSON.stringify({ employee: child.id, ...dateParams, ...filters });
-				let childData = this.data_cache[childCacheKey];
-				if (!childData) {
-					const r = await frappe.call({
-						method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
-						args: { employee: child.id, include_subtree: 0, ...dateParams, ...filters }
-					});
-					childData = r.message || [];
-					this.data_cache[childCacheKey] = childData;
-				}
-				membersData.push({ node: child, data: childData });
+		for (const { node: member, depth } of this.flatten_descendants(leadNode)) {
+			const memberCacheKey = JSON.stringify({ employee: member.id, ...dateParams, ...filters });
+			let memberData = this.data_cache[memberCacheKey];
+			if (!memberData) {
+				const r = await frappe.call({
+					method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_node_data",
+					args: { employee: member.id, include_subtree: 0, ...dateParams, ...filters }
+				});
+				memberData = r.message || [];
+				this.data_cache[memberCacheKey] = memberData;
 			}
+			membersData.push({ node: member, data: memberData, depth });
 		}
 
 		this.render_team_table($dataPanel, leadNode, leadData, membersData);
@@ -1280,39 +1482,23 @@ class ProjectTimeHierarchy {
 		const allRows = [];
 		
 		// Add lead row
-		if (leadData.length > 0) {
-			allRows.push({
-				name: leadNode.name,
-				role: 'Team Lead',
-				id: leadNode.id,
-				row: this.summarize_row(leadData)
-			});
-		} else {
-			allRows.push({
-				name: leadNode.name,
-				role: 'Team Lead',
-				id: leadNode.id,
-				row: this.get_empty_row()
-			});
-		}
+		allRows.push({
+			name: leadNode.name,
+			role: 'Team Lead',
+			id: leadNode.id,
+			depth: 0,
+			row: leadData.length > 0 ? this.summarize_row(leadData) : this.get_empty_row()
+		});
 
-		// Add member rows
+		// Add a row per descendant, at any depth
 		membersData.forEach(m => {
-			if (m.data.length > 0) {
-				allRows.push({
-					name: m.node.name,
-					role: 'Member',
-					id: m.node.id,
-					row: this.summarize_row(m.data)
-				});
-			} else {
-				allRows.push({
-					name: m.node.name,
-					role: 'Member',
-					id: m.node.id,
-					row: this.get_empty_row()
-				});
-			}
+			allRows.push({
+				name: m.node.name,
+				role: (m.node.children && m.node.children.length) ? 'Team Lead' : 'Member',
+				id: m.node.id,
+				depth: m.depth,
+				row: m.data.length > 0 ? this.summarize_row(m.data) : this.get_empty_row()
+			});
 		});
 
 		// Calculate totals
@@ -1324,7 +1510,7 @@ class ProjectTimeHierarchy {
 			<div style="margin-bottom:10px;">
 				<small style="color:#718096;">
 					Period: ${this.get_from_date()} to ${this.get_to_date()}
-					| Team Size: ${leadNode.children ? leadNode.children.length + 1 : 1}
+					| Team Size: ${allRows.length}
 				</small>
 			</div>
 			<div class="pta-table-wrapper">
@@ -1335,6 +1521,7 @@ class ProjectTimeHierarchy {
 							<th>Resource</th>
 							<th>Role</th>
 							${cols.map(c => `<th>${c.label}</th>`).join('')}
+							<th>Utilized %</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1345,10 +1532,19 @@ class ProjectTimeHierarchy {
 			let rowClass = '';
 			if (stats.totalHours === 0) rowClass = 'pta-highlight';
 			
+			const indent = (item.depth || 0) * 18;
+			const nameHtml = item.depth
+				? `<span style="padding-left:${indent}px;color:#4a5568;">↳ ${frappe.utils.escape_html(item.name)}</span>`
+				: `<strong>${frappe.utils.escape_html(item.name)}</strong>`;
+
+			// Per-row Utilized % = Total Utilised Hours / Total Hours * 100
+			const rowUtilizationTotals = this.get_utilization_totals([item.row]);
+			const rowUtilizedPercent = rowUtilizationTotals.utilizedPercent;
+
 			html += `
 				<tr class="${rowClass}">
 					<td>${index + 1}</td>
-					<td><strong>${frappe.utils.escape_html(item.name)}</strong></td>
+					<td>${nameHtml}</td>
 					<td>${item.role}</td>
 					${cols.map(c => {
 						let val = item.row[c.fieldname];
@@ -1363,6 +1559,9 @@ class ProjectTimeHierarchy {
 						}
 						return `<td>${val}</td>`;
 					}).join('')}
+					<td style="color:${rowUtilizedPercent >= 70 ? '#28a745' : rowUtilizedPercent >= 50 ? '#ffc107' : '#dc3545'};font-weight:600;">
+						${this.format_percentage_value(rowUtilizedPercent)}
+					</td>
 				</tr>
 			`;
 		});
@@ -1382,6 +1581,9 @@ class ProjectTimeHierarchy {
 								}
 								return `<td>${val}</td>`;
 							}).join('')}
+							<td style="color:${totals.utilized_percentage >= 70 ? '#28a745' : '#dc3545'};font-weight:800;">
+								${this.format_percentage_value(totals.utilized_percentage)}
+							</td>
 						</tr>
 					</tfoot>
 				</table>
@@ -1402,6 +1604,7 @@ class ProjectTimeHierarchy {
 
 		const cols = this.columns.length ? this.columns : this.get_default_columns();
 		const row = this.summarize_row(data);
+		const utilizedPercent = this.get_utilization_totals([row]).utilizedPercent;
 
 		let html = `
 			<div class="pta-section-title">${node.name} - Individual Report</div>
@@ -1415,6 +1618,7 @@ class ProjectTimeHierarchy {
 					<thead>
 						<tr>
 							${cols.map(c => `<th>${c.label}</th>`).join('')}
+							<th>Utilized %</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1429,6 +1633,9 @@ class ProjectTimeHierarchy {
 								}
 								return `<td>${val}</td>`;
 							}).join('')}
+							<td style="color:${utilizedPercent >= 70 ? '#28a745' : utilizedPercent >= 50 ? '#ffc107' : '#dc3545'};font-weight:600;">
+								${this.format_percentage_value(utilizedPercent)}
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -1510,7 +1717,8 @@ class ProjectTimeHierarchy {
 		const totalEmployees = allEmployees.length;
 		const totalHours = allStats.reduce((s, e) => s + e.totalHours, 0);
 		const totalBillable = allStats.reduce((s, e) => s + e.billableHours, 0);
-		const avgUtilization = totalHours > 0 ? Math.round((totalBillable / totalHours) * 100) : 0;
+		const avgUtilization = totalHours > 0 ? (totalBillable / totalHours) * 100 : 0;
+		const avgUtilizationDisplay = this.truncate_decimal(avgUtilization, 2);
 		const lowUtilization = allStats.filter(e => e.billablePercent < 50 && e.totalHours > 0).length;
 
 		let html = `
@@ -1520,7 +1728,7 @@ class ProjectTimeHierarchy {
 					<p>Total Employees: <strong>${totalEmployees}</strong></p>
 					<p>Total Hours: <strong>${totalHours.toFixed(1)}</strong></p>
 					<p>Total Billable: <strong>${totalBillable.toFixed(1)}</strong></p>
-					<p>Avg Utilization: <strong style="color:${avgUtilization >= 70 ? '#28a745' : '#dc3545'}">${avgUtilization}%</strong></p>
+					<p>Avg Utilization: <strong style="color:${avgUtilization >= 70 ? '#28a745' : '#dc3545'}">${avgUtilizationDisplay}%</strong></p>
 					<p>Low Utilization (<50%): <strong style="color:#dc3545">${lowUtilization}</strong></p>
 				</div>
 				
@@ -1618,12 +1826,14 @@ class ProjectTimeHierarchy {
 							<th>#</th>
 							<th>Resource</th>
 							${cols.map(c => `<th>${c.label}</th>`).join('')}
+							<th>Utilized %</th>
 						</tr>
 					</thead>
 					<tbody>
 		`;
 
 		allRows.forEach((item, index) => {
+			const rowUtilizedPercent = this.get_utilization_totals([item.row]).utilizedPercent;
 			html += `
 				<tr>
 					<td>${index + 1}</td>
@@ -1638,6 +1848,9 @@ class ProjectTimeHierarchy {
 						}
 						return `<td>${val}</td>`;
 					}).join('')}
+					<td style="color:${rowUtilizedPercent >= 70 ? '#28a745' : rowUtilizedPercent >= 50 ? '#ffc107' : '#dc3545'};font-weight:600;">
+						${this.format_percentage_value(rowUtilizedPercent)}
+					</td>
 				</tr>
 			`;
 		});
@@ -1657,6 +1870,9 @@ class ProjectTimeHierarchy {
 								}
 								return `<td>${val}</td>`;
 							}).join('')}
+							<td style="color:${totals.utilized_percentage >= 70 ? '#28a745' : '#dc3545'};font-weight:800;">
+								${this.format_percentage_value(totals.utilized_percentage)}
+							</td>
 						</tr>
 					</tfoot>
 				</table>
@@ -1784,6 +2000,13 @@ class ProjectTimeHierarchy {
 							}).join('')}
 						</tr>
 					`).join('')}
+					<tr>
+						<td><strong>Utilized %</strong></td>
+						${compareData.map(d => {
+							const val = this.get_utilization_totals([d.row]).utilizedPercent;
+							return `<td>${this.format_percentage_value(val)}</td>`;
+						}).join('')}
+					</tr>
 				</tbody>
 			</table>
 		`;
@@ -1942,11 +2165,20 @@ class ProjectTimeHierarchy {
 	// =================================================================
 	// DATA HELPERS
 	// =================================================================
+	// Cuts a number to `decimals` places WITHOUT rounding (0.567 -> "0.56",
+	// not "0.57"). Used where rounding would misrepresent a low percentage
+	// as looking higher than it actually is.
+	truncate_decimal(value, decimals = 2) {
+		const factor = Math.pow(10, decimals);
+		const truncated = Math.trunc(value * factor) / factor;
+		return truncated.toFixed(decimals);
+	}
+
 	format_percentage_value(val) {
 		if (val === undefined || val === null || val === '') return '';
 		const numericValue = parseFloat(val);
 		if (Number.isNaN(numericValue)) return val;
-		return `${numericValue.toFixed(2)}%`;
+		return `${this.truncate_decimal(numericValue, 2)}%`;
 	}
 
 	format_numeric_value(val) {
@@ -1956,6 +2188,46 @@ class ProjectTimeHierarchy {
 		return numericValue.toFixed(2);
 	}
 
+	get_billable_totals(rows) {
+		const availableHours = rows.reduce((sum, row) => {
+			// Deployment Rate in Project Time Analysis uses weekly_hours as
+			// the denominator. Fall back to activity hours for non-deployment data.
+			const hours = row.weekly_hours !== undefined && row.weekly_hours !== null
+				? row.weekly_hours
+				: (row.total_hours !== undefined && row.total_hours !== null ? row.total_hours : row.hours);
+			return sum + (parseFloat(hours) || 0);
+		}, 0);
+		const billableHours = rows.reduce((sum, row) => {
+			const hours = row.total_billable !== undefined && row.total_billable !== null
+				? row.total_billable
+				: row.billable_hours;
+			return sum + (parseFloat(hours) || 0);
+		}, 0);
+		const percentageBillable = availableHours > 0
+			? Math.trunc((billableHours / availableHours) * 10000) / 100
+			: 0;
+
+		return { availableHours, billableHours, percentageBillable };
+	}
+
+	// Utilized % = Total Utilized Hours / Total Hours * 100
+	// Total Hours here means the base "total_hours" figure returned by the
+	// report (distinct from the deployment-rate "weekly_hours" denominator
+	// used by get_billable_totals for Billable %).
+	get_utilization_totals(rows) {
+    const totalHours = rows.reduce((sum, row) => {
+        return sum + (parseFloat(row.weekly_hours) || 0);
+    }, 0);
+    const totalUtilisedHours = rows.reduce((sum, row) => {
+        return sum + (parseFloat(row.total_utilized_hours) || 0);
+    }, 0);
+    const utilizedPercent = totalHours > 0
+        ? Math.round((totalUtilisedHours / totalHours) * 10000) / 100
+        : 0;
+
+    return { totalHours, totalUtilisedHours, utilizedPercent };
+}
+
 	summarize_row(rows) {
 		if (rows.length === 0) return this.get_empty_row();
 		if (rows.length === 1) return rows[0];
@@ -1964,12 +2236,10 @@ class ProjectTimeHierarchy {
 		const firstRow = rows[0];
 		
 		for (const key in firstRow) {
-			if (typeof firstRow[key] === 'number') {
+			if (key === 'percentage_billable') {
+				summary[key] = this.get_billable_totals(rows).percentageBillable;
+			} else if (typeof firstRow[key] === 'number') {
 				summary[key] = rows.reduce((sum, r) => sum + (r[key] || 0), 0);
-			} else if (key === 'percentage_billable') {
-				const totalHrs = rows.reduce((sum, r) => sum + (r.total_hours || r.hours || 0), 0);
-				const billableHrs = rows.reduce((sum, r) => sum + (r.billable_hours || r.total_billable || 0), 0);
-				summary[key] = totalHrs > 0 ? Math.round((billableHrs / totalHrs) * 100) : 0;
 			} else {
 				summary[key] = firstRow[key];
 			}
@@ -1986,6 +2256,9 @@ class ProjectTimeHierarchy {
 			});
 		}
 		row.percentage_billable = 0;
+		row.total_utilized_hours = 0;  // added
+		row.weekly_hours = 0;          // added
+		row.total_billable = 0;        // added
 		return row;
 	}
 
@@ -1994,25 +2267,27 @@ class ProjectTimeHierarchy {
 		
 		rows.forEach(item => {
 			for (const key in item.row) {
-				if (typeof item.row[key] === 'number') {
+				if (key !== 'percentage_billable' && typeof item.row[key] === 'number') {
 					totals[key] = (totals[key] || 0) + item.row[key];
 				}
 			}
 		});
 
-		if (totals.total_hours || totals.hours) {
-			const totalHrs = totals.total_hours || totals.hours || 0;
-			const billableHrs = totals.billable_hours || totals.total_billable || 0;
-			totals.percentage_billable = totalHrs > 0 ? Math.round((billableHrs / totalHrs) * 100) : 0;
-		}
+		totals.percentage_billable = this.get_billable_totals(rows.map(item => item.row)).percentageBillable;
+		totals.utilized_percentage = this.get_utilization_totals(rows.map(item => item.row)).utilizedPercent;
 
 		return totals;
 	}
 
 	calculate_employee_stats(data) {
-		const totalHours = data.reduce((sum, r) => sum + (r.total_hours || r.hours || 0), 0);
-		const billableHours = data.reduce((sum, r) => sum + (r.billable_hours || r.total_billable || 0), 0);
-		const billablePercent = totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0;
+		const billable = this.get_billable_totals(data);
+    	const utilization = this.get_utilization_totals(data);
+
+		const totals = this.get_billable_totals(data);
+		const totalHours = totals.availableHours;
+		const billableHours = totals.billableHours;
+		const billablePercent = totals.percentageBillable;
+		const utilizedPercent = utilization.utilizedPercent;   // TRUE utilization 
 		return { totalHours, billableHours, billablePercent };
 	}
 
@@ -2023,7 +2298,7 @@ class ProjectTimeHierarchy {
 			{ fieldname: 'total_hours', label: 'Total Hours' },
 			{ fieldname: 'total_billable', label: 'Total Billable' },
 			{ fieldname: 'percentage_billable', label: '% Billable' },
-			{ fieldname: 'total_utilised_hours', label: 'Total Utilised Hours' }
+			{ fieldname: 'total_utilized_hours', label: 'Total Utilised Hours' }
 		];
 	}
 
@@ -2037,60 +2312,155 @@ class ProjectTimeHierarchy {
 		return result;
 	}
 
+	// Everyone below `node`, at any depth, in top-down order. `depth` is 1 for
+	// direct reports, 2 for their reports, and so on.
+	flatten_descendants(node, depth = 1) {
+		let result = [];
+		(node.children || []).forEach(child => {
+			result.push({ node: child, depth });
+			result = result.concat(this.flatten_descendants(child, depth + 1));
+		});
+		return result;
+	}
+
 	// =================================================================
 	// QUICK STATS
 	// =================================================================
-	update_quick_stats() {
-		const totalTeams = this.tree.length;
-		const totalEmployees = this.tree.reduce((sum, t) => sum + this.flatten_tree(t).length, 0);
-		const period = `${this.get_from_date()} to ${this.get_to_date()}`;
+	// Everyone the quick stats are about: the whole hierarchy minus the root of
+	// each tree. The top person is the one the tree is rooted at (an admin's
+	// top-level employee, or the logged-in user), so they are the frame the
+	// numbers are reported in, not one of the numbers.
+	get_stat_employees() {
+		return this.tree.reduce((acc, root) => acc.concat(this.flatten_descendants(root).map(d => d.node)), []);
+	}
 
-		this.$main_container.find('#pta-quick-stats').html(`
-			<div class="pta-quick-stat">
-				<div class="pta-quick-stat-icon blue">T</div>
-				<div class="pta-quick-stat-info">
-					<div class="pta-quick-stat-value">${totalTeams}</div>
-					<div class="pta-quick-stat-label">Teams</div>
+	// Same population as the "All Employees" tab (root leads included). Used
+	// only for the Billable % figure, so that number always matches what
+	// All Employees' Total row shows - the Teams/Total Employees counters
+	// above still intentionally exclude the root (see get_stat_employees).
+	get_billable_stat_employees() {
+		return this.tree.reduce((acc, root) => acc.concat(this.flatten_tree(root)), []);
+	}
+
+	async update_quick_stats() {
+		const employees = this.get_stat_employees();
+		const billableEmployees = this.get_billable_stat_employees();
+		// A "team" is anyone below the root who has reports of their own
+		const totalTeams = employees.filter(e => e.children && e.children.length).length;
+		const totalEmployees = employees.length;
+
+		// The Total Employees card only means something to someone who leads a
+		// team. The tree is rooted at the viewer, so an employee with no reports
+		// has an empty stat set and the card is hidden for them.
+		const is_team_lead = this.is_admin || totalEmployees > 0;
+
+		const render = (billableHtml) => {
+			this.$main_container.find('#pta-quick-stats').html(`
+				<div class="pta-quick-stat">
+					<div class="pta-quick-stat-icon blue">T</div>
+					<div class="pta-quick-stat-info">
+						<div class="pta-quick-stat-value">${totalTeams}</div>
+						<div class="pta-quick-stat-label">Teams</div>
+					</div>
 				</div>
-			</div>
-			<div class="pta-quick-stat">
-				<div class="pta-quick-stat-icon green">E</div>
-				<div class="pta-quick-stat-info">
-					<div class="pta-quick-stat-value">${totalEmployees}</div>
-					<div class="pta-quick-stat-label">Total Employees</div>
+				${is_team_lead ? `
+				<div class="pta-quick-stat">
+					<div class="pta-quick-stat-icon green">E</div>
+					<div class="pta-quick-stat-info">
+						<div class="pta-quick-stat-value">${totalEmployees}</div>
+						<div class="pta-quick-stat-label">Total Employees</div>
+					</div>
 				</div>
-			</div>
-			<div class="pta-quick-stat">
-				<div class="pta-quick-stat-icon orange">P</div>
-				<div class="pta-quick-stat-info">
-					<div class="pta-quick-stat-value" style="font-size:13px;">${period}</div>
-					<div class="pta-quick-stat-label">Period</div>
+				` : ''}
+				<div class="pta-quick-stat">
+					<div class="pta-quick-stat-icon orange">%</div>
+					<div class="pta-quick-stat-info">
+						<div class="pta-quick-stat-value">${billableHtml}</div>
+						<div class="pta-quick-stat-label">Billable %</div>
+					</div>
 				</div>
-			</div>
-			
-		`);
+			`);
+		};
+
+		render('<span style="color:#a0aec0;">…</span>');
+
+		if (!billableEmployees.length) {
+			render('-');
+			return;
+		}
+
+		// Guard against a slow request for an old period overwriting a newer one
+		const token = (this.quick_stats_token = (this.quick_stats_token || 0) + 1);
+
+		let rows = [];
+		try {
+			const r = await frappe.call({
+				method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_employees_data",
+				args: {
+					employees: billableEmployees.map(e => e.id),
+					from_date: this.get_from_date(),
+					to_date: this.get_to_date(),
+					...this.get_report_filters(),
+				}
+			});
+			rows = r.message || [];
+		} catch (e) {
+			if (token === this.quick_stats_token) render('-');
+			return;
+		}
+
+		if (token !== this.quick_stats_token) return;
+
+		const { totalHours, billableHours } = this.calculate_employee_stats(rows);
+		if (!totalHours) {
+			render('-');
+			return;
+		}
+
+		const percent = (billableHours / totalHours) * 100;
+		const color = percent >= 70 ? '#28a745' : '#dc3545';
+		render(`<span style="color:${color};">${this.truncate_decimal(percent, 2)}%</span>`);
 	}
 
 	// =================================================================
 	// UTILITY METHODS
 	// =================================================================
 	expand_all(open) {
-		if (open) {
-			this.$main_container.find('.pta-tree-head').each((i, el) => {
-				const $children = $(el).next('.pta-tree-children');
-				if ($children.length && !$children.hasClass('open')) {
-					$(el).trigger('click');
-				}
-			});
-		} else {
-			this.$main_container.find('.pta-tree-head').each((i, el) => {
-				const $children = $(el).next('.pta-tree-children');
-				if ($children.length && $children.hasClass('open')) {
-					$(el).trigger('click');
-				}
-			});
-		}
-	}
+    const walk = (nodes) => {
+        nodes.forEach((node) => {
+            const ref = this.node_dom[node.id];
+            if (!ref) return;
+
+            const hasChildren = node.children && node.children.length > 0;
+            if (!hasChildren) return;
+
+            if (open) {
+                // Lazily render children the first time we need to open them
+                if (!ref.childrenRendered) {
+                    node.children.forEach((child) => {
+                        ref.$children.append(this.render_member_node(child));
+                    });
+                    ref.childrenRendered = true;
+                }
+                ref.$children.addClass('open');
+                ref.$arrow.addClass('open');
+            } else {
+                ref.$children.removeClass('open');
+                ref.$arrow.removeClass('open');
+            }
+
+            // Recurse into this node's children so deeper levels get
+            // expanded/collapsed too. Only recurse if they're actually in
+            // the DOM (childrenRendered) - for collapse, there's nothing to
+            // do below a level that was never opened in the first place.
+            if (ref.childrenRendered) {
+                walk(node.children);
+            }
+        });
+    };
+
+    walk(this.tree);
+}
 
 	scroll_to_employee(employee_id) {
 		const $target = this.$main_container.find(`[data-employee="${employee_id}"]`).first();
