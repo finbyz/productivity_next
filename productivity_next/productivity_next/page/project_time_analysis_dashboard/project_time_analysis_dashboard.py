@@ -7,6 +7,9 @@ from productivity_next.productivity_next.report.project_time_analysis.project_ti
     get_columns as report_get_columns,
 )
 
+# ⚠️ Confirm this matches the actual fieldname on Employee master
+DEPLOYED_FIELDNAME = "deployed"
+
 
 def is_admin_user(user=None):
     user = user or frappe.session.user
@@ -87,7 +90,7 @@ def _get_active_employees():
     return frappe.get_all(
         "Employee",
         filters={"status": "Active"},
-        fields=["name", "employee_name", "reports_to"],
+        fields=["name", "employee_name", "reports_to", DEPLOYED_FIELDNAME],
         order_by="employee_name",
     )
 
@@ -107,8 +110,13 @@ def _build_children_map(rows):
     return children_map
 
 
+def _build_deployed_map(rows):
+    """employee_id -> bool(custom_deployed)"""
+    return {r.name: bool(cint(r.get(DEPLOYED_FIELDNAME))) for r in rows}
+
+
 def build_node(employee_id, employee_name, valid_employees=None, children_map=None,
-               _depth=0, _seen=None):
+               deployed_only=1, deployed_map=None, _depth=0, _seen=None):
     """
     Recursively build a hierarchy node from Employee.reports_to.
 
@@ -116,14 +124,22 @@ def build_node(employee_id, employee_name, valid_employees=None, children_map=No
     is not subscribed but who has subscribed people under them is kept, so the
     branch below them stays reachable instead of being cut off mid-chain.
 
+    When deployed_only is set, the same pass-through rule applies to the
+    Employee master's "Deployed" checkbox: an employee only counts as a valid
+    leaf if they are BOTH subscribed AND deployed, but a non-deployed manager
+    with deployed people under them is still kept as a pass-through branch.
+
     Returns None when this node and its whole subtree are irrelevant.
     """
     if valid_employees is None:
         valid_employees = get_all_subscribed_employees()
     if children_map is None:
         children_map = _build_children_map(_get_active_employees())
+    if deployed_map is None:
+        deployed_map = {}
 
     valid = set(valid_employees or [])
+    deployed_only = cint(deployed_only)
     _seen = _seen or frozenset()
 
     # reports_to cycles would otherwise recurse forever
@@ -134,19 +150,24 @@ def build_node(employee_id, employee_name, valid_employees=None, children_map=No
     for child in children_map.get(employee_id, []):
         node = build_node(
             child.name, child.employee_name, valid_employees, children_map,
+            deployed_only, deployed_map,
             _depth + 1, _seen | {employee_id},
         )
         if node:
             children.append(node)
 
     is_subscribed = employee_id in valid
-    if not is_subscribed and not children:
+    is_deployed = deployed_map.get(employee_id, False)
+    counts_as_leaf = is_subscribed and (not deployed_only or is_deployed)
+
+    if not counts_as_leaf and not children:
         return None
 
     return {
         "id": employee_id,
         "name": employee_name,
         "subscribed": is_subscribed,
+        "deployed": is_deployed,
         "children": children,
     }
 
@@ -162,12 +183,17 @@ def _find_node(tree, employee_id):
 
 
 @frappe.whitelist()
-def get_team_tree():
+def get_team_tree(deployed_only=1):
     """
     Get the full team hierarchy.
     - Administrator / System Manager -> forest of every top-level employee
     - Anyone else -> the subtree rooted at their own Employee record
+
+    deployed_only (default 1): when truthy, only employees with the Employee
+    master "Deployed" checkbox checked are included as leaves (managers with
+    deployed people under them are still kept as pass-through branches).
     """
+    deployed_only = cint(deployed_only)
     user = frappe.session.user
     valid_employees = get_all_subscribed_employees()
 
@@ -176,11 +202,15 @@ def get_team_tree():
 
     rows = _get_active_employees()
     children_map = _build_children_map(rows)
+    deployed_map = _build_deployed_map(rows)
 
     # Roots: no reports_to, or reports_to an employee who is no longer active
     forest = []
     for root in children_map.get(None, []):
-        node = build_node(root.name, root.employee_name, valid_employees, children_map)
+        node = build_node(
+            root.name, root.employee_name, valid_employees, children_map,
+            deployed_only, deployed_map,
+        )
         if node:
             forest.append(node)
 
@@ -199,6 +229,8 @@ def get_team_tree():
             frappe.db.get_value("Employee", emp, "employee_name"),
             valid_employees + [emp],
             children_map,
+            deployed_only,
+            deployed_map,
         )
 
     return {"is_admin": False, "tree": [own_node] if own_node else []}

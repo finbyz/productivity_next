@@ -141,6 +141,7 @@ class ProjectTimeHierarchy {
 		// 	fieldtype: "Check",
 		// 	change: () => this.refresh_all(),
 		// });
+		
 
 		// this.is_internal_field = this.page.add_field({
 		// 	fieldname: "is_internal_project",
@@ -193,6 +194,14 @@ class ProjectTimeHierarchy {
 			},
 		});
 		this.admin_filter_field.$wrapper.hide();
+
+		this.deployed_field = this.page.add_field({
+			fieldname: "deployed_only",
+			label: "Deployed",
+			fieldtype: "Check",
+			default: 1,
+			change: () => this.load_tree(),
+		});
 
 		// Primary Action — this is the explicit "Apply" trigger for the
 		// date filters (as well as a general refresh).
@@ -1133,22 +1142,54 @@ class ProjectTimeHierarchy {
 	}
 
 	load_tree() {
-		this.$main_container.find('.pta-tree-inner').html('<div class="pta-loading">Loading hierarchy...</div>');
-		frappe.call({
-			method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_team_tree",
-			callback: (r) => {
-				const msg = r.message || {};
-				this.is_admin = !!msg.is_admin;
-				this.tree = msg.tree || [];
-				this.navigation_candidates = this.get_navigation_candidates(this.tree);
-				if (this.is_admin) {
-					this.admin_filter_field.$wrapper.show();
-				}
-				this.render_tree();
-				this.update_quick_stats();
-			},
-		});
-	}
+    this.$main_container.find('.pta-tree-inner').html('<div class="pta-loading">Loading hierarchy...</div>');
+    frappe.call({
+        method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_team_tree",
+        args: { deployed_only: this.deployed_field.get_value() ? 1 : 0 },
+        callback: (r) => {
+            const msg = r.message || {};
+            this.is_admin = !!msg.is_admin;
+            this.tree = msg.tree || [];
+            this.navigation_candidates = this.get_navigation_candidates(this.tree);
+            if (this.is_admin) {
+                this.admin_filter_field.$wrapper.show();
+            }
+            this.render_tree();
+            this.update_quick_stats();
+
+            // Deployed filter changes WHO is in the tree, so make sure a
+            // currently-selected employee who dropped out of the tree
+            // doesn't leave stale data on screen.
+            if (this.selected_employee) {
+                const stillExists = this.tree.some(root =>
+                    this.flatten_tree(root).some(n => n.id === this.selected_employee.id)
+                );
+                if (!stillExists) {
+                    this.selected_employee = null;
+                    if (this.current_view === 'hierarchy') {
+                        this.$main_container.find('.pta-data-inner').html(`
+                            <div class="pta-welcome">
+                                <h4>Select a team member</h4>
+                                <p>Click on any name in the hierarchy to view their detailed time analysis</p>
+                            </div>
+                        `);
+                    }
+                }
+            }
+
+            // Refresh whatever tab is currently open, since the tree
+            // membership (and therefore "All Employees" / "Dashboard"
+            // populations) may have changed.
+            if (this.current_view === 'all_employees') {
+                this.render_all_employees();
+            } else if (this.current_view === 'dashboard') {
+                this.show_dashboard();
+            } else if (this.selected_employee) {
+                this.restore_selected_employee();
+            }
+        },
+    });
+}
 
 	get_navigation_candidates(tree = this.tree) {
 		const candidates = [];
@@ -1482,24 +1523,27 @@ class ProjectTimeHierarchy {
 		const allRows = [];
 		
 		// Add lead row
-		allRows.push({
-			name: leadNode.name,
-			role: 'Team Lead',
-			id: leadNode.id,
-			depth: 0,
-			row: leadData.length > 0 ? this.summarize_row(leadData) : this.get_empty_row()
-		});
-
-		// Add a row per descendant, at any depth
-		membersData.forEach(m => {
+		if (this.is_countable(leadNode)) {
 			allRows.push({
-				name: m.node.name,
-				role: (m.node.children && m.node.children.length) ? 'Team Lead' : 'Member',
-				id: m.node.id,
-				depth: m.depth,
-				row: m.data.length > 0 ? this.summarize_row(m.data) : this.get_empty_row()
+				name: leadNode.name,
+				role: 'Team Lead',
+				id: leadNode.id,
+				depth: 0,
+				row: leadData.length > 0 ? this.summarize_row(leadData) : this.get_empty_row()
 			});
-		});
+		}
+
+    	membersData
+			.filter(m => this.is_countable(m.node))
+			.forEach(m => {
+				allRows.push({
+					name: m.node.name,
+					role: (m.node.children && m.node.children.length) ? 'Team Lead' : 'Member',
+					id: m.node.id,
+					depth: m.depth,
+					row: m.data.length > 0 ? this.summarize_row(m.data) : this.get_empty_row()
+				});
+			});
 
 		// Calculate totals
 		const totals = this.calculate_totals(allRows);
@@ -1697,8 +1741,10 @@ class ProjectTimeHierarchy {
 		});
 
 		// Load data for all employees
+		const countableEmployees = allEmployees.filter(e => this.is_countable(e));
+
 		const allStats = [];
-		for (const emp of allEmployees.slice(0, 20)) { // Limit to 20 for performance
+		for (const emp of countableEmployees.slice(0, 20)) { // Limit to 20 for performance
 			const cacheKey = JSON.stringify({ employee: emp.id, ...dateParams, ...filters });
 			if (!this.data_cache[cacheKey]) {
 				const r = await frappe.call({
@@ -1788,8 +1834,10 @@ class ProjectTimeHierarchy {
 			allEmployees.push(...this.flatten_tree(team));
 		});
 
+		const countableEmployees = allEmployees.filter(e => this.is_countable(e));
+
 		const allRows = [];
-		for (const emp of allEmployees) {
+		for (const emp of countableEmployees) {
 			const cacheKey = JSON.stringify({ employee: emp.id, ...dateParams, ...filters });
 			if (!this.data_cache[cacheKey]) {
 				const r = await frappe.call({
@@ -2334,6 +2382,16 @@ class ProjectTimeHierarchy {
 		return this.tree.reduce((acc, root) => acc.concat(this.flatten_descendants(root).map(d => d.node)), []);
 	}
 
+	// True if this node's own row should be counted/shown in data views.
+	// When the Deployed filter is off, everyone counts (unchanged behavior).
+	// When it's on, only employees actually flagged Deployed on the Employee
+	// master count — even if they're kept in the tree as a pass-through
+	// manager so their deployed reports stay reachable.
+	is_countable(node) {
+		if (!this.deployed_field.get_value()) return true;
+		return !!node.deployed;
+	}
+
 	// Same population as the "All Employees" tab (root leads included). Used
 	// only for the Billable % figure, so that number always matches what
 	// All Employees' Total row shows - the Teams/Total Employees counters
@@ -2344,10 +2402,10 @@ class ProjectTimeHierarchy {
 
 	async update_quick_stats() {
 		const employees = this.get_stat_employees();
-		const billableEmployees = this.get_billable_stat_employees();
-		// A "team" is anyone below the root who has reports of their own
+		const billableEmployees = this.get_billable_stat_employees().filter(e => this.is_countable(e));
 		const totalTeams = employees.filter(e => e.children && e.children.length).length;
-		const totalEmployees = employees.length;
+		const totalEmployees = employees.filter(e => this.is_countable(e)).length;
+
 
 		// The Total Employees card only means something to someone who leads a
 		// team. The tree is rooted at the viewer, so an employee with no reports
