@@ -140,22 +140,23 @@ class Meeting(Document):
 		subject = f"Meeting by {self.meeting_arranged_by} for {project_name or ''} with {company_reps} and {party_reps}"
 
 		# Create Task
-		task = frappe.new_doc("Task")
-		task.subject = f"{project_name} - {'Internal' if self.internal_meeting else 'External'}"
-		task.description = subject
-		task.project = self.project
-		task.type = "Meeting"
-		task.status = "Completed"
-		task.completed_by = self.meeting_arranged_by
-		task.completed_on = self.meeting_to
-		task.exp_start_date = self.meeting_from
-		task.exp_end_date = self.meeting_to
-		task.reference_type = "Meeting"
-		task.reference_name = self.name
-		task.assignee = self.meeting_arranged_by
-		task.save(ignore_permissions=True)
-		# Link Task to Meeting
-		self.db_set("task", task.name)
+		if not self.task:
+			task = frappe.new_doc("Task")
+			task.subject = f"{project_name} - {'Internal' if self.internal_meeting else 'External'}"
+			task.description = subject
+			task.project = self.project
+			task.type = "Meeting"
+			task.status = "Completed"
+			task.completed_by = self.meeting_arranged_by
+			task.completed_on = self.meeting_to
+			task.exp_start_date = self.meeting_from
+			task.exp_end_date = self.meeting_to
+			task.reference_type = "Meeting"
+			task.reference_name = self.name
+			task.assignee = self.meeting_arranged_by
+			task.save(ignore_permissions=True)
+			# Link Task to Meeting
+			self.db_set("task", task.name)
 
 
 	def check_min_participants(self):
