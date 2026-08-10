@@ -1235,7 +1235,7 @@ def update_due_period():
 
 
 def merge_logs(logs):
-    logs.sort(key=lambda x: x["from_time"])
+    logs = sorted((log.copy() for log in logs), key=lambda x: x["from_time"])
     
     merged_logs = []
     
@@ -1249,14 +1249,11 @@ def merge_logs(logs):
         
         priority_keys = ["task", "issue", "project"]
         
-        key_changed = any(
-            log.get(key) and log[key] != last_log.get(key)
-            for key in priority_keys
+        same_assignment = all(
+            log.get(key) == last_log.get(key) for key in priority_keys
         )
-        
-        both_none = all(log.get(key) is None and last_log.get(key) is None for key in priority_keys)
-        
-        if time_gap <= 10 and not key_changed and (both_none or any(log.get(key) == last_log.get(key) for key in priority_keys)):
+
+        if time_gap <= 10 and same_assignment:
             last_log["to_time"] = max(last_log["to_time"], log["to_time"])
         
         elif log["from_time"] <= last_log["to_time"]:
@@ -1267,12 +1264,17 @@ def merge_logs(logs):
             
             merged_logs.append(log)        
         else:
-            log["from_time"] = max(log["from_time"], last_log["to_time"] + timedelta(seconds=1))
             merged_logs.append(log)
     
     return merged_logs
 
 def split_logs(merged_logs, new_logs):
+    merged_logs = sorted(
+        (log.copy() for log in merged_logs), key=lambda x: x["from_time"]
+    )
+    new_logs = sorted(
+        (log.copy() for log in new_logs), key=lambda x: x["from_time"]
+    )
     updated_logs = []
     i, j = 0, 0
 
@@ -1315,7 +1317,9 @@ def split_logs(merged_logs, new_logs):
     return updated_logs
 
 def get_employee_meetings(employee, date):
-    data = frappe.db.sql(f"""
+    day_start = get_datetime(date)
+    next_day = day_start + timedelta(days=1)
+    data = frappe.db.sql("""
         SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, 
            m.internal_meeting, m.project, m.task, m.meeting_arranged_by,
            mcr.employee as company_rep_employee, mcr.employee_name as company_rep_name,
@@ -1323,8 +1327,15 @@ def get_employee_meetings(employee, date):
         FROM `tabMeeting` as m
         LEFT JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
         LEFT JOIN `tabMeeting Party Representative` as mpr ON m.name = mpr.parent
-        WHERE mcr.employee = '{employee}' and m.docstatus = 1 and m.meeting_from >= '{date} 00:00:00' and m.meeting_to <= '{date} 23:59:59'
-        """, as_dict=True)
+        WHERE mcr.employee = %(employee)s
+          AND m.docstatus = 1
+          AND m.meeting_from < %(next_day)s
+          AND m.meeting_to > %(day_start)s
+        ORDER BY m.meeting_from
+        """, {"employee": employee, "day_start": day_start, "next_day": next_day}, as_dict=True)
+    for meeting in data:
+        meeting.from_time = max(meeting.from_time, day_start)
+        meeting.to_time = min(meeting.to_time, next_day)
     return data
 
 def group_logs_by_employee(logs):
@@ -1338,6 +1349,8 @@ def group_logs_by_employee(logs):
 
     
 def create_timesheet_logs():
+    day_start = get_datetime(today())
+    next_day = day_start + timedelta(days=1)
     applications = frappe.get_all(
         "Application Usage log",
         fields=["employee","from_time","to_time","task","issue","project"],
@@ -1349,40 +1362,31 @@ def create_timesheet_logs():
     calls = frappe.get_all(
         "Employee Fincall",
         fields=["name as call_id","employee","call_datetime as from_time","ADDTIME(call_datetime, SEC_TO_TIME(duration)) as to_time", "issue", "task", "project"],
-        filters={
-            "call_datetime": ["between",[today(),today()]],
-        }
+        filters=[
+            ["call_datetime", ">=", day_start],
+            ["call_datetime", "<", next_day],
+        ],
+        order_by="call_datetime asc",
     )
     
     merged_logs = {}
     applications = group_logs_by_employee(applications)
     calls = group_logs_by_employee(calls)
-    print("Employees with App Logs:", list(applications.keys()))
-    print("Employees with Call Logs:", list(calls.keys()))
     employees = frappe.get_all('List of User', fields=['employee'],pluck='employee')
-
-    print("Total employees:", len(employees))
-    frappe.log_error("DEBUG", f"Employees found: {len(employees)}")
     
     # merge application logs
     for employee, logs in applications.items():
         merged_logs[employee] = merge_logs(logs)
-
-    print("After merging app logs:", {k: len(v) for k,v in merged_logs.items()})
     
 
     # split meeting logs
     for employee in employees:
         meetings = get_employee_meetings(employee, today())
-        print(f"Meetings for {employee}: {len(meetings)}")
         merged_logs[employee] = split_logs(merged_logs.get(employee,[]),meetings)
     
     # split call logs
     for employee, logs in calls.items():
-        print(f"Call logs for {employee}: {len(logs)}")
         merged_logs[employee] = split_logs(merged_logs.get(employee,[]),logs)
-    print("Merged logs final:", {k: len(v) for k,v in merged_logs.items()})
-    frappe.log_error("DEBUG", f"Merged logs final: {merged_logs}")
 
     created_count = 0
     
@@ -1416,7 +1420,6 @@ def create_timesheet_logs():
             print("No logs found for employee, skipping timesheet creation")
             continue
         for log in employee_merged_logs:
-            log["to_time"] = log["to_time"] - timedelta(seconds=1)
             seconds = (log["to_time"] - log["from_time"]).total_seconds()
             hours = seconds / 3600
             if seconds <= 0:
@@ -1425,14 +1428,14 @@ def create_timesheet_logs():
             activity_type = ""
             if log.get("meeting"):
                 activity_type = "Meeting"
+            elif log.get("call_id"):
+                activity_type = "Call"
             elif log.get("issue"):
                 activity_type = "Issue"
             elif log.get("task"):
                 activity_type = "Task"
             elif log.get("project"):
                 activity_type = "Project"
-            elif log.get("call_id"):
-                activity_type = "Call"
             else:
                 activity_type = "No Task"
 
