@@ -1316,17 +1316,32 @@ def split_logs(merged_logs, new_logs):
             updated_logs[k]["from_time"] = updated_logs[k - 1]["to_time"]
     return updated_logs
 
+def normalize_non_overlapping_logs(logs):
+    """Return chronologically sorted logs with no overlapping intervals."""
+    normalized_logs = []
+
+    for source_log in sorted(logs, key=lambda log: log["from_time"]):
+        log = source_log.copy()
+        log["from_time"] = get_datetime(log["from_time"])
+        log["to_time"] = get_datetime(log["to_time"])
+
+        if normalized_logs and log["from_time"] < normalized_logs[-1]["to_time"]:
+            log["from_time"] = normalized_logs[-1]["to_time"]
+
+        if log["from_time"] < log["to_time"]:
+            normalized_logs.append(log)
+
+    return normalized_logs
+
 def get_employee_meetings(employee, date):
     day_start = get_datetime(date)
     next_day = day_start + timedelta(days=1)
     data = frappe.db.sql("""
         SELECT m.name as meeting, m.meeting_from as from_time, m.meeting_to as to_time, 
            m.internal_meeting, m.project, m.task, m.meeting_arranged_by,
-           mcr.employee as company_rep_employee, mcr.employee_name as company_rep_name,
-            mpr.contact as party_rep_contact
+           mcr.employee as company_rep_employee, mcr.employee_name as company_rep_name
         FROM `tabMeeting` as m
-        LEFT JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        LEFT JOIN `tabMeeting Party Representative` as mpr ON m.name = mpr.parent
+        INNER JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
         WHERE mcr.employee = %(employee)s
           AND m.docstatus = 1
           AND m.meeting_from < %(next_day)s
@@ -1413,7 +1428,9 @@ def create_timesheet_logs():
             timesheet.employee = employee
             print("Creating new Timesheet for:", employee)
         timesheet.is_created_by_productify = True
-        employee_merged_logs = merged_logs.get(employee, [])
+        employee_merged_logs = normalize_non_overlapping_logs(
+            merged_logs.get(employee, [])
+        )
 
         print("Logs for employee:", len(employee_merged_logs))
         if not employee_merged_logs:
