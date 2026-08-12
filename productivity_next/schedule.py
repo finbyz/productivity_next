@@ -1317,7 +1317,6 @@ def split_logs(merged_logs, new_logs):
     return updated_logs
 
 def normalize_non_overlapping_logs(logs):
-    """Return chronologically sorted logs with no overlapping intervals."""
     normalized_logs = []
 
     for source_log in sorted(logs, key=lambda log: log["from_time"]):
@@ -1329,6 +1328,8 @@ def normalize_non_overlapping_logs(logs):
             log["from_time"] = normalized_logs[-1]["to_time"]
 
         if log["from_time"] < log["to_time"]:
+            if normalized_logs and normalized_logs[-1]["to_time"] == log["from_time"]:
+                normalized_logs[-1]["to_time"] -= timedelta(seconds=1)
             normalized_logs.append(log)
 
     return normalized_logs
