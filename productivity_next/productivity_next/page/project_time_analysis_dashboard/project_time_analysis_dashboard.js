@@ -195,9 +195,9 @@ class ProjectTimeHierarchy {
 		});
 		this.admin_filter_field.$wrapper.hide();
 
-		this.deployed_field = this.page.add_field({
-			fieldname: "deployed_only",
-			label: "Deployed",
+		this.deployable_field = this.page.add_field({
+			fieldname: "deployable_only",
+			label: "deployable",
 			fieldtype: "Check",
 			default: 1,
 			change: () => this.load_tree(),
@@ -1145,7 +1145,7 @@ class ProjectTimeHierarchy {
     this.$main_container.find('.pta-tree-inner').html('<div class="pta-loading">Loading hierarchy...</div>');
     frappe.call({
         method: "productivity_next.productivity_next.page.project_time_analysis_dashboard.project_time_analysis_dashboard.get_team_tree",
-        args: { deployed_only: this.deployed_field.get_value() ? 1 : 0 },
+        args: { deployable_only: this.deployable_field.get_value() ? 1 : 0 },
         callback: (r) => {
             const msg = r.message || {};
             this.is_admin = !!msg.is_admin;
@@ -1157,7 +1157,7 @@ class ProjectTimeHierarchy {
             this.render_tree();
             this.update_quick_stats();
 
-            // Deployed filter changes WHO is in the tree, so make sure a
+            // deployable filter changes WHO is in the tree, so make sure a
             // currently-selected employee who dropped out of the tree
             // doesn't leave stale data on screen.
             if (this.selected_employee) {
@@ -2383,13 +2383,13 @@ class ProjectTimeHierarchy {
 	}
 
 	// True if this node's own row should be counted/shown in data views.
-	// When the Deployed filter is off, everyone counts (unchanged behavior).
-	// When it's on, only employees actually flagged Deployed on the Employee
+	// When the deployable filter is off, everyone counts (unchanged behavior).
+	// When it's on, only employees actually flagged deployable on the Employee
 	// master count — even if they're kept in the tree as a pass-through
-	// manager so their deployed reports stay reachable.
+	// manager so their deployable reports stay reachable.
 	is_countable(node) {
-		if (!this.deployed_field.get_value()) return true;
-		return !!node.deployed;
+		if (!this.deployable_field.get_value()) return true;
+		return !!node.deployable;
 	}
 
 	// Same population as the "All Employees" tab (root leads included). Used
