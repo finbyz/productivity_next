@@ -275,7 +275,8 @@ class Task(_Task):
 					SUM(expected_time)                                         AS total_expected_time,
 					MIN(exp_start_date)                                        AS min_start,
 					MAX(exp_end_date)                                          AS max_end,
-					SUM(CASE WHEN status != 'Completed' THEN 1 ELSE 0 END)     AS incomplete_count,
+					SUM(CASE WHEN status NOT IN ('Completed', 'Cancelled') THEN 1 ELSE 0 END)
+						AS incomplete_count,
 					MAX(CASE WHEN status = 'Completed' THEN completed_on END)  AS latest_completed_on,
 					(SELECT completed_by
 					 FROM leaf_tasks
@@ -310,8 +311,6 @@ class Task(_Task):
 
 	def update_if_is_group(self):
 		if self.is_group:
-			self.status = "Open"
-
 			sum_child_task = frappe.db.sql(
 				f"""
 				WITH RECURSIVE `task_tree` AS (
