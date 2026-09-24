@@ -1,3 +1,4 @@
+import hashlib
 import json
 import frappe
 from frappe.auth import LoginManager
@@ -26,10 +27,294 @@ from frappe.utils import (
     validate_email_address,
 )
 from frappe.query_builder import Order
-
+from pypika.terms import Case, ExistsCriterion
 from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
 from geopy.distance import geodesic
-from frappe.query_builder import Order
+from redis.exceptions import LockError, RedisError
+
+
+PROJECT_TIME_ANALYSIS_REPORT = "Project Time Analysis"
+PROJECT_TIME_ANALYSIS_CACHE_TTL = 4 * 60 * 60
+PROJECT_TIME_ANALYSIS_LOCK_TIMEOUT = 10 * 60
+PROJECT_TIME_ANALYSIS_LOCK_WAIT = 2 * 60
+
+
+def _normalize_project_time_analysis_employee(employee):
+    if isinstance(employee, (list, tuple, set)):
+        frappe.throw(_("Only one Employee can be requested at a time."))
+
+    if not isinstance(employee, str) or not employee.strip():
+        frappe.throw(_("Employee is required."))
+
+    employee = employee.strip()
+
+    if employee.startswith("["):
+        frappe.throw(_("Only one Employee can be requested at a time."))
+
+    return employee
+
+
+def _run_project_time_analysis(from_date, to_date):
+    """
+    Run Project Time Analysis ONCE for all employees.
+
+    Employee is deliberately NOT passed to the report.
+    """
+
+    from frappe.desk.query_report import run
+
+    filters = {
+        "from_date": from_date,
+        "to_date": to_date,
+        "show_employee": 1,
+        "show_details": 1,
+    }
+
+    report_result = run(
+        report_name=PROJECT_TIME_ANALYSIS_REPORT,
+        filters=filters,
+        ignore_prepared_report=True,
+        are_default_filters=False,
+    )
+
+    # Store all employees in shared/site-level cache.
+    return [
+        {
+            "employee": row.get("employee_id"),
+            "project": row.get("project"),
+            "total_hours": f"{flt(row.get('total_hours')):.2f}",
+        }
+        for row in report_result.get("result") or []
+        if isinstance(row, dict)
+        and row.get("employee_id")
+    ]
+
+
+def _get_project_time_analysis_cache_key(from_date, to_date):
+    """
+    IMPORTANT:
+    Employee is intentionally NOT part of cache key.
+
+    One cache entry:
+        from_date + to_date
+
+    shared by all users on this Frappe site.
+    """
+
+    cache_input = json.dumps(
+        {
+            "from_date": from_date,
+            "to_date": to_date,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+    digest = hashlib.sha256(cache_input.encode()).hexdigest()
+
+    return f"project_time_analysis:v7:{digest}"
+
+
+def _run_and_cache_project_time_analysis(
+    cache_key,
+    from_date,
+    to_date,
+):
+    """
+    Generate report for ALL employees and cache it once.
+    """
+
+    result = _run_project_time_analysis(
+        from_date,
+        to_date,
+    )
+
+    frappe.cache.set_value(
+        cache_key,
+        result,
+        expires_in_sec=PROJECT_TIME_ANALYSIS_CACHE_TTL,
+    )
+
+    return result
+
+
+def _get_cached_project_time_analysis(
+    from_date,
+    to_date,
+):
+    """
+    Return the common site-level cache.
+
+    No user=True:
+    cache is shared between users of this site.
+    """
+
+    cache_key = _get_project_time_analysis_cache_key(
+        from_date,
+        to_date,
+    )
+
+    cached_result = frappe.cache.get_value(
+        cache_key,
+        expires=True,
+    )
+
+    if cached_result is not None:
+        return cached_result
+
+    # Common lock for this date range.
+    #
+    # This means:
+    #
+    # User A → cache miss → obtains lock → runs report
+    # User B → cache miss → waits
+    # User C → cache miss → waits
+    #
+    # Once User A caches the report,
+    # B/C read the same cached result.
+    lock_key = frappe.cache.make_key(
+        f"{cache_key}:lock"
+    )
+
+    lock = frappe.cache.lock(
+        lock_key,
+        timeout=PROJECT_TIME_ANALYSIS_LOCK_TIMEOUT,
+        blocking_timeout=PROJECT_TIME_ANALYSIS_LOCK_WAIT,
+    )
+
+    try:
+        lock_acquired = lock.acquire()
+
+    except RedisError:
+        return _run_and_cache_project_time_analysis(
+            cache_key,
+            from_date,
+            to_date,
+        )
+
+    if not lock_acquired:
+
+        cached_result = frappe.cache.get_value(
+            cache_key,
+            expires=True,
+        )
+
+        if cached_result is not None:
+            return cached_result
+
+        return _run_and_cache_project_time_analysis(
+            cache_key,
+            from_date,
+            to_date,
+        )
+
+    try:
+        # Double-check after acquiring lock because another
+        # request may already have generated the cache.
+        cached_result = frappe.cache.get_value(
+            cache_key,
+            expires=True,
+        )
+
+        if cached_result is not None:
+            return cached_result
+
+        return _run_and_cache_project_time_analysis(
+            cache_key,
+            from_date,
+            to_date,
+        )
+
+    finally:
+        try:
+            lock.release()
+
+        except (LockError, RedisError):
+            pass
+
+
+def _filter_project_time_analysis_for_employee(
+    cached_result,
+    employee,
+):
+    """
+    Cache contains ALL employees.
+
+    API response contains ONLY requested employee.
+    """
+
+    return [
+        {
+            "project": row.get("project"),
+            "total_hours": row.get("total_hours"),
+        }
+        for row in cached_result or []
+        if isinstance(row, dict)
+        and row.get("employee") == employee
+    ]
+
+
+@frappe.whitelist(methods=["GET"])
+def get_project_time_analysis(
+    from_date=None,
+    to_date=None,
+    employee=None,
+):
+    """
+    Return Project Time Analysis for one employee.
+
+    Internally:
+        report → all employees
+        cache  → all employees
+
+    Response:
+        requested employee only
+    """
+
+    if not from_date or not to_date:
+        frappe.throw(
+            _("From Date and To Date are required.")
+        )
+
+    try:
+        from_date = getdate(from_date)
+        to_date = getdate(to_date)
+
+    except (TypeError, ValueError):
+        frappe.throw(
+            _("From Date and To Date must be valid dates.")
+        )
+
+    if from_date > to_date:
+        frappe.throw(
+            _("From Date cannot be after To Date.")
+        )
+
+    employee = _normalize_project_time_analysis_employee(
+        employee
+    )
+
+    # Keep permission check on every request,
+    # even when the actual report comes from Redis.
+    from frappe.desk.query_report import get_report_doc
+
+    get_report_doc(
+        PROJECT_TIME_ANALYSIS_REPORT
+    )
+
+    
+    # 1. Get common cache containing ALL employees
+    cached_result = _get_cached_project_time_analysis(
+        from_date.isoformat(),
+        to_date.isoformat(),
+    )
+
+    
+    # 2. Filter BEFORE sending response
+    return _filter_project_time_analysis_for_employee(
+        cached_result,
+        employee,
+    )
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1908,40 +2193,173 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
 
 
 @frappe.whitelist()
-def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
+def get_tasks(assignee=None, start_date=None, end_date=None, filters=None):
+
     if filters:
         filters = frappe.parse_json(filters)
+
+        # frappe.log_error(
+        #     title="Filters Log",
+        #     message=frappe.as_json(filters),
+        # )
+
+        tasks = frappe.get_list(
+            "Task",
+            filters=filters,
+            fields=["*"],
+        )
+
+        # Keep response structure consistent for frontend
+        for task in tasks:
+            task["is_todo"] = False
+            task["todo_id"] = None
+
         return {
-            "data": frappe.get_list("Task",filters=filters,fields=['*'])
+            "data": tasks
         }
+
     Task = DocType("Task")
-    
+    ToDo = DocType("ToDo")
+
+    assigned_task_condition = (
+        Task.status.notin(
+            [
+                "Unplanned",
+                "Template",
+                "Cancelled",
+                "Completed",
+            ]
+        )
+        & (Task.exp_start_date <= end_date)
+        & (
+            (Task._assign.like(f'%"{assignee}"%'))
+            | (Task.assignee == assignee)
+        )
+    )
+
+
+    completed_task_condition = (
+        (Task.status == "Completed")
+        & (Task.completed_on.between(start_date, end_date))
+        & (Task.completed_by == assignee)
+    )
+
+    # Tasks normally returned by get_tasks
+    primary_task_condition = (
+        assigned_task_condition
+        | completed_task_condition
+    )
+
+    closed_todo_query = (
+        frappe.qb.from_(ToDo)
+        .select(ToDo.name)
+        .where(
+            (ToDo.allocated_to == assignee)
+            & (ToDo.reference_type == "Task")
+            & (ToDo.reference_name == Task.name)
+            & (ToDo.status == "Closed")
+            & (ToDo.modified.between(start_date, end_date))
+        )
+    )
+
+    has_closed_todo = ExistsCriterion(closed_todo_query)
+
+
+    rescued_by_todo_condition = (
+        (~primary_task_condition)
+        & has_closed_todo
+    )
+
+
+    is_todo_field = (
+        Case()
+        .when(rescued_by_todo_condition, 1)
+        .else_(0)
+        .as_("is_todo")
+    )
     query = (
         frappe.qb.from_(Task)
         .select("*")
+        .select(is_todo_field)
         .where(
-            (
-                (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
-                & (Task.exp_start_date.lte(end_date))
-                & (
-                    (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
-                )
-            )
-            | (
-                (Task.status == "Completed")
-                & (Task.completed_on.between(start_date, end_date))
-                & (Task.completed_by == assignee)
-            )
+            primary_task_condition
+            | has_closed_todo
         )
-        .orderby(Task.modified, order=Order.desc)
+        .orderby(
+            Task.modified,
+            order=Order.desc,
+        )
     )
 
     tasks = query.run(as_dict=True)
-    
-    completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
-    non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
+
+    todo_task_ids = [
+        task.get("name")
+        for task in tasks
+        if task.get("is_todo")
+    ]
+
+    todo_map = {}
+
+    if todo_task_ids:
+        closed_todos = frappe.get_all(
+            "ToDo",
+            filters={
+                "allocated_to": assignee,
+                "reference_type": "Task",
+                "reference_name": ["in", todo_task_ids],
+                "status": "Closed",
+                "modified": ["between", [start_date, end_date]],
+            },
+            fields=[
+                "name",
+                "reference_name",
+                "modified",
+            ],
+            order_by="modified desc",
+        )
+
+        # Because results are ordered newest first,
+        # setdefault keeps the latest ToDo for each Task.
+        for todo in closed_todos:
+            todo_map.setdefault(
+                todo.reference_name,
+                todo.name,
+            )
+
+    for task in tasks:
+        task["is_todo"] = bool(
+            task.get("is_todo")
+        )
+
+        if task["is_todo"]:
+            task["todo_id"] = todo_map.get(
+                task.get("name")
+            )
+
+            # Rescued Closed-ToDo Task should appear completed
+            task["status"] = "Completed"
+
+        else:
+            task["todo_id"] = None
+
+    non_completed_tasks = [
+        task
+        for task in tasks
+        if task.get("status") != "Completed"
+    ]
+
+    completed_tasks = [
+        task
+        for task in tasks
+        if task.get("status") == "Completed"
+    ]
+
     return {
-        "data": [*non_completed_tasks, *completed_tasks]
+        "data": [
+            *non_completed_tasks,
+            *completed_tasks,
+        ]
     }
 
 
