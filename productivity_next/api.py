@@ -27,7 +27,7 @@ from frappe.utils import (
     validate_email_address,
 )
 from frappe.query_builder import Order
-from pypika.terms import Case, ExistsCriterion
+from pypika.terms import Case
 from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
 from geopy.distance import geodesic
 from redis.exceptions import LockError, RedisError
@@ -56,7 +56,7 @@ def _normalize_project_time_analysis_employee(employee):
 
 def _run_project_time_analysis(from_date, to_date):
     """
-    Run Project Time Analysis ONCE for all employees.
+    Run Project Time Analysis for customer and internal projects for all employees.
 
     Employee is deliberately NOT passed to the report.
     """
@@ -70,24 +70,27 @@ def _run_project_time_analysis(from_date, to_date):
         "show_details": 1,
     }
 
-    report_result = run(
-        report_name=PROJECT_TIME_ANALYSIS_REPORT,
-        filters=filters,
-        ignore_prepared_report=True,
-        are_default_filters=False,
-    )
+    result = []
+    for is_internal_project in (0, 1):
+        report_result = run(
+            report_name=PROJECT_TIME_ANALYSIS_REPORT,
+            filters={**filters, "is_internal_project": is_internal_project},
+            ignore_prepared_report=True,
+            are_default_filters=False,
+        )
+
+        result.extend(
+            {
+                "employee": row.get("employee_id"),
+                "project": row.get("project"),
+                "total_hours": f"{flt(row.get('total_hours')):.2f}",
+            }
+            for row in report_result.get("result") or []
+            if isinstance(row, dict) and row.get("employee_id")
+        )
 
     # Store all employees in shared/site-level cache.
-    return [
-        {
-            "employee": row.get("employee_id"),
-            "project": row.get("project"),
-            "total_hours": f"{flt(row.get('total_hours')):.2f}",
-        }
-        for row in report_result.get("result") or []
-        if isinstance(row, dict)
-        and row.get("employee_id")
-    ]
+    return result
 
 
 def _get_project_time_analysis_cache_key(from_date, to_date):
@@ -112,7 +115,7 @@ def _get_project_time_analysis_cache_key(from_date, to_date):
 
     digest = hashlib.sha256(cache_input.encode()).hexdigest()
 
-    return f"project_time_analysis:v7:{digest}"
+    return f"project_time_analysis:v8:{digest}"
 
 
 def _run_and_cache_project_time_analysis(
@@ -2199,8 +2202,28 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
         filters = frappe.parse_json(filters)
         return {
             "data": frappe.get_list("Task",filters=filters,fields=['*'])
+            "data": frappe.get_list("Task",filters=filters,fields=['*'])
         }
     Task = DocType("Task")
+    
+    query = (
+        frappe.qb.from_(Task)
+        .select("*")
+        .where(
+            (
+                (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
+                & (Task.exp_start_date.lte(end_date))
+                & (
+                    (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
+                )
+            )
+            | (
+                (Task.status == "Completed")
+                & (Task.completed_on.between(start_date, end_date))
+                & (Task.completed_by == assignee)
+            )
+        )
+        .orderby(Task.modified, order=Order.desc)
     
     query = (
         frappe.qb.from_(Task)
@@ -2226,7 +2249,11 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     
     completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
     non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
+    
+    completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
+    non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
     return {
+        "data": [*non_completed_tasks, *completed_tasks]
         "data": [*non_completed_tasks, *completed_tasks]
     }
 
