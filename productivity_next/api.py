@@ -2192,174 +2192,42 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
     return data
 
 
-@frappe.whitelist()
-def get_tasks(assignee=None, start_date=None, end_date=None, filters=None):
 
+@frappe.whitelist()
+def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     if filters:
         filters = frappe.parse_json(filters)
-
-        # frappe.log_error(
-        #     title="Filters Log",
-        #     message=frappe.as_json(filters),
-        # )
-
-        tasks = frappe.get_list(
-            "Task",
-            filters=filters,
-            fields=["*"],
-        )
-
-        # Keep response structure consistent for frontend
-        for task in tasks:
-            task["is_todo"] = False
-            task["todo_id"] = None
-
         return {
-            "data": tasks
+            "data": frappe.get_list("Task",filters=filters,fields=['*'])
         }
-
     Task = DocType("Task")
-    ToDo = DocType("ToDo")
-
-    assigned_task_condition = (
-        Task.status.notin(
-            [
-                "Unplanned",
-                "Template",
-                "Cancelled",
-                "Completed",
-            ]
-        )
-        & (Task.exp_start_date <= end_date)
-        & (
-            (Task._assign.like(f'%"{assignee}"%'))
-            | (Task.assignee == assignee)
-        )
-    )
-
-
-    completed_task_condition = (
-        (Task.status == "Completed")
-        & (Task.completed_on.between(start_date, end_date))
-        & (Task.completed_by == assignee)
-    )
-
-    # Tasks normally returned by get_tasks
-    primary_task_condition = (
-        assigned_task_condition
-        | completed_task_condition
-    )
-
-    closed_todo_query = (
-        frappe.qb.from_(ToDo)
-        .select(ToDo.name)
-        .where(
-            (ToDo.allocated_to == assignee)
-            & (ToDo.reference_type == "Task")
-            & (ToDo.reference_name == Task.name)
-            & (ToDo.status == "Closed")
-            & (ToDo.modified.between(start_date, end_date))
-        )
-    )
-
-    has_closed_todo = ExistsCriterion(closed_todo_query)
-
-
-    rescued_by_todo_condition = (
-        (~primary_task_condition)
-        & has_closed_todo
-    )
-
-
-    is_todo_field = (
-        Case()
-        .when(rescued_by_todo_condition, 1)
-        .else_(0)
-        .as_("is_todo")
-    )
+    
     query = (
         frappe.qb.from_(Task)
         .select("*")
-        .select(is_todo_field)
         .where(
-            primary_task_condition
-            | has_closed_todo
+            (
+                (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
+                & (Task.exp_start_date.lte(end_date))
+                & (
+                    (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
+                )
+            )
+            | (
+                (Task.status == "Completed")
+                & (Task.completed_on.between(start_date, end_date))
+                & (Task.completed_by == assignee)
+            )
         )
-        .orderby(
-            Task.modified,
-            order=Order.desc,
-        )
+        .orderby(Task.modified, order=Order.desc)
     )
 
     tasks = query.run(as_dict=True)
-
-    todo_task_ids = [
-        task.get("name")
-        for task in tasks
-        if task.get("is_todo")
-    ]
-
-    todo_map = {}
-
-    if todo_task_ids:
-        closed_todos = frappe.get_all(
-            "ToDo",
-            filters={
-                "allocated_to": assignee,
-                "reference_type": "Task",
-                "reference_name": ["in", todo_task_ids],
-                "status": "Closed",
-                "modified": ["between", [start_date, end_date]],
-            },
-            fields=[
-                "name",
-                "reference_name",
-                "modified",
-            ],
-            order_by="modified desc",
-        )
-
-        # Because results are ordered newest first,
-        # setdefault keeps the latest ToDo for each Task.
-        for todo in closed_todos:
-            todo_map.setdefault(
-                todo.reference_name,
-                todo.name,
-            )
-
-    for task in tasks:
-        task["is_todo"] = bool(
-            task.get("is_todo")
-        )
-
-        if task["is_todo"]:
-            task["todo_id"] = todo_map.get(
-                task.get("name")
-            )
-
-            # Rescued Closed-ToDo Task should appear completed
-            task["status"] = "Completed"
-
-        else:
-            task["todo_id"] = None
-
-    non_completed_tasks = [
-        task
-        for task in tasks
-        if task.get("status") != "Completed"
-    ]
-
-    completed_tasks = [
-        task
-        for task in tasks
-        if task.get("status") == "Completed"
-    ]
-
+    
+    completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
+    non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
     return {
-        "data": [
-            *non_completed_tasks,
-            *completed_tasks,
-        ]
+        "data": [*non_completed_tasks, *completed_tasks]
     }
 
 
