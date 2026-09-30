@@ -2202,7 +2202,6 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
         filters = frappe.parse_json(filters)
         return {
             "data": frappe.get_list("Task",filters=filters,fields=['*'])
-            "data": frappe.get_list("Task",filters=filters,fields=['*'])
         }
     Task = DocType("Task")
     
@@ -2224,6 +2223,7 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
             )
         )
         .orderby(Task.modified, order=Order.desc)
+    )
     
     query = (
         frappe.qb.from_(Task)
@@ -2249,11 +2249,7 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     
     completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
     non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
-    
-    completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
-    non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
     return {
-        "data": [*non_completed_tasks, *completed_tasks]
         "data": [*non_completed_tasks, *completed_tasks]
     }
 
