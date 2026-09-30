@@ -6,6 +6,7 @@ from collections import defaultdict
 from frappe.utils import flt
 
 def execute(filters=None):
+    filters = _normalise_date_filters(filters)
     start_time = frappe.utils.now_datetime()
     columns = get_columns(filters)
     data = get_data(filters)
@@ -17,6 +18,36 @@ def execute(filters=None):
         message=f"time in full execution {start_time} {end_time} {duration}"
     )
     return columns, data
+
+def _normalise_date_filters(filters):
+    if not isinstance(filters, dict):
+        frappe.throw(_("Report filters must be an object."), frappe.ValidationError)
+
+    filters = dict(filters)
+    dates = {}
+    for fieldname in ("from_date", "to_date"):
+        value = filters.get(fieldname)
+        if not isinstance(value, (str, datetime)) and not hasattr(value, "isoformat"):
+            frappe.throw(_("{0} must be a valid date.").format(fieldname), frappe.ValidationError)
+        try:
+            dates[fieldname] = (
+                datetime.strptime(value, "%Y-%m-%d").date()
+                if isinstance(value, str)
+                else getdate(value)
+            )
+        except (TypeError, ValueError):
+            frappe.throw(_("{0} must be a valid date.").format(fieldname), frappe.ValidationError)
+        filters[fieldname] = dates[fieldname]
+
+    if dates["from_date"] > dates["to_date"]:
+        frappe.throw(_("From Date cannot be after To Date."), frappe.ValidationError)
+
+    return filters
+
+
+def _sql_in_list(values):
+    return "(" + ", ".join(frappe.db.escape(value) for value in values) + ")" if values else "(NULL)"
+
 
 
 def get_columns(filters):
@@ -260,8 +291,7 @@ def get_data(filters):
         return []
     
     # Format the list for IN clause
-    project_list = "', '".join(valid_project_names)
-    project_list = f"('{project_list}')" if project_list else "(NULL)"
+    project_list = _sql_in_list(valid_project_names)
     
     # Application intervals query
     if employee and filters.get("show_employee"):
@@ -323,11 +353,7 @@ def get_data(filters):
         valid_customers = [project_customer_map[project]]
     
     # Format customer list for IN clause
-    if valid_customers:
-        customer_list = "', '".join(valid_customers)
-        customer_list = f"('{customer_list}')"
-    else:
-        customer_list = "(NULL)"  # No valid customers
+    customer_list = _sql_in_list(valid_customers)
     
     # Calls intervals query
     if employee and filters.get("show_employee"):
@@ -503,6 +529,7 @@ def get_deployment_rate_data(filters):
     
     # For each employee, calculate their hours
     for emp in employees:
+        escaped_employee_id = frappe.db.escape(employee_id)
         employee_id = emp.name
         
         # Calculate available working hours
@@ -531,8 +558,7 @@ def get_deployment_rate_data(filters):
         leave_days = leaves[0].total_leaves if leaves else 0
         combined_projects = resource_projects.union(internal_projects)
         combined = combined_projects.union(milestone_based_project)
-        project_list = "', '".join(combined)
-        project_list = f"('{project_list}')" if project_list else "(NULL)"
+        project_list = _sql_in_list(combined)
         
         
         # Application intervals query
@@ -547,7 +573,7 @@ def get_deployment_rate_data(filters):
                 'application' as activity_type
             FROM `tabApplication Usage log` as a
             WHERE a.date BETWEEN '{from_date}' AND '{to_date}'
-            AND a.employee = '{employee_id}'
+            AND a.employee = {escaped_employee_id}
             AND a.project IN {project_list}
         """, as_dict=True)
         
@@ -568,7 +594,7 @@ def get_deployment_rate_data(filters):
             AND m.meeting_to <= '{to_date} 23:59:59' 
             AND m.docstatus = 1
             AND m.project IN {project_list}
-            AND mcr.employee = '{employee_id}'
+            AND mcr.employee = {escaped_employee_id}
         """, as_dict=True)
         
         # Get customer-project mapping
@@ -591,11 +617,7 @@ def get_deployment_rate_data(filters):
         valid_customers = list(customer_projects_map.keys())
         
         # Format customer list for IN clause
-        if valid_customers:
-            customer_list = "', '".join(valid_customers)
-            customer_list = f"('{customer_list}')"
-        else:
-            customer_list = "(NULL)"  # No valid customers
+        customer_list = _sql_in_list(valid_customers)
         
         # Calls intervals query
         calls_intervals = frappe.db.sql(f"""
@@ -613,7 +635,7 @@ def get_deployment_rate_data(filters):
             AND calltype NOT IN ('Missed', 'Rejected')
             AND link_to = 'Customer'
             AND link_name IN {customer_list}
-            AND employee = '{employee_id}'
+            AND employee = {escaped_employee_id}
         """, as_dict=True)
         
         # Optimization: Map projects to calls once, using the pre-loaded customer-projects mapping
