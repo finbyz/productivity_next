@@ -13,11 +13,11 @@ def execute(filters=None):
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
     
-    frappe.log_error(
-        title=f'full execution {duration}', 
-        message=f"time in full execution {start_time} {end_time} {duration}"
+    frappe.logger("project_time_analysis").debug(
+        f"time in full execution {start_time} {end_time} {duration}"
     )
     return columns, data
+
 
 def _normalise_date_filters(filters):
     if not isinstance(filters, dict):
@@ -47,7 +47,6 @@ def _normalise_date_filters(filters):
 
 def _sql_in_list(values):
     return "(" + ", ".join(frappe.db.escape(value) for value in values) + ")" if values else "(NULL)"
-
 
 
 def get_columns(filters):
@@ -316,9 +315,8 @@ def get_data(filters):
     """, as_dict=True)
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
-    frappe.log_error(
-        title=f'application_intervals {duration}', 
-        message=f"time in application_intervals {start_time} {end_time} {duration}"
+    frappe.logger("project_time_analysis").debug(
+        f"time in application_intervals {start_time} {end_time} {duration}"
     )
     # Meeting intervals query
     if employee and filters.get("show_employee"):
@@ -365,7 +363,7 @@ def get_data(filters):
         SELECT 
             employee AS employee_id,
             employee_name,
-            NULL as project,
+            project,
             call_datetime as start_time,
             ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time,
             date,
@@ -383,8 +381,9 @@ def get_data(filters):
     for call in calls_intervals:
         customer = call.get('customer')
         if customer and customer in customer_projects_map:
-            # For simplicity, assign the first project of this customer
-            if customer_projects_map[customer]:
+            # Keep the call's explicit project when it belongs to this report.
+            # Fall back to the customer mapping only for legacy unlinked calls.
+            if call.get('project') not in valid_project_names and customer_projects_map[customer]:
                 call['project'] = customer_projects_map[customer][0]
     
     # Remove calls without project assignment
@@ -529,8 +528,8 @@ def get_deployment_rate_data(filters):
     
     # For each employee, calculate their hours
     for emp in employees:
-        escaped_employee_id = frappe.db.escape(employee_id)
         employee_id = emp.name
+        escaped_employee_id = frappe.db.escape(employee_id)
         
         # Calculate available working hours
         available_hours = calculate_total_working_hours(
@@ -912,9 +911,8 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
     
     end_time = frappe.utils.now_datetime()
     duration = (end_time - start_time).total_seconds()
-    frappe.log_error(
-        title=f'calculate_time_aggregates {duration}', 
-        message=f"time in calculate_time_aggregates {start_time} {end_time} {duration}"
+    frappe.logger("project_time_analysis").debug(
+        f"time in calculate_time_aggregates {start_time} {end_time} {duration}"
     )
     
     return result_data
