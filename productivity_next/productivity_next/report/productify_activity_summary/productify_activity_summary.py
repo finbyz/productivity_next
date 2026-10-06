@@ -2,6 +2,7 @@ from frappe import _
 import frappe
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from frappe.utils import getdate
 from productivity_next.api import calculate_total_working_hours
 def execute(filters=None):
     columns = get_columns()
@@ -37,6 +38,12 @@ def get_columns(filters=None):
             "fieldname": "productivity_score",
             "label": _("Productivity Score"),
             "fieldtype": "Data",  
+        },
+        {
+            "fieldname": "leave",
+            "label": _("Leave"),
+            "fieldtype": "Data",
+            "width": 100
         },
         {
             "fieldname": "reason",
@@ -158,6 +165,7 @@ def get_data(filters):
             WHERE holiday_date BETWEEN %s AND %s
         """, (from_date, to_date), as_dict=True)
         holiday_dates = set(holiday.holiday_date for holiday in holidays)
+        leave_days = get_leave_days(filters)
         for start, end in date_ranges:
             current_filters = filters.copy()
             current_filters["from_date"] = start.strftime("%Y-%m-%d")
@@ -169,6 +177,7 @@ def get_data(filters):
                 "starting_date": current_filters["from_date"],
                 "ending_date": current_filters["to_date"],
                 "productivity_score": 0,
+                "leave": 0,
                 "total_hours": 0,
                 "active_hours": 0,
                 "idle_hours": 0,
@@ -249,7 +258,11 @@ def get_data(filters):
                     reason = frappe.db.get_value("Working Hours Exception", {"employee": emp_id, "starting_date": current_filters["from_date"]}, "reason")
                     employee_record["reason"] = reason if reason else ""
 
-                data.append({k: format_duration(v) if k in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours'] else v for k, v in employee_record.items()})
+                employee_record["leave"] = sum(
+                    leave_days.get((employee, day.date()), 0)
+                    for day in date_range(start, end)
+                )
+                data.append({k: format_leave(v) if k == "leave" else format_duration(v) if k in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours'] else v for k, v in employee_record.items()})
 
 
                 for key in summary:
@@ -262,6 +275,7 @@ def get_data(filters):
             for key in ['total_hours', 'active_hours', 'idle_hours', 'average_active', 'incoming_hours', 'outgoing_hours', 'meetings_hours']:
                 summary[key] = format_duration(summary[key])
 
+            summary["leave"] = format_leave(summary["leave"])
             summarized_data.append(summary)
 
         return data, summarized_data
@@ -269,6 +283,49 @@ def get_data(filters):
     except Exception as e:
         frappe.log_error(f"Error in get_data: {str(e)}")
         return [], []
+def format_leave(days):
+    if days == 0:
+        return _("No Leave")
+    if days == 0.5:
+        return _("Half Day")
+    if days == 1:
+        return _("Full Day")
+    return _("{0} Days").format(f"{days:g}")
+
+
+def get_leave_days(filters):
+    if not frappe.db.exists("DocType", "Leave Application"):
+        return {}
+
+    leave_filters = {
+        "status": "Approved",
+        "docstatus": 1,
+        "from_date": ["<=", filters["to_date"]],
+        "to_date": [">=", filters["from_date"]],
+    }
+    if filters.get("employee"):
+        leave_filters["employee"] = filters["employee"]
+    leaves = frappe.get_all(
+        "Leave Application",
+        filters=leave_filters,
+        fields=["employee", "from_date", "to_date", "half_day", "half_day_date"],
+    )
+
+    leave_days = {}
+    for leave in leaves:
+        leave_start, leave_end = getdate(leave.from_date), getdate(leave.to_date)
+        half_day_date = getdate(leave.half_day_date) if leave.half_day_date else None
+        if leave.half_day and not half_day_date and leave_start == leave_end:
+            half_day_date = leave_start
+        start = max(getdate(filters["from_date"]), leave_start)
+        end = min(getdate(filters["to_date"]), leave_end)
+        for day in date_range(start, end):
+            fraction = 0.5 if leave.half_day and day == half_day_date else 1
+            key = (leave.employee, day)
+            leave_days[key] = min(1, leave_days.get(key, 0) + fraction)
+    return leave_days
+
+
 def date_range(start_date, end_date):
     for n in range(int((end_date - start_date).days) + 1):
         yield start_date + timedelta(n)
@@ -295,12 +352,12 @@ def monthly_ranges(start_date, end_date):
     print(f"Start date: {start_date}, End date: {end_date}")
 
     ranges = []
-    current = start_date.replace(day=1)
+    current = start_date
     iteration_count = 0
     max_iterations = 100
 
     while current <= end_date and iteration_count < max_iterations:
-        month_end = min(current + relativedelta(months=1, days=-1), end_date)
+        month_end = min(current.replace(day=1) + relativedelta(months=1, days=-1), end_date)
         ranges.append((current, month_end))  # Changed to return datetime objects
         print(f"Iteration {iteration_count}:")
         print(f"  Current: {current}")

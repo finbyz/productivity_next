@@ -1117,67 +1117,54 @@ from datetime import timedelta, datetime
 import frappe
 @frappe.whitelist()
 def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
-    from_date = datetime.strptime(str(from_date), '%Y-%m-%d')
-    to_date = datetime.strptime(str(to_date), '%Y-%m-%d')
-    date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+    from_date = getdate(from_date)
+    to_date = getdate(to_date)
 
     holidays = frappe.db.sql("""
-        SELECT holiday_date 
-        FROM `tabHoliday` 
+        SELECT holiday_date
+        FROM `tabHoliday`
         WHERE holiday_date BETWEEN %s AND %s
     """, (from_date, to_date), as_dict=True)
-    holiday_dates = set(holiday.holiday_date for holiday in holidays)
-    
-    if not frappe.db.exists("DocType", "Leave Application"):
-        leaves = []
-    else:
+    holiday_dates = {getdate(holiday.holiday_date) for holiday in holidays}
+
+    leave_days = {}
+    if frappe.db.exists("DocType", "Leave Application"):
         leaves = frappe.db.sql("""
-            SELECT from_date, to_date, half_day
+            SELECT from_date, to_date, half_day, half_day_date
             FROM `tabLeave Application`
             WHERE employee = %s
-            AND status = 'Approved'
-            AND ((from_date BETWEEN %s AND %s) OR (to_date BETWEEN %s AND %s) OR (from_date <= %s AND to_date >= %s))
-        """, (employee, from_date, to_date, from_date, to_date, from_date, to_date), as_dict=True)
+              AND status = 'Approved'
+              AND docstatus = 1
+              AND from_date <= %s AND to_date >= %s
+        """, (employee, to_date, from_date), as_dict=True)
+
+        for leave in leaves:
+            leave_start = getdate(leave.from_date)
+            leave_end = getdate(leave.to_date)
+            half_day_date = getdate(leave.half_day_date) if leave.half_day_date else None
+            if leave.half_day and not half_day_date and leave_start == leave_end:
+                half_day_date = leave_start
+
+            current_date = max(from_date, leave_start)
+            while current_date <= min(to_date, leave_end):
+                fraction = 0.5 if leave.half_day and current_date == half_day_date else 1
+                # Two half-day applications can cover a full working day.
+                leave_days[current_date] = min(1, leave_days.get(current_date, 0) + fraction)
+                current_date += timedelta(days=1)
 
     total_working_hours = 0
-    for date in date_range:
-        current_date = date.date()
+    current_date = from_date
+    while current_date <= to_date:
+        if current_date not in holiday_dates:
+            if current_date.weekday() == 6:
+                day_hours = 0
+            elif current_date.weekday() == 5:
+                day_hours = saturday_working_hours
+            else:
+                day_hours = daily_working_hours
 
-        if current_date in holiday_dates:
-            continue
-
-        # Check if it's a Saturday (weekday 5) or Sunday (weekday 6)
-        is_saturday = date.weekday() == 5
-        is_sunday = date.weekday() == 6
-        
-        # Set initial hours based on day type
-        if is_sunday:
-            day_hours = 0  # No hours on Sunday
-        elif is_saturday:
-            day_hours = saturday_working_hours
-        else:
-            day_hours = daily_working_hours
-            
-        # Skip further calculations if already 0
-        if day_hours == 0:
-            continue
-            
-        # Apply leave deductions
-        for leave in leaves:
-            if leave.from_date <= current_date <= leave.to_date:
-                if leave.half_day:
-                    # For half-day leaves:
-                    # If Saturday, set to 0 hours (skip the day)
-                    # For other days, apply half of the daily hours
-                    if is_saturday:
-                        day_hours = 0
-                    else:
-                        day_hours *= 0.5
-                else:
-                    day_hours = 0  # Full day leave
-                break
-
-        total_working_hours += day_hours
+            total_working_hours += day_hours * (1 - leave_days.get(current_date, 0))
+        current_date += timedelta(days=1)
 
     return total_working_hours
 
