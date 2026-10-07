@@ -13,7 +13,8 @@ DEPLOYABLE_FIELDNAME = "deployable"
 
 def is_admin_user(user=None):
     user = user or frappe.session.user
-    return user == "Administrator" or "System Manager" in frappe.get_roles(user)
+    roles = frappe.get_roles(user)
+    return user == "Administrator" or "System Manager" in roles or "HR Manager" in roles
 
 
 def get_employee_for_user(user=None):
