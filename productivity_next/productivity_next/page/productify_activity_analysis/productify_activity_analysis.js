@@ -729,10 +729,22 @@ UserProfile = class UserProfile {
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> ${params.data[4]}</span> <br>`;
 										tooltipContent += `<span style="font-weight: bold;font-size:15px;"> Call Type:</span> ${params.data[5]}<br>`;
 									} else if (activityType === 'Internal Meeting' || activityType === 'External Meeting') {
+										const detailIndex = activityType === 'Internal Meeting' ? 6 : 8;
+										const participants = params.data[detailIndex + 2] || [];
+										const customerParticipants = params.data[detailIndex + 3] || [];
+										const meetingDetails = [
+											['Meeting Subject', params.data[detailIndex]],
+											['Task Subject', params.data[detailIndex + 1]],
+											['Company Participants', participants.join(', ')],
+											['Customer Participants', customerParticipants.join(', ')]
+										];
+										for (const [label, value] of meetingDetails) {
+											tooltipContent += `<span style="font-weight: bold;">${label}:</span> ${frappe.utils.escape_html(value || '—')}<br>`;
+										}
 										if (params.data[4]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">Arranged By:</span> ${params.data[4]}<br>`;
 										if (params.data[5]) tooltipContent += `<span style="font-weight: bold;font-size:15px;">${params.data[5]} </span><br>`;
-										if (params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
-										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${params.data[6] || ''} Meeting<br>`;
+										if (activityType === 'External Meeting' && params.data[7]) tooltipContent += `<span style="font-weight: bold;">Arranged By:</span>${params.data[7]}<br>`;
+										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType === 'External Meeting' ? (params.data[6] || '') : ''} Meeting<br>`;
 									}
 									else{
 										tooltipContent += `<span style="font-weight: bold;">Activity:</span>${activityType}<br>`;
@@ -1597,7 +1609,21 @@ _rawData.flight.data = _rawData.flight.data.map(item => {
 									}
 								} 
 								if (activityType === "Internal Meeting" || activityType === "External Meeting") {
-									if (params.data[7] && params.data[8]) {
+									// New details follow the existing meeting fields.
+									const detailIndex = activityType === "Internal Meeting" ? 7 : 9;
+									const participants = params.data[detailIndex + 2] || [];
+									const customerParticipants = params.data[detailIndex + 3] || [];
+									const meetingDetails = [
+										["Meeting Subject", params.data[detailIndex]],
+										["Task Subject", params.data[detailIndex + 1]],
+										["Company Participants", participants.join(", ")],
+										["Customer Participants", customerParticipants.join(", ")]
+									];
+									for (const [label, value] of meetingDetails) {
+										tooltipContent += `<tr><td colspan="3" style="padding: 0px 10px; text-align: left;"><strong>${label}:</strong> ${frappe.utils.escape_html(value || "—")}</td></tr>`;
+									}
+
+									if (activityType === "External Meeting" && params.data[7] && params.data[8]) {
 										tooltipContent += `
 											<tr>
 												<td colspan="3" style="padding: 0px 10px; text-align: left;">${params.data[8]} - ${params.data[7]}</td>
