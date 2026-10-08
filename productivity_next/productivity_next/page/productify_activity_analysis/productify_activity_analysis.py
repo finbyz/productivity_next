@@ -399,9 +399,11 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         SELECT m.name AS parent, 
             m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
             DATE(m.meeting_from) as date, mcr.employee, mcr.employee_name, m.organization as organization, m.discussion as description,
-            m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by
+            m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by,
+            m.purpose AS meeting_subject, task.subject AS task_subject
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
+        LEFT JOIN `tabTask` AS task ON task.name = m.task
         WHERE DATE(m.meeting_from) = '{date}' AND mcr.employee = '{employee}' AND m.docstatus = 1
         AND (
             (HOUR(m.meeting_from) = {hour}) OR
@@ -409,6 +411,8 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         )
         ORDER BY m.meeting_from
     """, as_dict=True)
+
+    meeting_participants = _get_meeting_participants(meetings)
 
     def split_activity(activity_type, start, end, *args):
         start_time = datetime.strptime(str(start), "%Y-%m-%d %H:%M:%S")
@@ -483,7 +487,10 @@ def overall_performance_timely(employee=None, date=None, hour=None):
                 meeting['meeting_end'],
                 meeting['meeting_arranged_by'],
                 meeting['description'],
-                meeting['client']
+                meeting['client'],
+                meeting['meeting_subject'],
+                meeting['task_subject'],
+                meeting_participants.get(meeting['parent'], [])
             ))
         else:
             base_data.append(split_activity(
@@ -495,6 +502,9 @@ def overall_performance_timely(employee=None, date=None, hour=None):
                 meeting['internal'],
                 meeting['client'],
                 meeting['party_type'],
+                meeting['meeting_subject'],
+                meeting['task_subject'],
+                meeting_participants.get(meeting['parent'], [])
             ))
 
     base_data = sorted(base_data, key=lambda x: x[2])
@@ -506,6 +516,35 @@ def overall_performance_timely(employee=None, date=None, hour=None):
         "base_data": base_data,
         "data": data
     }
+
+def _get_meeting_participants(meetings):
+    if not meetings:
+        return {}
+
+    meeting_ids = tuple(dict.fromkeys(meeting['parent'] for meeting in meetings))
+    placeholders = ', '.join(['%s'] * len(meeting_ids))
+    representatives = frappe.db.sql(f"""
+        SELECT parent, COALESCE(NULLIF(employee_name, ''), employee) AS participant,
+            0 AS representative_type, idx
+        FROM `tabMeeting Company Representative`
+        WHERE parent IN ({placeholders}) AND parenttype = 'Meeting'
+        UNION ALL
+        SELECT representative.parent,
+            COALESCE(NULLIF(contact.full_name, ''), representative.contact) AS participant,
+            1 AS representative_type, representative.idx
+        FROM `tabMeeting Party Representative` AS representative
+        LEFT JOIN `tabContact` AS contact ON contact.name = representative.contact
+        WHERE representative.parent IN ({placeholders}) AND representative.parenttype = 'Meeting'
+        ORDER BY parent, representative_type, idx
+    """, meeting_ids + meeting_ids, as_dict=True)
+
+    participants = defaultdict(list)
+    for representative in representatives:
+        name = representative['participant']
+        names = participants[representative['parent']]
+        if name and name not in names:
+            names.append(name)
+    return dict(participants)
 
 # Applications Used Code Starts
 @frappe.whitelist(allow_guest=True)
