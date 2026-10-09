@@ -250,7 +250,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
          SELECT m.name AS parent, 
             m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,DATE(m.meeting_from) as date,
             mcr.employee, mcr.employee_name, m.organization as organization, m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by,
-            m.purpose AS meeting_subject, task.subject AS task_subject
+            m.subject AS meeting_subject, task.subject AS task_subject, m.project
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
         LEFT JOIN `tabTask` AS task ON task.name = m.task
@@ -310,7 +310,8 @@ def overall_performance(employee=None, start_date=None, end_date=None):
                 meeting['meeting_subject'],
                 meeting['task_subject'],
                 company_participants.get(meeting['parent'], []),
-                customer_participants.get(meeting['parent'], [])
+                customer_participants.get(meeting['parent'], []),
+                meeting['project']
             ])
         else:
             base_data.append([
@@ -325,7 +326,8 @@ def overall_performance(employee=None, start_date=None, end_date=None):
                 meeting['meeting_subject'],
                 meeting['task_subject'],
                 company_participants.get(meeting['parent'], []),
-                customer_participants.get(meeting['parent'], [])
+                customer_participants.get(meeting['parent'], []),
+                meeting['project']
             ])
     for i in idle:
         base_data.append([
@@ -412,7 +414,7 @@ def overall_performance_timely(employee=None, date=None, hour=None):
             m.meeting_from AS meeting_start, m.meeting_to AS meeting_end, m.party as client, m.internal_meeting AS internal,
             DATE(m.meeting_from) as date, mcr.employee, mcr.employee_name, m.organization as organization, m.discussion as description,
             m.party_type as party_type, m.meeting_arranged_by as meeting_arranged_by,
-            m.purpose AS meeting_subject, task.subject AS task_subject
+            m.subject AS meeting_subject, task.subject AS task_subject, m.project
         FROM `tabMeeting` AS m
         JOIN `tabMeeting Company Representative` AS mcr ON mcr.parent = m.name
         LEFT JOIN `tabTask` AS task ON task.name = m.task
@@ -503,7 +505,8 @@ def overall_performance_timely(employee=None, date=None, hour=None):
                 meeting['meeting_subject'],
                 meeting['task_subject'],
                 company_participants.get(meeting['parent'], []),
-                customer_participants.get(meeting['parent'], [])
+                customer_participants.get(meeting['parent'], []),
+                meeting['project']
             ))
         else:
             base_data.append(split_activity(
@@ -518,7 +521,8 @@ def overall_performance_timely(employee=None, date=None, hour=None):
                 meeting['meeting_subject'],
                 meeting['task_subject'],
                 company_participants.get(meeting['parent'], []),
-                customer_participants.get(meeting['parent'], [])
+                customer_participants.get(meeting['parent'], []),
+                meeting['project']
             ))
 
     base_data = sorted(base_data, key=lambda x: x[2])
