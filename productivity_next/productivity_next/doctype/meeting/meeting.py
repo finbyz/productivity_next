@@ -12,6 +12,10 @@ from frappe.utils import cint, getdate, get_fullname, get_url_to_form,now_dateti
 from productivity_next.productivity_next.doctype.meeting_schedule.meeting_schedule import get_party_details
 
 class Meeting(Document):
+	def before_submit(self):
+		if not self.subject:
+			frappe.throw(_("Subject is mandatory before submit"))
+
 	def validate(self):
 		if self.internal_meeting :
 			self.organization = "Internal Meeting"

@@ -70,6 +70,12 @@ frappe.ui.form.on('Meeting', {
 			frm.set_value('meeting_to',frappe.datetime.get_datetime_as_string(frappe.datetime.str_to_obj(frm.doc.meeting_from).setHours(frappe.datetime.str_to_obj(frm.doc.meeting_from).getHours() + 1)))
 		}
 	},
+	before_submit: function(frm) {
+		if (!frm.doc.subject) {
+			frappe.msgprint(__('Please enter Subject before submitting.'));
+			frappe.validated = false;
+		}
+	},
 	validate: function(frm){
 		if (frm.doc.party && frm.doc.party_type){
 			frm.trigger('party')
