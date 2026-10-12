@@ -146,7 +146,7 @@ class Meeting(Document):
 		# Create Task
 		if not self.task:
 			task = frappe.new_doc("Task")
-			task.subject = f"{project_name} - {'Internal' if self.internal_meeting else 'External'}"
+			task.subject = self.subject
 			task.description = subject
 			task.project = self.project
 			task.type = "Meeting"
