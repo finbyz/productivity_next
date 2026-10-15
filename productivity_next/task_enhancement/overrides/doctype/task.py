@@ -155,11 +155,13 @@ class Task(_Task):
 		self.validate_status()
 		self.validate_parent_expected_end_date()
 	
+	def before_save(self):
+		self.update_if_is_group()
+
 	def on_update(self):
 		super().on_update()
 		self.assign_to_assignee_and_task_approver()
-		self.update_if_is_group()
-		self.update_parent_task()
+		# self.update_parent_task()
 		self.check_employee_fincall_for_lead()
 		
 	def validate_parent_expected_end_date(self):
@@ -310,26 +312,19 @@ class Task(_Task):
 			)
 
 	def update_if_is_group(self):
-		if self.is_group:
-			sum_child_task = frappe.db.sql(
-				f"""
-				WITH RECURSIVE `task_tree` AS (
-					SELECT * FROM `tabTask` WHERE name = '{self.name}'
-					UNION ALL
-					SELECT t.* FROM `tabTask` t
-					INNER JOIN task_tree tt ON t.parent_task = tt.name
-				)
-				SELECT SUM(expected_time) AS total_expected_time
-				FROM (
-					SELECT DISTINCT name, expected_time FROM task_tree WHERE is_group != 1
-				) AS unique_tasks
-			"""
-			)
+		if not self.is_group:
+			return
 
-			if sum_child_task:
-				self.db_set("expected_time", flt(sum_child_task[0][0]))
-			else:
-				self.db_set("expected_time", 0)
+		self.expected_time = flt(
+			frappe.db.sql(
+				"""
+				SELECT COALESCE(SUM(expected_time), 0)
+				FROM `tabTask`
+				WHERE parent_task = %(name)s
+				""",
+				{"name": self.name},
+			)[0][0]
+		)
 
 	def unassign_todo(self):
 		if self.status == "Completed":
