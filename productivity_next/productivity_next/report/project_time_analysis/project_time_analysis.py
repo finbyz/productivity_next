@@ -414,7 +414,8 @@ def get_data(filters):
         meeting_intervals, 
         calls_intervals,
         calculate_keys,
-        filters
+        filters,
+        valid_project_names,
     )
     
     # If we don't need to show employee data, aggregate across employees for each project
@@ -741,7 +742,35 @@ def get_deployment_rate_data(filters):
     
     return result_data
 
-def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys, filters):
+def _get_issue_hours(filters, valid_projects):
+    """Aggregate issue time only for the report's projects and employees."""
+    if not valid_projects:
+        return []
+    conditions = [
+        "ti.date BETWEEN %(from_date)s AND %(to_date)s",
+        "i.project IN %(projects)s",
+    ]
+    params = {
+        "from_date": filters["from_date"], "to_date": filters["to_date"],
+        "projects": tuple(valid_projects),
+    }
+    employee = filters.get("employee")
+    if employee:
+        conditions.append("e.name IN %(employees)s")
+        params["employees"] = tuple(employee) if isinstance(employee, list) else (employee,)
+    return frappe.db.sql(
+        """
+        SELECT e.name AS employee_id, e.employee_name, i.project,
+            SUM(ti.time_involvement) AS issue_hours
+        FROM `tabIssue` i
+        JOIN `tabTime Involvement` ti ON ti.parent = i.name
+        JOIN `tabEmployee` e ON e.user_id = ti.user_name
+        WHERE """ + " AND ".join(conditions) + " GROUP BY e.name, e.employee_name, i.project",
+        params, as_dict=True,
+    )
+
+
+def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys, filters, valid_projects):
     
     """
     Optimized function that calculates time aggregates without repeated calls to merge_intervals.
@@ -791,49 +820,13 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
             if 'employee_name' in interval:
                 grouped_data[key]['details']['employee_name'] = interval['employee_name']
     
-    # Get all users who have issue hours
-    issue_users = frappe.db.sql(f"""
-        SELECT DISTINCT ti.user_name, i.project
-        FROM `tabIssue` i
-        JOIN `tabTime Involvement` ti ON ti.parent = i.name
-        WHERE ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
-    """, as_dict=True)
-    
-    # Add entries for users who only have issue hours
-    for issue_user in issue_users:
-        user_id = issue_user.user_name
-        project = issue_user.project
-        employee = frappe.db.get_value('Employee', {'user_id': user_id}, ['name', 'employee_name'], as_dict=True)
-        
-        if employee:
-            # Create a key for this user and project
-            key_parts = []
-            for k in group_keys:
-                if k == 'employee_id':
-                    key_parts.append(employee.name)
-                elif k == 'project':
-                    key_parts.append(project)
-                elif k == 'date' and 'date' in filters:
-                    key_parts.append(filters.get('date'))
-                else:
-                    key_parts.append('')
-            key = tuple(key_parts)
-            
-            # If this user doesn't already have an entry, create one
-            if key not in grouped_data:
-                grouped_data[key] = {
-                    'intervals': {
-                        'application': [],
-                        'meeting': [],
-                        'call': []
-                    },
-                    'details': {
-                        'employee_id': employee.name,
-                        'employee_name': employee.employee_name,
-                        'project': project
-                    }
-                }
-    
+    issue_hours = {}
+    if not filters.get("show_daily_data"):
+        for row in _get_issue_hours(filters, valid_projects):
+            issue_hours[(row.employee_id, row.project)] = flt(row.issue_hours)
+            key = get_group_key(row, group_keys)
+            grouped_data[key]["details"].update(row)
+
     # Calculate non-overlapping time for each group
     result_data = []
     
@@ -883,28 +876,10 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
         if 'employee_name' in data['details']:
             result_row['employee_name'] = data['details']['employee_name']
             
-            # Get issue hours for this employee only if not showing daily data
-            if not filters.get('show_daily_data') and 'employee_id' in data['details'] and 'project' in data['details']:
-                employee_id = data['details']['employee_id']
-                project = data['details']['project']
-                user_id = frappe.db.get_value('Employee', employee_id, 'user_id')
-                project_condition = ""
-                if filters.get('project'):
-                    project_condition = f"AND i.project = '{filters.get('project')}'"
-                if user_id:
-                    issue_hours_data = frappe.db.sql(f"""
-                        SELECT COALESCE(SUM(ti.time_involvement), 0) as total_issue_hours
-                        FROM `tabIssue` i
-                        JOIN `tabTime Involvement` ti ON ti.parent = i.name
-                        WHERE ti.user_name = '{user_id}'
-                        {project_condition}
-                        AND i.project = '{project}'
-                        AND ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
-                    """, as_dict=True)
-                    result_row['issue_hours'] = round(issue_hours_data[0].total_issue_hours, 2) if issue_hours_data else 0
-            else:
-                result_row['issue_hours'] = 0
-        
+            result_row["issue_hours"] = round(issue_hours.get(
+                (data["details"].get("employee_id"), data["details"].get("project")), 0
+            ), 2)
+
         # Only add to result if there are any hours (total or issue)
         if result_row['total_hours'] > 0 or (not filters.get('show_daily_data') and result_row['issue_hours'] > 0):
             result_data.append(result_row)

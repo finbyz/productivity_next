@@ -10,8 +10,7 @@ from frappe.utils import get_datetime, nowdate
 
 
 CACHE_SECONDS = 15 * 60
-TEAM_CACHE_SECONDS = 2 * 60 * 60
-CACHE_PREFIX = "productivity_next:team_productivity:v6"
+CACHE_PREFIX = "productivity_next:team_productivity:v7"
 
 
 def _date_range(from_date, to_date):
@@ -29,21 +28,16 @@ def _manager_team():
 	user = frappe.session.user
 	if user == "Guest":
 		frappe.throw("Login required", frappe.PermissionError)
-	cache = frappe.cache()
-	key = f"{CACHE_PREFIX}:team:{hashlib.sha256(user.encode()).hexdigest()}"
-	team = cache.get_value(key)
-	if team is not None:
-		return team
+	# Reporting relationships grant access, so read them on every request.
 	managers = frappe.get_all(
 		"Employee", filters={"user_id": user, "status": "Active"}, pluck="name"
 	)
 	team = frappe.get_all(
 		"Employee",
 		filters={"reports_to": ["in", managers], "status": "Active", "user_id": ["is", "set"]},
-		fields=["name", "employee_name", "user_id"],
+		fields=["name", "employee_name", "user_id", "image"],
 		limit_page_length=0,
 	) if managers else []
-	cache.set_value(key, team, expires_in_sec=TEAM_CACHE_SECONDS)
 	return team
 
 
@@ -194,7 +188,8 @@ def _cache_key(team, start, end):
 	payload = json.dumps(
 		{
 			"manager": frappe.session.user,
-			"team": sorted((row.name, row.user_id, row.employee_name) for row in team),
+			"team": sorted((row.name, row.user_id, row.employee_name, row.image or "") for row in team),
+			"today": nowdate(),
 			"from_date": start.isoformat(),
 			"to_date": end.isoformat(),
 		},
@@ -210,6 +205,7 @@ def _build_rows(team, start, end):
 		{
 			"employee": row.name,
 			"employee_name": row.employee_name,
+			"image": row.image,
 			**counts[row.user_id],
 			**activity[row.name],
 		}
@@ -218,15 +214,18 @@ def _build_rows(team, start, end):
 
 
 @frappe.whitelist(methods=["GET"])
-def get_team_productivity(from_date, to_date):
-	"""Return direct reports' task totals and activity for the selected range."""
+def get_team_productivity(from_date: str, to_date: str):
+	"""Return current backlog, completions in range, and recorded activity.
+
+	progress_percent is active / (active + idle), not task completion progress.
+	"""
 	start, end = _date_range(from_date, to_date)
 	team = _manager_team()
 	if not team:
 		return {"is_team": False, "rows": []}
 	key = _cache_key(team, start, end)
 	cache = frappe.cache()
-	rows = cache.get_value(key)
+	rows = cache.get_value(key, expires=True)
 	if rows is None:
 		rows = _build_rows(team, start, end)
 		cache.set_value(key, rows, expires_in_sec=CACHE_SECONDS)

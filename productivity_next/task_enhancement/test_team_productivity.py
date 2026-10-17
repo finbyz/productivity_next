@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from productivity_next.task_enhancement import team_productivity as chart
 
@@ -13,7 +13,7 @@ class FakeCache:
 		self.values = {}
 		self.ttls = {}
 
-	def get_value(self, key):
+	def get_value(self, key, **kwargs):
 		return self.values.get(key)
 
 	def set_value(self, key, value, expires_in_sec=None):
@@ -24,8 +24,8 @@ class FakeCache:
 class TestTeamProductivity(TestCase):
 	def setUp(self):
 		self.team = [
-			SimpleNamespace(name="EMP-001", employee_name="Alice", user_id="alice@example.com"),
-			SimpleNamespace(name="EMP-002", employee_name="Bob", user_id="bob@example.com"),
+			SimpleNamespace(name="EMP-001", employee_name="Alice", user_id="alice@example.com", image="/alice.png"),
+			SimpleNamespace(name="EMP-002", employee_name="Bob", user_id="bob@example.com", image=None),
 		]
 
 	def test_task_counts_match_get_tasks_selection_and_date_range(self):
@@ -62,7 +62,7 @@ class TestTeamProductivity(TestCase):
 			end, start, end))
 
 	def test_empty_team_task_counts_do_not_query_database(self):
-		with patch.object(chart.frappe, "db") as database:
+		with patch.object(chart.frappe, "db", SimpleNamespace(sql=Mock())) as database:
 			counts = chart._task_counts([], date(2026, 10, 11), date(2026, 10, 17))
 		self.assertEqual(dict(counts), {})
 		database.sql.assert_not_called()
@@ -112,41 +112,28 @@ class TestTeamProductivity(TestCase):
 			"active_seconds": 7200, "idle_seconds": 3600, "progress_percent": 66.7,
 		})
 
-	def test_manager_team_is_limited_to_direct_reports(self):
-		cache = FakeCache()
-		calls = []
-		def get_all(doctype, **kwargs):
-			calls.append((doctype, kwargs))
-			return ["MGR-001"] if len(calls) == 1 else self.team
+	def test_manager_team_rechecks_direct_reports_on_every_request(self):
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
-			patch.object(chart.frappe, "cache", return_value=cache),
-			patch.object(chart.frappe, "get_all", side_effect=get_all),
+			patch.object(chart.frappe, "get_all", side_effect=[["MGR-001"], self.team, ["MGR-001"], []]) as get_all,
 		):
-			team = chart._manager_team()
-			cached = chart._manager_team()
-		self.assertEqual(team, self.team)
-		self.assertEqual(cached, self.team)
-		self.assertEqual(len(calls), 2)
-		self.assertEqual(calls[1][1]["filters"]["reports_to"], ["in", ["MGR-001"]])
-		self.assertIn(7200, cache.ttls.values())
+			self.assertEqual(chart._manager_team(), self.team)
+			self.assertEqual(chart._manager_team(), [])
+		self.assertEqual(get_all.call_count, 4)
+		self.assertEqual(get_all.call_args_list[1].kwargs["filters"]["reports_to"], ["in", ["MGR-001"]])
 
-	def test_no_direct_reports_are_cached_and_return_is_team_false(self):
+	def test_reassigned_employee_cannot_receive_cached_rows(self):
 		cache = FakeCache()
-		calls = []
-		def get_all(doctype, **kwargs):
-			calls.append(doctype)
-			return ["MGR-001"] if len(calls) == 1 else []
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
 			patch.object(chart.frappe, "cache", return_value=cache),
-			patch.object(chart.frappe, "get_all", side_effect=get_all),
+			patch.object(chart, "_manager_team", side_effect=[self.team, []]),
+			patch.object(chart, "_build_rows", return_value=[{"employee": "EMP-001"}]) as build,
 		):
-			first = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
-			second = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
-		self.assertEqual(first, {"is_team": False, "rows": []})
-		self.assertEqual(second, first)
-		self.assertEqual(len(calls), 2)
+			self.assertTrue(chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")["is_team"])
+			self.assertEqual(chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14"),
+				{"is_team": False, "rows": []})
+		build.assert_called_once()
 
 	def test_api_returns_only_reporting_managers_team(self):
 		cache = FakeCache()
@@ -169,6 +156,7 @@ class TestTeamProductivity(TestCase):
 		self.assertTrue(result["is_team"])
 		self.assertEqual(len(result["rows"]), 2)
 		self.assertEqual(result["rows"][0]["employee"], "EMP-001")
+		self.assertEqual(result["rows"][0]["image"], "/alice.png")
 		self.assertEqual(result["rows"][0]["progress_percent"], 66.7)
 		self.assertEqual(result["rows"][1]["total"], 0)
 
@@ -190,3 +178,11 @@ class TestTeamProductivity(TestCase):
 			cache.values.pop(key)
 			chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
 			self.assertEqual(build.call_count, 2)
+
+	def test_cache_key_changes_when_overdue_reference_day_changes(self):
+		with patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")):
+			with patch.object(chart, "nowdate", return_value="2026-10-14"):
+				first = chart._cache_key(self.team, date(2026, 10, 1), date(2026, 10, 14))
+			with patch.object(chart, "nowdate", return_value="2026-10-15"):
+				second = chart._cache_key(self.team, date(2026, 10, 1), date(2026, 10, 14))
+		self.assertNotEqual(first, second)

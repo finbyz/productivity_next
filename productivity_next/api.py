@@ -36,40 +36,38 @@ from redis.exceptions import LockError, RedisError
 PROJECT_TIME_ANALYSIS_REPORT = "Project Time Analysis"
 PROJECT_TIME_ANALYSIS_CACHE_TTL = 4 * 60 * 60
 PROJECT_TIME_ANALYSIS_LOCK_TIMEOUT = 10 * 60
-PROJECT_TIME_ANALYSIS_LOCK_WAIT = 2 * 60
+PROJECT_TIME_ANALYSIS_LOCK_WAIT = 5
+
+
+def _parse_productivity_date(value):
+    """Reject invalid date sentinels that frappe.utils.getdate can return as None."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        frappe.throw(_("Dates must use YYYY-MM-DD."), frappe.ValidationError)
 
 
 def _normalize_project_time_analysis_employee(employee):
-    if isinstance(employee, (list, tuple, set)):
-        frappe.throw(_("Only one Employee can be requested at a time."))
-
-    if not isinstance(employee, str) or not employee.strip():
-        frappe.throw(_("Employee is required."))
-
-    employee = employee.strip()
-
-    if employee.startswith("["):
-        frappe.throw(_("Only one Employee can be requested at a time."))
-
-    return employee
+    if not isinstance(employee, str) or not employee.strip() or employee.lstrip().startswith("["):
+        frappe.throw(_("One Employee is required."), frappe.ValidationError)
+    return employee.strip()
 
 
-def _run_project_time_analysis(from_date, to_date):
-    """
-    Run Project Time Analysis for customer and internal projects for all employees.
-
-    Employee is deliberately NOT passed to the report.
-    """
-
+def _run_project_time_analysis(from_date, to_date, employee):
+    """Run both project categories under the caller's report permissions."""
     from frappe.desk.query_report import run
 
     filters = {
         "from_date": from_date,
         "to_date": to_date,
+        "employee": employee,
         "show_employee": 1,
         "show_details": 1,
     }
-
     result = []
     for is_internal_project in (0, 1):
         report_result = run(
@@ -78,7 +76,6 @@ def _run_project_time_analysis(from_date, to_date):
             ignore_prepared_report=True,
             are_default_filters=False,
         )
-
         result.extend(
             {
                 "employee": row.get("employee_id"),
@@ -87,247 +84,105 @@ def _run_project_time_analysis(from_date, to_date):
                 "internal_task": is_internal_project,
             }
             for row in report_result.get("result") or []
-            if isinstance(row, dict) and row.get("employee_id")
+            if isinstance(row, dict) and row.get("employee_id") == employee
         )
-
-    # Store all employees in shared/site-level cache.
     return result
 
 
-def _get_project_time_analysis_cache_key(from_date, to_date):
-    """
-    IMPORTANT:
-    Employee is intentionally NOT part of cache key.
-
-    One cache entry:
-        from_date + to_date
-
-    shared by all users on this Frappe site.
-    """
-
-    cache_input = json.dumps(
-        {
-            "from_date": from_date,
-            "to_date": to_date,
-        },
-        separators=(",", ":"),
-        sort_keys=True,
+def _get_project_time_analysis_cache_key(from_date, to_date, employee):
+    payload = json.dumps(
+        [frappe.session.user, employee, from_date, to_date], separators=(",", ":")
     )
-
-    digest = hashlib.sha256(cache_input.encode()).hexdigest()
-
-    return f"project_time_analysis:v9:{digest}"
+    return "project_time_analysis:v10:" + hashlib.sha256(payload.encode()).hexdigest()
 
 
-def _run_and_cache_project_time_analysis(
-    cache_key,
-    from_date,
-    to_date,
-):
-    """
-    Generate report for ALL employees and cache it once.
-    """
+def _get_cached_project_time_analysis(from_date, to_date, employee, refresh=False):
+    """Serialize misses and refreshes; coalesce requests waiting on one generation."""
+    from uuid import uuid4
 
-    result = _run_project_time_analysis(
-        from_date,
-        to_date,
-    )
+    cache = frappe.cache()
+    key = _get_project_time_analysis_cache_key(from_date, to_date, employee)
+    previous = cache.get_value(key, expires=True)
+    if previous is not None and not refresh:
+        return previous["rows"]
 
-    frappe.cache.set_value(
-        cache_key,
-        result,
-        expires_in_sec=PROJECT_TIME_ANALYSIS_CACHE_TTL,
-    )
-
-    return result
-
-
-def _get_cached_project_time_analysis(
-    from_date,
-    to_date,
-):
-    """
-    Return the common site-level cache.
-
-    No user=True:
-    cache is shared between users of this site.
-    """
-
-    cache_key = _get_project_time_analysis_cache_key(
-        from_date,
-        to_date,
-    )
-
-    cached_result = frappe.cache.get_value(
-        cache_key,
-        expires=True,
-    )
-
-    if cached_result is not None:
-        return cached_result
-
-    # Common lock for this date range.
-    #
-    # This means:
-    #
-    # User A → cache miss → obtains lock → runs report
-    # User B → cache miss → waits
-    # User C → cache miss → waits
-    #
-    # Once User A caches the report,
-    # B/C read the same cached result.
-    lock_key = frappe.cache.make_key(
-        f"{cache_key}:lock"
-    )
-
-    lock = frappe.cache.lock(
-        lock_key,
+    lock = cache.lock(
+        cache.make_key(f"{key}:lock"),
         timeout=PROJECT_TIME_ANALYSIS_LOCK_TIMEOUT,
         blocking_timeout=PROJECT_TIME_ANALYSIS_LOCK_WAIT,
     )
-
     try:
-        lock_acquired = lock.acquire()
-
+        acquired = lock.acquire()
     except RedisError:
-        return _run_and_cache_project_time_analysis(
-            cache_key,
-            from_date,
-            to_date,
-        )
+        frappe.throw(_("Project time refresh is unavailable. Please retry shortly."))
 
-    if not lock_acquired:
-
-        cached_result = frappe.cache.get_value(
-            cache_key,
-            expires=True,
-        )
-
-        if cached_result is not None:
-            return cached_result
-
-        return _run_and_cache_project_time_analysis(
-            cache_key,
-            from_date,
-            to_date,
-        )
+    if not acquired:
+        latest = cache.get_value(key, expires=True)
+        if latest is not None and latest != previous:
+            return latest["rows"]
+        frappe.throw(_("Project time refresh is in progress. Please retry shortly."))
 
     try:
-        # Double-check after acquiring lock because another
-        # request may already have generated the cache.
-        cached_result = frappe.cache.get_value(
-            cache_key,
-            expires=True,
+        latest = cache.get_value(key, expires=True)
+        if latest is not None and (not refresh or latest != previous):
+            return latest["rows"]
+        rows = _run_project_time_analysis(from_date, to_date, employee)
+        # An expired lock must not let an older calculation overwrite a new one.
+        if not lock.owned():
+            frappe.throw(_("Project time refresh expired. Please retry."))
+        cache.set_value(
+            key, {"generation": uuid4().hex, "rows": rows},
+            expires_in_sec=PROJECT_TIME_ANALYSIS_CACHE_TTL,
         )
-
-        if cached_result is not None:
-            return cached_result
-
-        return _run_and_cache_project_time_analysis(
-            cache_key,
-            from_date,
-            to_date,
-        )
-
+        return rows
     finally:
         try:
             lock.release()
-
         except (LockError, RedisError):
             pass
 
 
-def _filter_project_time_analysis_for_employee(
-    cached_result,
-    employee,
-):
-    """
-    Cache contains ALL employees.
+def _filter_project_time_analysis_for_employee(result, employee):
+    """Apply the report's row permissions on cache hits without requiring Project read."""
+    from frappe.desk.query_report import get_filtered_data
 
-    API response contains ONLY requested employee.
-    """
-
+    rows = [row for row in result or [] if row.get("employee") == employee]
+    # The report exposes aggregate hours, not Project documents. Match its
+    # Project Link column so current User Permissions still apply to cached rows.
+    rows = get_filtered_data(
+        "Application Usage log",
+        [{"fieldname": "project", "fieldtype": "Link", "options": "Project"}],
+        rows,
+        frappe.session.user,
+    ) if rows else []
     return [
-        {
-            "project": row.get("project"),
-            "total_hours": row.get("total_hours"),
-            "internal_task": row.get("internal_task"),
-        }
-        for row in cached_result or []
-        if isinstance(row, dict)
-        and row.get("employee") == employee
+        {key: row.get(key) for key in ("project", "total_hours", "internal_task")}
+        for row in rows
     ]
 
 
 @frappe.whitelist(methods=["GET"])
-def get_project_time_analysis(
-    from_date=None,
-    to_date=None,
-    employee=None,
-    without_cache=0,
-):
-    """
-    Return Project Time Analysis for one employee.
-
-    Internally:
-        report → all employees
-        cache  → all employees
-
-    Response:
-        requested employee only
-
-    Pass without_cache=1 to skip the cache read, run the report afresh,
-    and replace the shared cache entry for the requested date range.
-    """
-
+def get_project_time_analysis(from_date=None, to_date=None, employee=None, without_cache=0):
+    """Return one accessible employee's project hours; without_cache=1 refreshes them."""
     if not from_date or not to_date:
-        frappe.throw(
-            _("From Date and To Date are required.")
-        )
+        frappe.throw(_("From Date and To Date are required."), frappe.ValidationError)
+    start, end = _parse_productivity_date(from_date), _parse_productivity_date(to_date)
+    if start > end:
+        frappe.throw(_("From Date cannot be after To Date."), frappe.ValidationError)
+    employee = _normalize_project_time_analysis_employee(employee)
 
-    try:
-        from_date = getdate(from_date)
-        to_date = getdate(to_date)
-
-    except (TypeError, ValueError):
-        frappe.throw(
-            _("From Date and To Date must be valid dates.")
-        )
-
-    if from_date > to_date:
-        frappe.throw(
-            _("From Date cannot be after To Date.")
-        )
-
-    employee = _normalize_project_time_analysis_employee(
-        employee
-    )
-
-    # Keep permission check on every request,
-    # even when the actual report comes from Redis.
     from frappe.desk.query_report import get_report_doc
 
-    get_report_doc(
-        PROJECT_TIME_ANALYSIS_REPORT
+    get_report_doc(PROJECT_TIME_ANALYSIS_REPORT)
+    if not frappe.get_list(
+        "Employee", filters={"name": employee}, pluck="name", limit_page_length=1
+    ):
+        frappe.throw(_("You do not have access to this Employee."), frappe.PermissionError)
+    result = _get_cached_project_time_analysis(
+        start.isoformat(), end.isoformat(), employee,
+        refresh=str(without_cache).lower() in {"1", "true"},
     )
-
-    
-    from_date = from_date.isoformat()
-    to_date = to_date.isoformat()
-
-    if str(without_cache).lower() in {"1", "true"}:
-        result = _run_and_cache_project_time_analysis(
-            _get_project_time_analysis_cache_key(from_date, to_date),
-            from_date,
-            to_date,
-        )
-    else:
-        result = _get_cached_project_time_analysis(from_date, to_date)
-
-    return _filter_project_time_analysis_for_employee(
-        result,
-        employee,
-    )
+    return _filter_project_time_analysis_for_employee(result, employee)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -2192,56 +2047,13 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
     return data
 
 
-TASK_TIME_HISTORY_CACHE_TTL = 4 * 60 * 60
-
-
-def _historical_task_time(tasks, from_date, to_date):
-    """Submitted Timesheet seconds per task and employee, cached for four hours."""
-    cache_input = json.dumps(
-        [tasks, from_date.isoformat() if from_date else None, to_date.isoformat()],
-        separators=(",", ":"),
-    )
-    cache_key = "productivity_next:task_time:history:v2:" + hashlib.sha256(
-        cache_input.encode()
-    ).hexdigest()
-    cache = frappe.cache()
-    cached = cache.get_value(cache_key)
-    if cached is not None:
-        return cached
-
-    conditions = [
-        "tsd.task IN %(tasks)s",
-        "ts.docstatus = 1",
-        "tsd.from_time < %(end_exclusive)s",
-    ]
-    params = {"tasks": tuple(tasks), "end_exclusive": to_date + timedelta(days=1)}
-    if from_date:
-        conditions.append("tsd.from_time >= %(from_date)s")
-        params["from_date"] = from_date
-
-    rows = frappe.db.sql(
-        """
-        SELECT tsd.task, ts.employee, SUM(tsd.hours) AS total_hours
-        FROM `tabTimesheet Detail` tsd
-        JOIN `tabTimesheet` ts ON ts.name = tsd.parent
-        WHERE """ + " AND ".join(conditions) + " GROUP BY tsd.task, ts.employee",
-        params,
-        as_dict=True,
-    )
-    totals = {}
-    for row in rows:
-        totals.setdefault(row.task, {})[row.employee] = float(row.total_hours or 0) * 3600
-    cache.set_value(cache_key, totals, expires_in_sec=TASK_TIME_HISTORY_CACHE_TTL)
-    return totals
-
-
 @frappe.whitelist()
 def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
-    """Return seconds spent on each Task by all employees in the requested range.
+    """Return contributor seconds for readable Tasks.
 
-    Submitted Timesheets cover days before today; today's Application Usage
-    logs remain live. The employee_time list shows each employee's name and
-    duration in seconds. Future days have no recorded time.
+    Submitted historical days are authoritative. Other days use merged
+    application, call, and meeting activity until timesheets are submitted.
+    Task read access grants access to this contributor breakdown.
     """
     try:
         tasks = frappe.parse_json(tasks)
@@ -2250,48 +2062,26 @@ def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
     if not isinstance(tasks, list) or any(not isinstance(task, str) or not task for task in tasks):
         frappe.throw(_("Tasks must be a list of Task IDs."), frappe.ValidationError)
     tasks = list(dict.fromkeys(tasks))
+    if len(tasks) > 100:
+        frappe.throw(_("Request at most 100 Tasks at a time."), frappe.ValidationError)
     if not tasks:
         return []
 
-    try:
-        start = getdate(from_date) if from_date else None
-        end = getdate(to_date) if to_date else None
-    except (TypeError, ValueError):
-        frappe.throw(_("From Date and To Date must be valid dates."), frappe.ValidationError)
+    start = _parse_productivity_date(from_date) if from_date is not None else None
+    end = _parse_productivity_date(to_date) if to_date is not None else None
     if start and end and start > end:
         frappe.throw(_("From Date cannot be after To Date."), frappe.ValidationError)
 
     # Query permissions every time; cached totals are never used to grant access.
-    allowed = set(frappe.get_all(
+    allowed = set(frappe.get_list(
         "Task", filters={"name": ["in", tasks]}, pluck="name", limit_page_length=len(tasks)
     ))
     if allowed != set(tasks):
         frappe.throw(_("You do not have access to one or more Tasks."), frappe.PermissionError)
 
-    current_day = getdate(today())
-    last_historical_day = current_day - timedelta(days=1)
-    historical_end = min(end, last_historical_day) if end else last_historical_day
-    totals = {}
-    if not start or start <= historical_end:
-        totals = {
-            task: dict(employee_totals)
-            for task, employee_totals in _historical_task_time(tasks, start, historical_end).items()
-        }
+    from productivity_next.task_enhancement.task_time import get_task_totals
 
-    if (not start or start <= current_day) and (not end or current_day <= end):
-        live_rows = frappe.db.sql(
-            """
-            SELECT task, employee, SUM(duration) AS total_duration
-            FROM `tabApplication Usage log`
-            WHERE `date` = %(today)s AND task IN %(tasks)s
-            GROUP BY task, employee
-            """,
-            {"today": current_day, "tasks": tuple(tasks)},
-            as_dict=True,
-        )
-        for row in live_rows:
-            task_totals = totals.setdefault(row.task, {})
-            task_totals[row.employee] = task_totals.get(row.employee, 0) + float(row.total_duration or 0)
+    totals = get_task_totals(tasks, start, end, getdate(today()))
 
     employee_ids = sorted({employee for task_totals in totals.values() for employee in task_totals if employee})
     employee_names = {
@@ -2308,6 +2098,7 @@ def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
     for task in tasks:
         employee_time = [
             frappe._dict({
+                "employee": employee,
                 "employee_name": employee_names.get(employee) or employee or _("Unknown employee"),
                 "total_duration": round(seconds, 6),
                 "total_hours": round(seconds / 3600, 2),
