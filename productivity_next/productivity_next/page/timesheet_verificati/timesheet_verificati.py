@@ -313,7 +313,6 @@ def create_timesheet_for_employee_date():
     merged_logs[employee] = merge_logs(applications.get(employee, []))
     merged_logs[employee] = merge_logs(merged_logs.get(employee, []) + calls.get(employee, []))
     merged_logs[employee] = split_logs(merged_logs.get(employee, []), meetings)
-    
     # Validate and fix any remaining overlaps
     employee_merged_logs = merged_logs.get(employee, [])
     if employee_merged_logs:

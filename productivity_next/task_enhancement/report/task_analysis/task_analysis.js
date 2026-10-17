@@ -15,8 +15,11 @@ frappe.query_reports["Task Analysis"] = {
         {
             fieldname: "project",
             label: __("Project"),
-            fieldtype: "Link",
-            options: "Project"
+            fieldtype: "MultiSelectList",
+            options: "Project",
+            get_data: function (txt) {
+                return frappe.db.get_link_options("Project", txt);
+            }
         },
         {
             fieldname: "task",
@@ -572,7 +575,7 @@ function showPrintView(tableRows) {
                     .task-col { width: 36%; }
                     .date-col { width: 13%; }
                     .status-col { width: 11%; }
-                    .other-col { width: 13%; }
+                    .other-col { width: 14%; }
                     .time-col { width: 9%;
                         text-align:center;
                     }

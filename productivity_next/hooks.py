@@ -58,6 +58,14 @@ override_doctype_class = {
 # Hook on document methods and events
 before_migrate = ["productivity_next.schedule.create_auto_email_report","productivity_next.schedule.create_auto_email_report_weekly"]
 doc_events = {
+    "Task": {
+        "on_change": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
+        "after_delete": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
+    },
+    "Employee": {
+        "on_change": "productivity_next.task_enhancement.employee_task_notifications.queue_employee_refresh",
+        "after_delete": "productivity_next.task_enhancement.employee_task_notifications.queue_employee_refresh",
+    },
     "Contact": {
         "validate": "productivity_next.productivity_next.doc_events.contact.validate",
     },
@@ -88,6 +96,12 @@ scheduler_events = {
         "productivity_next.schedule.set_challenge",
     ],
     "cron": {
+        "*/15 * * * *": [
+            "productivity_next.task_enhancement.employee_task_notifications.retry_pending_notifications",
+        ],
+        "0 6 * * *": [
+            "productivity_next.task_enhancement.employee_task_notifications.morning_warmup_and_notify",
+        ],
         "0 1 * * *": [
             "productivity_next.schedule.create_productify_work_summary",
             "productivity_next.schedule.delete_productify_error_logs",
@@ -123,6 +137,9 @@ fixtures = [
         "filters": [
             ["name", "in", [
                 "Project-milestone_based_project",
+                "Employee-deployed",
+                "Employee-deployable"
+
            
             ]]
         ]

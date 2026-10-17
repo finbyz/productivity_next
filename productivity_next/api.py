@@ -11,7 +11,7 @@ from frappe.utils import nowdate, today
 from frappe.utils import nowdate, get_datetime
 from frappe.utils import time_diff_in_seconds
 from frappe.utils import flt
-from datetime import datetime,date
+from datetime import datetime,date,timedelta
 import requests
 from werkzeug import Response
 import pytz
@@ -84,6 +84,7 @@ def _run_project_time_analysis(from_date, to_date):
                 "employee": row.get("employee_id"),
                 "project": row.get("project"),
                 "total_hours": f"{flt(row.get('total_hours')):.2f}",
+                "internal_task": is_internal_project,
             }
             for row in report_result.get("result") or []
             if isinstance(row, dict) and row.get("employee_id")
@@ -115,7 +116,7 @@ def _get_project_time_analysis_cache_key(from_date, to_date):
 
     digest = hashlib.sha256(cache_input.encode()).hexdigest()
 
-    return f"project_time_analysis:v8:{digest}"
+    return f"project_time_analysis:v9:{digest}"
 
 
 def _run_and_cache_project_time_analysis(
@@ -250,6 +251,7 @@ def _filter_project_time_analysis_for_employee(
         {
             "project": row.get("project"),
             "total_hours": row.get("total_hours"),
+            "internal_task": row.get("internal_task"),
         }
         for row in cached_result or []
         if isinstance(row, dict)
@@ -262,6 +264,7 @@ def get_project_time_analysis(
     from_date=None,
     to_date=None,
     employee=None,
+    without_cache=0,
 ):
     """
     Return Project Time Analysis for one employee.
@@ -272,6 +275,9 @@ def get_project_time_analysis(
 
     Response:
         requested employee only
+
+    Pass without_cache=1 to skip the cache read, run the report afresh,
+    and replace the shared cache entry for the requested date range.
     """
 
     if not from_date or not to_date:
@@ -306,16 +312,20 @@ def get_project_time_analysis(
     )
 
     
-    # 1. Get common cache containing ALL employees
-    cached_result = _get_cached_project_time_analysis(
-        from_date.isoformat(),
-        to_date.isoformat(),
-    )
+    from_date = from_date.isoformat()
+    to_date = to_date.isoformat()
 
-    
-    # 2. Filter BEFORE sending response
+    if str(without_cache).lower() in {"1", "true"}:
+        result = _run_and_cache_project_time_analysis(
+            _get_project_time_analysis_cache_key(from_date, to_date),
+            from_date,
+            to_date,
+        )
+    else:
+        result = _get_cached_project_time_analysis(from_date, to_date)
+
     return _filter_project_time_analysis_for_employee(
-        cached_result,
+        result,
         employee,
     )
 
@@ -2153,24 +2163,24 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
     tasks = json.loads(tasks)
     if not tasks:
         return []
-    
+
     filters = {}
-    
+
     if from_date and to_date:
         filters["date"] = ["between", (from_date, to_date)]
 
     filters['employee'] = employee
     filters["task"] = ["in", tasks]
-    
+
     data = frappe.db.get_all(
         "Application Usage log",
         filters=filters,
         fields=["task", "sum(duration) as total_duration"],
         group_by="task"
     )
-    
+
     data_tasks = [row.task for row in data]
-    
+
     for task in set(tasks):
         if task not in data_tasks:
             data.append(frappe._dict({
@@ -2180,6 +2190,138 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
             data_tasks.append(task)
 
     return data
+
+
+TASK_TIME_HISTORY_CACHE_TTL = 4 * 60 * 60
+
+
+def _historical_task_time(tasks, from_date, to_date):
+    """Submitted Timesheet seconds per task and employee, cached for four hours."""
+    cache_input = json.dumps(
+        [tasks, from_date.isoformat() if from_date else None, to_date.isoformat()],
+        separators=(",", ":"),
+    )
+    cache_key = "productivity_next:task_time:history:v2:" + hashlib.sha256(
+        cache_input.encode()
+    ).hexdigest()
+    cache = frappe.cache()
+    cached = cache.get_value(cache_key)
+    if cached is not None:
+        return cached
+
+    conditions = [
+        "tsd.task IN %(tasks)s",
+        "ts.docstatus = 1",
+        "tsd.from_time < %(end_exclusive)s",
+    ]
+    params = {"tasks": tuple(tasks), "end_exclusive": to_date + timedelta(days=1)}
+    if from_date:
+        conditions.append("tsd.from_time >= %(from_date)s")
+        params["from_date"] = from_date
+
+    rows = frappe.db.sql(
+        """
+        SELECT tsd.task, ts.employee, SUM(tsd.hours) AS total_hours
+        FROM `tabTimesheet Detail` tsd
+        JOIN `tabTimesheet` ts ON ts.name = tsd.parent
+        WHERE """ + " AND ".join(conditions) + " GROUP BY tsd.task, ts.employee",
+        params,
+        as_dict=True,
+    )
+    totals = {}
+    for row in rows:
+        totals.setdefault(row.task, {})[row.employee] = float(row.total_hours or 0) * 3600
+    cache.set_value(cache_key, totals, expires_in_sec=TASK_TIME_HISTORY_CACHE_TTL)
+    return totals
+
+
+@frappe.whitelist()
+def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
+    """Return seconds spent on each Task by all employees in the requested range.
+
+    Submitted Timesheets cover days before today; today's Application Usage
+    logs remain live. The employee_time list shows each employee's name and
+    duration in seconds. Future days have no recorded time.
+    """
+    try:
+        tasks = frappe.parse_json(tasks)
+    except (TypeError, ValueError):
+        frappe.throw(_("Tasks must be a list of Task IDs."), frappe.ValidationError)
+    if not isinstance(tasks, list) or any(not isinstance(task, str) or not task for task in tasks):
+        frappe.throw(_("Tasks must be a list of Task IDs."), frappe.ValidationError)
+    tasks = list(dict.fromkeys(tasks))
+    if not tasks:
+        return []
+
+    try:
+        start = getdate(from_date) if from_date else None
+        end = getdate(to_date) if to_date else None
+    except (TypeError, ValueError):
+        frappe.throw(_("From Date and To Date must be valid dates."), frappe.ValidationError)
+    if start and end and start > end:
+        frappe.throw(_("From Date cannot be after To Date."), frappe.ValidationError)
+
+    # Query permissions every time; cached totals are never used to grant access.
+    allowed = set(frappe.get_all(
+        "Task", filters={"name": ["in", tasks]}, pluck="name", limit_page_length=len(tasks)
+    ))
+    if allowed != set(tasks):
+        frappe.throw(_("You do not have access to one or more Tasks."), frappe.PermissionError)
+
+    current_day = getdate(today())
+    last_historical_day = current_day - timedelta(days=1)
+    historical_end = min(end, last_historical_day) if end else last_historical_day
+    totals = {}
+    if not start or start <= historical_end:
+        totals = {
+            task: dict(employee_totals)
+            for task, employee_totals in _historical_task_time(tasks, start, historical_end).items()
+        }
+
+    if (not start or start <= current_day) and (not end or current_day <= end):
+        live_rows = frappe.db.sql(
+            """
+            SELECT task, employee, SUM(duration) AS total_duration
+            FROM `tabApplication Usage log`
+            WHERE `date` = %(today)s AND task IN %(tasks)s
+            GROUP BY task, employee
+            """,
+            {"today": current_day, "tasks": tuple(tasks)},
+            as_dict=True,
+        )
+        for row in live_rows:
+            task_totals = totals.setdefault(row.task, {})
+            task_totals[row.employee] = task_totals.get(row.employee, 0) + float(row.total_duration or 0)
+
+    employee_ids = sorted({employee for task_totals in totals.values() for employee in task_totals if employee})
+    employee_names = {
+        row.name: row.employee_name
+        for row in frappe.get_all(
+            "Employee",
+            filters={"name": ["in", employee_ids]},
+            fields=["name", "employee_name"],
+            limit_page_length=0,
+        )
+    } if employee_ids else {}
+
+    response = []
+    for task in tasks:
+        employee_time = [
+            frappe._dict({
+                "employee_name": employee_names.get(employee) or employee or _("Unknown employee"),
+                "total_duration": round(seconds, 6),
+                "total_hours": round(seconds / 3600, 2),
+            })
+            for employee, seconds in sorted(totals.get(task, {}).items(), key=lambda item: item[0] or "")
+        ]
+        total_seconds = sum(item.total_duration for item in employee_time)
+        response.append(frappe._dict({
+            "task": task,
+            "total_duration": round(total_seconds, 6),
+            "total_hours": round(total_seconds / 3600, 2),
+            "employee_time": employee_time,
+        }))
+    return response
 
 
 

@@ -120,7 +120,7 @@ def get_data(filters):
 def get_projects(filters):
     project_filters = {}
     if filters.get('project'):
-        project_filters["name"] = filters["project"]
+        project_filters["name"] = ["in", filters["project"]]
     
     return frappe.get_all(
         "Project",
@@ -254,7 +254,7 @@ def get_tasks(filters):
     task_filters = {"is_template": 0}
 
     if filters.get('project'):
-        task_filters["project"] = filters['project']
+        task_filters["project"] = ["in", filters['project']]
 
     if filters.get('task'):
         sql = """WITH RECURSIVE task_tree AS (

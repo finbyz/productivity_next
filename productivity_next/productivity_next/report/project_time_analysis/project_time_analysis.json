@@ -10,7 +10,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2025-05-14 12:14:31.980321",
+ "modified": "2026-10-13 14:22:00.398273",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Project Time Analysis",
@@ -25,6 +25,9 @@
   },
   {
    "role": "Employee"
+  },
+  {
+   "role": "Copilot User"
   }
  ],
  "timeout": 0
