@@ -2166,11 +2166,21 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     )
 
     tasks = query.run(as_dict=True)
-    
-    completed_tasks = list(filter(lambda task:task.status == 'Completed',tasks))
-    non_completed_tasks = list(filter(lambda task:task.status != 'Completed',tasks))
+    assigned_tasks = [
+        task for task in tasks
+        if task.assignee == assignee and task.status != "Completed"
+    ]
+    other_tasks = [
+        task for task in tasks
+        if task.assignee != assignee and task.status != "Completed"
+    ]
+    completed_tasks = [
+        task for task in tasks
+        if task.status == "Completed"
+    ]
+
     return {
-        "data": [*non_completed_tasks, *completed_tasks]
+        "data": [*assigned_tasks, *other_tasks, *completed_tasks]
     }
 
 
