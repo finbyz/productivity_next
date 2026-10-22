@@ -2086,7 +2086,7 @@ def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
         frappe.throw(_("From Date cannot be after To Date."), frappe.ValidationError)
 
     # Query permissions every time; cached totals are never used to grant access.
-    allowed = set(frappe.get_all(
+    allowed = set(frappe.get_list(
         "Task", filters={"name": ["in", tasks]}, pluck="name", limit_page_length=len(tasks)
     ))
     if allowed != set(tasks):
