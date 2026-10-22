@@ -2,7 +2,7 @@ import hashlib
 import json
 import frappe
 from frappe.auth import LoginManager
-from frappe.boot import DocType
+from frappe.query_builder import DocType
 from frappe.desk.form.assign_to import get
 from frappe.share import notify_assignment
 import frappe.utils
@@ -2124,26 +2124,6 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
             "data": frappe.get_list("Task",filters=filters,fields=['*'])
         }
     Task = DocType("Task")
-    
-    query = (
-        frappe.qb.from_(Task)
-        .select("*")
-        .where(
-            (
-                (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
-                & (Task.exp_start_date.lte(end_date))
-                & (
-                    (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
-                )
-            )
-            | (
-                (Task.status == "Completed")
-                & (Task.completed_on.between(start_date, end_date))
-                & (Task.completed_by == assignee)
-            )
-        )
-        .orderby(Task.modified, order=Order.desc)
-    )
     
     query = (
         frappe.qb.from_(Task)

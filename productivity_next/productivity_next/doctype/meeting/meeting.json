@@ -80,12 +80,8 @@
    "read_only": 1
   },
   {
-   "bold": 1,
    "fieldname": "subject",
    "fieldtype": "Data",
-   "in_global_search": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
    "label": "Subject"
   },
   {
@@ -447,7 +443,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-15 09:54:36.547530",
+ "modified": "2026-10-22 11:41:26.998907",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",
@@ -509,10 +505,10 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "subject,organization,contact_person",
+ "search_fields": "organization,contact_person",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "subject",
+ "title_field": "organization",
  "track_changes": 1
 }
