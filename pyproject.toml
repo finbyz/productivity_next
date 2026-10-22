@@ -1,0 +1,16 @@
+[project]
+name = "productivity_next"
+description = "Productivity Next"
+requires-python = ">=3.14,<3.15"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "geopy",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=16.0.0-dev,<=17.0.0-dev"

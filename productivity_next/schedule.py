@@ -32,12 +32,10 @@ def get_all_employee_status():
 
 
 def get_last_activity_time_of_user(employee, time):
-    screen_shot_log_time = frappe.db.get_all(
-        "Screen Screenshot Log",
-        filters={"datetime": [">=", time], "employee": employee},
-        fields=["max(datetime) as time"],
-        order_by="creation desc",
-        limit=1,
+    screen_shot_log_time = frappe.db.sql(
+        """SELECT MAX(datetime) AS time FROM `tabScreen Screenshot Log`
+           WHERE employee = %(employee)s AND datetime >= %(time)s""",
+        {"employee": employee, "time": time}, as_dict=True,
     )
     application_usage_log_time = frappe.db.get_all(
         "Application Usage log",
@@ -1375,14 +1373,15 @@ def create_timesheet_logs():
         }
     )
     
-    calls = frappe.get_all(
-        "Employee Fincall",
-        fields=["name as call_id","employee","call_datetime as from_time","ADDTIME(call_datetime, SEC_TO_TIME(duration)) as to_time", "issue", "task", "project"],
-        filters=[
-            ["call_datetime", ">=", day_start],
-            ["call_datetime", "<", next_day],
-        ],
-        order_by="call_datetime asc",
+    calls = frappe.db.sql(
+        """SELECT name AS call_id, employee, call_datetime AS from_time,
+                  ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS to_time,
+                  issue, task, project
+           FROM `tabEmployee Fincall`
+           WHERE call_datetime >= %(day_start)s AND call_datetime < %(next_day)s
+           ORDER BY call_datetime ASC""",
+        {"day_start": day_start, "next_day": next_day},
+        as_dict=True,
     )
     
     merged_logs = {}

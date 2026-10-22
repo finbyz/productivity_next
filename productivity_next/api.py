@@ -1,36 +1,39 @@
 import hashlib
 import json
-import frappe
-from frappe.auth import LoginManager
-from frappe.query_builder import DocType
-from frappe.desk.form.assign_to import get
-from frappe.share import notify_assignment
-import frappe.utils
-from productivity_next.utils.auth import get_bearer_token, update_expiry_time
-from frappe.utils import nowdate, today
-from frappe.utils import nowdate, get_datetime
-from frappe.utils import time_diff_in_seconds
-from frappe.utils import flt
-from datetime import datetime,date,timedelta
-import requests
-from werkzeug import Response
-import pytz
-from frappe import _
 import logging
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+
+import frappe
+from frappe import _
+from frappe.auth import LoginManager
+from frappe.desk.form import assign_to
+from frappe.desk.form.assign_to import get, notify_assignment
 from frappe.model.mapper import get_mapped_doc
+from frappe.query_builder import DocType, Order
+from frappe.share import notify_assignment
 from frappe.utils import (
     cint,
-    getdate,
+    convert_utc_to_system_timezone,
+    flt,
+    get_datetime,
     get_fullname,
     get_url_to_form,
+    getdate,
     now_datetime,
+    nowdate,
+    time_diff_in_seconds,
+    today,
     validate_email_address,
 )
-from frappe.query_builder import Order
-from pypika.terms import Case
-from frappe.utils import get_datetime, convert_utc_to_system_timezone, getdate
 from geopy.distance import geodesic
+from pypika.terms import Case
+import pytz
 from redis.exceptions import LockError, RedisError
+import requests
+from werkzeug import Response
+
+from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 
 
 PROJECT_TIME_ANALYSIS_REPORT = "Project Time Analysis"
@@ -183,6 +186,7 @@ def get_project_time_analysis(from_date=None, to_date=None, employee=None, witho
         refresh=str(without_cache).lower() in {"1", "true"},
     )
     return _filter_project_time_analysis_for_employee(result, employee)
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -448,16 +452,16 @@ def get_employee_time(employee=None):
     if not employee:
         return 0
 
-    total_application_time = frappe.db.get_all(
-        "Application Usage log",
-        filters={"employee": employee, "date": nowdate()},
-        fields=["sum(duration) as duration"],
+    total_application_time = frappe.db.sql(
+        """SELECT SUM(duration) AS duration FROM `tabApplication Usage log`
+           WHERE employee = %(employee)s AND date = %(date)s""",
+        {"employee": employee, "date": nowdate()}, as_dict=True,
     )
 
-    idle_application_time = frappe.db.get_all(
-        "Employee Idle Time",
-        filters={"employee": employee, "date": nowdate()},
-        fields=["sum(duration) as duration"],
+    idle_application_time = frappe.db.sql(
+        """SELECT SUM(duration) AS duration FROM `tabEmployee Idle Time`
+           WHERE employee = %(employee)s AND date = %(date)s""",
+        {"employee": employee, "date": nowdate()}, as_dict=True,
     )
 
     if total_application_time:
@@ -2026,12 +2030,21 @@ def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
 
     filters['employee'] = employee
     filters["task"] = ["in", tasks]
+    params = [employee]
+    date_condition = ""
+    if from_date and to_date:
+        date_condition = "AND date BETWEEN %s AND %s"
+        params.extend([from_date, to_date])
 
-    data = frappe.db.get_all(
-        "Application Usage log",
-        filters=filters,
-        fields=["task", "sum(duration) as total_duration"],
-        group_by="task"
+    task_in = ", ".join(["%s"] * len(tasks))
+    params.extend(tasks)
+    data = frappe.db.sql(
+        f"""SELECT task, SUM(duration) AS total_duration
+            FROM `tabApplication Usage log`
+            WHERE employee = %s {date_condition} AND task IN ({task_in})
+            GROUP BY task""",
+        params,
+        as_dict=True,
     )
 
     data_tasks = [row.task for row in data]
@@ -2349,7 +2362,6 @@ def submit_working_hour_exception_reason(doc_id,reason):
         frappe.throw("Reason has already been submitted and cannot be changed.")
     doc.reason = reason
     doc.save(ignore_permissions=True)
-    frappe.db.commit()
     return "success"
 
 @frappe.whitelist()

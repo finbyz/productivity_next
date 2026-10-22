@@ -639,22 +639,19 @@ def user_analysis_data(start_date=None, end_date=None):
     hours_per_weekday = float(weekday_hours) if weekday_hours else 7.5
     hours_on_saturday = float(saturday_hours) if saturday_hours else 2.5
     
-    completed_tasks = frappe.get_list(
-        "Task",
-        fields=['count(*) as completed_tasks',"completed_by"],
-        filters={
-            "status":"Completed",
-            "completed_on": ["between", [start_date, end_date]]
-        },
-        group_by="completed_by"   
+    completed_tasks = frappe.db.sql(
+        """SELECT COUNT(*) AS completed_tasks, completed_by
+           FROM `tabTask`
+           WHERE status = 'Completed' AND completed_on BETWEEN %(start_date)s AND %(end_date)s
+           GROUP BY completed_by""",
+        {"start_date": start_date, "end_date": end_date}, as_dict=True,
     )
-    overdue_tasks = frappe.get_list(
-        "Task",
-        fields=['count(*) as overdue_tasks',"assignee"],
-        filters={
-            "status":"Overdue"
-        },
-        group_by="assignee"
+    overdue_tasks = frappe.db.sql(
+        """SELECT COUNT(*) AS overdue_tasks, assignee
+           FROM `tabTask`
+           WHERE status = 'Overdue'
+           GROUP BY assignee""",
+        as_dict=True,
     )
     overdue_tasks_user_id = {task['assignee']: task['overdue_tasks'] for task in overdue_tasks}
     completed_tasks_by_user_id = {task['completed_by']: task['completed_tasks'] for task in completed_tasks}
