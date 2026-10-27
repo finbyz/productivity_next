@@ -9,8 +9,11 @@ import frappe
 from frappe.utils import get_datetime, nowdate
 
 
-CACHE_SECONDS = 15 * 60
-CACHE_PREFIX = "productivity_next:team_productivity:v7"
+TEAM_CACHE_SECONDS = 3 * 60 * 60
+RESPONSE_CACHE_SECONDS = 60 * 60
+TEAM_CACHE_PREFIX = "productivity_next:team_productivity:team:v3"
+RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v5"
+MAX_TREE_DEPTH = 50
 
 
 def _date_range(from_date, to_date):
@@ -28,47 +31,73 @@ def _manager_team():
 	user = frappe.session.user
 	if user == "Guest":
 		frappe.throw("Login required", frappe.PermissionError)
-	# Reporting relationships grant access, so read them on every request.
-	managers = frappe.get_all(
-		"Employee", filters={"user_id": user, "status": "Active"}, pluck="name"
-	)
-	team = frappe.get_all(
+	cache = frappe.cache()
+	key = f"{TEAM_CACHE_PREFIX}:{hashlib.sha256(user.encode()).hexdigest()}"
+	team = cache.get_value(key, expires=True)
+	if team is not None:
+		return team
+
+	employees = frappe.get_all(
 		"Employee",
-		filters={"reports_to": ["in", managers], "status": "Active", "user_id": ["is", "set"]},
-		fields=["name", "employee_name", "user_id", "image"],
+		filters={"status": "Active"},
+		fields=["name", "employee_name", "user_id", "image", "reports_to"],
+		order_by="employee_name",
 		limit_page_length=0,
-	) if managers else []
+	)
+	managers = [row for row in employees if row.user_id == user]
+	children = defaultdict(list)
+	for row in employees:
+		children[row.reports_to].append(row)
+
+	# Non-managers should not receive a productivity row for themselves.
+	if not managers or not any(children[manager.name] for manager in managers):
+		team = []
+	else:
+		team = []
+		seen = set()
+		stack = [(manager, 0) for manager in reversed(managers)]
+		while stack:
+			employee, depth = stack.pop()
+			if employee.name in seen or depth > MAX_TREE_DEPTH:
+				continue
+			seen.add(employee.name)
+			team.append(employee)
+			stack.extend(
+				(child, depth + 1)
+				for child in reversed(children[employee.name])
+			)
+	cache.set_value(key, team, expires_in_sec=TEAM_CACHE_SECONDS)
 	return team
 
 
 def _task_counts(team, start, end):
-	"""Count the same tasks returned by api.get_tasks for each team member."""
+	"""Count tasks by their assignee for each team member."""
 	users = sorted({row.user_id for row in team if row.user_id})
 	counts = defaultdict(lambda: {"total": 0, "completed": 0, "pending": 0, "overdue": 0, "task_types": {}})
 	if not users:
 		return counts
 
-	# Each user appears once, so a task assigned to several team members is
-	# counted once for each member, exactly as separate get_tasks calls would.
-	team_users = " UNION ALL ".join("SELECT %s AS user_id" for _ in users)
+	placeholders = ", ".join(["%s"] * len(users))
 	today = datetime.strptime(nowdate(), "%Y-%m-%d").date()
 	rows = frappe.db.sql(
 		f"""
-		SELECT team.user_id AS assignee, task.`type`, COUNT(*) AS total,
+		SELECT task.assignee, task.`type`, COUNT(*) AS total,
 			SUM(task.status = 'Completed') AS completed,
 			SUM(task.status != 'Completed'
 				AND (task.status = 'Overdue' OR task.exp_end_date < %s)) AS overdue
-		FROM ({team_users}) AS team
-		JOIN `tabTask` AS task ON (
-			(task.status NOT IN ('Unplanned', 'Template', 'Cancelled', 'Completed')
-				AND task.exp_start_date <= %s
-				AND (task._assign LIKE CONCAT('%%"', team.user_id, '"%%')
-					OR task.assignee = team.user_id))
-			OR (task.status = 'Completed'
-				AND task.completed_on BETWEEN %s AND %s
-				AND task.completed_by = team.user_id)
-		)
-		GROUP BY team.user_id, task.`type`
+		FROM `tabTask` AS task
+		WHERE task.assignee IN ({placeholders})
+			AND (
+				(
+					task.status NOT IN ('Unplanned', 'Template', 'Cancelled', 'Completed')
+					AND task.exp_start_date <= %s
+				)
+				OR (
+					task.status = 'Completed'
+					AND task.completed_on BETWEEN %s AND %s
+				)
+			)
+		GROUP BY task.assignee, task.`type`
 		""",
 		(today, *users, end, start, end),
 		as_dict=True,
@@ -184,49 +213,73 @@ def _activity_times(team, start, end):
 
 
 
-def _cache_key(team, start, end):
+def _response_cache_key(start, end):
 	payload = json.dumps(
 		{
 			"manager": frappe.session.user,
-			"team": sorted((row.name, row.user_id, row.employee_name, row.image or "") for row in team),
 			"today": nowdate(),
 			"from_date": start.isoformat(),
 			"to_date": end.isoformat(),
 		},
 		separators=(",", ":"),
 	)
-	return f"{CACHE_PREFIX}:{hashlib.sha256(payload.encode()).hexdigest()}"
+	return f"{RESPONSE_CACHE_PREFIX}:{hashlib.sha256(payload.encode()).hexdigest()}"
 
 
 def _build_rows(team, start, end):
+	"""Build a productivity forest from the selected Employee hierarchy."""
 	counts = _task_counts(team, start, end)
 	activity = _activity_times(team, start, end)
-	return [
-		{
+	nodes = {
+		row.name: {
 			"employee": row.name,
 			"employee_name": row.employee_name,
 			"image": row.image,
+			"reports_to": row.reports_to,
 			**counts[row.user_id],
 			**activity[row.name],
+			"children": [],
 		}
 		for row in team
-	]
+	}
+	employees = {row.name: row for row in team}
+	roots = []
+	for row in team:
+		parent = row.reports_to
+		seen = {row.name}
+		current = parent
+		while current in employees and current not in seen:
+			seen.add(current)
+			current = employees[current].reports_to
+		if not parent or parent not in nodes or current in seen:
+			roots.append(nodes[row.name])
+		else:
+			nodes[parent]["children"].append(nodes[row.name])
+	return roots
 
 
 @frappe.whitelist(methods=["GET"])
-def get_team_productivity(from_date: str, to_date: str):
-	"""Return current backlog, completions in range, and recorded activity.
+def get_team_productivity(from_date: str, to_date: str, without_cache=0):
+	"""Return hierarchical team productivity, optionally refreshing its cache.
 
-	progress_percent is active / (active + idle), not task completion progress.
+	rows is a forest of employee nodes with recursive children. progress_percent
+	is active / (active + idle), not task completion progress.
 	"""
 	start, end = _date_range(from_date, to_date)
-	team = _manager_team()
-	if not team:
-		return {"is_team": False, "rows": []}
-	key = _cache_key(team, start, end)
+	if frappe.session.user == "Guest":
+		frappe.throw("Login required", frappe.PermissionError)
 	cache = frappe.cache()
-	rows = cache.get_value(key, expires=True)
-	if rows is None:
-		rows = _build_rows(team, start, end)
-		cache.set_value(key, rows, expires_in_sec=CACHE_SECONDS)
-	return {"is_team": True, "rows": rows}
+	key = _response_cache_key(start, end)
+	refresh = str(without_cache).lower() in {"1", "true"}
+	if not refresh:
+		response = cache.get_value(key, expires=True)
+		if response is not None:
+			return response
+
+	team = _manager_team()
+	response = {
+		"is_team": bool(team),
+		"rows": _build_rows(team, start, end) if team else [],
+	}
+	cache.set_value(key, response, expires_in_sec=RESPONSE_CACHE_SECONDS)
+	return response

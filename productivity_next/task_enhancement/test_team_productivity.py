@@ -24,11 +24,17 @@ class FakeCache:
 class TestTeamProductivity(TestCase):
 	def setUp(self):
 		self.team = [
-			SimpleNamespace(name="EMP-001", employee_name="Alice", user_id="alice@example.com", image="/alice.png"),
-			SimpleNamespace(name="EMP-002", employee_name="Bob", user_id="bob@example.com", image=None),
+			SimpleNamespace(
+				name="EMP-001", employee_name="Alice", user_id="alice@example.com",
+				image="/alice.png", reports_to="MGR-001",
+			),
+			SimpleNamespace(
+				name="EMP-002", employee_name="Bob", user_id="bob@example.com",
+				image=None, reports_to="EMP-001",
+			),
 		]
 
-	def test_task_counts_match_get_tasks_selection_and_date_range(self):
+	def test_task_counts_use_assignee_and_get_tasks_date_filters(self):
 		rows = [
 			SimpleNamespace(assignee="alice@example.com", type="Bug", total=3, completed=2, overdue=1),
 			SimpleNamespace(assignee="alice@example.com", type="Feature", total=3, completed=0, overdue=0),
@@ -52,9 +58,9 @@ class TestTeamProductivity(TestCase):
 		})
 		self.assertEqual(len(calls), 1)
 		query, params = calls[0]
-		self.assertIn("task._assign LIKE CONCAT", query)
-		self.assertIn("task.assignee = team.user_id", query)
-		self.assertIn("task.completed_by = team.user_id", query)
+		self.assertIn("task.assignee IN", query)
+		self.assertNotIn("task._assign", query)
+		self.assertNotIn("task.completed_by", query)
 		self.assertIn("task.exp_start_date <= %s", query)
 		self.assertIn("task.completed_on BETWEEN %s AND %s", query)
 		self.assertIn("'Unplanned', 'Template', 'Cancelled', 'Completed'", query)
@@ -112,30 +118,55 @@ class TestTeamProductivity(TestCase):
 			"active_seconds": 7200, "idle_seconds": 3600, "progress_percent": 66.7,
 		})
 
-	def test_manager_team_rechecks_direct_reports_on_every_request(self):
+	def test_manager_team_includes_manager_and_recursive_reports(self):
+		cache = FakeCache()
+		manager = SimpleNamespace(
+			name="MGR-001", employee_name="Manager", user_id="manager@example.com",
+			image=None, reports_to=None,
+		)
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
-			patch.object(chart.frappe, "get_all", side_effect=[["MGR-001"], self.team, ["MGR-001"], []]) as get_all,
+			patch.object(chart.frappe, "cache", return_value=cache),
+			patch.object(chart.frappe, "get_all", return_value=[manager, *self.team]) as get_all,
 		):
-			self.assertEqual(chart._manager_team(), self.team)
-			self.assertEqual(chart._manager_team(), [])
-		self.assertEqual(get_all.call_count, 4)
-		self.assertEqual(get_all.call_args_list[1].kwargs["filters"]["reports_to"], ["in", ["MGR-001"]])
+			team = chart._manager_team()
+			self.assertEqual(chart._manager_team(), team)
+		self.assertEqual([row.name for row in team], ["MGR-001", "EMP-001", "EMP-002"])
+		self.assertEqual(get_all.call_count, 1)
+		self.assertEqual(list(cache.ttls.values()), [3 * 60 * 60])
 
-	def test_reassigned_employee_cannot_receive_cached_rows(self):
+	def test_roles_do_not_expand_employee_hierarchy(self):
+		cache = FakeCache()
+		user_employee = SimpleNamespace(
+			name="EMP-CEO", employee_name="CEO", user_id="ceo@example.com",
+			image=None, reports_to=None,
+		)
+		with (
+			patch.object(chart.frappe, "session", SimpleNamespace(user="ceo@example.com")),
+			patch.object(chart.frappe, "cache", return_value=cache),
+			patch.object(chart.frappe, "get_roles") as get_roles,
+			patch.object(chart.frappe, "get_all", return_value=[user_employee, *self.team]),
+		):
+			team = chart._manager_team()
+
+		self.assertEqual(team, [])
+		get_roles.assert_not_called()
+
+	def test_empty_team_response_is_cached(self):
 		cache = FakeCache()
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
 			patch.object(chart.frappe, "cache", return_value=cache),
-			patch.object(chart, "_manager_team", side_effect=[self.team, []]),
-			patch.object(chart, "_build_rows", return_value=[{"employee": "EMP-001"}]) as build,
+			patch.object(chart, "_manager_team", return_value=[]) as manager_team,
 		):
-			self.assertTrue(chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")["is_team"])
-			self.assertEqual(chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14"),
-				{"is_team": False, "rows": []})
-		build.assert_called_once()
+			first = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
+			cached = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
+		self.assertEqual(first, {"is_team": False, "rows": []})
+		self.assertEqual(cached, first)
+		manager_team.assert_called_once()
+		self.assertEqual(list(cache.ttls.values()), [60 * 60])
 
-	def test_api_returns_only_reporting_managers_team(self):
+	def test_api_returns_team_as_hierarchy(self):
 		cache = FakeCache()
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
@@ -154,13 +185,16 @@ class TestTeamProductivity(TestCase):
 		task_counts.assert_called_once_with(self.team, date(2026, 10, 14), date(2026, 10, 14))
 		self.assertEqual(set(result), {"is_team", "rows"})
 		self.assertTrue(result["is_team"])
-		self.assertEqual(len(result["rows"]), 2)
+		self.assertEqual(len(result["rows"]), 1)
 		self.assertEqual(result["rows"][0]["employee"], "EMP-001")
 		self.assertEqual(result["rows"][0]["image"], "/alice.png")
 		self.assertEqual(result["rows"][0]["progress_percent"], 66.7)
-		self.assertEqual(result["rows"][1]["total"], 0)
+		self.assertEqual(result["rows"][0]["reports_to"], "MGR-001")
+		self.assertEqual(len(result["rows"][0]["children"]), 1)
+		self.assertEqual(result["rows"][0]["children"][0]["employee"], "EMP-002")
+		self.assertEqual(result["rows"][0]["children"][0]["total"], 0)
 
-	def test_cache_hit_reuses_rows_and_miss_rebuilds_after_expiry(self):
+	def test_response_cache_hit_reuses_whole_response_and_miss_rebuilds(self):
 		cache = FakeCache()
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
@@ -170,8 +204,9 @@ class TestTeamProductivity(TestCase):
 		):
 			first = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
 			build.assert_called_once()
-			key = chart._cache_key(self.team, date(2026, 10, 14), date(2026, 10, 14))
-			self.assertEqual(cache.ttls[key], 900)
+			key = chart._response_cache_key(date(2026, 10, 14), date(2026, 10, 14))
+			self.assertEqual(cache.ttls[key], 60 * 60)
+			self.assertEqual(cache.values[key], first)
 			cached = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
 			self.assertEqual(cached, first)
 			build.assert_called_once()
@@ -179,10 +214,33 @@ class TestTeamProductivity(TestCase):
 			chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
 			self.assertEqual(build.call_count, 2)
 
-	def test_cache_key_changes_when_overdue_reference_day_changes(self):
+	def test_without_cache_refreshes_and_replaces_cached_response(self):
+		cache = FakeCache()
+		first_rows = [{"employee": "EMP-001", "total": 1}]
+		fresh_rows = [{"employee": "EMP-001", "total": 2}]
+		with (
+			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
+			patch.object(chart.frappe, "cache", return_value=cache),
+			patch.object(chart, "_manager_team", return_value=self.team),
+			patch.object(chart, "_build_rows", side_effect=[first_rows, fresh_rows]) as build,
+		):
+			first = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
+			cached = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
+			fresh = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14", "1")
+			cached_fresh = chart.get_team_productivity.__wrapped__("2026-10-14", "2026-10-14")
+			key = chart._response_cache_key(date(2026, 10, 14), date(2026, 10, 14))
+
+		self.assertEqual(cached, first)
+		self.assertEqual(fresh["rows"], fresh_rows)
+		self.assertEqual(cached_fresh, fresh)
+		self.assertEqual(build.call_count, 2)
+		self.assertEqual(cache.values[key], fresh)
+		self.assertEqual(cache.ttls[key], 60 * 60)
+
+	def test_response_cache_key_changes_when_overdue_reference_day_changes(self):
 		with patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")):
 			with patch.object(chart, "nowdate", return_value="2026-10-14"):
-				first = chart._cache_key(self.team, date(2026, 10, 1), date(2026, 10, 14))
+				first = chart._response_cache_key(date(2026, 10, 1), date(2026, 10, 14))
 			with patch.object(chart, "nowdate", return_value="2026-10-15"):
-				second = chart._cache_key(self.team, date(2026, 10, 1), date(2026, 10, 14))
+				second = chart._response_cache_key(date(2026, 10, 1), date(2026, 10, 14))
 		self.assertNotEqual(first, second)
