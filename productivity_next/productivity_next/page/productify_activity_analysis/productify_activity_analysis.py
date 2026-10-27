@@ -567,7 +567,7 @@ def _get_meeting_participants(meetings):
     return dict(company_participants), dict(customer_participants)
 
 # Applications Used Code Starts
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def application_usage_time(user=None, start_date=None, end_date=None):
     if not user or user is None:
         return {
@@ -606,7 +606,7 @@ def application_usage_time(user=None, start_date=None, end_date=None):
 # Applications Used Code Ends
 
 # Web Browsing Time code starts
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def web_browsing_time(user = None,start_date=None,end_date=None):
     if not user or user == None:
         return {
@@ -649,18 +649,10 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
         WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
         ELSE 'Others'
     END AS customname,
-    CASE 
-        WHEN ef.contact IS NOT NULL THEN
-            COALESCE(
-                (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
-                COALESCE(ef.contact, ef.client, ef.customer_no)
-            )
-        ELSE 
-            CASE 
-                WHEN link_name IS NOT NULL AND link_name != '' THEN link_name
-                ELSE 'Others'
-            END
-    END AS identifier,
+    COALESCE(
+        (SELECT first_name FROM `tabContact` WHERE name = COALESCE(ef.contact, ef.client, ef.customer_no)),
+        COALESCE(ef.contact, ef.client, ef.customer_no)
+    ) AS identifier,
     ef.link_to AS ref_doctype, 
     ROUND(SUM(ef.duration)/60, 2) AS total_duration,
     COUNT(*) AS call_count
@@ -670,16 +662,14 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
         AND ef.employee = '{user}' 
     GROUP BY COALESCE(ef.contact, ef.client, ef.customer_no), ef.link_name
     HAVING SUM(ef.duration) > 60
-    ORDER BY total_duration DESC;
-
-    """, as_dict=True)
-    # frappe.throw(str(caller_name))
+    ORDER BY total_duration DESC
+""", as_dict=True)
 
     caller_details = []
     company_details = []
 
     others_duration = 0
-    main_categories = {'Customer', 'Supplier', 'Lead', 'Company', 'Job Applicant'}
+    main_categories = {'Customer', 'Supplier', 'Lead', 'Company'}
     for row in caller_name:
         ref_doctype = row['ref_doctype']
         total_duration = row['total_duration']
@@ -717,7 +707,7 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
     customNames = []
     for app in caller_name:
         caller_details.append({
-            "name": app['identifier'] if app['identifier'] else app['customname'],
+            "name": app['identifier'],
             "value": app['total_duration'],
             "customIndex": count
         })
@@ -767,7 +757,7 @@ def type_of_calls(user = None,start_date=None,end_date=None):
 # Type Of Calls Code Ends
 
 # URL DATA AND SIDEBAR DATA CODE STARTS
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def fetch_url_data(user=None,start_date=None, end_date=None):
     version_conditions_str = version_conditions(user,start_date,end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
