@@ -149,7 +149,7 @@ class Meeting(Document):
 			task.subject = self.subject
 			task.description = subject
 			task.project = self.project
-			task.type = "Meeting"
+			task.type = "Internal Meeting" if self.organization == "Internal Meeting" else "External Meeting"
 			task.status = "Completed"
 			task.completed_by = self.meeting_arranged_by
 			task.completed_on = self.meeting_to
