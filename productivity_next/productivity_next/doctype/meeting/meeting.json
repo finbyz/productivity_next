@@ -94,6 +94,7 @@
   {
    "fieldname": "purpose",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "in_standard_filter": 1,
    "label": "Purpose",
    "options": "Meeting Purpose",
@@ -168,6 +169,7 @@
    "fieldname": "salutation",
    "fieldtype": "Link",
    "hidden": 1,
+   "ignore_user_permissions": 1,
    "label": "Salutation",
    "options": "Salutation"
   },
@@ -175,6 +177,7 @@
    "depends_on": "eval:doc.internal_meeting != 1",
    "fieldname": "contact_person",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "in_list_view": 1,
    "label": "Contact Person",
    "options": "Contact"
@@ -204,6 +207,7 @@
    "depends_on": "eval:doc.internal_meeting != 1",
    "fieldname": "address",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Address",
    "options": "Address"
   },
@@ -262,6 +266,7 @@
   {
    "fieldname": "contact_by",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Next Contact By",
    "options": "User"
   },
@@ -289,6 +294,7 @@
   {
    "fieldname": "expense_done_by",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Expense Done By",
    "options": "Employee"
   },
@@ -339,6 +345,7 @@
    "fieldname": "customer",
    "fieldtype": "Link",
    "hidden": 1,
+   "ignore_user_permissions": 1,
    "label": "Customer",
    "options": "Customer"
   },
@@ -346,12 +353,14 @@
    "fieldname": "opportunity",
    "fieldtype": "Link",
    "hidden": 1,
+   "ignore_user_permissions": 1,
    "label": "Opportunity",
    "options": "Opportunity"
   },
   {
    "fieldname": "project",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Project",
    "options": "Project"
   },
@@ -371,6 +380,7 @@
    "allow_on_submit": 1,
    "fieldname": "location_log",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Location Log",
    "options": "Location History"
   },
@@ -397,12 +407,14 @@
   {
    "fieldname": "task",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Task",
    "options": "Task"
   },
   {
    "fieldname": "issue",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "label": "Issue",
    "options": "Issue"
   },
@@ -443,7 +455,7 @@
  "icon": "fa fa-handshake-o",
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-22 11:41:26.998907",
+ "modified": "2026-10-30 08:27:34.361630",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Meeting",

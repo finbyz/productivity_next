@@ -206,10 +206,13 @@ def get_events(start, end, filters=None):
 # ---------------------------------------------------------------------------
 # Visibility: a Meeting is visible only to the people involved in it — its creator,
 # its organizer (meeting_arranged_by; Teams meetings are created by the webhook as
-# Guest) and its internal participants (Company Representatives). Roles in
-# MEETING_SEE_ALL_ROLES and Administrator see every Meeting.
+# Guest) and its internal participants (Company Representatives) — and to their
+# managers: anyone above them in the Employee "Reports To" tree, at any depth (the same
+# hierarchy User Permissions on Employee follow). Roles in MEETING_SEE_ALL_ROLES and
+# Administrator see every Meeting.
 # Wired in hooks.py: permission_query_conditions covers list/report view, search and
 # link fields; has_permission covers opening, editing, printing and the API.
+# User Permissions do not narrow this: Meeting's link fields set ignore_user_permissions.
 # ---------------------------------------------------------------------------
 
 MEETING_SEE_ALL_ROLES = {"System Manager"}
@@ -219,8 +222,29 @@ def _sees_all_meetings(user):
 	return user == "Administrator" or bool(MEETING_SEE_ALL_ROLES & set(frappe.get_roles(user)))
 
 
-def _employees_of(user):
-	return frappe.get_all("Employee", filters={"user_id": user}, pluck="name")
+def _meeting_team(user):
+	"""Employees and users whose meetings `user` may see: the user's own Employee
+	records plus everyone reporting to them, directly or indirectly. Cached per request."""
+	cache = getattr(frappe.local, "meeting_visibility_team", None)
+	if cache is None:
+		cache = frappe.local.meeting_visibility_team = {}
+	if user not in cache:
+		employees = set(frappe.get_all("Employee", filters={"user_id": user}, pluck="name"))
+		frontier = list(employees)
+		while frontier:
+			juniors = frappe.get_all("Employee", filters={"reports_to": ["in", frontier]}, pluck="name")
+			frontier = [e for e in juniors if e not in employees]
+			employees.update(frontier)
+
+		users = {user}
+		if employees:
+			users.update(
+				u for u in frappe.get_all(
+					"Employee", filters={"name": ["in", list(employees)]}, pluck="user_id"
+				) if u
+			)
+		cache[user] = (employees, users)
+	return cache[user]
 
 
 def get_permission_query_conditions(user=None):
@@ -228,16 +252,16 @@ def get_permission_query_conditions(user=None):
 	if _sees_all_meetings(user):
 		return ""
 
-	u = frappe.db.escape(user)
+	employees, users = _meeting_team(user)
+	in_users = ", ".join(frappe.db.escape(u) for u in users)
 	# emp_user_id is copied onto the row from the Employee; also match on the Employee
 	# itself so a row with an empty or stale emp_user_id still counts
-	participant = f"rep.emp_user_id = {u}"
-	employees = _employees_of(user)
+	participant = f"rep.emp_user_id IN ({in_users})"
 	if employees:
 		participant += " OR rep.employee IN ({})".format(", ".join(frappe.db.escape(e) for e in employees))
 
-	return f"""(`tabMeeting`.owner = {u}
-		OR `tabMeeting`.meeting_arranged_by = {u}
+	return f"""(`tabMeeting`.owner = {frappe.db.escape(user)}
+		OR `tabMeeting`.meeting_arranged_by IN ({in_users})
 		OR EXISTS (
 			SELECT 1 FROM `tabMeeting Company Representative` rep
 			WHERE rep.parent = `tabMeeting`.name AND rep.parenttype = 'Meeting'
@@ -250,12 +274,14 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 	if _sees_all_meetings(user):
 		return True
 
-	if doc.is_new() or doc.owner == user or doc.get("meeting_arranged_by") == user:
+	if doc.is_new() or doc.owner == user:
 		return True
 
-	employees = set(_employees_of(user))
+	employees, users = _meeting_team(user)
+	if doc.get("meeting_arranged_by") in users:
+		return True
 	for rep in doc.get("meeting_company_representative") or []:
-		if rep.get("emp_user_id") == user or rep.get("employee") in employees:
+		if rep.get("emp_user_id") in users or rep.get("employee") in employees:
 			return True
 
 	return False
