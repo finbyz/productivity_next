@@ -1,5 +1,10 @@
+from unittest import TestCase
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
+
+from productivity_next.task_enhancement.overrides.doctype import task as task_module
 
 
 class TestTask(FrappeTestCase):
@@ -34,3 +39,39 @@ def create_task(label, *, is_group=False, parent_task=None):
 			"assignee": "Administrator",
 		}
 	).insert()
+
+
+class TestAssignmentCompletion(TestCase):
+	def test_repeated_completion_notifies_each_open_assignee_once(self):
+		assignments = [
+			frappe._dict(name="open-one", allocated_to="one@example.com", status="Open"),
+			frappe._dict(name="open-two", allocated_to="two@example.com", status="Open"),
+			frappe._dict(name="completed", allocated_to="three@example.com", status="Completed"),
+			frappe._dict(name="closed", allocated_to="four@example.com", status="Closed"),
+			frappe._dict(name="cancelled", allocated_to="five@example.com", status="Cancelled"),
+		]
+		notifications = []
+
+		def get_assignments(doctype, *, fields, filters):
+			status_filter = filters["status"]
+			if isinstance(status_filter, tuple):
+				return [row for row in assignments if row.status != status_filter[1]]
+			return [row for row in assignments if row.status == status_filter]
+
+		def complete_assignment(doctype, name, *, todo, assign_to, status, ignore_permissions):
+			row = next(row for row in assignments if row.name == todo)
+			row.status = status
+			notifications.append(assign_to)
+
+		with (
+			patch.object(task_module.frappe, "get_all", side_effect=get_assignments),
+			patch.object(task_module, "set_status", side_effect=complete_assignment),
+		):
+			self.assertTrue(task_module.clomplete_all_assignments("Task", "TASK-TEST"))
+			self.assertFalse(task_module.clomplete_all_assignments("Task", "TASK-TEST"))
+			self.assertFalse(task_module.clomplete_all_assignments("Task", "TASK-TEST"))
+
+		self.assertEqual(notifications, ["one@example.com", "two@example.com"])
+		self.assertEqual([row.status for row in assignments], [
+			"Completed", "Completed", "Completed", "Closed", "Cancelled",
+		])
