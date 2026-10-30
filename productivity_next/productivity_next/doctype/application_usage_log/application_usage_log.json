@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_import": 1,
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2023-11-09 12:18:58.156890",
  "default_view": "List",
  "doctype": "DocType",
@@ -167,7 +167,7 @@
   }
  ],
  "links": [],
- "modified": "2025-02-27 11:56:50.438873",
+ "modified": "2026-10-30 08:54:57.895666",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Application Usage log",

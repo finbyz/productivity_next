@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2023-11-09 12:24:10.405245",
  "default_view": "Image",
  "doctype": "DocType",
@@ -125,7 +125,7 @@
  ],
  "image_field": "screenshot",
  "links": [],
- "modified": "2025-04-04 14:07:26.590610",
+ "modified": "2026-10-30 08:54:57.895666",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Screen Screenshot Log",

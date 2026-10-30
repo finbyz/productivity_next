@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2024-06-10 11:45:20.571906",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -123,7 +123,7 @@
   }
  ],
  "links": [],
- "modified": "2024-11-12 16:04:01.287126",
+ "modified": "2026-10-30 08:54:57.895666",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Work Intensity",

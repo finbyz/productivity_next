@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_import": 1,
- "autoname": "naming_series:",
+ "autoname": "hash",
  "creation": "2024-06-07 09:27:35.761398",
  "default_view": "List",
  "doctype": "DocType",
@@ -84,7 +84,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-10-08 09:57:09.301603",
+ "modified": "2026-10-30 08:54:57.895666",
  "modified_by": "Administrator",
  "module": "Productivity Next",
  "name": "Employee Idle Time",
