@@ -17,6 +17,10 @@ class Meeting(Document):
 			frappe.throw(_("Subject is mandatory before submit"))
 
 	def validate(self):
+		# The Task made on submit needs an assignee ("Pending On"); manual meetings may
+		# leave the organizer empty, so it defaults to whoever enters the meeting.
+		if not self.meeting_arranged_by and frappe.session.user not in ("Guest", "Administrator"):
+			self.meeting_arranged_by = frappe.session.user
 		if self.internal_meeting :
 			self.organization = "Internal Meeting"
 		if self.party_type and self.party:
@@ -152,13 +156,13 @@ class Meeting(Document):
 			task.project = self.project
 			task.type = "Internal Meeting" if self.organization == "Internal Meeting" else "External Meeting"
 			task.status = "Completed"
-			task.completed_by = self.meeting_arranged_by
+			task.completed_by = self.meeting_arranged_by or frappe.session.user
 			task.completed_on = self.meeting_to
 			task.exp_start_date = self.meeting_from
 			task.exp_end_date = self.meeting_to
 			task.reference_type = "Meeting"
 			task.reference_name = self.name
-			task.assignee = self.meeting_arranged_by
+			task.assignee = self.meeting_arranged_by or frappe.session.user
 			task.save(ignore_permissions=True)
 			# Link Task to Meeting
 			self.db_set("task", task.name)
