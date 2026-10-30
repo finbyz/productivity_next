@@ -85,9 +85,9 @@ class Meeting(Document):
 		url = get_url_to_form("Meeting", self.name)
 		# url = "http://erp.finbyz.in/desk#Form/Lead%20Meeting/" + self.name
 		if user_name:
-			discussed = "<strong><a href="+url+">"+self.name+"</a>: </strong>"+ user_name + " Met "+ str(self.contact_person) + " On "+ self.meeting_from +"<br>" + self.discussion.replace('\n', "<br>")
+			discussed = "<strong><a href="+url+">"+self.name+"</a>: </strong>"+ user_name + " Met "+ str(self.contact_person) + " On "+ str(self.meeting_from) +"<br>" + (self.discussion or "").replace('\n', "<br>")
 		else:
-			discussed = "<strong><a href="+url+">"+self.name+"</a>: </strong>"+ frappe.session.user + " Met "+ str(self.contact_person)+ " On "+ self.meeting_from +"<br>" + self.discussion.replace('\n', "<br>")
+			discussed = "<strong><a href="+url+">"+self.name+"</a>: </strong>"+ frappe.session.user + " Met "+ str(self.contact_person)+ " On "+ str(self.meeting_from) +"<br>" + (self.discussion or "").replace('\n', "<br>")
 
 		cm = frappe.new_doc("Comment")
 		cm.subject = self.name
@@ -119,9 +119,10 @@ class Meeting(Document):
 				ends_on = date_obj.replace(hour=23, minute=59, second=59, microsecond=999999)
 				new_event = frappe.get_doc(dict(
 					doctype = 'Event',
-					subject = d.actionable +' - '+ d.responsible,
+					subject = " - ".join(filter(None, [d.actionable, d.responsible])),
 					event_category = "Meeting",
-					event_type = d.event_type,
+					# mandatory on Event; AI-created actionables leave it empty
+					event_type = d.event_type or "Private",
 					starts_on = starts_on,
 					ends_on = ends_on,
 					description = self.discussion
