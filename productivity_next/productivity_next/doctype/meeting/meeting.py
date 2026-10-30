@@ -201,3 +201,61 @@ def get_events(start, end, filters=None):
 		{ "name": ("in", data), "docstatus":1 },
 		["name", "meeting_from", "meeting_to", "organization", "party"]
 	)
+
+
+# ---------------------------------------------------------------------------
+# Visibility: a Meeting is visible only to the people involved in it — its creator,
+# its organizer (meeting_arranged_by; Teams meetings are created by the webhook as
+# Guest) and its internal participants (Company Representatives). Roles in
+# MEETING_SEE_ALL_ROLES and Administrator see every Meeting.
+# Wired in hooks.py: permission_query_conditions covers list/report view, search and
+# link fields; has_permission covers opening, editing, printing and the API.
+# ---------------------------------------------------------------------------
+
+MEETING_SEE_ALL_ROLES = {"System Manager"}
+
+
+def _sees_all_meetings(user):
+	return user == "Administrator" or bool(MEETING_SEE_ALL_ROLES & set(frappe.get_roles(user)))
+
+
+def _employees_of(user):
+	return frappe.get_all("Employee", filters={"user_id": user}, pluck="name")
+
+
+def get_permission_query_conditions(user=None):
+	user = user or frappe.session.user
+	if _sees_all_meetings(user):
+		return ""
+
+	u = frappe.db.escape(user)
+	# emp_user_id is copied onto the row from the Employee; also match on the Employee
+	# itself so a row with an empty or stale emp_user_id still counts
+	participant = f"rep.emp_user_id = {u}"
+	employees = _employees_of(user)
+	if employees:
+		participant += " OR rep.employee IN ({})".format(", ".join(frappe.db.escape(e) for e in employees))
+
+	return f"""(`tabMeeting`.owner = {u}
+		OR `tabMeeting`.meeting_arranged_by = {u}
+		OR EXISTS (
+			SELECT 1 FROM `tabMeeting Company Representative` rep
+			WHERE rep.parent = `tabMeeting`.name AND rep.parenttype = 'Meeting'
+			  AND ({participant})
+		))"""
+
+
+def has_permission(doc, ptype=None, user=None, debug=False):
+	user = user or frappe.session.user
+	if _sees_all_meetings(user):
+		return True
+
+	if doc.is_new() or doc.owner == user or doc.get("meeting_arranged_by") == user:
+		return True
+
+	employees = set(_employees_of(user))
+	for rep in doc.get("meeting_company_representative") or []:
+		if rep.get("emp_user_id") == user or rep.get("employee") in employees:
+			return True
+
+	return False

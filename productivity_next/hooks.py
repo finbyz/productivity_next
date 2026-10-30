@@ -82,6 +82,14 @@ override_whitelisted_methods = {
 # Scheduled Tasks
 # ---------------
 
+# Meetings are visible only to their creator, organizer and internal participants
+permission_query_conditions = {
+	"Meeting": "productivity_next.productivity_next.doctype.meeting.meeting.get_permission_query_conditions",
+}
+has_permission = {
+	"Meeting": "productivity_next.productivity_next.doctype.meeting.meeting.has_permission",
+}
+
 scheduler_events = {
     "all": [
         "productivity_next.schedule.bg_employee_log_generation",
