@@ -35,7 +35,8 @@ class Meeting(Document):
 				self.organization = data.organisation
 
 		if self.meeting_from and self.meeting_to:
-			if self.meeting_from > self.meeting_to:
+			# the form may send one of them as a string
+			if get_datetime(self.meeting_from) > get_datetime(self.meeting_to):
 				frappe.throw(_("Meeting To Date must be after Meeting From Date"))
 		
 		self.check_min_participants()

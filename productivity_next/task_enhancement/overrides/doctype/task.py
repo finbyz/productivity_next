@@ -151,6 +151,8 @@ class Task(_Task):
 
 		clomplete_all_assignments(self.doctype, self.name)
 	def validate(self):
+		# API clients send expected_time as text; ERPNext adds it to a date as hours
+		self.expected_time = flt(self.expected_time)
 		super().validate()
 		self.validate_status()
 		self.validate_parent_expected_end_date()
