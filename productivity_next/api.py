@@ -780,13 +780,14 @@ def get_employee_last_callTime(employee=None):
         return {"message": "Something went wrong"}
 
     last_call_data = frappe.db.sql(
-        f"""
+        """
     select employee,employee_name,call_datetime
     from `tabEmployee Fincall`
-    where employee = '{employee}'
+    where employee = %(employee)s
     order by call_datetime desc
     limit 1
     """,
+        {"employee": employee},
         as_dict=True,
     )
     if not last_call_data:
@@ -865,7 +866,7 @@ def create_fincall(
     ec_doc.duration = duration
     ec_doc.date = get_datetime(call_datetime).date()
     ec_doc.calltype = calltype
-    contact_query = f"""
+    contact_query = """
         SELECT 
             c.name, 
             dl.link_doctype, 
@@ -880,9 +881,9 @@ def create_fincall(
             ON dl.parent = c.name 
         WHERE 
             LENGTH(cp.phone) >= 10 
-            AND (cp.phone = '{customer_no}' 
-            OR cp.phone LIKE '%{customer_no}' 
-            OR '{customer_no}' LIKE CONCAT("%", cp.phone))
+            AND (cp.phone = %(customer_no)s 
+            OR cp.phone LIKE %(customer_no_suffix)s 
+            OR %(customer_no)s LIKE CONCAT("%%", cp.phone))
         ORDER BY 
             CASE dl.link_doctype
                 WHEN 'Employee' THEN 1
@@ -894,14 +895,15 @@ def create_fincall(
         LIMIT 1;
     """
 
-    contact_details = frappe.db.sql(contact_query, as_dict=True)
+    phone_values = {"customer_no": customer_no, "customer_no_suffix": "%" + customer_no}
+    contact_details = frappe.db.sql(contact_query, phone_values, as_dict=True)
     if contact_details == []:
-        contact_details = frappe.db.sql(f"""select name as link_name, 'Job Applicant' as link_doctype from `tabJob Applicant`
+        contact_details = frappe.db.sql("""select name as link_name, 'Job Applicant' as link_doctype from `tabJob Applicant`
                                         WHERE 
                                             LENGTH(mobile_number) >= 10 
-                                            AND (mobile_number = '{customer_no}' 
-                                            OR mobile_number LIKE '%{customer_no}' 
-                                            OR '{customer_no}' LIKE CONCAT("%", mobile_number))""", as_dict=True)
+                                            AND (mobile_number = %(customer_no)s 
+                                            OR mobile_number LIKE %(customer_no_suffix)s 
+                                            OR %(customer_no)s LIKE CONCAT("%%", mobile_number))""", phone_values, as_dict=True)
     if (
         contact_details
         and contact_details[0].get("link_doctype", "")
@@ -1258,7 +1260,8 @@ def set_token_to_productify_subscription(token):
 import re
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_meeting_data_for_mobile_app(user, start_date, end_date):
-    meetings = frappe.db.sql(f"""
+    values = {"user": user, "start_dt": f"{start_date} 00:00:00", "end_dt": f"{end_date} 23:59:59"}
+    meetings = frappe.db.sql("""
     SELECT
         m.name, 
         m.meeting_from AS start_time, 
@@ -1272,30 +1275,30 @@ def get_meeting_data_for_mobile_app(user, start_date, end_date):
     FROM `tabMeeting` AS m
     JOIN `tabMeeting Company Representative` AS mcr ON m.name = mcr.parent
     JOIN `tabUser` AS u ON u.name = m.meeting_arranged_by
-    WHERE m.meeting_from >= '{start_date} 00:00:00' 
-      AND m.meeting_to <= '{end_date} 23:59:59' 
+    WHERE m.meeting_from >= %(start_dt)s 
+      AND m.meeting_to <= %(end_dt)s 
       AND m.docstatus = 1 
-      AND (mcr.employee = '{user}' OR mcr.employee IS NULL)
+      AND (mcr.employee = %(user)s OR mcr.employee IS NULL)
     GROUP BY m.name
     Order by m.meeting_from desc
-    """, as_dict=True)
+    """, values, as_dict=True)
     company = []
     party = []
     for meet in meetings:
         meet["discussion"] = re.sub(r'<[^>]+>', '', meet["discussion"])
-        company_representative = frappe.db.sql(f"""
+        company_representative = frappe.db.sql("""
             SELECT employee_name
             FROM `tabMeeting Company Representative`
-            WHERE parent = '{meet["name"]}'
-        """, as_dict=True)
+            WHERE parent = %(name)s
+        """, {"name": meet["name"]}, as_dict=True)
         for rep in company_representative:
             company.append(rep["employee_name"])
-        party_representative = frappe.db.sql(f"""
+        party_representative = frappe.db.sql("""
             SELECT c.full_name as contact_name
             FROM `tabMeeting Party Representative` as mpr
             JOIN `tabContact` as c ON mpr.contact = c.name
-            WHERE mpr.parent = '{meet["name"]}'
-        """, as_dict=True)
+            WHERE mpr.parent = %(name)s
+        """, {"name": meet["name"]}, as_dict=True)
         for rep in party_representative:
             party.append(rep["contact_name"])
         meet["company_representative"] = company

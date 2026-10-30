@@ -17,27 +17,30 @@ from dateutil.parser import parse
 def get_activity_chart_data(user = None,start_date=None, end_date=None):
     if user == "Administrator":
         return {}
+    # values are passed to the database separately, never pasted into the SQL text
+    values = {"user": user, "start_date": start_date, "end_date": end_date,
+              "start_dt": f"{start_date} 00:00:00", "end_dt": f"{end_date} 23:59:59"}
     # Fetch idle time logs
-    idle_time_data = frappe.db.sql(f"""
+    idle_time_data = frappe.db.sql("""
         SELECT from_time as start_time, to_time as end_time
         FROM `tabEmployee Idle Time`
-        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{user}'
-    """, as_dict=True)
+        WHERE date >= %(start_date)s AND date <= %(end_date)s AND employee = %(user)s
+    """, values, as_dict=True)
 
     # Fetch fincall time logs
-    fincall_time_data = frappe.db.sql(f"""
+    fincall_time_data = frappe.db.sql("""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
         FROM `tabEmployee Fincall`
-        WHERE date >= '{start_date}' AND date <= '{end_date}' AND employee = '{user}' AND (calltype != 'Missed' AND calltype != 'Rejected')
-    """, as_dict=True)
+        WHERE date >= %(start_date)s AND date <= %(end_date)s AND employee = %(user)s AND (calltype != 'Missed' AND calltype != 'Rejected')
+    """, values, as_dict=True)
 
     # Fetch meeting time logs
-    meeting_time_data = frappe.db.sql(f"""
+    meeting_time_data = frappe.db.sql("""
         SELECT meeting_from as start_time, meeting_to as end_time
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.meeting_from >= '{start_date} 00:00:00' AND m.meeting_to <= '{end_date} 23:59:59' AND m.docstatus = 1 AND mcr.employee = '{user}'
-    """, as_dict=True)
+        WHERE m.meeting_from >= %(start_dt)s AND m.meeting_to <= %(end_dt)s AND m.docstatus = 1 AND mcr.employee = %(user)s
+    """, values, as_dict=True)
 
     # Combine all non-idle periods (meetings and calls)
     non_idle_periods = fincall_time_data + meeting_time_data
@@ -71,38 +74,38 @@ def get_activity_chart_data(user = None,start_date=None, end_date=None):
             total_idle_seconds += idle_duration
     total_idle_time = round(total_idle_seconds) 
 
-    total_call_data = frappe.db.sql(f"""
+    total_call_data = frappe.db.sql("""
         SELECT 
             SUM(duration) AS total_duration
         FROM `tabEmployee Fincall`
-        WHERE date >= '{start_date}' AND date <= '{end_date}' and employee = '{user}'
-    """, as_dict=True)
+        WHERE date >= %(start_date)s AND date <= %(end_date)s and employee = %(user)s
+    """, values, as_dict=True)
 
-    total_meeting_data = frappe.db.sql(f"""
+    total_meeting_data = frappe.db.sql("""
         SELECT 
             SUM(TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from))) AS total_duration  
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 AND mcr.employee = '{user}' 
-    """, as_dict=True)
+        WHERE m.meeting_from >= %(start_dt)s and m.meeting_to <= %(end_dt)s and m.docstatus = 1 AND mcr.employee = %(user)s 
+    """, values, as_dict=True)
 
     list_data = []
-    meeting_total_data = frappe.db.sql(f"""
+    meeting_total_data = frappe.db.sql("""
         SELECT m.meeting_from as start_time, m.meeting_to as end_time
         FROM `tabMeeting` as m
         JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 and mcr.employee ='{user}' 
-    """, as_dict=True)
-    calls_total_data = frappe.db.sql(f"""
+        WHERE m.meeting_from >= %(start_dt)s and m.meeting_to <= %(end_dt)s and m.docstatus = 1 and mcr.employee =%(user)s 
+    """, values, as_dict=True)
+    calls_total_data = frappe.db.sql("""
         SELECT call_datetime as start_time, ADDTIME(call_datetime, SEC_TO_TIME(duration)) as end_time
         FROM `tabEmployee Fincall`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}' and (calltype != 'Missed' and calltype != 'Rejected')
-    """, as_dict=True)
-    application_total_data = frappe.db.sql(f"""
+        WHERE date >= %(start_date)s and date <= %(end_date)s and employee = %(user)s and (calltype != 'Missed' and calltype != 'Rejected')
+    """, values, as_dict=True)
+    application_total_data = frappe.db.sql("""
         SELECT from_time as start_time, to_time as end_time
         FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{user}'
-    """, as_dict=True)
+        WHERE date >= %(start_date)s and date <= %(end_date)s and employee = %(user)s
+    """, values, as_dict=True)
 
     list_data.append(meeting_total_data)
     list_data.append(calls_total_data)
@@ -150,17 +153,17 @@ def get_activity_chart_data(user = None,start_date=None, end_date=None):
         total_time = total_time.total_seconds()
     else:
         total_time = 0 
-    total_application_hours = frappe.db.sql(f"""
+    total_application_hours = frappe.db.sql("""
         select sum(duration) as total_duration
         from `tabApplication Usage log`
-        where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}'
-        """, as_dict=True)
+        where date >= %(start_date)s and date <= %(end_date)s and employee = %(user)s
+        """, values, as_dict=True)
 
-    total_idle_hours = frappe.db.sql(f"""
+    total_idle_hours = frappe.db.sql("""
         select sum(duration) as total_duration
         from `tabEmployee Idle Time`
-        where date >= '{start_date}' and date <= '{end_date}' and employee = '{user}'
-        """, as_dict=True)
+        where date >= %(start_date)s and date <= %(end_date)s and employee = %(user)s
+        """, values, as_dict=True)
     total_application_duration = total_application_hours[0].total_duration if total_application_hours and total_application_hours[0].total_duration is not None else 0
     total_idle_duration = total_idle_hours[0].total_duration if total_idle_hours and total_idle_hours[0].total_duration is not None else 0
     total_system_hours = total_application_duration - total_idle_duration
