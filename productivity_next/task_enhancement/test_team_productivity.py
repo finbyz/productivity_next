@@ -23,6 +23,9 @@ class FakeCache:
 
 class TestTeamProductivity(TestCase):
 	def setUp(self):
+		date_patch = patch.object(chart, "nowdate", return_value="2026-10-14")
+		date_patch.start()
+		self.addCleanup(date_patch.stop)
 		self.team = [
 			SimpleNamespace(
 				name="EMP-001", employee_name="Alice", user_id="alice@example.com",
@@ -127,13 +130,45 @@ class TestTeamProductivity(TestCase):
 		with (
 			patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
 			patch.object(chart.frappe, "cache", return_value=cache),
-			patch.object(chart.frappe, "get_all", return_value=[manager, *self.team]) as get_all,
+			patch.object(chart.frappe, "get_all", side_effect=[
+				[manager, *self.team], ["MGR-001", "EMP-001", "EMP-002"],
+			]) as get_all,
 		):
 			team = chart._manager_team()
 			self.assertEqual(chart._manager_team(), team)
 		self.assertEqual([row.name for row in team], ["MGR-001", "EMP-001", "EMP-002"])
-		self.assertEqual(get_all.call_count, 1)
+		self.assertEqual(get_all.call_count, 2)
 		self.assertEqual(list(cache.ttls.values()), [3 * 60 * 60])
+
+	def test_manager_team_only_includes_subscription_employees(self):
+		manager = SimpleNamespace(
+			name="MGR-001", employee_name="Manager", user_id="manager@example.com",
+			image=None, reports_to=None,
+		)
+		for subscribed, expected in (
+			(["EMP-002", "OUTSIDE-TEAM"], ["EMP-002"]),
+			(["MGR-001", "EMP-002"], ["MGR-001", "EMP-002"]),
+			([], []),
+		):
+			with (
+				self.subTest(subscribed=subscribed),
+				patch.object(chart.frappe, "session", SimpleNamespace(user="manager@example.com")),
+				patch.object(chart.frappe, "cache", return_value=FakeCache()),
+				patch.object(chart.frappe, "get_all", side_effect=[
+					[manager, *self.team], subscribed,
+				]) as get_all,
+			):
+				team = chart._manager_team()
+				self.assertEqual([row.name for row in team], expected)
+				get_all.assert_called_with(
+					"List of User",
+					filters={
+						"parent": "Productify Subscription",
+						"parenttype": "Productify Subscription",
+						"parentfield": "list_of_users",
+					},
+					pluck="employee",
+				)
 
 	def test_roles_do_not_expand_employee_hierarchy(self):
 		cache = FakeCache()
