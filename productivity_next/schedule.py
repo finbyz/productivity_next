@@ -914,6 +914,9 @@ def submit_timesheet_job(timesheet_name):
         doc = frappe.get_doc("Timesheet", timesheet_name)
         doc.submit()
     except Exception:
+        # submit() writes docstatus before on_submit runs; without a rollback the job's
+        # final commit kept a half-submitted timesheet (tasks and projects not updated)
+        frappe.db.rollback()
         frappe.log_error(
             title=f"Timesheet Auto Submission Failed: {timesheet_name}",
             message=frappe.get_traceback(),

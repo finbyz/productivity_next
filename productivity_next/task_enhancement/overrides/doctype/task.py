@@ -99,6 +99,11 @@ class Task(_Task):
 			frappe.throw(_("Parent Task must belong to the same project"))
 
 	def validate_status(self):
+		# ERPNext marks a task "Working" once time is logged against it (timesheet submit,
+		# overdue reset); this site's Task status list calls that state "In-Progress"
+		if self.status == "Working":
+			self.status = "In-Progress"
+
 		if self.status == "Scheduled" and (
 			not self.exp_start_date or not self.exp_end_date
 		):
