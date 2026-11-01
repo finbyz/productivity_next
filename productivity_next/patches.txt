@@ -1,3 +1,4 @@
 productivity_next.patches.add_contact_for_employees
 productivity_next.patches.remove_spaces_from_contact
 productivity_next.patches.warm_employee_task_cache
+productivity_next.patches.set_task_approver

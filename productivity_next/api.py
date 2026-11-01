@@ -2168,7 +2168,7 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     if filters:
         filters = frappe.parse_json(filters)
         return {
-            "data": frappe.get_list("Task",filters=filters,fields=['*'])
+            "data": _with_approvers(frappe.get_list("Task",filters=filters,fields=['*']))
         }
     Task = DocType("Task")
     
@@ -2207,8 +2207,26 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     ]
 
     return {
-        "data": [*assigned_tasks, *other_tasks, *completed_tasks]
+        "data": _with_approvers([*assigned_tasks, *other_tasks, *completed_tasks])
     }
+
+
+def _with_approvers(tasks):
+    """Attach each task's approver rows ([{"user": ...}]) as the Task form returns them."""
+    names = [task.name for task in tasks]
+    approvers = defaultdict(list)
+    if names:
+        for row in frappe.get_all(
+            "Task Approver",
+            filters={"parenttype": "Task", "parentfield": "approver", "parent": ["in", names]},
+            fields=["parent", "user"],
+            order_by="idx",
+            limit_page_length=0,
+        ):
+            approvers[row.parent].append({"user": row.user})
+    for task in tasks:
+        task["approver"] = approvers.get(task.name, [])
+    return tasks
 
 
 @frappe.whitelist(methods=['POST'])

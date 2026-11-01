@@ -11,8 +11,8 @@ from frappe.utils import get_datetime, nowdate
 
 TEAM_CACHE_SECONDS = 3 * 60 * 60
 RESPONSE_CACHE_SECONDS = 60 * 60
-TEAM_CACHE_PREFIX = "productivity_next:team_productivity:team:v3"
-RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v5"
+TEAM_CACHE_PREFIX = "productivity_next:team_productivity:team:v4"
+RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v6"
 MAX_TREE_DEPTH = 50
 
 
@@ -25,6 +25,41 @@ def _date_range(from_date, to_date):
 	if start > end:
 		frappe.throw("From Date cannot be after To Date.", frappe.ValidationError)
 	return start, end
+
+
+def _subscribed_employees():
+	"""Employees on the Productify Subscription user list who are not marked Inactive."""
+	return set(
+		frappe.get_all(
+			"List of User",
+			filters={
+				"parent": "Productify Subscription",
+				"parenttype": "Productify Subscription",
+				"parentfield": "list_of_users",
+				"status": ["!=", "Inactive"],
+				"employee": ["is", "set"],
+			},
+			pluck="employee",
+			limit_page_length=0,
+		)
+	)
+
+
+def _only_subscribed(team):
+	"""Keep subscribed members and attach each to its nearest subscribed senior in the team."""
+	subscribed = _subscribed_employees()
+	by_name = {row.name: row for row in team}
+	kept = []
+	for row in team:
+		if row.name not in subscribed:
+			continue
+		parent = row.reports_to
+		seen = {row.name}
+		while parent in by_name and parent not in subscribed and parent not in seen:
+			seen.add(parent)
+			parent = by_name[parent].reports_to
+		kept.append(frappe._dict(row, reports_to=parent))
+	return kept
 
 
 def _manager_team():
@@ -66,6 +101,9 @@ def _manager_team():
 				(child, depth + 1)
 				for child in reversed(children[employee.name])
 			)
+		# Reportees are found through the Employee tree, but only those added to
+		# Productify Subscription are shown.
+		team = _only_subscribed(team)
 	cache.set_value(key, team, expires_in_sec=TEAM_CACHE_SECONDS)
 	return team
 

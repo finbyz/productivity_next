@@ -161,6 +161,7 @@ class Task(_Task):
 		super().validate()
 		self.validate_status()
 		self.validate_parent_expected_end_date()
+		self.validate_approver()
 	
 	def before_save(self):
 		self.update_if_is_group()
@@ -171,6 +172,43 @@ class Task(_Task):
 		# self.update_parent_task()
 		self.check_employee_fincall_for_lead()
 		
+	def validate_approver(self):
+		"""The approver closes the task. It defaults to the creator and can be delegated
+		by the current approver or their seniors to someone in their own reporting tree."""
+		if not self.approver and self.owner and self.owner not in ("Administrator", "Guest"):
+			self.append("approver", {"user": self.owner})
+		previous = None if self.is_new() else self.get_doc_before_save()
+		if not previous:
+			return
+		current_approvers = {row.user for row in self.approver}
+		previous_approvers = {row.user for row in previous.approver} or {self.owner}
+		# Compare users: child rows are new objects on every save, so has_value_changed is unreliable
+		if current_approvers == previous_approvers:
+			return
+
+		user = frappe.session.user
+		if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+			return
+
+		can_delegate = user in previous_approvers or any(
+			user in senior_users(approver) for approver in previous_approvers
+		)
+		if not can_delegate:
+			frappe.throw(
+				_("Only the current approver or their seniors can change the approver of this task."),
+				frappe.PermissionError,
+			)
+
+		allowed = previous_approvers | {user} | reportee_users(user)
+		not_allowed = [row.user for row in self.approver if row.user not in allowed]
+		if not_allowed:
+			frappe.throw(
+				_("Approval can only be delegated to your reportees. Not allowed: {0}").format(
+					", ".join(frappe.bold(u) for u in not_allowed)
+				),
+				frappe.PermissionError,
+			)
+
 	def validate_parent_expected_end_date(self):
 		if not self.parent_task or not self.exp_end_date:
 			return
@@ -352,7 +390,7 @@ class Task(_Task):
 					"reference_type": "Task",
 					"reference_name": self.name,
 					"allocated_to": self.assignee,
-					"status": ["!=", "Cancelled"],
+					"status": "Open",
 				},
 			):
 				frappe.desk.form.assign_to.add(
@@ -365,15 +403,21 @@ class Task(_Task):
 					}
 				)
 
+		if assignee_changed and not self.is_new():
+			self.keep_transferrer_assigned()
+
 		if approver_changed:
 			for row in self.approver:
+				# The creator approves by default; that alone should not add the task to their list
+				if row.user == self.owner:
+					continue
 				if not frappe.get_value(
 					"ToDo",
 					filters={
 						"reference_type": "Task",
 						"reference_name": self.name,
 						"allocated_to": row.user,
-						"status": ["!=", "Cancelled"],
+						"status": "Open",
 					},
 				):
 					frappe.desk.form.assign_to.add(
@@ -385,6 +429,27 @@ class Task(_Task):
 							"assign_by": frappe.session.user,
 						}
 					)
+
+	def keep_transferrer_assigned(self):
+		"""Whoever hands the task on to someone else stays in its Assigned To list."""
+		previous = self.get_doc_before_save()
+		transferrer = previous and previous.assignee
+		if not transferrer or transferrer != frappe.session.user or transferrer == self.assignee:
+			return
+		if frappe.db.exists(
+			"ToDo",
+			{"reference_type": "Task", "reference_name": self.name, "allocated_to": transferrer, "status": "Open"},
+		):
+			return
+		frappe.desk.form.assign_to.add(
+			{
+				"assign_to": [transferrer],
+				"doctype": "Task",
+				"name": self.name,
+				"description": f"Task transferred to {self.assignee}",
+				"assign_by": transferrer,
+			}
+		)
 
 	def set_completed_on_and_completed_by(self):
 		if self.status == "Completed":
@@ -497,7 +562,7 @@ def clomplete_all_assignments(doctype, name, ignore_permissions=False):
 	assignments = frappe.get_all(
 		"ToDo",
 		fields=["allocated_to", "name"],
-		filters=dict(reference_type=doctype, reference_name=name, status=("!=", "Cancelled")),
+		filters=dict(reference_type=doctype, reference_name=name, status="Open"),
 	)
 	if not assignments:
 		return False
@@ -513,6 +578,47 @@ def clomplete_all_assignments(doctype, name, ignore_permissions=False):
 		)
 
 	return True
+
+def senior_users(user):
+	"""Users above this user's Employee record in the reports_to chain."""
+	seniors = set()
+	manager = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "reports_to")
+	seen = set()
+	while manager and manager not in seen and len(seen) < 50:
+		seen.add(manager)
+		row = frappe.db.get_value("Employee", manager, ["user_id", "reports_to"], as_dict=True)
+		if not row:
+			break
+		if row.user_id:
+			seniors.add(row.user_id)
+		manager = row.reports_to
+	return seniors
+
+
+def reportee_users(user):
+	"""Users of all active employees below this user in the reports_to tree."""
+	employees = frappe.get_all(
+		"Employee",
+		filters={"status": "Active"},
+		fields=["name", "user_id", "reports_to"],
+		limit_page_length=0,
+		order_by="",
+	)
+	children = {}
+	for row in employees:
+		children.setdefault(row.reports_to, []).append(row)
+	stack = [row.name for row in employees if row.user_id == user]
+	seen, users = set(stack), set()
+	while stack:
+		for child in children.get(stack.pop(), []):
+			if child.name in seen:
+				continue
+			seen.add(child.name)
+			if child.user_id:
+				users.add(child.user_id)
+			stack.append(child.name)
+	return users
+
 
 def validate_workflow(doc):
 	"""Validate Workflow State and Transition for the current user.
