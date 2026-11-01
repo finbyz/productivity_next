@@ -34,6 +34,7 @@ import requests
 from werkzeug import Response
 
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
+from productivity_next.access import check_employee_access, visible_employees
 
 
 PROJECT_TIME_ANALYSIS_REPORT = "Project Time Analysis"
@@ -167,6 +168,7 @@ def _filter_project_time_analysis_for_employee(result, employee):
 @frappe.whitelist(methods=["GET"])
 def get_project_time_analysis(from_date=None, to_date=None, employee=None, without_cache=0):
     """Return one accessible employee's project hours; without_cache=1 refreshes them."""
+    check_employee_access(employee)
     if not from_date or not to_date:
         frappe.throw(_("From Date and To Date are required."), frappe.ValidationError)
     start, end = _parse_productivity_date(from_date), _parse_productivity_date(to_date)
@@ -276,6 +278,7 @@ def update_token(refresh_token, purpose):
 def set_application_checkin_checkout(
     employee, status, time, system_genereted=0, user=None
 ):
+    check_employee_access(employee)
     last_status = None
     all_logs = frappe.db.get_list(
         "Application Checkin Checkout",
@@ -304,6 +307,7 @@ def set_application_checkin_checkout(
 def set_application_idletime_checkin_checkout(
     employee, status, time, system_genereted=0, user=None
 ):
+    check_employee_access(employee)
     last_status = None
     all_logs = frappe.db.get_list(
         "Idle Time Log",
@@ -367,6 +371,7 @@ def get_usage_time(employee):
     #     doc.save(ignore_permissions=True)
     #     doc.db_set("owner",user_id)
 
+    check_employee_access(employee, enforce=True)
     all_logs = frappe.db.get_all(
         "Application Checkin Checkout",
         filters={"employee": employee, "time": ["Between", [nowdate(), nowdate()]]},
@@ -391,6 +396,7 @@ def get_usage_time(employee):
 
 @frappe.whitelist()
 def update_user_auth_token(employee, purpose, date):
+    check_employee_access(employee)
     if data := frappe.get_list(
         "Employee",
         filters={"name": employee},
@@ -429,6 +435,7 @@ def set_user_idel_time(*args, **kwargs):
 
 @frappe.whitelist()
 def get_user_idel_time(employee=None):
+    check_employee_access(employee, enforce=True)
     if not employee:
         return 0
 
@@ -449,6 +456,7 @@ def get_user_idel_time(employee=None):
 
 @frappe.whitelist(methods=["GET", "POST"])
 def get_employee_time(employee=None):
+    check_employee_access(employee, enforce=True)
     if not employee:
         return 0
 
@@ -517,6 +525,7 @@ def get_user_last_check_in_and_out(emp_id):
 
 @frappe.whitelist(allow_guest=False)
 def user_error_log(employee, error_message):
+    check_employee_access(employee)
     try:
         doc = frappe.new_doc("User Error Log")
         doc.employee = employee
@@ -531,6 +540,7 @@ def user_error_log(employee, error_message):
 
 @frappe.whitelist()
 def get_app_usage_time(employee):
+    check_employee_access(employee, enforce=True)
     if not employee:
         return 0
     all_logs = frappe.db.get_all(
@@ -776,6 +786,7 @@ def get_active_projects():
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_employee_last_callTime(employee=None):
+    check_employee_access(employee)
     if not employee:
         return {"message": "Something went wrong"}
 
@@ -801,6 +812,7 @@ def get_employee_last_callTime(employee=None):
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_employee_fincall(employee, employee_mobile, customer_no, date, call_datetime):
+    check_employee_access(employee, enforce=True)
     if (
         not employee
         or not employee_mobile
@@ -845,6 +857,7 @@ def create_fincall(
     raw_log=None,
     client=None,
 ):
+    check_employee_access(employee)
     employee_details = frappe.db.get_value(
         "Employee",
         employee,
@@ -988,6 +1001,7 @@ from datetime import timedelta, datetime
 import frappe
 @frappe.whitelist()
 def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
+    check_employee_access(employee, enforce=True)
     from_date = getdate(from_date)
     to_date = getdate(to_date)
 
@@ -1042,6 +1056,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
+    check_employee_access(employee)
     data = {}
     weekday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_per_day')
     saturday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_on_saturday')
@@ -1260,6 +1275,7 @@ def set_token_to_productify_subscription(token):
 import re
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_meeting_data_for_mobile_app(user, start_date, end_date):
+    check_employee_access(user)
     values = {"user": user, "start_dt": f"{start_date} 00:00:00", "end_dt": f"{end_date} 23:59:59"}
     meetings = frappe.db.sql("""
     SELECT
@@ -1312,6 +1328,7 @@ def get_meeting_data_for_mobile_app(user, start_date, end_date):
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_application_data_for_mobile_app(user, start_date, end_date):
+    check_employee_access(user)
     data = {}
     total_web_data = frappe.db.sql(f"""
         SELECT sum(duration) as total_web_duration, count(DISTINCT domain) as total_web_count
@@ -1393,6 +1410,7 @@ def get_profile_photo(**kwargs):
 
 @frappe.whitelist(allow_guest=True)
 def get_allowed_modules(employee=None):
+    check_employee_access(employee)
     if not employee:
         return []
     modules = {}
@@ -1460,6 +1478,7 @@ def location_log_create(row: dict, employee: str):
 
 @frappe.whitelist(methods=['GET','POST'])
 def get_map_plot(employee, start_date, end_date):
+    check_employee_access(employee)
     return frappe.get_list(
         "Location History",
         filters={
@@ -1485,6 +1504,7 @@ def get_timeline(employee, start_date, end_date):
     :param end_date: End date for tracking
     :return: Detailed location and activity tracking
     """
+    check_employee_access(employee)
     import math
     import traceback
     from geopy.distance import geodesic
@@ -1796,6 +1816,7 @@ def calculate_total_distance(route):
 
 @frappe.whitelist()
 def ignore_location(latitude,longitude,user,description):
+    check_employee_access(user, enforce=True)
     doc = frappe.new_doc("Ignore Locations")
     doc.user = user
     doc.latitude = latitude
@@ -2022,6 +2043,7 @@ def get_user_avatar(email:str):
 
 @frappe.whitelist()
 def get_user_time_on_tasks(employee, tasks, from_date = None, to_date = None):
+    check_employee_access(employee)
     tasks = json.loads(tasks)
     if not tasks:
         return []
@@ -2134,6 +2156,7 @@ def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
 
 @frappe.whitelist()
 def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
+    check_employee_access(assignee)
     if filters:
         filters = frappe.parse_json(filters)
         return {
@@ -2436,6 +2459,7 @@ def fetch_followup_contacts(link_doctype,link_name):
 
 @frappe.whitelist(methods=["GET"])
 def get_time_utilization_daily(from_date=None, to_date=None, employee=None, project=None):
+    check_employee_access(employee, enforce=True)
     if not project:
         return []
     projects = get_projects()
@@ -2488,6 +2512,7 @@ def get_projects(user):
 from dateutil.parser import parse
 @frappe.whitelist()
 def user_activity_images(user=None, start_date=None, end_date=None, project=None, offset=0):
+    check_employee_access(user, enforce=True)
     projects = get_projects()
     project = projects[0].name
     # parsed_datetime = datetime.strptime(start_date, '%d/%m/%Y, %I:%M:%S %p')
@@ -2518,6 +2543,7 @@ def get_task_list(from_date, to_date, project, assignee=None):
 
     Response rows contain: task_id, subject, assignee, completed_on
     """
+    check_employee_access(assignee, enforce=True)
     if not project:
         return []
     projects = get_projects()

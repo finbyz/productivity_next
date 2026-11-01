@@ -370,19 +370,6 @@ def get_tasks(filters):
     return unique_tasks
 
 @frappe.whitelist()
-def copy_project_tasks_async(original_project, new_project_name, new_assignee=None):
-    """Enqueue background job to copy project tasks"""
-    frappe.enqueue(
-        method="productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks",
-        queue='long',
-        timeout=1800,  # 30 minutes
-        original_project=original_project,
-        new_project_name=new_project_name,
-        new_assignee=new_assignee
-    )
-    return {"status": "queued", "message": "Task copy started in background."}
-
-@frappe.whitelist()
 def copy_project_tasks(original_project, new_project_name, new_assignee=None):
     """Copy all tasks from one project to another, preserving task hierarchy"""
     frappe.log_error(f"Starting task copy: {original_project} ➜ {new_project_name}")
@@ -646,50 +633,6 @@ def get_all_related_tasks(task_name):
         related_tasks.append(frappe.get_doc('Task', child.name))
     
     return related_tasks
-@frappe.whitelist()
-def update_task(task_id, task_data, update_mode='single'):
-    """
-    Update a task and optionally its direct children
-    
-    Args:
-        task_id (str): Task ID to update
-        task_data (dict): Task data to update
-        update_mode (str): 'single' or 'all' - determines whether to update direct children
-    """
-    if not isinstance(task_data, dict):
-        task_data = frappe.parse_json(task_data)
-        
-    if not task_data:
-        frappe.throw(_("No task data provided"))
-    
-    try:
-        # Get the actual task name from the display name (removes indentation)
-        actual_task_name = task_id
-        if not actual_task_name:
-            frappe.throw(_("Task not found"))
-        
-        # Always update the current task
-        update_single_task(actual_task_name, task_data, True)
-        
-        # Only update direct children if update_mode is 'all'
-        if update_mode == 'all':
-            # Get only direct children tasks
-            related_tasks = get_all_related_tasks(actual_task_name)
-            
-            # Update only direct children
-            for related_task in related_tasks:
-                update_single_task(related_task.name, task_data, False)
-        
-        frappe.db.commit()
-        
-        return {
-            "message": _("Task updated successfully")
-        }
-        
-    except Exception as e:
-        frappe.db.rollback()
-        frappe.log_error(frappe.get_traceback(), _("Task Update Error"))
-        frappe.throw(_("Error updating task and related tasks: {0}").format(str(e)))
         
 def update_single_task(task_name, task_data, update_description):
     """
@@ -822,61 +765,6 @@ def validate_task_permissions(task_name):
     if not frappe.has_permission('Task', 'write', task_name):
         frappe.throw(_("No permission to edit task: {0}").format(task_name))
 
-@frappe.whitelist()
-def delete_task(task_data, delete_mode='single'):
-    """
-    Delete task and optionally its child tasks
-    
-    Args:
-        task_data (dict): Task data containing task name
-        delete_mode (str): 'single' for current task only, 'all' for task and all children
-    """
-    if not isinstance(task_data, dict):
-        task_data = frappe.parse_json(task_data)
-        
-    if not task_data:
-        frappe.throw(_("No task data provided"))
-    
-    try:
-        # Get the task name (remove any indentation spaces)
-        task_name = task_data.get('task', '').strip()
-        if not task_name:
-            frappe.throw(_("Task name is required"))
-            
-        # Get the actual task name from the display name
-        actual_task_name = get_actual_task_name(task_name)
-        if not actual_task_name:
-            frappe.throw(_("Task not found"))
-        
-        # Validate permissions
-        validate_task_permissions(actual_task_name)
-        
-        # Check for child tasks
-        child_tasks = get_all_child_tasks(actual_task_name)
-        if child_tasks and delete_mode != 'all':
-            frappe.throw(_("Task has child tasks. Please delete child tasks first or use 'Delete with Children' option."))
-        
-        # Begin deletion process
-        if delete_mode == 'all':
-            # Delete child tasks first (in reverse order to avoid dependency issues)
-            for child_task in reversed(child_tasks):
-                delete_single_task(child_task.name)
-        
-        # Delete the main task
-        delete_single_task(actual_task_name)
-        
-        frappe.db.commit()
-        
-        return {
-            "message": _("Task deleted successfully") if delete_mode == 'single' 
-                      else _("Task and all child tasks deleted successfully")
-        }
-        
-    except Exception as e:
-        frappe.db.rollback()
-        frappe.log_error(frappe.get_traceback(), _("Task Delete Error"))
-        frappe.throw(_("Error deleting task: {0}").format(str(e)))
-
 def delete_single_task(task_name):
     """
     Delete a single task
@@ -925,50 +813,6 @@ def validate_project_permissions(project_name):
     """
     if not frappe.has_permission('Project', 'write', project_name):
         frappe.throw(_("No permission to modify tasks in project: {0}").format(project_name))
-
-
-@frappe.whitelist()
-def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
-    """
-    Copy a task and its entire hierarchy while preserving structure.
-    """
-    
-    if not isinstance(task_data, dict):
-        task_data = frappe.parse_json(task_data)
-
-    try:
-        actual_task_name = task_data.get("task_id")
-        if not actual_task_name:
-            frappe.throw(_("Task ID not provided."))
-
-        # Map original task name => new copied task name
-        task_id_mapping = {}
-
-        # Copy root task first
-        new_task = copy_single_task(actual_task_name, new_project, new_assignee, None)
-        task_id_mapping[actual_task_name] = new_task.name
-
-        # Get all child tasks in hierarchical (top-down) order
-        child_tasks = get_all_child_tasks_ordered(actual_task_name)
-
-        # Copy children
-        for child in child_tasks:
-            original_parent = frappe.db.get_value("Task", child.name, "parent_task")
-            new_parent = task_id_mapping.get(original_parent)
-
-            new_child = copy_single_task(child.name, new_project, new_assignee, new_parent)
-            task_id_mapping[child.name] = new_child.name
-
-        frappe.db.commit()
-        return {
-            "message": _("Task hierarchy copied successfully"),
-            "new_task_id": new_task.name
-        }
-
-    except Exception as e:
-        frappe.db.rollback()
-        frappe.log_error(frappe.get_traceback(), _("Task Copy Error"))
-        frappe.throw(_("Error copying task: {0}").format(str(e)))
 
 def get_all_child_tasks_ordered(root_task):
     """

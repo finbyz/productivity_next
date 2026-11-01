@@ -11,10 +11,12 @@ from productivity_next.api import calculate_total_working_hours
 
 
 from dateutil.parser import parse
+from productivity_next.access import check_employee_access, visible_employees
 
 # Sidebar Activity Data code starts
 @frappe.whitelist(allow_guest=True)
 def get_activity_chart_data(user = None,start_date=None, end_date=None):
+    check_employee_access(user)
     if user == "Administrator":
         return {}
     # values are passed to the database separately, never pasted into the SQL text
@@ -186,6 +188,7 @@ def get_activity_chart_data(user = None,start_date=None, end_date=None):
 # Work Intensity Code Starts
 @frappe.whitelist()
 def work_intensity(user=None, start_date=None, end_date=None):
+    check_employee_access(user)
     if not user:
         return []
     
@@ -235,6 +238,7 @@ def work_intensity(user=None, start_date=None, end_date=None):
 # Overall Performance Code Starts
 @frappe.whitelist()
 def overall_performance(employee=None, start_date=None, end_date=None):
+    check_employee_access(employee)
     if not employee:
         return {
             "labels": [],
@@ -352,6 +356,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
 
 @frappe.whitelist()
 def overall_performance_timely(employee=None, date=None, hour=None):
+    check_employee_access(employee)
     if not employee:
         return {
             "labels": [],
@@ -572,6 +577,7 @@ def _get_meeting_participants(meetings):
 # Applications Used Code Starts
 @frappe.whitelist()
 def application_usage_time(user=None, start_date=None, end_date=None):
+    check_employee_access(user)
     if not user or user is None:
         return {
             "labels": [],
@@ -611,6 +617,7 @@ def application_usage_time(user=None, start_date=None, end_date=None):
 # Web Browsing Time code starts
 @frappe.whitelist()
 def web_browsing_time(user = None,start_date=None,end_date=None):
+    check_employee_access(user)
     if not user or user == None:
         return {
             "labels": [],
@@ -640,6 +647,7 @@ def web_browsing_time(user = None,start_date=None,end_date=None):
 # Top Phone Calls Code Starts
 @frappe.whitelist()
 def top_phone_calls(user=None, start_date=None, end_date=None):
+    check_employee_access(user)
     if not user:
         return {
             "caller_details": [],
@@ -727,6 +735,7 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
 # Type Of Calls Code Starts
 @frappe.whitelist()
 def type_of_calls(user = None,start_date=None,end_date=None):
+    check_employee_access(user)
     if not user or user == None:
         return {
             "labels": [],
@@ -762,6 +771,7 @@ def type_of_calls(user = None,start_date=None,end_date=None):
 # URL DATA AND SIDEBAR DATA CODE STARTS
 @frappe.whitelist()
 def fetch_url_data(user=None,start_date=None, end_date=None):
+    check_employee_access(user)
     version_conditions_str = version_conditions(user,start_date,end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
     ignore_doctype_str = ','.join(f"'{doc}'" for doc in ignore_doctype)
@@ -960,6 +970,7 @@ def fetch_url_data(user=None,start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_url_brief_data(url_data,user,start_date=None, end_date=None):
+    check_employee_access(user, enforce=True)
     data_query = frappe.db.sql(f"""
         SELECT url, SUM(duration) AS duration, COUNT(url) as count, application_title
         FROM `tabApplication Usage log` 
@@ -977,6 +988,7 @@ def get_url_brief_data(url_data,user,start_date=None, end_date=None):
 @frappe.whitelist()
 def hourly_calls_analysis(user, start_date=None, end_date=None):
     # SQL query to group by contact, client, or customer_no
+    check_employee_access(user)
     data = frappe.db.sql(f"""
         select sum(duration) as total_count, calltype, hour(call_datetime) as hour
         FROM `tabEmployee Fincall`
@@ -1020,6 +1032,7 @@ def hourly_calls_analysis(user, start_date=None, end_date=None):
 # Top 7 Document Analysis(Changes Per Doctype) code Starts
 @frappe.whitelist()
 def top_document_analysis(user, start_date=None, end_date=None):
+    check_employee_access(user, enforce=True)
     now = frappe.utils.now_datetime()
     if start_date is None:
         start_date = (now - timedelta(days=365)).strftime('%Y-%m-%d')
@@ -1057,6 +1070,7 @@ def top_document_analysis(user, start_date=None, end_date=None):
 # User Activity Images Code Starts
 @frappe.whitelist()
 def user_activity_images(user, start_date=None, end_date=None, offset=0):
+    check_employee_access(user)
     data = frappe.get_all("Screen Screenshot Log", filters={"employee": user,"time": ["BETWEEN", [parse(start_date, dayfirst=True), parse(end_date, dayfirst=True)]]}, order_by="time desc", group_by="time", fields=["screenshot", "time","active_app"])
     for i in data:
         i["time_"] = frappe.format(i["time"], "Datetime")
@@ -1066,6 +1080,7 @@ def user_activity_images(user, start_date=None, end_date=None, offset=0):
 # Conditions to be applied to get data from versions table code starts 
 @frappe.whitelist() 
 def version_conditions(user,start_date=None, end_date=None):
+    check_employee_access(user, enforce=True)
     if user != "Administrator":
         email = frappe.db.get_value("Employee", user, "company_email")
         condition = f"WHERE modified_by = '{email}' and creation >= '{start_date} 00:00:00' AND creation <= '{end_date} 23:59:59'"
@@ -1082,24 +1097,6 @@ def get_project_enabled():
     doc = frappe.get_doc('Productify Subscription', None, ignore_permissions=True)
     project_value = doc.project
     return project_value
-
-
-@frappe.whitelist()
-def meetings_analysis(user, start_date=None, end_date=None):
-    if not all([user, start_date, end_date]):
-        frappe.throw("User, start date and end date are required")
-
-    start_datetime = f"{start_date} 00:00:00"
-    end_datetime = f"{end_date} 23:59:59"
-
-    # Get all events
-    meetings = get_meetings(user, start_datetime, end_datetime)
-    location_logs = get_location_logs(user, start_date, end_date)
-
-    # Combine and sort all events
-    all_events = meetings + location_logs
-    # frappe.throw(str(all_events))
-    return sorted(all_events, key=lambda x: x['start_time'], reverse=True)
 
 def get_meetings(user, start_datetime, end_datetime):
     meetings = frappe.db.sql("""

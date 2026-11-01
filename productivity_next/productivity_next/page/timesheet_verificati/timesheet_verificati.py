@@ -147,11 +147,6 @@ def bulk_set_call_projects(call_projects):
     return True
 
 @frappe.whitelist()
-def set_call_project(call_id, project):
-    frappe.db.set_value("Employee Fincall", call_id, "project", project)
-    frappe.db.commit()
-
-@frappe.whitelist()
 def get_meetings_details():
     employee, date = get_employee_and_date()
     # Return project, discussion, arranged_by, company_representative, party_representative, duration

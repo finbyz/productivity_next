@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from frappe.utils import getdate, get_first_day, get_last_day, add_days
 from collections import defaultdict
 from frappe.utils import flt
+from productivity_next.access import check_employee_access, visible_employees
 
 def execute(filters=None):
     filters = _normalise_date_filters(filters)
@@ -954,6 +955,7 @@ def calculate_non_overlapping_hours(intervals):
 
 @frappe.whitelist()
 def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours,saturday_working_hours):
+    check_employee_access(employee, enforce=True)
     from_date = datetime.strptime(str(from_date), '%Y-%m-%d')
     to_date = datetime.strptime(str(to_date), '%Y-%m-%d')
     date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]

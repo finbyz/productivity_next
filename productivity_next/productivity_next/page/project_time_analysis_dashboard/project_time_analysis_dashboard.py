@@ -6,6 +6,7 @@ from productivity_next.productivity_next.report.project_time_analysis.project_ti
     get_data as report_get_data,
     get_columns as report_get_columns,
 )
+from productivity_next.access import check_employee_access, visible_employees
 
 # ⚠️ Confirm this matches the actual fieldname on Employee master
 DEPLOYABLE_FIELDNAME = "deployable"
@@ -252,6 +253,7 @@ def get_subtree_ids(employee):
     at any depth. Used when a lead is selected and the whole team's data
     should be aggregated.
     """
+    check_employee_access(employee, enforce=True)
     children_map = _build_children_map(_get_active_employees())
 
     ids = []
@@ -314,6 +316,7 @@ def get_node_data(
     """
     Fetch rows for one node (employee) of the tree using the existing report.
     """
+    check_employee_access(employee, enforce=True)
     include_subtree = cint(include_subtree)
 
     if include_subtree:
@@ -358,6 +361,8 @@ def get_employees_data(
     in the set, so leads can be included or excluded independently of the
     reports_to chain. Used by the quick-stat tiles.
     """
+    _employees = frappe.parse_json(employees) if isinstance(employees, str) else (employees or [])
+    check_employee_access(*(_employees if isinstance(_employees, list) else [_employees]), enforce=True)
     if isinstance(employees, str):
         employees = frappe.parse_json(employees)
 

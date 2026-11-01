@@ -5,6 +5,7 @@ from frappe.utils import add_days,now,getdate
 from collections import defaultdict
 from frappe.utils import now_datetime
 from productivity_next.api import calculate_total_working_hours
+from productivity_next.access import check_employee_access, visible_employees
 
 # Convert start date from 2024-07-17 to 2024-07-17 00:00:00 and end date from 2024-07-17 to 2024-07-17 23:59:59 code starts
 def set_dates(start_date=None, end_date=None):
@@ -115,6 +116,8 @@ def document_analysis_chart(start_date=None, end_date=None):
 
 @frappe.whitelist()
 def client_calls_chart(start_date=None, end_date=None):
+    if visible_employees() is not None:
+    	check_employee_access("*", enforce=True)
     employees = get_employees()
     if not employees:
         return {}
@@ -200,6 +203,7 @@ def client_calls_chart(start_date=None, end_date=None):
 # Top 10 Employees Call Analysis Code Starts
 @frappe.whitelist()
 def employee_calls_chart(user, start_date=None, end_date=None):
+    check_employee_access(user, enforce=True)
     employees_list = get_employees()
     if not employees_list:
         return {}
@@ -282,6 +286,8 @@ def employee_calls_chart(user, start_date=None, end_date=None):
 # Overall Performance (All Employees) Code Starts
 @frappe.whitelist()
 def overall_performance_chart(start_date=None, end_date=None):
+    if visible_employees() is not None:
+    	check_employee_access("*", enforce=True)
     holdays = frappe.get_all("Holiday",filters={'holiday_date':["between",[start_date,end_date]]},pluck='holiday_date')
     end_date = getdate(end_date)
     if end_date > getdate() and getdate(start_date) <= getdate():
@@ -402,6 +408,8 @@ def overall_performance_chart(start_date=None, end_date=None):
 # User Analysis (User Productivity Stats) Code Starts
 @frappe.whitelist()
 def user_analysis_data(start_date=None, end_date=None):
+    if visible_employees() is not None:
+    	check_employee_access("*", enforce=True)
     employees = get_employees()
     if not employees:
         return {}
