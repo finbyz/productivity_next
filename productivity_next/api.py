@@ -677,6 +677,7 @@ def organization_signup(
     """
     API_PATH: /api/method/productivity_next.api.organization_signup
     """
+    frappe.only_for("System Manager")
 
     url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.organization_signup"
 
@@ -733,6 +734,7 @@ def organization_signup(
 
 @frappe.whitelist(allow_guest=False, methods=["POST"])
 def send_user_list(user_list):
+    frappe.only_for("System Manager")
     url = "https://productivity.finbyz.tech/api/method/productivity_backend.api.receive_user_list"
     organization_name = frappe.db.get_single_value(
         "Productify Subscription", "organization_name"

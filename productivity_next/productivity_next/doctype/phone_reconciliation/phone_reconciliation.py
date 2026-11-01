@@ -62,6 +62,7 @@ class PhoneReconciliation(Document):
             frappe.msgprint("No Unreconciled Numbers Found")
     @frappe.whitelist()
     def allocate_phone_numbers(self):
+        self.check_permission("write")
         remove_rows = []
         for row in self.phone_reconciliation_call:
             update_row = False
@@ -139,6 +140,7 @@ class PhoneReconciliation(Document):
 
 @frappe.whitelist()
 def update_contact(client_email, client_no, update_client, is_primary_phone, is_primary_email, is_primary_mobile_no,party_type, party):
+    frappe.has_permission("Contact", "write", update_client, throw=True)
     contact_doc = frappe.get_doc("Contact", update_client)
     
     is_primary_phone = True if is_primary_phone == "1" else False
@@ -187,6 +189,7 @@ def update_contact(client_email, client_no, update_client, is_primary_phone, is_
 
 @frappe.whitelist()
 def create_contact(is_primary_mobile_no, is_primary_phone, is_primary_email, client_email, client_no, first_name, party_type, party, last_name=None, salutation=None):	
+    frappe.has_permission("Contact", "create", throw=True)
     contact_doc = frappe.new_doc("Contact")
     contact_doc.salutation = salutation
     contact_doc.first_name = first_name
@@ -215,6 +218,7 @@ def create_contact(is_primary_mobile_no, is_primary_phone, is_primary_email, cli
 
 @frappe.whitelist()
 def ignore_contact(client_no):
+    frappe.has_permission("Fincall Ignored Contact", "create", throw=True)
     validate_sql_args(client_no=client_no)
     ign_doc = frappe.new_doc("Fincall Ignored Contact")
     ign_doc.customer_contact = client_no

@@ -362,6 +362,8 @@ def get_tasks(filters):
 @frappe.whitelist()
 def copy_project_tasks_async(original_project, new_project_name, new_assignee=None):
     """Enqueue background job to copy project tasks"""
+    frappe.has_permission("Project", "read", original_project, throw=True)
+    frappe.has_permission("Task", "create", throw=True)
     frappe.enqueue(
         method="productivity_next.task_enhancement.report.task_analysis.task_analysis.copy_project_tasks",
         queue='long',
@@ -375,6 +377,8 @@ def copy_project_tasks_async(original_project, new_project_name, new_assignee=No
 @frappe.whitelist()
 def copy_project_tasks(original_project, new_project_name, new_assignee=None):
     """Copy all tasks from one project to another, preserving task hierarchy"""
+    frappe.has_permission("Project", "read", original_project, throw=True)
+    frappe.has_permission("Task", "create", throw=True)
     frappe.log_error(f"Starting task copy: {original_project} ➜ {new_project_name}")
 
     root_tasks = frappe.get_all(
@@ -408,6 +412,8 @@ def copy_project_tasks(original_project, new_project_name, new_assignee=None):
 @frappe.whitelist()
 def copy_task_tree(task_name, new_project, new_assignee=None, new_parent=None, task_mapping=None):
     """Recursively copy a task and its children"""
+    frappe.has_permission("Task", "read", task_name, throw=True)
+    frappe.has_permission("Task", "create", throw=True)
     task_mapping = task_mapping or {}
 
     try:
@@ -646,6 +652,7 @@ def update_task(task_id, task_data, update_mode='single'):
         task_data (dict): Task data to update
         update_mode (str): 'single' or 'all' - determines whether to update direct children
     """
+    frappe.has_permission("Task", "write", task_id, throw=True)
     if not isinstance(task_data, dict):
         task_data = frappe.parse_json(task_data)
         
@@ -821,6 +828,8 @@ def delete_task(task_data, delete_mode='single'):
         task_data (dict): Task data containing task name
         delete_mode (str): 'single' for current task only, 'all' for task and all children
     """
+    _td = task_data if isinstance(task_data, dict) else frappe.parse_json(task_data)
+    frappe.has_permission("Task", "delete", ((_td or {}).get("task") or "").strip() or None, throw=True)
     if not isinstance(task_data, dict):
         task_data = frappe.parse_json(task_data)
         
@@ -922,6 +931,7 @@ def copy_task_hierarchy(task_data, new_project=None, new_assignee=None):
     """
     Copy a task and its entire hierarchy while preserving structure.
     """
+    frappe.has_permission("Task", "create", throw=True)
     
     if not isinstance(task_data, dict):
         task_data = frappe.parse_json(task_data)

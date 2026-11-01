@@ -103,6 +103,7 @@ class EmployeeFincall(Document):
 def update_contact(
     client_no, update_client, is_primary_phone, is_primary_mobile_no, party_type, party
 ):
+    frappe.has_permission("Contact", "write", update_client, throw=True)
     frappe.enqueue(
         enqueue_update_contact,
         client_no=client_no,
@@ -163,6 +164,7 @@ def create_contact(
     last_name=None,
     salutation=None,
 ):
+    frappe.has_permission("Contact", "create", throw=True)
     frappe.enqueue(
         enqueue_create_contact,
         is_primary_mobile_no=is_primary_mobile_no,

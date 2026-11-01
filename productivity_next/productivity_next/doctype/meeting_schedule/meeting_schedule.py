@@ -30,6 +30,7 @@ from frappe.utils.user import get_user_fullname
 class MeetingSchedule(Document):
 	@frappe.whitelist()
 	def send_invitation(self):	
+		self.check_permission("write")
 		if not self.email_id:
 			msgprint(_("Please enter email id"))
 			return
@@ -126,6 +127,8 @@ class MeetingSchedule(Document):
 
 @frappe.whitelist()
 def make_meeting(source_name, target_doc=None):	
+	frappe.has_permission("Meeting Schedule", "read", source_name, throw=True)
+	frappe.has_permission("Meeting", "create", throw=True)
 	doclist = get_mapped_doc("Meeting Schedule", source_name, {
 			"Meeting Schedule":{
 				"doctype": "Meeting",
@@ -181,6 +184,8 @@ def get_events(start, end, filters=None):
 @frappe.whitelist()
 def get_party_details(party=None, party_type="Customer", ignore_permissions=True):
 
+	if party and frappe.db.exists(party_type, party):
+		frappe.has_permission(party_type, "read", party, throw=True)
 	if not party:
 		return {}
 

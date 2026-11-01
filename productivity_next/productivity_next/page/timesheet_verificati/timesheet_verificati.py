@@ -3,12 +3,16 @@ from frappe.utils import time_diff_in_seconds, flt
 from datetime import datetime
 from datetime import timedelta
 from frappe.utils import today
+from productivity_next.access import check_employee_access, validate_sql_args
 
 def get_employee_and_date():
     employee = frappe.form_dict.get('employee')
     date = frappe.form_dict.get('date')
     if not date:
         date = frappe.utils.today()
+    # every timesheet-verification endpoint reads its employee through here
+    check_employee_access(employee, enforce=True)
+    validate_sql_args(employee=employee, date=date)
     return employee, date
 
 def secs_to_hhmm(secs):
@@ -138,6 +142,7 @@ def bulk_set_call_projects(call_projects):
     """
     call_projects: list of dicts {name: call_id, project: project_name}
     """
+    frappe.has_permission("Employee Fincall", "write", throw=True)
     import json
     call_projects = json.loads(call_projects) if isinstance(call_projects, str) else call_projects
     for row in call_projects:
