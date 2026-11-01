@@ -503,7 +503,7 @@ class TestTimesheetLogGenerationWithSeedData(FrappeTestCase):
             "productivity_next.schedule.frappe.get_all",
             single_employee_only,
         ):
-            create_timesheet_logs()
+            create_timesheet_logs(today())
 
         timesheet_name = frappe.db.get_value(
             "Timesheet",
@@ -557,7 +557,7 @@ class TestTimesheetLogGenerationWithSeedData(FrappeTestCase):
             "productivity_next.schedule.frappe.get_all",
             single_employee_only,
         ):
-            create_timesheet_logs()
+            create_timesheet_logs(today())
 
         timesheet_name = frappe.db.get_value(
             "Timesheet",

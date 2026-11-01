@@ -113,13 +113,16 @@ scheduler_events = {
             "productivity_next.schedule.create_auto_email_report_weekly",
         ],
         "0 0 * * *": [
-            "productivity_next.schedule.submit_timesheet_created_by_productify",
             "productivity_next.schedule.update_due_period",
+        ],
+        # after create_timesheet_logs (00:30) has built the previous day's timesheets
+        "30 1 * * *": [
+            "productivity_next.schedule.submit_timesheet_created_by_productify",
         ],
         "0 1 * * 2-7": [
             "productivity_next.api.task_mail_remainder",
         ],
-        "0 23 * * *" : [
+        "30 0 * * *" : [
             "productivity_next.schedule.create_timesheet_logs"
         ],
 

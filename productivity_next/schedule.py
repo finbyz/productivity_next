@@ -1365,14 +1365,34 @@ def group_logs_by_employee(logs):
     return employee_logs
 
     
-def create_timesheet_logs():
-    day_start = get_datetime(today())
+def use_task_project(logs, task_projects):
+    """Bill a log to its task's project when the two differ.
+
+    ERPNext rejects a time log whose task belongs to another project, which used to
+    fail the employee's whole timesheet for the day. Only a task that has a project
+    overrides the log's project, matching ERPNext's own check.
+    """
+    for log in logs:
+        task = log.get("task")
+        if not task:
+            continue
+        if task not in task_projects:
+            task_projects[task] = frappe.db.get_value("Task", task, "project")
+        if task_projects[task] and log.get("project") != task_projects[task]:
+            log["project"] = task_projects[task]
+    return logs
+
+
+def create_timesheet_logs(date=None):
+    # Runs after midnight for the previous day, so late activity and late uploads are included
+    date = getdate(date) if date else getdate(add_days(today(), -1))
+    day_start = get_datetime(date)
     next_day = day_start + timedelta(days=1)
     applications = frappe.get_all(
         "Application Usage log",
         fields=["employee","from_time","to_time","task","issue","project"],
         filters={
-            "date": ["between",[today(),today()]],
+            "date": ["between",[date,date]],
         }
     )
     
@@ -1388,8 +1408,9 @@ def create_timesheet_logs():
     )
     
     merged_logs = {}
-    applications = group_logs_by_employee(applications)
-    calls = group_logs_by_employee(calls)
+    task_projects = {}
+    applications = group_logs_by_employee(use_task_project(applications, task_projects))
+    calls = group_logs_by_employee(use_task_project(calls, task_projects))
     employees = frappe.get_all('List of User', fields=['employee'],pluck='employee')
     
     # merge application logs
@@ -1399,7 +1420,7 @@ def create_timesheet_logs():
 
     # split meeting logs
     for employee in employees:
-        meetings = get_employee_meetings(employee, today())
+        meetings = use_task_project(get_employee_meetings(employee, date), task_projects)
         merged_logs[employee] = split_logs(merged_logs.get(employee,[]),meetings)
     
     # split call logs
@@ -1416,7 +1437,7 @@ def create_timesheet_logs():
                 "employee": employee,
                 "status": "Draft",
                 "is_created_by_productify": 1,
-                "start_date": today(),
+                "start_date": date,
             },
             fields=["name"],
             limit=1
