@@ -181,10 +181,11 @@ class Task(_Task):
 		if not previous:
 			return
 		current_approvers = {row.user for row in self.approver}
-		previous_approvers = {row.user for row in previous.approver} or {self.owner}
+		saved_approvers = {row.user for row in previous.approver}
 		# Compare users: child rows are new objects on every save, so has_value_changed is unreliable
-		if current_approvers == previous_approvers:
+		if current_approvers == saved_approvers:
 			return
+		previous_approvers = saved_approvers or {self.owner}
 
 		user = frappe.session.user
 		if user == "Administrator" or "System Manager" in frappe.get_roles(user):
