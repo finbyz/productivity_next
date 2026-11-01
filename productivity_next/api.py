@@ -35,6 +35,7 @@ from werkzeug import Response
 
 from productivity_next.utils.auth import get_bearer_token, update_expiry_time
 from productivity_next.access import check_employee_access, visible_employees
+from productivity_next.access import validate_sql_args
 
 
 PROJECT_TIME_ANALYSIS_REPORT = "Project Time Analysis"
@@ -812,6 +813,7 @@ def get_employee_last_callTime(employee=None):
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_employee_fincall(employee, employee_mobile, customer_no, date, call_datetime):
+    validate_sql_args(employee=employee, employee_mobile=employee_mobile, customer_no=customer_no, date=date, call_datetime=call_datetime)
     check_employee_access(employee, enforce=True)
     if (
         not employee
@@ -1056,6 +1058,7 @@ def calculate_total_working_hours(employee, from_date, to_date, daily_working_ho
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
+    validate_sql_args(employee=employee, start_date=start_date, end_date=end_date)
     check_employee_access(employee)
     data = {}
     weekday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_per_day')
@@ -1275,6 +1278,7 @@ def set_token_to_productify_subscription(token):
 import re
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_meeting_data_for_mobile_app(user, start_date, end_date):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     values = {"user": user, "start_dt": f"{start_date} 00:00:00", "end_dt": f"{end_date} 23:59:59"}
     meetings = frappe.db.sql("""
@@ -1328,6 +1332,7 @@ def get_meeting_data_for_mobile_app(user, start_date, end_date):
 
 @frappe.whitelist(allow_guest=False, methods=["GET"])
 def get_application_data_for_mobile_app(user, start_date, end_date):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     data = {}
     total_web_data = frappe.db.sql(f"""
@@ -1504,6 +1509,7 @@ def get_timeline(employee, start_date, end_date):
     :param end_date: End date for tracking
     :return: Detailed location and activity tracking
     """
+    validate_sql_args(employee=employee)
     check_employee_access(employee)
     import math
     import traceback
@@ -2459,6 +2465,7 @@ def fetch_followup_contacts(link_doctype,link_name):
 
 @frappe.whitelist(methods=["GET"])
 def get_time_utilization_daily(from_date=None, to_date=None, employee=None, project=None):
+    validate_sql_args(project=project)
     check_employee_access(employee, enforce=True)
     if not project:
         return []
@@ -2512,6 +2519,7 @@ def get_projects(user):
 from dateutil.parser import parse
 @frappe.whitelist()
 def user_activity_images(user=None, start_date=None, end_date=None, project=None, offset=0):
+    validate_sql_args(user=user, project=project)
     check_employee_access(user, enforce=True)
     projects = get_projects()
     project = projects[0].name
@@ -2543,6 +2551,7 @@ def get_task_list(from_date, to_date, project, assignee=None):
 
     Response rows contain: task_id, subject, assignee, completed_on
     """
+    validate_sql_args(project=project)
     check_employee_access(assignee, enforce=True)
     if not project:
         return []

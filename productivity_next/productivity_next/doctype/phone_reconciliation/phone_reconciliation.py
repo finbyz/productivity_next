@@ -6,6 +6,7 @@ from frappe.model.document import Document
 from datetime import datetime
 from frappe.utils import get_datetime
 from frappe.utils import cint
+from productivity_next.access import validate_sql_args
 
 
 class PhoneReconciliation(Document):
@@ -214,6 +215,7 @@ def create_contact(is_primary_mobile_no, is_primary_phone, is_primary_email, cli
 
 @frappe.whitelist()
 def ignore_contact(client_no):
+    validate_sql_args(client_no=client_no)
     ign_doc = frappe.new_doc("Fincall Ignored Contact")
     ign_doc.customer_contact = client_no
     ign_doc.ignored_by = frappe.session.user

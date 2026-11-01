@@ -85,3 +85,49 @@ def check_employee_access(*targets, enforce=False):
 	if enforce:
 		frappe.throw(_("You are not permitted to view this employee's data."), frappe.PermissionError)
 	return False
+
+
+import re as _re
+
+_DATE_ARGS = {"start_date", "end_date", "date", "from_date", "to_date"}
+_PERSON_ARGS = {"user", "employee"}
+_PHONE_ARGS = {"client_no", "customer_no", "employee_mobile"}
+_PHONE = _re.compile(r"^[0-9+\-() ]{1,25}$")
+_URLISH = _re.compile(r"^[\w.\-:/%?=&#~+@ ]{1,500}$")
+
+
+def validate_sql_args(**values):
+	"""Reject argument values that are not of their expected kind.
+
+	Several Productify queries put these values into SQL text, so anything that is not a
+	real date, an existing Employee/User/Project/DocType, an hour or a phone number is
+	refused before the query runs.
+	"""
+	from frappe.utils import get_datetime, getdate
+
+	for name, value in values.items():
+		if value in (None, ""):
+			continue
+		try:
+			if name in _DATE_ARGS:
+				getdate(value)
+				ok = bool(_re.match(r"^\d{4}-\d{2}-\d{2}$", str(value)[:10])) and "'" not in str(value)
+			elif name == "call_datetime":
+				get_datetime(value)
+				ok = "'" not in str(value)
+			elif name in _PERSON_ARGS:
+				ok = value == "Administrator" or bool(employee_of(value)) or bool(frappe.db.exists("User", value))
+			elif name == "project":
+				ok = bool(frappe.db.exists("Project", value))
+			elif name == "hour":
+				ok = 0 <= int(value) <= 23
+			elif name in _PHONE_ARGS:
+				ok = bool(_PHONE.match(str(value)))
+			elif name == "url_data":
+				ok = bool(_URLISH.match(str(value)))
+			else:
+				ok = "'" not in str(value) and "\\" not in str(value)
+		except Exception:
+			ok = False
+		if not ok:
+			frappe.throw(_("Invalid value for {0}").format(name), frappe.ValidationError)

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from frappe.utils import getdate
 from productivity_next.api import calculate_total_working_hours
+from productivity_next.access import validate_sql_args
 def execute(filters=None):
     columns = get_columns()
     all_data = get_data(filters)
@@ -382,6 +383,9 @@ def monthly_ranges(start_date, end_date):
 # User Analysis (User Productivity Stats) Code Starts
 @frappe.whitelist()
 def user_analysis_data(start_date=None, end_date=None, filters=None):
+    validate_sql_args(start_date=start_date, end_date=end_date)
+    if filters:
+        validate_sql_args(employee=(frappe.parse_json(filters) if isinstance(filters, str) else filters).get("employee"))
     employee_condition = ""
     meeting_employee_condition = ""
     if filters.get("employee"):

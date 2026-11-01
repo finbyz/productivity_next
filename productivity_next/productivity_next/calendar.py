@@ -3,26 +3,10 @@ import json
 
 @frappe.whitelist()
 def get_custom_events(doctype, start=None, end=None, filters=None):
+    # get_list applies the caller's permissions and builds the filter SQL safely
+    # (this used to run SELECT * on any table named by the caller)
     filters = json.loads(filters) if filters else []
-    condition = ""
-
-    for filter in filters:
-        field = filter[1]
-        operator = filter[2]
-        value = filter[3]
-
-        if operator.upper() == "BETWEEN" and isinstance(value, list) and len(value) == 2:
-            # Properly format the BETWEEN clause
-            condition += f" AND {field} BETWEEN '{value[0]}' AND '{value[1]}'"
-        else:
-            # Handle other operators
-            condition += f" AND {field} {operator} '{value}'"
-    query = f"""
-        SELECT *
-        FROM `tab{doctype}`
-        WHERE 1=1{condition}
-    """
-    events = frappe.db.sql(query, as_dict=True)
+    events = frappe.get_list(doctype, filters=[f[1:4] for f in filters], fields=["*"], limit_page_length=0)
     for event in events:
         if event.get('assignee'):
             try:

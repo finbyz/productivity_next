@@ -6,6 +6,7 @@ from frappe import _
 from datetime import datetime, timedelta
 from productivity_next.api import calculate_total_working_hours
 from frappe.utils import get_timespan_date_range
+from productivity_next.access import validate_sql_args
 
 def execute(filters=None):
     columns = get_columns(filters)
@@ -217,6 +218,7 @@ def get_employees():
 # User Analysis (User Productivity Stats) Code Starts
 @frappe.whitelist()
 def user_analysis_data(start_date=None, end_date=None):
+    validate_sql_args(start_date=start_date, end_date=end_date)
     employees = get_employees()
     if not employees:
         return {}

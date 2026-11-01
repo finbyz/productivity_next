@@ -12,10 +12,12 @@ from productivity_next.api import calculate_total_working_hours
 
 from dateutil.parser import parse
 from productivity_next.access import check_employee_access, visible_employees
+from productivity_next.access import validate_sql_args
 
 # Sidebar Activity Data code starts
 @frappe.whitelist(allow_guest=True)
 def get_activity_chart_data(user = None,start_date=None, end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     if user == "Administrator":
         return {}
@@ -188,6 +190,7 @@ def get_activity_chart_data(user = None,start_date=None, end_date=None):
 # Work Intensity Code Starts
 @frappe.whitelist()
 def work_intensity(user=None, start_date=None, end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     if not user:
         return []
@@ -238,6 +241,7 @@ def work_intensity(user=None, start_date=None, end_date=None):
 # Overall Performance Code Starts
 @frappe.whitelist()
 def overall_performance(employee=None, start_date=None, end_date=None):
+    validate_sql_args(employee=employee, start_date=start_date, end_date=end_date)
     check_employee_access(employee)
     if not employee:
         return {
@@ -356,6 +360,7 @@ def overall_performance(employee=None, start_date=None, end_date=None):
 
 @frappe.whitelist()
 def overall_performance_timely(employee=None, date=None, hour=None):
+    validate_sql_args(employee=employee, date=date, hour=hour)
     check_employee_access(employee)
     if not employee:
         return {
@@ -577,6 +582,7 @@ def _get_meeting_participants(meetings):
 # Applications Used Code Starts
 @frappe.whitelist()
 def application_usage_time(user=None, start_date=None, end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     if not user or user is None:
         return {
@@ -617,6 +623,7 @@ def application_usage_time(user=None, start_date=None, end_date=None):
 # Web Browsing Time code starts
 @frappe.whitelist()
 def web_browsing_time(user = None,start_date=None,end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     if not user or user == None:
         return {
@@ -647,6 +654,7 @@ def web_browsing_time(user = None,start_date=None,end_date=None):
 # Top Phone Calls Code Starts
 @frappe.whitelist()
 def top_phone_calls(user=None, start_date=None, end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     if not user:
         return {
@@ -735,6 +743,7 @@ def top_phone_calls(user=None, start_date=None, end_date=None):
 # Type Of Calls Code Starts
 @frappe.whitelist()
 def type_of_calls(user = None,start_date=None,end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     if not user or user == None:
         return {
@@ -771,6 +780,7 @@ def type_of_calls(user = None,start_date=None,end_date=None):
 # URL DATA AND SIDEBAR DATA CODE STARTS
 @frappe.whitelist()
 def fetch_url_data(user=None,start_date=None, end_date=None):
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     version_conditions_str = version_conditions(user,start_date,end_date)
     ignore_doctype = ['File',"Communication","Fincall Log","Custom Field","DocType","Web Page","Attendance"]
@@ -970,6 +980,7 @@ def fetch_url_data(user=None,start_date=None, end_date=None):
 
 @frappe.whitelist()
 def get_url_brief_data(url_data,user,start_date=None, end_date=None):
+    validate_sql_args(url_data=url_data, user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user, enforce=True)
     data_query = frappe.db.sql(f"""
         SELECT url, SUM(duration) AS duration, COUNT(url) as count, application_title
@@ -988,6 +999,7 @@ def get_url_brief_data(url_data,user,start_date=None, end_date=None):
 @frappe.whitelist()
 def hourly_calls_analysis(user, start_date=None, end_date=None):
     # SQL query to group by contact, client, or customer_no
+    validate_sql_args(user=user, start_date=start_date, end_date=end_date)
     check_employee_access(user)
     data = frappe.db.sql(f"""
         select sum(duration) as total_count, calltype, hour(call_datetime) as hour
