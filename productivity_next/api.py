@@ -2212,7 +2212,10 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
 
 
 def _with_approvers(tasks):
-    """Attach each task's approver rows ([{"user": ...}]) as the Task form returns them."""
+    """Attach each task's approver rows ([{"user": ...}]) as the Task form returns them,
+    and can_complete: the signed-in user is an approver, the creator, or senior to either."""
+    from productivity_next.task_enhancement.overrides.doctype.task import reportee_users
+
     names = [task.name for task in tasks]
     approvers = defaultdict(list)
     if names:
@@ -2224,9 +2227,51 @@ def _with_approvers(tasks):
             limit_page_length=0,
         ):
             approvers[row.parent].append({"user": row.user})
+    user = frappe.session.user
+    reportees = reportee_users(user) if tasks else set()
     for task in tasks:
         task["approver"] = approvers.get(task.name, [])
+        responsible = {row["user"] for row in task["approver"]} | {task.get("owner")}
+        task["can_complete"] = user in responsible or bool(responsible & reportees)
     return tasks
+
+
+@frappe.whitelist(methods=["GET"])
+def get_timesheet_time_on_tasks(employee, tasks, from_date, to_date):
+    """Seconds an employee recorded on each task in Timesheet time logs within the period.
+
+    Counts time logs that start and end inside the period (end date included) on timesheets
+    that are not cancelled, the same rule as the Project Review dashboard.
+    """
+    check_employee_access(employee, enforce=True)
+    validate_sql_args(from_date=from_date, to_date=to_date)
+    tasks = frappe.parse_json(tasks)
+    if not isinstance(tasks, list) or any(not isinstance(task, str) or not task for task in tasks):
+        frappe.throw(_("Tasks must be a list of Task IDs."), frappe.ValidationError)
+    tasks = list(dict.fromkeys(tasks))[:500]
+    if not tasks:
+        return []
+
+    period_start = get_datetime(from_date)
+    period_end = get_datetime(frappe.utils.add_days(to_date, 1))
+    rows = frappe.db.sql(
+        """
+        SELECT tsd.task, SUM(tsd.hours) AS hours
+        FROM `tabTimesheet Detail` tsd
+        INNER JOIN `tabTimesheet` ts ON ts.name = tsd.parent
+        WHERE ts.docstatus < 2
+            AND ts.employee = %(employee)s
+            AND tsd.task IN %(tasks)s
+            AND tsd.from_time >= %(start)s
+            AND tsd.from_time < %(end)s
+            AND tsd.to_time <= %(end)s
+        GROUP BY tsd.task
+        """,
+        {"employee": employee, "tasks": tasks, "start": period_start, "end": period_end},
+        as_dict=True,
+    )
+    hours = {row.task: flt(row.hours) for row in rows}
+    return [{"task": task, "total_duration": round(hours.get(task, 0) * 3600)} for task in tasks]
 
 
 @frappe.whitelist(methods=['POST'])
