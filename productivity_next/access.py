@@ -1,8 +1,10 @@
 """Who may read whose Productify data.
 
-Rule (agreed 1 Nov 2026):
+Rule (agreed 1 Nov 2026, widened 2 Nov 2026):
   - an employee sees their own data and that of everyone who reports to them,
     directly or indirectly (Employee "Reports To" chain);
+  - a user also sees every employee whose Employee record ERPNext lets them read
+    (role permissions and User Permissions), e.g. HR or accounts managers;
   - Productify Manager and System Manager see everyone's;
   - portal (Website) users see no employee data.
 
@@ -44,8 +46,19 @@ def visible_employees(user=None):
 			reports = frappe.get_all("Employee", filters={"reports_to": ["in", frontier]}, pluck="name")
 			frontier = [e for e in reports if e not in visible]
 			visible.update(frontier)
+	visible.update(_readable_employees(user))
 	frappe.cache.set_value(key, sorted(visible), expires_in_sec=CACHE_SECONDS)
 	return visible
+
+
+def _readable_employees(user):
+	"""Employees whose record ERPNext lets the user read (roles and User Permissions)."""
+	if frappe.db.get_value("User", user, "user_type") != "System User":
+		return []
+	try:
+		return frappe.get_list("Employee", pluck="name", user=user, limit_page_length=0, order_by="")
+	except frappe.PermissionError:
+		return []
 
 
 def _enforced(endpoint):
