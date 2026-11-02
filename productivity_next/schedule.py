@@ -959,13 +959,72 @@ def delete_productify_error_logs():
     """, (date_for_error_logs.strftime("%Y-%m-%d %H:%M:%S"),))
 
 
+SCREENSHOT_CLEANUP_SECONDS = 4 * 60 * 60
+# Each delete queues a small follow-up job; pause while the default queue is this busy
+SCREENSHOT_CLEANUP_MAX_QUEUED = 200
+
+
 def delete_screenshots():
-    time_for_screenshots = frappe.db.get_single_value("Productify Configuration", "keep_screenshots_for_days") or 60
-    time_for_screenshots = int(time_for_screenshots)
-    date_for_screenshots = get_datetime() - timedelta(days=time_for_screenshots)
-    screenshots = frappe.get_all("Screen Screenshot Log", {"time": ("<", date_for_screenshots.strftime("%Y-%m-%d %H:%M:%S"))})
-    for screenshot in screenshots:
-        frappe.delete_doc("Screen Screenshot Log", screenshot.name)
+    """Daily 01:00: run the screenshot clean-up as a long job.
+
+    Cron jobs run in the default queue, which stops a job after 5 minutes; working through
+    a backlog of old screenshots takes hours.
+    """
+    frappe.enqueue(
+        "productivity_next.schedule.delete_old_screenshot_logs",
+        queue="long",
+        timeout=SCREENSHOT_CLEANUP_SECONDS + 600,
+        job_id="delete_old_screenshot_logs",
+        deduplicate=True,
+    )
+
+
+def delete_old_screenshot_logs():
+    """Delete screenshot logs older than the configured days, oldest first, with their S3 images.
+
+    Each record is committed on its own, so a locked record or an error never rolls back
+    the night's earlier deletes; skipped records are retried the next night. Stops after
+    SCREENSHOT_CLEANUP_SECONDS and carries on from where it left off the next night.
+    """
+    import time
+    from frappe.utils.background_jobs import get_queue
+
+    days = int(frappe.db.get_single_value("Productify Configuration", "keep_screenshots_for_days") or 60)
+    cutoff = get_datetime() - timedelta(days=days)
+    deadline = time.monotonic() + SCREENSHOT_CLEANUP_SECONDS
+    default_queue = get_queue("default")
+    deleted, skipped = 0, []
+
+    while time.monotonic() < deadline:
+        filters = {"creation": ["<", cutoff]}
+        if skipped:
+            filters["name"] = ["not in", skipped]
+        names = frappe.get_all(
+            "Screen Screenshot Log", filters=filters, pluck="name",
+            order_by="creation asc", limit_page_length=500,
+        )
+        if not names:
+            break
+        for name in names:
+            if time.monotonic() >= deadline:
+                break
+            while default_queue.count > SCREENSHOT_CLEANUP_MAX_QUEUED and time.monotonic() < deadline:
+                time.sleep(5)
+            try:
+                # delete_permanently: no copy in Deleted Documents; the attached image is removed from S3
+                frappe.delete_doc("Screen Screenshot Log", name, ignore_permissions=True, delete_permanently=True)
+                frappe.db.commit()
+                deleted += 1
+            except Exception:
+                frappe.db.rollback()
+                skipped.append(name)
+
+    if skipped:
+        frappe.log_error(
+            title=f"Screenshot clean-up: {len(skipped)} records skipped, {deleted} deleted",
+            message="These records could not be deleted this run and will be retried:\n" + "\n".join(skipped[:200]),
+        )
+    return deleted
 
 def delete_application_logs():
     time_for_application_logs = frappe.db.get_single_value("Productify Configuration", "keep_application_logs_for_days") or 60
