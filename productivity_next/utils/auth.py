@@ -46,6 +46,12 @@ def get_bearer_token(user, expires_in_days=7, purpose=None, date=None):
     )
     if purpose:
         for row in frappe.get_all("OAuth Bearer Token", {"purpose": purpose, "user": user}, pluck="name"):
+            # Another request may hold this old token (e.g. two logins at once); delete_doc
+            # would then fail the whole login. Leave it, it expires on its own.
+            try:
+                frappe.db.get_value("OAuth Bearer Token", row, "name", for_update=True, wait=False)
+            except (frappe.QueryTimeoutError, frappe.QueryDeadlockError):
+                continue
             frappe.delete_doc("OAuth Bearer Token", row, ignore_permissions=True)
 
     bearer_token = frappe.new_doc("OAuth Bearer Token")
