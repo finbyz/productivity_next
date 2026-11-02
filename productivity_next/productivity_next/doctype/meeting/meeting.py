@@ -9,7 +9,7 @@ from frappe import msgprint, db, _
 import json
 from frappe.utils import cint, getdate, get_fullname, get_url_to_form,now_datetime, get_datetime
 # from erpnext.accounts.party import get_party_details
-from productivity_next.productivity_next.doctype.meeting_schedule.meeting_schedule import get_party_details
+from productivity_next.productivity_next.doctype.meeting_schedule.meeting_schedule import _get_party_details
 
 class Meeting(Document):
 	def before_submit(self):
@@ -24,7 +24,8 @@ class Meeting(Document):
 		if self.internal_meeting :
 			self.organization = "Internal Meeting"
 		if self.party_type and self.party:
-			data = get_party_details(party_type=self.party_type,party=self.party)
+			# Server-side fill-in of the party's contact; the user only needs to be able to pick the party
+			data = _get_party_details(party=self.party, party_type=self.party_type, ignore_permissions=True)
 			if data:
 				self.contact_person = data.contact_person
 				self.email_id = data.contact_email

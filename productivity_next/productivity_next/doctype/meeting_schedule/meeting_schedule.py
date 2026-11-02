@@ -184,8 +184,11 @@ def get_events(start, end, filters=None):
 @frappe.whitelist()
 def get_party_details(party=None, party_type="Customer", ignore_permissions=True):
 
-	if party and frappe.db.exists(party_type, party):
-		frappe.has_permission(party_type, "read", party, throw=True)
+	# Anyone who may pick this party in a form (select) may fetch its contact details
+	if party and frappe.db.exists(party_type, party) and not (
+		frappe.has_permission(party_type, "select", party) or frappe.has_permission(party_type, "read", party)
+	):
+		frappe.throw(_("Not permitted for {0}").format(party), frappe.PermissionError)
 	if not party:
 		return {}
 
