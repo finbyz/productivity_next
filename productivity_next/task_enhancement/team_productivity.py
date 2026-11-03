@@ -357,3 +357,104 @@ def get_team_productivity(from_date: str, to_date: str, without_cache=0):
 	}
 	cache.set_value(key, response, expires_in_sec=RESPONSE_CACHE_SECONDS)
 	return response
+
+
+NOW_CACHE_SECONDS = 60
+NOW_CACHE_PREFIX = "productivity_next:team_productivity:now:v1"
+# The desktop app sends a Work Intensity record (with the selected task) every 5 minutes.
+NOW_ACTIVE_MINUTES = 15
+
+
+def _current_work(team):
+	"""What each member is doing now, from their latest Work Intensity record today."""
+	employees = [row.name for row in team]
+	now = now_datetime()
+	today = now.date()
+	placeholders = ", ".join(["%s"] * len(employees))
+	latest = frappe.db.sql(
+		f"""
+		SELECT wi.employee, wi.time, wi.task,
+			COALESCE(wi.key_strokes, 0) + COALESCE(wi.mouse_clicks, 0) + COALESCE(wi.mouse_scrolls, 0) AS inputs
+		FROM `tabWork Intensity` wi
+		JOIN (
+			SELECT employee, MAX(time) AS time
+			FROM `tabWork Intensity`
+			WHERE employee IN ({placeholders}) AND time >= %s
+			GROUP BY employee
+		) last ON last.employee = wi.employee AND last.time = wi.time
+		""",
+		(*employees, datetime.combine(today, time.min)),
+		as_dict=True,
+	)
+	by_employee = {row.employee: row for row in latest}
+	on_leave = set(
+		frappe.get_all(
+			"Leave Application",
+			filters={
+				"employee": ["in", employees],
+				"status": "Approved",
+				"docstatus": 1,
+				"from_date": ["<=", today],
+				"to_date": [">=", today],
+			},
+			pluck="employee",
+		)
+	)
+	tasks = {
+		row.name: row
+		for row in frappe.get_all(
+			"Task",
+			filters={"name": ["in", list({row.task for row in latest if row.task}) or [""]]},
+			fields=["name", "subject", "project"],
+		)
+	}
+	projects = {
+		row.name: row.project_name
+		for row in frappe.get_all(
+			"Project",
+			filters={"name": ["in", list({row.project for row in tasks.values() if row.project}) or [""]]},
+			fields=["name", "project_name"],
+		)
+	}
+
+	result = {}
+	for employee in employees:
+		row = by_employee.get(employee)
+		recent = bool(row) and get_datetime(row.time) >= now - timedelta(minutes=NOW_ACTIVE_MINUTES)
+		task = tasks.get(row.task) if recent and row.task else None
+		if recent:
+			status = "working" if task else "no_task"
+		elif employee in on_leave:
+			status = "on_leave"
+		else:
+			status = "away" if row else "not_started"
+		result[employee] = {
+			"status": status,
+			"idle": bool(recent and not row.inputs),
+			"last_seen": get_datetime(row.time).strftime("%H:%M") if row else None,
+			"task": task.name if task else None,
+			"task_subject": task.subject if task else None,
+			"project": task.project if task else None,
+			"project_name": projects.get(task.project) if task and task.project else None,
+		}
+	return result
+
+
+@frappe.whitelist(methods=["GET"])
+def get_team_current_work():
+	"""Return {"is_team", "members": {employee: {...}}} for the signed-in manager's team.
+
+	status is no_task (tracking now without a task), working (tracking now on a task), away
+	(tracked earlier today), not_started or on_leave. Cached for a minute.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw("Login required", frappe.PermissionError)
+	cache = frappe.cache()
+	key = f"{NOW_CACHE_PREFIX}:{hashlib.sha256(frappe.session.user.encode()).hexdigest()}"
+	response = cache.get_value(key, expires=True)
+	if response is not None:
+		return response
+	team = _manager_team()
+	response = {"is_team": bool(team), "members": _current_work(team) if team else {}}
+	cache.set_value(key, response, expires_in_sec=NOW_CACHE_SECONDS)
+	return response
