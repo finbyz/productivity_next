@@ -458,3 +458,30 @@ def get_team_current_work():
 	response = {"is_team": bool(team), "members": _current_work(team) if team else {}}
 	cache.set_value(key, response, expires_in_sec=NOW_CACHE_SECONDS)
 	return response
+
+
+@frappe.whitelist(methods=["POST"])
+def start_team_task(task):
+	"""Before a manager starts the timer on a team member's task, add the manager to the task's
+	assignments (Assigned To). Pending On (Task.assignee) is not changed.
+
+	Allowed for tasks pending on or assigned to anyone in the manager's Team Productivity list
+	(their whole Reports-To tree on the Productify Subscription list).
+	"""
+	user = frappe.session.user
+	doc = frappe.get_doc("Task", task)
+	assigned = set(json.loads(doc._assign or "[]"))
+	if user == doc.assignee or user in assigned:
+		return {"assigned": False}
+
+	team_users = {row.user_id for row in _manager_team() if row.user_id and row.user_id != user}
+	if not ({doc.assignee} | assigned) & team_users:
+		frappe.throw(
+			frappe._("You can start only your own tasks or tasks of your team members."),
+			frappe.PermissionError,
+		)
+
+	from frappe.desk.form.assign_to import add
+
+	add({"assign_to": [user], "doctype": "Task", "name": doc.name, "description": doc.subject})
+	return {"assigned": True}
