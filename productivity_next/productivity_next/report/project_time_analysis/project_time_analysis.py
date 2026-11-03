@@ -956,6 +956,13 @@ def calculate_non_overlapping_hours(intervals):
 @frappe.whitelist()
 def calculate_total_working_hours(employee, from_date, to_date, daily_working_hours,saturday_working_hours):
     check_employee_access(employee, enforce=True)
+    return get_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours)
+
+
+def get_total_working_hours(employee, from_date, to_date, daily_working_hours, saturday_working_hours):
+    """Hours the employee is expected to work in the period: hours per day (Saturday hours on
+    Saturdays, none on Sundays), skipping holidays and approved leave. Also used by Team
+    Productivity; callers check access."""
     from_date = datetime.strptime(str(from_date), '%Y-%m-%d')
     to_date = datetime.strptime(str(to_date), '%Y-%m-%d')
     date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]

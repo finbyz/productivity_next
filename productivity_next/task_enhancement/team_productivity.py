@@ -6,13 +6,17 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 import frappe
-from frappe.utils import get_datetime, nowdate
+from frappe.utils import flt, get_datetime, nowdate
+
+from productivity_next.productivity_next.report.project_time_analysis.project_time_analysis import (
+	get_total_working_hours,
+)
 
 
 TEAM_CACHE_SECONDS = 3 * 60 * 60
 RESPONSE_CACHE_SECONDS = 60 * 60
 TEAM_CACHE_PREFIX = "productivity_next:team_productivity:team:v4"
-RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v6"
+RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v7"
 MAX_TREE_DEPTH = 50
 
 
@@ -250,6 +254,23 @@ def _activity_times(team, start, end):
 	return result
 
 
+def _expected_times(team, start, end):
+	"""Working hours each member was expected to give, as in Project Time Analysis
+	(hours per day less holidays and approved leave). Days after today are not counted yet."""
+	end = min(end, datetime.strptime(nowdate(), "%Y-%m-%d").date())
+	if end < start:
+		return {row.name: {"expected_seconds": 0} for row in team}
+	daily_hours = flt(frappe.db.get_single_value("Productify Configuration", "total_hours_per_day"))
+	saturday_hours = flt(frappe.db.get_single_value("Productify Configuration", "total_hours_on_saturday"))
+	return {
+		row.name: {
+			"expected_seconds": round(
+				3600 * get_total_working_hours(row.name, start.isoformat(), end.isoformat(), daily_hours, saturday_hours)
+			)
+		}
+		for row in team
+	}
+
 
 def _response_cache_key(start, end):
 	payload = json.dumps(
@@ -268,6 +289,7 @@ def _build_rows(team, start, end):
 	"""Build a productivity forest from the selected Employee hierarchy."""
 	counts = _task_counts(team, start, end)
 	activity = _activity_times(team, start, end)
+	expected = _expected_times(team, start, end)
 	nodes = {
 		row.name: {
 			"employee": row.name,
@@ -276,6 +298,7 @@ def _build_rows(team, start, end):
 			"reports_to": row.reports_to,
 			**counts[row.user_id],
 			**activity[row.name],
+			**expected[row.name],
 			"children": [],
 		}
 		for row in team
@@ -301,7 +324,8 @@ def get_team_productivity(from_date: str, to_date: str, without_cache=0):
 	"""Return hierarchical team productivity, optionally refreshing its cache.
 
 	rows is a forest of employee nodes with recursive children. progress_percent
-	is active / (active + idle), not task completion progress.
+	is active / (active + idle), not task completion progress. expected_seconds is
+	the working time due in the period up to today (Project Time Analysis rule).
 	"""
 	start, end = _date_range(from_date, to_date)
 	if frappe.session.user == "Guest":
