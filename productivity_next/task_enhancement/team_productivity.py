@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 import frappe
-from frappe.utils import flt, get_datetime, nowdate
+from frappe.utils import flt, get_datetime, now_datetime, nowdate
 
 from productivity_next.productivity_next.report.project_time_analysis.project_time_analysis import (
 	get_total_working_hours,
@@ -16,8 +16,10 @@ from productivity_next.productivity_next.report.project_time_analysis.project_ti
 TEAM_CACHE_SECONDS = 3 * 60 * 60
 RESPONSE_CACHE_SECONDS = 60 * 60
 TEAM_CACHE_PREFIX = "productivity_next:team_productivity:team:v4"
-RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v7"
+RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v8"
 MAX_TREE_DEPTH = 50
+# Working hours for today count from this time (site time, IST) up to now.
+OFFICE_START = time(9, 30)
 
 
 def _date_range(from_date, to_date):
@@ -256,27 +258,37 @@ def _activity_times(team, start, end):
 
 def _expected_times(team, start, end):
 	"""Working hours each member was expected to give, as in Project Time Analysis
-	(hours per day less holidays and approved leave). Days after today are not counted yet."""
-	end = min(end, datetime.strptime(nowdate(), "%Y-%m-%d").date())
-	if end < start:
-		return {row.name: {"expected_seconds": 0} for row in team}
+	(hours per day less holidays and approved leave). Future days are not counted, and today
+	counts only the time since OFFICE_START, up to that day's hours."""
+	now = now_datetime()
+	today = now.date()
 	daily_hours = flt(frappe.db.get_single_value("Productify Configuration", "total_hours_per_day"))
 	saturday_hours = flt(frappe.db.get_single_value("Productify Configuration", "total_hours_on_saturday"))
-	return {
-		row.name: {
-			"expected_seconds": round(
-				3600 * get_total_working_hours(row.name, start.isoformat(), end.isoformat(), daily_hours, saturday_hours)
-			)
-		}
-		for row in team
-	}
+	elapsed_today = max(0, (now - datetime.combine(today, OFFICE_START)).total_seconds() / 3600)
+
+	def hours(employee, from_day, to_day):
+		if from_day > to_day:
+			return 0
+		return get_total_working_hours(employee, from_day.isoformat(), to_day.isoformat(), daily_hours, saturday_hours)
+
+	result = {}
+	for row in team:
+		total = hours(row.name, start, min(end, today - timedelta(days=1)))
+		if start <= today <= end:
+			total += min(hours(row.name, today, today), elapsed_today)
+		result[row.name] = {"expected_seconds": round(3600 * total)}
+	return result
 
 
 def _response_cache_key(start, end):
+	now = now_datetime()
+	# Today's working hours grow through the day, so such ranges are cached per 15 minutes.
+	slot = now.hour * 4 + now.minute // 15 if start <= now.date() <= end else None
 	payload = json.dumps(
 		{
 			"manager": frappe.session.user,
 			"today": nowdate(),
+			"slot": slot,
 			"from_date": start.isoformat(),
 			"to_date": end.isoformat(),
 		},
@@ -325,7 +337,7 @@ def get_team_productivity(from_date: str, to_date: str, without_cache=0):
 
 	rows is a forest of employee nodes with recursive children. progress_percent
 	is active / (active + idle), not task completion progress. expected_seconds is
-	the working time due in the period up to today (Project Time Analysis rule).
+	the working time due in the period so far (Project Time Analysis rule; today from 9:30).
 	"""
 	start, end = _date_range(from_date, to_date)
 	if frappe.session.user == "Guest":
