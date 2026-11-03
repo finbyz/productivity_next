@@ -341,3 +341,60 @@ def get_team_task_status():
 		}
 		for row in team
 	]
+
+
+# Statuses that are not work to pick up, besides TERMINAL_STATUSES.
+NOT_PENDING_STATUSES = ("Template", "Request For Cancel")
+REMINDER_SENT_KEY = f"{PREFIX}:pending_task_reminder"
+
+
+def remind_pending_tasks():
+	"""Registered every 10 minutes in hooks.py.
+
+	Employees tracking in Productify without a running task (the dashboard's "No task") who
+	have tasks pending on them (Task.assignee) get a desktop pop-up asking them to start one.
+	Sent as a realtime "order_notification" message: the desktop app shows it with a sound,
+	and no Notification Log (bell entry or email) is created.
+	"""
+	from productivity_next.task_enhancement.team_productivity import _current_work
+
+	employees = _employees()
+	if not employees:
+		return {}
+	current = _current_work(employees)
+	free = {row.user_id: row for row in employees if current.get(row.name, {}).get("status") == "no_task"}
+	if not free:
+		return {}
+
+	pending = defaultdict(list)
+	for task in frappe.get_all(
+		"Task",
+		filters={
+			"assignee": ["in", list(free)],
+			"status": ["not in", TERMINAL_STATUSES + NOT_PENDING_STATUSES],
+		},
+		fields=["name", "subject", "status", "exp_end_date", "assignee"],
+		limit_page_length=0,
+		order_by="",
+	):
+		pending[task.assignee].append(task)
+
+	cache = frappe.cache()
+	sent = {}
+	for user, tasks in pending.items():
+		# A late or repeated run must not pop up twice within one interval.
+		key = f"{REMINDER_SENT_KEY}:{user}"
+		if cache.get_value(key, expires=True):
+			continue
+		tasks.sort(key=lambda task: (task.status != "Overdue", task.exp_end_date is None, task.exp_end_date or "", task.name))
+		first = tasks[0]
+		count = len(tasks)
+		message = (
+			f"{count} task{'s are' if count > 1 else ' is'} pending on you and no task is running in "
+			f"Productify. Please start one, e.g. \"{(first.subject or first.name).strip()}\""
+			f"{' (Overdue)' if first.status == 'Overdue' else ''}."
+		)
+		frappe.publish_realtime("order_notification", {"message": message}, user=user)
+		cache.set_value(key, 1, expires_in_sec=9 * 60)
+		sent[user] = message
+	return sent

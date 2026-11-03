@@ -104,6 +104,9 @@ scheduler_events = {
         "0 6 * * *": [
             "productivity_next.task_enhancement.employee_task_notifications.morning_warmup_and_notify",
         ],
+        "*/10 * * * *": [
+            "productivity_next.task_enhancement.employee_task_notifications.remind_pending_tasks",
+        ],
         "0 1 * * *": [
             "productivity_next.schedule.create_productify_work_summary",
             "productivity_next.schedule.delete_productify_error_logs",
