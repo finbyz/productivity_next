@@ -343,8 +343,9 @@ def get_team_task_status():
 	]
 
 
-# Statuses that are not work to pick up, besides TERMINAL_STATUSES.
-NOT_PENDING_STATUSES = ("Template", "Request For Cancel")
+# Statuses that are not work to pick up, besides TERMINAL_STATUSES. Unplanned and Template
+# tasks are not in the Productify task list either (productivity_next.api.get_tasks).
+NOT_PENDING_STATUSES = ("Unplanned", "Template", "Request For Cancel")
 REMINDER_SENT_KEY = f"{PREFIX}:pending_task_reminder"
 
 
@@ -352,7 +353,8 @@ def remind_pending_tasks():
 	"""Registered every 10 minutes in hooks.py.
 
 	Employees tracking in Productify without a running task (the dashboard's "No task") who
-	have tasks pending on them (Task.assignee) get a desktop pop-up asking them to start one.
+	have tasks pending on them (Task.assignee) that their Productify task list shows get a
+	desktop pop-up asking them to start one.
 	Sent as a realtime "order_notification" message: the desktop app shows it with a sound,
 	and no Notification Log (bell entry or email) is created.
 	"""
@@ -372,6 +374,8 @@ def remind_pending_tasks():
 		filters={
 			"assignee": ["in", list(free)],
 			"status": ["not in", TERMINAL_STATUSES + NOT_PENDING_STATUSES],
+			# Like the Productify task list: only tasks whose expected start has come.
+			"exp_start_date": ["<=", nowdate()],
 		},
 		fields=["name", "subject", "status", "exp_end_date", "assignee"],
 		limit_page_length=0,
