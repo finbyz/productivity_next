@@ -1430,15 +1430,20 @@ def use_task_project(logs, task_projects):
     ERPNext rejects a time log whose task belongs to another project, which used to
     fail the employee's whole timesheet for the day. Only a task that has a project
     overrides the log's project, matching ERPNext's own check.
+    A task cancelled later is dropped from the log (its project stays): ERPNext refuses
+    time against cancelled tasks, which also failed the whole timesheet.
     """
     for log in logs:
         task = log.get("task")
         if not task:
             continue
         if task not in task_projects:
-            task_projects[task] = frappe.db.get_value("Task", task, "project")
-        if task_projects[task] and log.get("project") != task_projects[task]:
-            log["project"] = task_projects[task]
+            task_projects[task] = frappe.db.get_value("Task", task, ["project", "status"]) or (None, None)
+        project, status = task_projects[task]
+        if project and log.get("project") != project:
+            log["project"] = project
+        if status == "Cancelled":
+            log["task"] = None
     return logs
 
 
