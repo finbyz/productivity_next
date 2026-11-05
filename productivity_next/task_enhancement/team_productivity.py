@@ -9,6 +9,7 @@ import frappe
 from frappe.utils import flt, get_datetime, now_datetime, nowdate
 
 from productivity_next.productivity_next.report.project_time_analysis.project_time_analysis import (
+	execute as project_time_analysis,
 	get_total_working_hours,
 )
 
@@ -16,7 +17,7 @@ from productivity_next.productivity_next.report.project_time_analysis.project_ti
 TEAM_CACHE_SECONDS = 3 * 60 * 60
 RESPONSE_CACHE_SECONDS = 60 * 60
 TEAM_CACHE_PREFIX = "productivity_next:team_productivity:team:v4"
-RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v8"
+RESPONSE_CACHE_PREFIX = "productivity_next:team_productivity:response:v9"
 MAX_TREE_DEPTH = 50
 # Working hours for today count from this time (site time, IST) up to now.
 OFFICE_START = time(9, 30)
@@ -280,6 +281,26 @@ def _expected_times(team, start, end):
 	return result
 
 
+def _billing_times(team, start, end):
+	"""Billable project time per member: the Project Time Analysis rows for non-internal
+	customers' projects, the Billing figure of the Dashboard's Project Time card."""
+	employees = [row.name for row in team]
+	members = set(employees)
+	_, rows = project_time_analysis({
+		"from_date": start.isoformat(),
+		"to_date": end.isoformat(),
+		"employee": employees,
+		"show_employee": 1,
+		"show_details": 1,
+		"is_internal_project": 0,
+	})
+	hours = defaultdict(float)
+	for row in rows or []:
+		if isinstance(row, dict) and row.get("employee_id") in members:
+			hours[row["employee_id"]] += flt(row.get("total_hours"))
+	return {employee: {"billing_seconds": round(3600 * hours[employee])} for employee in employees}
+
+
 def _response_cache_key(start, end):
 	now = now_datetime()
 	# Today's working hours grow through the day, so such ranges are cached per 15 minutes.
@@ -302,6 +323,7 @@ def _build_rows(team, start, end):
 	counts = _task_counts(team, start, end)
 	activity = _activity_times(team, start, end)
 	expected = _expected_times(team, start, end)
+	billing = _billing_times(team, start, end)
 	nodes = {
 		row.name: {
 			"employee": row.name,
@@ -311,6 +333,7 @@ def _build_rows(team, start, end):
 			**counts[row.user_id],
 			**activity[row.name],
 			**expected[row.name],
+			**billing[row.name],
 			"children": [],
 		}
 		for row in team
@@ -338,6 +361,7 @@ def get_team_productivity(from_date: str, to_date: str, without_cache=0):
 	rows is a forest of employee nodes with recursive children. progress_percent
 	is active / (active + idle), not task completion progress. expected_seconds is
 	the working time due in the period so far (Project Time Analysis rule; today from 9:30).
+	billing_seconds is billable project time (the Project Time card's Billing figure).
 	"""
 	start, end = _date_range(from_date, to_date)
 	if frappe.session.user == "Guest":

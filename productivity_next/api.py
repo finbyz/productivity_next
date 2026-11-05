@@ -2193,6 +2193,7 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     )
 
     tasks = query.run(as_dict=True)
+    tasks.extend(_worked_tasks_not_listed(assignee, start_date, end_date, tasks))
     assigned_tasks = [
         task for task in tasks
         if task.assignee == assignee and task.status != "Completed"
@@ -2209,6 +2210,96 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     return {
         "data": _with_approvers([*assigned_tasks, *other_tasks, *completed_tasks])
     }
+
+
+def _worked_tasks_not_listed(assignee, start_date, end_date, listed):
+    """Tasks of any status the assignee's employee worked on in the period that the open/completed
+    rules above left out (e.g. completed by someone else), so the period's task time is complete."""
+    employee = assignee and start_date and end_date and frappe.db.get_value(
+        "Employee", {"user_id": assignee}, "name"
+    )
+    if not employee:
+        return []
+    listed_names = {task.name for task in listed}
+    names = [
+        task for task in _employee_task_activity(employee, start_date, end_date)
+        if task not in listed_names
+    ]
+    if not names:
+        return []
+    Task = DocType("Task")
+    return (
+        frappe.qb.from_(Task).select("*").where(Task.name.isin(names))
+        .orderby(Task.modified, order=Order.desc).run(as_dict=True)
+    )
+
+
+def _employee_task_activity(employee, from_date, to_date, tasks=None):
+    """Seconds one employee spent on each task in the period (to_date included), from the
+    activity Project Time counts: application usage logs, submitted meetings and connected
+    calls linked to the task. Time is clipped to the period; overlaps within a task count once.
+    Includes today, which has no Timesheet until the nightly run."""
+    start = getdate(from_date)
+    end = getdate(to_date)
+    start_at = datetime.combine(start, datetime.min.time())
+    end_at = datetime.combine(end + timedelta(days=1), datetime.min.time())
+    params = {
+        "employee": employee, "start_at": start_at, "end_at": end_at,
+        # A log starting just before midnight can overlap the first day.
+        "lookup_start": start - timedelta(days=1), "to_date": end,
+    }
+    task_condition = ""
+    if tasks is not None:
+        if not tasks:
+            return {}
+        params["tasks"] = tuple(tasks)
+        task_condition = "AND {task} IN %(tasks)s"
+    sources = (
+        ("task", """
+            SELECT task, from_time AS start_time, to_time AS end_time
+            FROM `tabApplication Usage log`
+            WHERE employee = %(employee)s AND `date` BETWEEN %(lookup_start)s AND %(to_date)s
+                AND IFNULL(task, '') != '' {condition}
+        """),
+        ("task", """
+            SELECT task, call_datetime AS start_time,
+                ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time
+            FROM `tabEmployee Fincall`
+            WHERE employee = %(employee)s AND `date` BETWEEN %(lookup_start)s AND %(to_date)s
+                AND calltype NOT IN ('Missed', 'Rejected') AND IFNULL(task, '') != '' {condition}
+        """),
+        ("m.task", """
+            SELECT m.task, m.meeting_from AS start_time, m.meeting_to AS end_time
+            FROM `tabMeeting` m
+            JOIN `tabMeeting Company Representative` r ON r.parent = m.name
+            WHERE r.employee = %(employee)s AND m.docstatus = 1
+                AND m.meeting_from < %(end_at)s AND m.meeting_to > %(start_at)s
+                AND IFNULL(m.task, '') != '' {condition}
+        """),
+    )
+    intervals = defaultdict(list)
+    for task_column, query in sources:
+        condition = task_condition.format(task=task_column)
+        for row in frappe.db.sql(query.format(condition=condition), params, as_dict=True):
+            if not row.start_time or not row.end_time:
+                continue
+            begin = max(get_datetime(row.start_time), start_at)
+            finish = min(get_datetime(row.end_time), end_at)
+            if finish > begin:
+                intervals[row.task].append((begin, finish))
+    seconds = {}
+    for task, task_intervals in intervals.items():
+        total, current = 0, None
+        for begin, finish in sorted(task_intervals):
+            if current and begin <= current[1]:
+                current = (current[0], max(current[1], finish))
+                continue
+            if current:
+                total += (current[1] - current[0]).total_seconds()
+            current = (begin, finish)
+        total += (current[1] - current[0]).total_seconds()
+        seconds[task] = total
+    return seconds
 
 
 def _with_approvers(tasks):
@@ -2238,10 +2329,12 @@ def _with_approvers(tasks):
 
 @frappe.whitelist(methods=["GET"])
 def get_timesheet_time_on_tasks(employee, tasks, from_date, to_date):
-    """Seconds an employee recorded on each task in Timesheet time logs within the period.
+    """Seconds an employee spent on each task within the period (to_date included).
 
-    Counts time logs that start and end inside the period (end date included) on timesheets
-    that are not cancelled, the same rule as the Project Review dashboard.
+    Uses the same activity as the Dashboard's Project Time card (application usage logs,
+    submitted meetings and connected calls linked to the task), so the Tasks table's Actual Time
+    adds up to Project Time and includes today. (Until Nov 2026 this read Timesheet time logs,
+    which miss today and can differ from the tracked activity.)
     """
     check_employee_access(employee, enforce=True)
     validate_sql_args(from_date=from_date, to_date=to_date)
@@ -2252,26 +2345,8 @@ def get_timesheet_time_on_tasks(employee, tasks, from_date, to_date):
     if not tasks:
         return []
 
-    period_start = get_datetime(from_date)
-    period_end = get_datetime(frappe.utils.add_days(to_date, 1))
-    rows = frappe.db.sql(
-        """
-        SELECT tsd.task, SUM(tsd.hours) AS hours
-        FROM `tabTimesheet Detail` tsd
-        INNER JOIN `tabTimesheet` ts ON ts.name = tsd.parent
-        WHERE ts.docstatus < 2
-            AND ts.employee = %(employee)s
-            AND tsd.task IN %(tasks)s
-            AND tsd.from_time >= %(start)s
-            AND tsd.from_time < %(end)s
-            AND tsd.to_time <= %(end)s
-        GROUP BY tsd.task
-        """,
-        {"employee": employee, "tasks": tasks, "start": period_start, "end": period_end},
-        as_dict=True,
-    )
-    hours = {row.task: flt(row.hours) for row in rows}
-    return [{"task": task, "total_duration": round(hours.get(task, 0) * 3600)} for task in tasks]
+    seconds = _employee_task_activity(employee, from_date, to_date, tasks)
+    return [{"task": task, "total_duration": round(seconds.get(task, 0))} for task in tasks]
 
 
 @frappe.whitelist(methods=['POST'])
