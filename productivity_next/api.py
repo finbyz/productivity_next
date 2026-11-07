@@ -13,6 +13,7 @@ from frappe.model.mapper import get_mapped_doc
 from frappe.query_builder import DocType, Order
 from frappe.share import notify_assignment
 from frappe.utils import (
+    add_days,
     cint,
     convert_utc_to_system_timezone,
     flt,
@@ -2162,6 +2163,9 @@ def get_all_employee_time_on_tasks(tasks, from_date=None, to_date=None):
 
 
 
+TASKS_DUE_AFTER_RANGE_DAYS = 5
+
+
 @frappe.whitelist()
 def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
     check_employee_access(assignee)
@@ -2178,7 +2182,11 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
         .where(
             (
                 (Task.status.notin(["Unplanned", "Template", "Cancelled", "Completed"]))
-                & (Task.exp_start_date.lte(end_date))
+                # Started by the end of the range, or due up to 5 days after it
+                & (
+                    (Task.exp_start_date.lte(end_date))
+                    | (Task.exp_end_date < add_days(getdate(end_date), TASKS_DUE_AFTER_RANGE_DAYS + 1))
+                )
                 & (
                     (Task._assign.like(f'%"{assignee}"%')) | (Task.assignee == assignee)
                 )
@@ -2347,6 +2355,73 @@ def get_timesheet_time_on_tasks(employee, tasks, from_date, to_date):
 
     seconds = _employee_task_activity(employee, from_date, to_date, tasks)
     return [{"task": task, "total_duration": round(seconds.get(task, 0))} for task in tasks]
+
+
+@frappe.whitelist(methods=["POST"])  # read-only; POST because the task list can be long
+def get_task_tree_time(employee, tasks, from_date, to_date):
+    """Parent tasks and subtree time for the Dashboard's Tasks tree.
+
+    For the given tasks, returns their readable ancestors (rows shaped like get_tasks, for
+    context rows) and, for every task and ancestor, the seconds the employee spent on it and
+    on all its subtasks in the period (to_date included), from the same activity as
+    get_timesheet_time_on_tasks. Subtasks count whether or not they are listed.
+    """
+    check_employee_access(employee, enforce=True)
+    validate_sql_args(from_date=from_date, to_date=to_date)
+    tasks = frappe.parse_json(tasks)
+    if not isinstance(tasks, list) or any(not isinstance(task, str) or not task for task in tasks):
+        frappe.throw(_("Tasks must be a list of Task IDs."), frappe.ValidationError)
+    tasks = list(dict.fromkeys(tasks))[:2500]
+    if not tasks:
+        return {"parents": [], "time": []}
+
+    # Readable ancestors, nearest first; an unreadable parent ends the chain
+    parent_of = {
+        row.name: row.parent_task
+        for row in frappe.get_list("Task", filters={"name": ["in", tasks]}, fields=["name", "parent_task"], limit_page_length=0)
+    }
+    ancestors = []
+    checked = set()
+    while pending := {parent for parent in parent_of.values() if parent and parent not in parent_of} - checked:
+        checked |= pending
+        rows = frappe.get_list("Task", filters={"name": ["in", list(pending)]}, fields=["*"], limit_page_length=0)
+        for row in rows:
+            parent_of[row.name] = row.parent_task
+            ancestors.append(row)
+
+    # All subtasks of the listed tasks and ancestors; only their time is returned, not their details
+    children = defaultdict(list)
+    frontier = list(parent_of)
+    seen = set(frontier)
+    while frontier:
+        rows = frappe.get_all(
+            "Task", filters={"parent_task": ["in", frontier]}, fields=["name", "parent_task"], limit_page_length=0
+        )
+        frontier = []
+        for row in rows:
+            children[row.parent_task].append(row.name)
+            if row.name not in seen:
+                seen.add(row.name)
+                frontier.append(row.name)
+
+    seconds = _employee_task_activity(employee, from_date, to_date, list(seen))
+
+    def subtree_seconds(task, visited):
+        visited.add(task)
+        return seconds.get(task, 0) + sum(
+            subtree_seconds(child, visited) for child in children.get(task, []) if child not in visited
+        )
+
+    time = [
+        {
+            "task": task,
+            "own_duration": round(seconds.get(task, 0)),
+            "total_duration": round(subtree_seconds(task, set())),
+            "parent_task": parent_of.get(task),
+        }
+        for task in parent_of
+    ]
+    return {"parents": _with_approvers(ancestors), "time": time}
 
 
 @frappe.whitelist(methods=['POST'])
