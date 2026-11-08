@@ -10,7 +10,7 @@ from productivity_next.access import validate_sql_args
 
 def execute(filters=None):
     columns = get_columns(filters)
-    from_date, to_date = get_timespan_date_range((filters.get("timespan")).lower())
+    from_date, to_date = get_timespan_date_range((filters.get("timespan") or "Yesterday").lower())
     data = get_data(from_date, to_date)
     return columns, data
 
