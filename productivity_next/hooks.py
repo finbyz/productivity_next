@@ -12,7 +12,6 @@ on_session_creation = "productivity_next.session.on_session_creation"
 # Includes in <head>
 # ------------------
 app_include_js = [
-    "https://cdn.plot.ly/plotly-latest.min.js",
     "https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js",
     "assets/productivity_next/productivity_next/setup.js",
 ]
