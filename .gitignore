@@ -5,3 +5,5 @@
 tags
 productivity_next/docs/current
 node_modules/
+node_modules
+productivity_next/public/dist/

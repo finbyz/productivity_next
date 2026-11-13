@@ -1,5 +1,10 @@
 frappe.pages['Productify Consolidated Analysis'].on_page_load = function (wrapper) {
-	new UserProfile(wrapper);
+	// echarts is bundled in this app (echarts.bundle.js) and loaded only on the pages that draw charts
+	if (window.echarts) {
+		new UserProfile(wrapper);
+	} else {
+		frappe.require("echarts.bundle.js", () => new UserProfile(wrapper));
+	}
 }
 
 UserProfile = class UserProfile {
