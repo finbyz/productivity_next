@@ -1495,7 +1495,7 @@ def get_map_plot(employee, start_date, end_date):
             "event": ["not in", ('getCurrentPosition', 'heartbeat')],
         },
         fields=[
-            "CAST(timestamp AS DATETIME) AS timestamp",
+            "timestamp",
             "coords_latitude as latitude",
             "coords_longitude as longitude",
             "coords_heading as heading",
