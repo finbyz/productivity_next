@@ -927,7 +927,7 @@
    "property": "options",
    "property_type": "Text",
    "row_name": null,
-   "value": "Unplanned\nOpen\nPlanned\nScheduled\nIn-Progress\nPending Review\nOverdue\nCompleted\nRequest For Cancel\nCancelled\nTemplate"
+   "value": "Unplanned\nOpen\nPlanned\nScheduled\nIn-Progress\nPending Review\nChange Pending\nOverdue\nCompleted\nRequest For Cancel\nCancelled\nTemplate"
   }
  ],
  "sync_on_migrate": 1
