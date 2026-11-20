@@ -6,6 +6,21 @@ from collections import defaultdict
 from frappe.utils import flt
 from productivity_next.access import check_employee_access, visible_employees
 
+
+# Other apps (for example finbyz) can add Issue hours to this report. Each hook
+# method takes (from_date, to_date, users=None) and returns rows of
+# {"user", "project", "hours"}. Without a provider, issue hours are 0.
+ISSUE_HOURS_HOOK = "productivity_next_issue_hours"
+
+
+def get_issue_hours(from_date, to_date, users=None):
+    """Return {(user, project): hours} from all registered issue hours providers."""
+    issue_hours = defaultdict(float)
+    for method in frappe.get_hooks(ISSUE_HOURS_HOOK):
+        for row in frappe.get_attr(method)(from_date, to_date, users) or []:
+            issue_hours[(row["user"], row["project"])] += flt(row["hours"])
+    return issue_hours
+
 def execute(filters=None):
     filters = _normalise_date_filters(filters)
     start_time = frappe.utils.now_datetime()
@@ -527,6 +542,11 @@ def get_deployment_rate_data(filters):
     
     
     
+    issue_hours = get_issue_hours(
+        from_date, to_date, users=[emp.user_id for emp in employees if emp.user_id]
+    )
+    issue_projects = get_issue_project_flags(issue_hours)
+
     # For each employee, calculate their hours
     for emp in employees:
         employee_id = emp.name
@@ -684,32 +704,9 @@ def get_deployment_rate_data(filters):
         milestone_hours = calculate_non_overlapping_hours(project_intervals['milestone'])
         
         # Get support hours from Issue's time involvement table (hourly projects)
-        user = emp.user_id
-        support_hours_data = frappe.db.sql(f"""
-            SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
-            FROM `tabIssue` i
-            JOIN `tabTime Involvement` ti ON ti.parent = i.name
-            JOIN `tabProject` p on i.project = p.name
-            WHERE ti.user_name = '{user}'
-            AND ti.date BETWEEN '{from_date}' AND '{to_date}'
-            AND p.based_on_hourly_package = 1
-        """, as_dict=True)
-    
-        # Get non-hourly issue hours 
-        non_hourly_issue_hours_data = frappe.db.sql(f"""
-            SELECT COALESCE(SUM(ti.time_involvement), 0) as total_support_hours
-            FROM `tabIssue` i
-            JOIN `tabTime Involvement` ti ON ti.parent = i.name
-            JOIN `tabProject` p on i.project = p.name
-            WHERE ti.user_name = '{user}'
-            AND ti.date BETWEEN '{from_date}' AND '{to_date}'
-            AND p.based_on_hourly_package = 0 
-            AND p.resource_based_project = 0
-            AND p.milestone_based_project = 0
-        """, as_dict=True)
-        
-        support_hours = support_hours_data[0].total_support_hours if support_hours_data else 0
-        non_hourly_issue_hours = non_hourly_issue_hours_data[0].total_support_hours if non_hourly_issue_hours_data else 0
+        support_hours, non_hourly_issue_hours = split_issue_support_hours(
+            issue_hours, issue_projects, emp.user_id
+        )
         
         # Calculate total billable and utilized hours
         total_billable = dedicated_hours + support_hours +milestone_hours
@@ -741,6 +738,38 @@ def get_deployment_rate_data(filters):
     result_data.sort(key=lambda x: -x.get('percentage_billable', 0) if x.get('employee_name') != 'Total' else -999)
     
     return result_data
+
+
+def get_issue_project_flags(issue_hours):
+    projects = {project for _user, project in issue_hours if project}
+    if not projects:
+        return {}
+    return {
+        p.name: p
+        for p in frappe.get_all(
+            "Project",
+            filters={"name": ("in", list(projects))},
+            fields=["name", "based_on_hourly_package", "resource_based_project", "milestone_based_project"],
+        )
+    }
+
+
+def split_issue_support_hours(issue_hours, issue_projects, user):
+    """Return (hours on hourly-package projects, hours on other non-hourly projects).
+
+    Non-hourly means not hourly, not resource based and not milestone based.
+    """
+    hourly = non_hourly = 0
+    for (row_user, project), hours in issue_hours.items():
+        flags = issue_projects.get(project)
+        if row_user != user or not flags:
+            continue
+        if flags.based_on_hourly_package:
+            hourly += hours
+        elif not flags.resource_based_project and not flags.milestone_based_project:
+            non_hourly += hours
+    return hourly, non_hourly
+
 
 def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys, filters):
     
@@ -793,17 +822,10 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
                 grouped_data[key]['details']['employee_name'] = interval['employee_name']
     
     # Get all users who have issue hours
-    issue_users = frappe.db.sql(f"""
-        SELECT DISTINCT ti.user_name, i.project
-        FROM `tabIssue` i
-        JOIN `tabTime Involvement` ti ON ti.parent = i.name
-        WHERE ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
-    """, as_dict=True)
+    issue_hours = get_issue_hours(filters.get('from_date'), filters.get('to_date'))
     
     # Add entries for users who only have issue hours
-    for issue_user in issue_users:
-        user_id = issue_user.user_name
-        project = issue_user.project
+    for user_id, project in issue_hours:
         employee = frappe.db.get_value('Employee', {'user_id': user_id}, ['name', 'employee_name'], as_dict=True)
         
         if employee:
@@ -889,20 +911,9 @@ def calculate_time_aggregates(application_intervals, meeting_intervals, calls_in
                 employee_id = data['details']['employee_id']
                 project = data['details']['project']
                 user_id = frappe.db.get_value('Employee', employee_id, 'user_id')
-                project_condition = ""
-                if filters.get('project'):
-                    project_condition = f"AND i.project = '{filters.get('project')}'"
-                if user_id:
-                    issue_hours_data = frappe.db.sql(f"""
-                        SELECT COALESCE(SUM(ti.time_involvement), 0) as total_issue_hours
-                        FROM `tabIssue` i
-                        JOIN `tabTime Involvement` ti ON ti.parent = i.name
-                        WHERE ti.user_name = '{user_id}'
-                        {project_condition}
-                        AND i.project = '{project}'
-                        AND ti.date BETWEEN '{filters.get('from_date')}' AND '{filters.get('to_date')}'
-                    """, as_dict=True)
-                    result_row['issue_hours'] = round(issue_hours_data[0].total_issue_hours, 2) if issue_hours_data else 0
+                result_row['issue_hours'] = 0
+                if user_id and project and filters.get('project') in (None, '', project):
+                    result_row['issue_hours'] = round(issue_hours.get((user_id, project), 0), 2)
             else:
                 result_row['issue_hours'] = 0
         
