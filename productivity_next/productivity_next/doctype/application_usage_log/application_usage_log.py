@@ -58,6 +58,9 @@ class ApplicationUsagelog(Document):
 
         self.duration = time_diff_in_seconds(self.to_time, self.from_time)
         self.application_title = self.application_title[:120]
+        # url is a TEXT column (65535 bytes); very long URLs (e.g. data: URIs) failed the insert
+        if self.url and len(self.url.encode("utf-8")) > 65000:
+            self.url = self.url.encode("utf-8")[:65000].decode("utf-8", "ignore")
 
 
 def on_doctype_update():
