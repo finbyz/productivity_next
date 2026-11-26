@@ -22,6 +22,7 @@ doctype_js = {
     "Auto Repeat": "public/js/doctype_js/auto_repeat.js",
     "Notification": "public/js/doctype_js/notification.js",
     "Task": "public/js/doctype_js/task.js",
+    "Meeting": "public/js/doctype_js/meeting_minutes.js",
 }
 
 doctype_list_js = {
@@ -56,6 +57,9 @@ doc_events = {
     },
     "Meeting Call Log": {
         "on_update": "productivity_next.meeting_sync.meeting_events.queue_missing_meeting",
+    },
+    "Communication": {
+        "before_insert": "productivity_next.meeting_sync.minutes_email.on_communication_before_insert",
     },
     "Task": {
         "on_change": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
