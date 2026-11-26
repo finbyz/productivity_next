@@ -304,30 +304,25 @@ def create_timesheet_for_employee_date():
            WHERE employee = %(employee)s AND DATE(call_datetime) = %(date)s""",
         {"employee": employee, "date": date}, as_dict=True,
     )
-    # Get meeting logs for this employee and date
-    meetings = get_employee_meetings(employee, date)
-    # Group and merge logs for this employee
-    merged_logs = {}
-    applications = group_logs_by_employee(applications)
-    calls = group_logs_by_employee(calls)
-    merged_logs[employee] = merge_logs(applications.get(employee, []))
-    merged_logs[employee] = merge_logs(merged_logs.get(employee, []) + calls.get(employee, []))
-    merged_logs[employee] = split_logs(merged_logs.get(employee, []), meetings)
-    
-    # Validate and fix any remaining overlaps
-    employee_merged_logs = merged_logs.get(employee, [])
-    if employee_merged_logs:
-        # Check for overlaps and fix them
-        overlap, idx = has_overlap(employee_merged_logs)
-        if overlap:
-            frappe.log_error(f"Overlaps detected for employee {employee} at index {idx}, fixing...")
-            employee_merged_logs = fix_overlaps(employee_merged_logs)
-            # Re-check after fixing
-            overlap, idx = has_overlap(employee_merged_logs)
-            if overlap:
-                frappe.log_error(f"Overlaps still exist after fixing for employee {employee}")
-                # Use the ensure_no_overlaps function as a final fallback
-                employee_merged_logs = ensure_no_overlaps(employee_merged_logs)
+    # Same steps as the nightly timesheet (schedule.create_timesheet_logs), so a timesheet
+    # made here matches the nightly one: every minute counts once, a call wins over a
+    # meeting, a meeting over the desktop timer (FinByz rule, see activity_time.py).
+    from productivity_next.schedule import (
+        get_employee_meetings as get_day_meetings,
+        merge_logs as merge_timer_logs,
+        normalize_non_overlapping_logs,
+        split_logs as cut_in_logs,
+        use_task_project,
+    )
+
+    task_projects = {}
+    applications = use_task_project(applications, task_projects)
+    calls = use_task_project(calls, task_projects)
+    meetings = use_task_project(get_day_meetings(employee, date), task_projects)
+    employee_merged_logs = merge_timer_logs(applications) if applications else []
+    employee_merged_logs = cut_in_logs(employee_merged_logs, meetings)
+    employee_merged_logs = cut_in_logs(employee_merged_logs, calls)
+    employee_merged_logs = normalize_non_overlapping_logs(employee_merged_logs)
     
     # Create or update timesheet for this employee and date
     existing_timesheets = frappe.get_list(
@@ -349,7 +344,6 @@ def create_timesheet_for_employee_date():
         timesheet.employee = employee
     timesheet.is_created_by_productify = True
     timesheet.start_date = date
-    employee_merged_logs = merged_logs.get(employee, [])
     if not employee_merged_logs:
         return {"success": False, "message": "No logs found for this employee and date."}
     for log in employee_merged_logs:
@@ -357,17 +351,19 @@ def create_timesheet_for_employee_date():
         hours = seconds / 3600
         if seconds <= 0:
             continue
-        activity_type = ""
+        # Same activity types as the nightly timesheet
         if log.get("meeting"):
             activity_type = "Meeting"
+        elif log.get("call_id"):
+            activity_type = "Call"
         elif log.get("issue"):
             activity_type = "Issue"
         elif log.get("task"):
             activity_type = "Task"
         elif log.get("project"):
             activity_type = "Project"
-        elif log.get("call_id"):
-            activity_type = "Call"
+        else:
+            activity_type = "No Task"
         description = get_activity_description(log)
         timesheet.append("time_logs", {
             "activity_type": activity_type,

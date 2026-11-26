@@ -1,10 +1,17 @@
-"""Submitted days are authoritative; unsubmitted days use tracked activity."""
+"""Submitted days are authoritative; unsubmitted days use tracked activity.
+
+On unsubmitted days every second counts once, on the activity that wins it
+(activity_time.allocate: a call wins over a meeting, a meeting over the desktop timer),
+so the same minute is never counted on two tasks - as in the nightly timesheets.
+"""
 
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 import frappe
 from frappe.utils import get_datetime
+
+from productivity_next.activity_time import allocate, employee_activity
 
 
 def get_task_totals(tasks, start, end, current_day):
@@ -19,15 +26,56 @@ def get_task_totals(tasks, start, end, current_day):
     rows = _submitted_rows(tasks, employees, start_at, historical_end)
     totals = _submitted_totals(rows, start_at, historical_end)
     coverage = _submitted_days(rows, start_at, historical_end)
+    wanted = set(tasks)
+    by_employee = defaultdict(list)
     for (task, employee), intervals in activity.items():
-        seconds = sum(
-            (finish - begin).total_seconds()
-            for begin, finish in _subtract(_merge(intervals), coverage.get(employee, []))
-        )
-        if seconds:
-            employee_totals = totals.setdefault(task, {})
-            employee_totals[employee] = employee_totals.get(employee, 0) + seconds
+        by_employee[employee].extend(intervals)
+    for employee, intervals in by_employee.items():
+        if not employee:
+            continue
+        employee_coverage = coverage.get(employee, [])
+        # Only the days not covered by a submitted Timesheet use activity; on those days
+        # all of the employee's activity is allocated, not only the listed tasks'.
+        for window_start, window_end in _day_windows(
+            _subtract(_merge(intervals), employee_coverage), start_at, end_at
+        ):
+            for begin, finish, _rank, item in allocate(
+                employee_activity(employee, window_start, window_end)
+            ):
+                if item.task not in wanted:
+                    continue
+                seconds = sum(
+                    (piece_end - piece_start).total_seconds()
+                    for piece_start, piece_end in _subtract([(begin, finish)], employee_coverage)
+                )
+                if seconds:
+                    employee_totals = totals.setdefault(item.task, {})
+                    employee_totals[employee] = employee_totals.get(employee, 0) + seconds
     return totals
+
+
+def _day_windows(intervals, start_at, end_at):
+    """Whole calendar days touched by the intervals, joined into consecutive runs and
+    clipped to the period: the windows whose activity is allocated."""
+    days = set()
+    for begin, finish in intervals:
+        day = begin.date()
+        while datetime.combine(day, time.min) < finish:
+            days.add(day)
+            day += timedelta(days=1)
+    windows = []
+    for day in sorted(days):
+        day_start = datetime.combine(day, time.min)
+        day_end = day_start + timedelta(days=1)
+        if windows and windows[-1][1] == day_start:
+            windows[-1][1] = day_end
+        else:
+            windows.append([day_start, day_end])
+    return [
+        (max(begin, start_at) if start_at else begin, min(finish, end_at))
+        for begin, finish in windows
+        if (not start_at or finish > start_at) and begin < end_at
+    ]
 
 
 def _submitted_rows(tasks, employees, start_at, end_at):

@@ -343,6 +343,7 @@ def get_data(filters):
     meeting_intervals = frappe.db.sql(f"""
         SELECT 
             mcr.employee AS employee_id,
+            m.name AS meeting_id,
             e.employee_name,
             m.project,
             m.meeting_from as start_time,
@@ -377,6 +378,7 @@ def get_data(filters):
         employee_filter = ""
     calls_intervals = frappe.db.sql(f"""
         SELECT 
+            name AS call_id,
             employee AS employee_id,
             employee_name,
             project,
@@ -413,6 +415,13 @@ def get_data(filters):
             if 'end_time' in interval and isinstance(interval['end_time'], str):
                 interval['end_time'] = frappe.utils.get_datetime(interval['end_time'])
     
+    # Every minute counts once: call > meeting > desktop timer, also against the
+    # employee's activity outside this report's projects (activity_time.allocate)
+    application_intervals, meeting_intervals, calls_intervals = apply_overlap_rule(
+        application_intervals, meeting_intervals, calls_intervals,
+        valid_project_names, from_date, to_date,
+    )
+
     # Determine grouping keys based on filter settings
     group_keys = []
     if filters.get("show_daily_data"):
@@ -601,6 +610,7 @@ def get_deployment_rate_data(filters):
         meeting_intervals = frappe.db.sql(f"""
             SELECT 
                 mcr.employee AS employee_id,
+                m.name AS meeting_id,
                 e.employee_name,
                 m.project,
                 m.meeting_from as start_time,
@@ -642,6 +652,7 @@ def get_deployment_rate_data(filters):
         # Calls intervals query
         calls_intervals = frappe.db.sql(f"""
             SELECT 
+                name AS call_id,
                 employee AS employee_id,
                 employee_name,
                 NULL as project,
@@ -677,6 +688,13 @@ def get_deployment_rate_data(filters):
                 if 'end_time' in interval and isinstance(interval['end_time'], str):
                     interval['end_time'] = frappe.utils.get_datetime(interval['end_time'])
         
+        # Every minute counts once (call > meeting > desktop timer), so a minute is never
+        # in two categories
+        application_intervals, meeting_intervals, calls_intervals = apply_overlap_rule(
+            application_intervals, meeting_intervals, calls_intervals,
+            combined, from_date, to_date,
+        )
+
         # Prepare interval categorization
         project_intervals = {
             'dedicated': [],     # Resource-based projects (external customers)
@@ -769,6 +787,131 @@ def split_issue_support_hours(issue_hours, issue_projects, user):
         elif not flags.resource_based_project and not flags.milestone_based_project:
             non_hourly += hours
     return hourly, non_hourly
+
+
+def apply_overlap_rule(application_intervals, meeting_intervals, calls_intervals, report_projects, from_date, to_date):
+    """Return the report's intervals cut so every minute counts once (FinByz rule, as in
+    timesheets and the Dashboard): a call wins over a meeting, a meeting over the desktop
+    timer, and the employee's other activity (other projects, no project) competes too, so
+    a call without a project during project timer time takes those minutes from the project.
+    Each returned interval is a copy of a report row with the start/end it won; touching
+    timer rows of the same employee, project and day are joined first (as timesheets do).
+    """
+    from productivity_next.activity_time import APPLICATION, CALL, MEETING, allocate, day_bounds
+
+    employees = sorted({
+        row.get("employee_id")
+        for row in (*application_intervals, *meeting_intervals, *calls_intervals)
+        if row.get("employee_id")
+    })
+    if not employees:
+        return application_intervals, meeting_intervals, calls_intervals
+    start_at, end_at = day_bounds(from_date, to_date)
+    params = {
+        "employees": tuple(employees), "from_date": getdate(from_date), "to_date": getdate(to_date),
+        "start_at": start_at, "end_at": end_at, "projects": tuple(report_projects) or ("",),
+    }
+    # Plain tuples: this can be a few hundred thousand rows for a month
+    other_applications = _join_touching_tuples(frappe.db.sql("""
+        SELECT employee, IFNULL(project, ''), date, from_time, to_time
+        FROM `tabApplication Usage log`
+        WHERE employee IN %(employees)s AND date BETWEEN %(from_date)s AND %(to_date)s
+            AND from_time IS NOT NULL AND to_time IS NOT NULL
+            AND (IFNULL(project, '') = '' OR project NOT IN %(projects)s)
+    """, params))
+    report_calls = {row.get("call_id") for row in calls_intervals}
+    other_calls = [
+        row for row in frappe.db.sql("""
+            SELECT name AS call_id, employee AS employee_id, call_datetime AS start_time,
+                ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time
+            FROM `tabEmployee Fincall`
+            WHERE employee IN %(employees)s AND date BETWEEN %(from_date)s AND %(to_date)s
+                AND calltype NOT IN ('Missed', 'Rejected')
+        """, params, as_dict=True)
+        if row.call_id not in report_calls
+    ]
+    report_meetings = {(row.get("meeting_id"), row.get("employee_id")) for row in meeting_intervals}
+    other_meetings = [
+        row for row in frappe.db.sql("""
+            SELECT m.name AS meeting_id, r.employee AS employee_id,
+                m.meeting_from AS start_time, m.meeting_to AS end_time
+            FROM `tabMeeting` m
+            JOIN `tabMeeting Company Representative` r ON r.parent = m.name
+            WHERE r.employee IN %(employees)s AND m.docstatus = 1
+                AND m.meeting_from < %(end_at)s AND m.meeting_to > %(start_at)s
+        """, params, as_dict=True)
+        if (row.meeting_id, row.employee_id) not in report_meetings
+    ]
+
+    by_employee = defaultdict(list)
+    for rank, rows, in_report in (
+        (APPLICATION, _join_touching(application_intervals), True),
+        (MEETING, meeting_intervals, True),
+        (CALL, calls_intervals, True),
+        (MEETING, other_meetings, False),
+        (CALL, other_calls, False),
+    ):
+        for row in rows:
+            start, end = row.get("start_time"), row.get("end_time")
+            if not start or not end:
+                continue
+            start = max(_as_datetime(start), start_at)
+            end = min(_as_datetime(end), end_at)
+            if end > start:
+                by_employee[row.get("employee_id")].append((start, end, rank, row if in_report else None))
+    for employee, _project, _day, start, end in other_applications:
+        start, end = max(start, start_at), min(end, end_at)
+        if end > start:
+            by_employee[employee].append((start, end, APPLICATION, None))
+
+    result = {APPLICATION: [], MEETING: [], CALL: []}
+    for intervals in by_employee.values():
+        for start, end, rank, row in allocate(intervals):
+            if row is not None:
+                result[rank].append({**row, "start_time": start, "end_time": end})
+    return result[APPLICATION], result[MEETING], result[CALL]
+
+
+def _as_datetime(value):
+    return value if isinstance(value, datetime) else frappe.utils.get_datetime(value)
+
+
+def _join_touching_tuples(rows):
+    """_join_touching for (employee, project, day, start, end) tuples."""
+    joined = []
+    for employee, project, day, start, end in sorted(rows):
+        last = joined[-1] if joined else None
+        if last and last[0] == employee and last[1] == project and last[2] == day and start <= last[4]:
+            if end > last[4]:
+                last[4] = end
+        else:
+            joined.append([employee, project, day, start, end])
+    return joined
+
+
+def _join_touching(rows, keys=("employee_id", "project", "date")):
+    """Join timer rows with the same keys (by default employee, project and day) that
+    touch or overlap."""
+    to_datetime = frappe.utils.get_datetime
+    prepared = []
+    for row in rows:
+        start, end = row.get("start_time"), row.get("end_time")
+        if not start or not end:
+            continue
+        start = start if isinstance(start, datetime) else to_datetime(start)
+        end = end if isinstance(end, datetime) else to_datetime(end)
+        prepared.append((tuple(str(row.get(key) or "") for key in keys), start, end, row))
+    prepared.sort(key=lambda item: (item[0], item[1]))
+    joined = []
+    last_key = None
+    for key, start, end, row in prepared:
+        if joined and key == last_key and start <= joined[-1]["end_time"]:
+            if end > joined[-1]["end_time"]:
+                joined[-1]["end_time"] = end
+        else:
+            joined.append({**row, "start_time": start, "end_time": end})
+            last_key = key
+    return joined
 
 
 def calculate_time_aggregates(application_intervals, meeting_intervals, calls_intervals, group_keys, filters):
