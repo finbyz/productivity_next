@@ -2246,8 +2246,9 @@ def _employee_task_activity(employee, from_date, to_date, tasks=None):
     """Seconds one employee spent on each task in the period (to_date included), from the
     activity Project Time counts: application usage logs, submitted meetings and connected
     calls linked to the task. Time is clipped to the period and every second counts on one task
-    only, so the tasks add up to Project Time: where activities overlap, a meeting wins over a
-    call, a call over an application log, and among equals the one started last (e.g. a meeting
+    only, so the tasks add up to Project Time: where activities overlap, a call wins over a
+    meeting, a meeting over an application log (the desktop timer), the order FinByz uses
+    everywhere, and among equals the one started last (e.g. a meeting
     on task A while the desktop timer still runs on task B counts on A only; until Nov 2026 it
     counted on both). Includes today, which has no Timesheet until the nightly run."""
     import heapq
@@ -2272,14 +2273,14 @@ def _employee_task_activity(employee, from_date, to_date, tasks=None):
             WHERE employee = %(employee)s AND `date` BETWEEN %(lookup_start)s AND %(to_date)s
                 AND IFNULL(task, '') != ''
         """),
-        (1, """
+        (0, """
             SELECT task, call_datetime AS start_time,
                 ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time
             FROM `tabEmployee Fincall`
             WHERE employee = %(employee)s AND `date` BETWEEN %(lookup_start)s AND %(to_date)s
                 AND calltype NOT IN ('Missed', 'Rejected') AND IFNULL(task, '') != ''
         """),
-        (0, """
+        (1, """
             SELECT m.task, m.meeting_from AS start_time, m.meeting_to AS end_time
             FROM `tabMeeting` m
             JOIN `tabMeeting Company Representative` r ON r.parent = m.name
