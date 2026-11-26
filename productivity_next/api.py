@@ -2245,8 +2245,15 @@ def _worked_tasks_not_listed(assignee, start_date, end_date, listed):
 def _employee_task_activity(employee, from_date, to_date, tasks=None):
     """Seconds one employee spent on each task in the period (to_date included), from the
     activity Project Time counts: application usage logs, submitted meetings and connected
-    calls linked to the task. Time is clipped to the period; overlaps within a task count once.
-    Includes today, which has no Timesheet until the nightly run."""
+    calls linked to the task. Time is clipped to the period and every second counts on one task
+    only, so the tasks add up to Project Time: where activities overlap, a meeting wins over a
+    call, a call over an application log, and among equals the one started last (e.g. a meeting
+    on task A while the desktop timer still runs on task B counts on A only; until Nov 2026 it
+    counted on both). Includes today, which has no Timesheet until the nightly run."""
+    import heapq
+
+    if tasks is not None and not tasks:
+        return {}
     start = getdate(from_date)
     end = getdate(to_date)
     start_at = datetime.combine(start, datetime.min.time())
@@ -2256,58 +2263,61 @@ def _employee_task_activity(employee, from_date, to_date, tasks=None):
         # A log starting just before midnight can overlap the first day.
         "lookup_start": start - timedelta(days=1), "to_date": end,
     }
-    task_condition = ""
-    if tasks is not None:
-        if not tasks:
-            return {}
-        params["tasks"] = tuple(tasks)
-        task_condition = "AND {task} IN %(tasks)s"
+    # All task-linked activity is read, also for unlisted tasks, because an unlisted task's
+    # meeting can take time from a listed task. Lower rank wins an overlap.
     sources = (
-        ("task", """
+        (2, """
             SELECT task, from_time AS start_time, to_time AS end_time
             FROM `tabApplication Usage log`
             WHERE employee = %(employee)s AND `date` BETWEEN %(lookup_start)s AND %(to_date)s
-                AND IFNULL(task, '') != '' {condition}
+                AND IFNULL(task, '') != ''
         """),
-        ("task", """
+        (1, """
             SELECT task, call_datetime AS start_time,
                 ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time
             FROM `tabEmployee Fincall`
             WHERE employee = %(employee)s AND `date` BETWEEN %(lookup_start)s AND %(to_date)s
-                AND calltype NOT IN ('Missed', 'Rejected') AND IFNULL(task, '') != '' {condition}
+                AND calltype NOT IN ('Missed', 'Rejected') AND IFNULL(task, '') != ''
         """),
-        ("m.task", """
+        (0, """
             SELECT m.task, m.meeting_from AS start_time, m.meeting_to AS end_time
             FROM `tabMeeting` m
             JOIN `tabMeeting Company Representative` r ON r.parent = m.name
             WHERE r.employee = %(employee)s AND m.docstatus = 1
                 AND m.meeting_from < %(end_at)s AND m.meeting_to > %(start_at)s
-                AND IFNULL(m.task, '') != '' {condition}
+                AND IFNULL(m.task, '') != ''
         """),
     )
-    intervals = defaultdict(list)
-    for task_column, query in sources:
-        condition = task_condition.format(task=task_column)
-        for row in frappe.db.sql(query.format(condition=condition), params, as_dict=True):
+    intervals = []
+    for rank, query in sources:
+        for row in frappe.db.sql(query, params, as_dict=True):
             if not row.start_time or not row.end_time:
                 continue
             begin = max(get_datetime(row.start_time), start_at)
             finish = min(get_datetime(row.end_time), end_at)
             if finish > begin:
-                intervals[row.task].append((begin, finish))
-    seconds = {}
-    for task, task_intervals in intervals.items():
-        total, current = 0, None
-        for begin, finish in sorted(task_intervals):
-            if current and begin <= current[1]:
-                current = (current[0], max(current[1], finish))
-                continue
-            if current:
-                total += (current[1] - current[0]).total_seconds()
-            current = (begin, finish)
-        total += (current[1] - current[0]).total_seconds()
-        seconds[task] = total
-    return seconds
+                intervals.append((begin, finish, rank, row.task))
+    intervals.sort(key=lambda interval: interval[0])
+
+    # Sweep the period: between two consecutive boundaries the time goes to the winning
+    # activity among those running (heap ordered by rank, then latest start).
+    boundaries = sorted({moment for interval in intervals for moment in interval[:2]})
+    seconds = defaultdict(float)
+    running = []
+    position = 0
+    for segment_start, segment_end in zip(boundaries, boundaries[1:]):
+        while position < len(intervals) and intervals[position][0] <= segment_start:
+            begin, finish, rank, task = intervals[position]
+            heapq.heappush(running, (rank, -begin.timestamp(), task, finish))
+            position += 1
+        while running and running[0][3] <= segment_start:
+            heapq.heappop(running)
+        if running:
+            seconds[running[0][2]] += (segment_end - segment_start).total_seconds()
+    if tasks is not None:
+        wanted = set(tasks)
+        return {task: total for task, total in seconds.items() if task in wanted}
+    return dict(seconds)
 
 
 def _with_approvers(tasks):
@@ -2364,7 +2374,8 @@ def get_task_tree_time(employee, tasks, from_date, to_date):
     For the given tasks, returns their readable ancestors (rows shaped like get_tasks, for
     context rows) and, for every task and ancestor, the seconds the employee spent on it and
     on all its subtasks in the period (to_date included), from the same activity as
-    get_timesheet_time_on_tasks. Subtasks count whether or not they are listed.
+    get_timesheet_time_on_tasks. Subtasks count whether or not they are listed. on_tasks is the
+    employee's time on all tasks in the period, listed or not; total is the Dashboard's Total Time.
     """
     check_employee_access(employee, enforce=True)
     validate_sql_args(from_date=from_date, to_date=to_date)
@@ -2404,7 +2415,9 @@ def get_task_tree_time(employee, tasks, from_date, to_date):
                 seen.add(row.name)
                 frontier.append(row.name)
 
-    seconds = _employee_task_activity(employee, from_date, to_date, list(seen))
+    # Every task the employee worked on in the period; on_tasks is their total, for the Tasks
+    # table footer (On tasks / Not on any task / Total).
+    seconds = _employee_task_activity(employee, from_date, to_date)
 
     def subtree_seconds(task, visited):
         visited.add(task)
@@ -2421,7 +2434,18 @@ def get_task_tree_time(employee, tasks, from_date, to_date):
         }
         for task in parent_of
     ]
-    return {"parents": _with_approvers(ancestors), "time": time}
+    # Total is the Dashboard's Total Time for the same period (all tracked activity)
+    from productivity_next.productivity_next.page.productify_activity_analysis.productify_activity_analysis import (
+        get_activity_chart_data,
+    )
+
+    total = flt((get_activity_chart_data(employee, from_date, to_date) or {}).get("total_time"))
+    return {
+        "parents": _with_approvers(ancestors),
+        "time": time,
+        "on_tasks": round(sum(seconds.values())),
+        "total": round(total),
+    }
 
 
 @frappe.whitelist(methods=['POST'])
