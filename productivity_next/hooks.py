@@ -83,7 +83,8 @@ base_template_map = {
 }
 
 override_whitelisted_methods = {
-    "erpnext.crm.doctype.lead.lead.get_activities": "productivity_next.productivity_next.lead.get_activities"
+    # NewV16: removed dead override "erpnext.crm.doctype.lead.lead.get_activities" -> productivity_next.productivity_next.lead.get_activities
+    # (target module never existed in this app and the core method is gone in v16)
  }
 
 

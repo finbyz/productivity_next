@@ -8,33 +8,17 @@ from frappe.desk.form import assign_to
 class Notification:
 	"""Mixin for extend_doctype_class — adds Task channel support to Notification."""
 
-	def send(self, doc):
-		"""Build recipients and send Notification"""
-
-		context = {"doc": doc, "alert": self, "comments": None}
-		if doc.get("_comments"):
-			context["comments"] = json.loads(doc.get("_comments"))
-
-		if self.is_standard:
-			self.load_standard_properties(context)
-
-		try:
-			if self.channel == "Email":
-				self.send_an_email(doc, context)
-
-			if self.channel == "Slack":
-				self.send_a_slack_msg(doc, context)
-
-			if self.channel == "SMS":
-				self.send_sms(doc, context)
-
-			if self.channel == "System Notification" or self.send_system_notification:
-				self.create_system_notification(doc, context)
-
-			if self.channel == "Task":
+	# NewV16: only add the "Task" channel. Overriding send() with a v15 copy (no super()) skipped
+	# v16 context/email templates/set_property_after_alert and, because this mixin comes first in
+	# the class order, also hid other apps' channels (whatsapp_erpnext, twilio_integration).
+	def send_notification_by_channel(self, doc, context):
+		if self.channel == "Task":
+			try:
 				self.create_task(doc, context)
-		except Exception as e:
-			self.log_error(f"Failed to send Notification: {str(e)}")
+			except Exception as e:
+				self.log_error(f"Failed to send Notification: {str(e)}")
+			return
+		return super().send_notification_by_channel(doc, context)
 
 	def get_assign_to_user(self, doc, context):
 		assign_to_users = []
