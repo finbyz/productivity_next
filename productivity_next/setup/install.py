@@ -1,6 +1,11 @@
 import os
 import click
+
+from productivity_next.meeting_sync.install import ensure_meeting_fields
+
+
 def after_install():
+    ensure_meeting_fields()
     try:
         os.system("bench enable-scheduler")
         click.secho("Scheduler Enabled",color="green")

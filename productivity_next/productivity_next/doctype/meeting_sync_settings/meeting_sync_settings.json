@@ -1,0 +1,209 @@
+{
+ "actions": [],
+ "creation": "2026-11-25 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "general_section",
+  "internal_email_domains",
+  "teams_tab",
+  "teams_setup_guide",
+  "enable_teams",
+  "teams_active_site",
+  "teams_auto_transcribe",
+  "teams_credentials_section",
+  "tenant_id",
+  "client_id",
+  "client_secret",
+  "cb_teams",
+  "webhook_secret",
+  "base_url",
+  "google_tab",
+  "google_setup_guide",
+  "enable_google_meet",
+  "google_active_site",
+  "google_auto_transcribe",
+  "google_credentials_section",
+  "google_service_account_key",
+  "google_admin_email",
+  "cb_google",
+  "google_lookback_hours"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "fieldname": "internal_email_domains",
+   "fieldtype": "Small Text",
+   "label": "Internal Email Domains",
+   "default": "@finbyz.tech",
+   "description": "Your company email domains, separated by commas, e.g. @finbyz.tech. Everyone else is treated as an outside participant."
+  },
+  {
+   "fieldname": "teams_tab",
+   "fieldtype": "Tab Break",
+   "label": "Microsoft Teams"
+  },
+  {
+   "fieldname": "teams_setup_guide",
+   "fieldtype": "HTML",
+   "label": "Setup Guide",
+   "options": "<div style=\"border:1px solid var(--border-color);border-radius:8px;padding:12px 16px;margin-bottom:8px;line-height:1.6\"><details><summary style=\"font-weight:600;cursor:pointer\">How to set up Microsoft Teams (step by step)</summary>\n<p class=\"text-muted\" style=\"margin-top:8px\">You need a Microsoft 365 <b>Global Administrator</b>. Takes about 20 minutes.</p>\n<ol>\n<li><b>Register an app.</b> Open <a href=\"https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade\" target=\"_blank\" rel=\"noopener\">Microsoft Entra admin center &rarr; App registrations</a> &rarr; <b>New registration</b>. Name it \"Meeting Sync\", choose \"Accounts in this organizational directory only\", click Register.</li>\n<li><b>Copy the IDs.</b> On the app's <b>Overview</b> page copy <b>Directory (tenant) ID</b> into <b>Tenant ID</b> and <b>Application (client) ID</b> into <b>Client ID</b> below.</li>\n<li><b>Create the secret.</b> Go to <b>Certificates &amp; secrets</b> &rarr; <b>New client secret</b> (24 months) &rarr; copy the <b>Value</b> (not the Secret ID) into <b>Client Secret</b>. It is shown only once. Set a reminder to renew it before it expires.</li>\n<li><b>Add permissions.</b> Go to <b>API permissions</b> &rarr; Add a permission &rarr; Microsoft Graph &rarr; <b>Application permissions</b>, and add:<br>\n<code style=\"user-select:all\">CallRecords.Read.All</code>, <code style=\"user-select:all\">OnlineMeetings.ReadWrite.All</code>, <code style=\"user-select:all\">OnlineMeetingTranscript.Read.All</code>, <code style=\"user-select:all\">Calendars.ReadBasic.All</code>, <code style=\"user-select:all\">User.Read.All</code><br>Then click <b>Grant admin consent</b>.</li>\n<li><b>Allow the app to read meetings.</b> Teams needs an application access policy. A Teams admin runs this once in PowerShell (<a href=\"https://learn.microsoft.com/en-us/graph/cloud-communication-online-meeting-application-access-policy\" target=\"_blank\" rel=\"noopener\">Microsoft guide</a>), replacing the app ID with your Client ID:<br>\n<code style=\"user-select:all\">Install-Module MicrosoftTeams; Connect-MicrosoftTeams</code><br>\n<code style=\"user-select:all\">New-CsApplicationAccessPolicy -Identity \"MeetingSync\" -AppIds \"&lt;Client ID&gt;\" -Description \"Meeting Sync\"</code><br>\n<code style=\"user-select:all\">Grant-CsApplicationAccessPolicy -PolicyName \"MeetingSync\" -Global</code><br><span class=\"text-muted\">It can take up to 30 minutes to apply.</span></li>\n<li><b>Webhook Secret:</b> type any long random text (for example 32 letters and numbers).</li>\n<li><b>Base URL:</b> this site's public https address. Microsoft must be able to reach it from the internet.</li>\n<li>Tick <b>Enable Microsoft Teams</b> and save. Then use <b>Actions &rarr; Renew Teams Subscriptions</b>, and check the Error Log for any \"[SUBSCRIPTION]\" error.</li>\n<li><b>Test:</b> hold a Teams meeting of 3 minutes or more with <b>Record and transcribe</b> on. A Meeting Call Log and a draft Meeting appear here within about 30 minutes after it ends.</li>\n</ol></details></div>"
+  },
+  {
+   "fieldname": "enable_teams",
+   "fieldtype": "Check",
+   "label": "Enable Microsoft Teams",
+   "description": "Automatically fetch Teams calls and transcripts and create draft Meetings."
+  },
+  {
+   "fieldname": "teams_active_site",
+   "fieldtype": "Data",
+   "label": "Active on Site",
+   "read_only": 1,
+   "depends_on": "enable_teams",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "teams_auto_transcribe",
+   "fieldtype": "Check",
+   "label": "Turn On Recording and Transcription Automatically",
+   "default": "1",
+   "depends_on": "enable_teams",
+   "description": "Turn on recording and transcription automatically for meetings your employees organize."
+  },
+  {
+   "fieldname": "teams_credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Azure App",
+   "depends_on": "enable_teams"
+  },
+  {
+   "fieldname": "tenant_id",
+   "fieldtype": "Data",
+   "label": "Tenant ID",
+   "mandatory_depends_on": "enable_teams"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client ID",
+   "mandatory_depends_on": "enable_teams"
+  },
+  {
+   "fieldname": "client_secret",
+   "fieldtype": "Password",
+   "label": "Client Secret",
+   "mandatory_depends_on": "enable_teams"
+  },
+  {
+   "fieldname": "cb_teams",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook Secret",
+   "mandatory_depends_on": "enable_teams",
+   "description": "Any long random text. Teams sends it back with each update so the site can trust it."
+  },
+  {
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "Base URL",
+   "mandatory_depends_on": "enable_teams",
+   "description": "Public address of this site, e.g. https://erp.example.com."
+  },
+  {
+   "fieldname": "google_tab",
+   "fieldtype": "Tab Break",
+   "label": "Google Meet"
+  },
+  {
+   "fieldname": "google_setup_guide",
+   "fieldtype": "HTML",
+   "label": "Setup Guide",
+   "options": "<div style=\"border:1px solid var(--border-color);border-radius:8px;padding:12px 16px;margin-bottom:8px;line-height:1.6\"><details><summary style=\"font-weight:600;cursor:pointer\">How to set up Google Meet (step by step)</summary>\n<p class=\"text-muted\" style=\"margin-top:8px\">You need a <b>Google Workspace super admin</b>. Meet transcripts need Business Standard or higher (<a href=\"https://support.google.com/meet/answer/12849897\" target=\"_blank\" rel=\"noopener\">which plans</a>). Takes about 20 minutes.</p>\n<ol>\n<li><b>Create a project.</b> Open <a href=\"https://console.cloud.google.com/projectcreate\" target=\"_blank\" rel=\"noopener\">Google Cloud &rarr; New project</a>, signed in as the Workspace admin. Name it \"Meeting Sync\".</li>\n<li><b>Enable 3 APIs</b> in that project (click each link, then <b>Enable</b>): <a href=\"https://console.cloud.google.com/apis/library/meet.googleapis.com\" target=\"_blank\" rel=\"noopener\">Google Meet REST API</a>, <a href=\"https://console.cloud.google.com/apis/library/calendar-json.googleapis.com\" target=\"_blank\" rel=\"noopener\">Google Calendar API</a>, <a href=\"https://console.cloud.google.com/apis/library/admin.googleapis.com\" target=\"_blank\" rel=\"noopener\">Admin SDK API</a>.</li>\n<li><b>Create a service account.</b> Open <a href=\"https://console.cloud.google.com/iam-admin/serviceaccounts\" target=\"_blank\" rel=\"noopener\">Service accounts</a> &rarr; <b>Create service account</b>, name it \"meeting-sync\", skip the optional roles, Done.</li>\n<li><b>Download the key.</b> Open the service account &rarr; <b>Keys</b> &rarr; Add key &rarr; Create new key &rarr; <b>JSON</b>. Upload this file in <b>Service Account Key</b> below and tick <b>Private</b> while uploading. Do not share it by email or chat.</li>\n<li><b>Copy the Client ID.</b> On the service account's <b>Details</b> tab copy the <b>Unique ID</b> (a long number).</li>\n<li><b>Give access in Workspace.</b> Open <a href=\"https://admin.google.com/ac/owl/domainwidedelegation\" target=\"_blank\" rel=\"noopener\">Admin console &rarr; Domain-wide delegation</a> &rarr; <b>Add new</b>. Paste the Unique ID as Client ID and paste these scopes (comma separated):<br>\n<code style=\"user-select:all\">https://www.googleapis.com/auth/meetings.space.readonly,https://www.googleapis.com/auth/calendar.events.readonly,https://www.googleapis.com/auth/admin.directory.user.readonly</code><br>\n<span class=\"text-muted\">Only if you tick \"Turn On Transcription Automatically\", also add</span> <code style=\"user-select:all\">https://www.googleapis.com/auth/meetings.space.settings</code></li>\n<li><b>Workspace Admin Email:</b> enter the admin's email address below.</li>\n<li>Tick <b>Enable Google Meet</b> and save. Then click <b>Actions &rarr; Test Google Connection</b>. Meet, Calendar and Directory should all show \"ok\": true.</li>\n<li><b>Test:</b> hold a Google Meet call of 3 minutes or more and turn on <b>Transcripts</b> (Activities &rarr; Transcripts). Within about 30 minutes after it ends, a Meeting Call Log and a draft Meeting appear here. To check sooner, use <b>Actions &rarr; Sync Google Meet Now</b>.</li>\n</ol>\n<p class=\"text-muted\">Employees are matched by email, so each employee's company email in ERPNext must match their Google account.</p></details></div>"
+  },
+  {
+   "fieldname": "enable_google_meet",
+   "fieldtype": "Check",
+   "label": "Enable Google Meet",
+   "description": "Automatically fetch Google Meet calls and transcripts and create draft Meetings."
+  },
+  {
+   "fieldname": "google_active_site",
+   "fieldtype": "Data",
+   "label": "Active on Site",
+   "read_only": 1,
+   "depends_on": "enable_google_meet",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "google_auto_transcribe",
+   "fieldtype": "Check",
+   "label": "Turn On Transcription Automatically",
+   "default": "0",
+   "depends_on": "enable_google_meet",
+   "description": "Turn on transcription automatically for meetings your employees organize."
+  },
+  {
+   "fieldname": "google_credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Service Account",
+   "depends_on": "enable_google_meet"
+  },
+  {
+   "fieldname": "google_service_account_key",
+   "fieldtype": "Attach",
+   "label": "Service Account Key (JSON)",
+   "mandatory_depends_on": "enable_google_meet",
+   "description": "The JSON key file from Google Cloud. Upload it as a private file."
+  },
+  {
+   "fieldname": "google_admin_email",
+   "fieldtype": "Data",
+   "label": "Workspace Admin Email",
+   "options": "Email",
+   "mandatory_depends_on": "enable_google_meet",
+   "description": "Email of a Google Workspace admin."
+  },
+  {
+   "fieldname": "cb_google",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "google_lookback_hours",
+   "fieldtype": "Int",
+   "label": "Look Back (Hours)",
+   "default": "6",
+   "description": "How far back to look for finished meetings on each check."
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-25 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Meeting Sync Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
