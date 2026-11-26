@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from productivity_next.api import calculate_total_working_hours
 from frappe.utils import get_timespan_date_range
 from productivity_next.access import validate_sql_args
+from productivity_next.activity_time import activity_breakdown
 
 def execute(filters=None):
     columns = get_columns(filters)
@@ -460,6 +461,21 @@ def user_analysis_data(start_date=None, end_date=None):
         score = calculate_total_working_hours(employee['name'],start_date, end_date, hours_per_weekday, hours_on_saturday)
         productivity_score[employee['name']] = score
     
+    # Every second counts once (activity_time: a call wins over a meeting, a meeting over the
+    # desktop timer): totals and call/meeting durations per employee come from one split
+    for employee_name in set(total_hours_per_employee) | set(employee_fincall_data) | set(meetings_external_employee):
+        breakdown = activity_breakdown(employee_name, start_date, end_date)
+        total_hours_per_employee[employee_name] = breakdown.get("total", 0)
+        if employee_name in employee_fincall_data:
+            employee_fincall_data[employee_name]['total_incoming_duration'] = (
+                breakdown.get("call_incoming", 0) + breakdown.get("call_internal_incoming", 0)
+            )
+            employee_fincall_data[employee_name]['total_outgoing_duration'] = (
+                breakdown.get("call_outgoing", 0) + breakdown.get("call_internal_outgoing", 0)
+            )
+        if employee_name in meetings_external_employee:
+            meetings_external_employee[employee_name]["duration"] = breakdown.get("meeting", 0)
+
     return {
         "total_days": total_days,
         "total_hours_per_employee": total_hours_per_employee,

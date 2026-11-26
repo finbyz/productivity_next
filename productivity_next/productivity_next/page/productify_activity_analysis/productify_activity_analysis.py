@@ -12,6 +12,7 @@ from productivity_next.api import calculate_total_working_hours
 
 from dateutil.parser import parse
 from productivity_next.access import check_employee_access, visible_employees
+from productivity_next.activity_time import activity_breakdown
 from productivity_next.access import validate_sql_args
 
 # Sidebar Activity Data code starts
@@ -171,6 +172,13 @@ def get_activity_chart_data(user = None,start_date=None, end_date=None):
     total_application_duration = total_application_hours[0].total_duration if total_application_hours and total_application_hours[0].total_duration is not None else 0
     total_idle_duration = total_idle_hours[0].total_duration if total_idle_hours and total_idle_hours[0].total_duration is not None else 0
     total_system_hours = total_application_duration - total_idle_duration
+    # Every second counts once (activity_time: a call wins over a meeting, a meeting over the
+    # desktop timer), so calls + meetings + system time + idle add up to the total
+    breakdown = activity_breakdown(user, start_date, end_date)
+    total_time = breakdown.get("total", 0)
+    total_system_hours = max(breakdown.get("application", 0) - total_idle_time, 0)
+    total_call_data = [frappe._dict(total_duration=breakdown.get("call", 0))]
+    total_meeting_data = [frappe._dict(total_duration=breakdown.get("meeting", 0))]
     toal_hours_to_show = total_time
     total_active_hours = total_time - total_idle_time
     weekday_hours = frappe.db.get_single_value('Productify Configuration', 'active_hours_per_day')
@@ -952,6 +960,13 @@ def fetch_url_data(user=None,start_date=None, end_date=None):
         hours_on_saturday
     )
 
+    # Durations count every second once (call > meeting > desktop timer); counts stay raw
+    breakdown = activity_breakdown(user, start_date, end_date)
+    total_incoming_duration = breakdown.get("call_incoming", 0)
+    total_outgoing_duration = breakdown.get("call_outgoing", 0)
+    internal_total_incoming_duration = breakdown.get("call_internal_incoming", 0)
+    internal_total_outgoing_duration = breakdown.get("call_internal_outgoing", 0)
+
     return {
         "application_usage": total_counts['application_usage'],
         "version_count": total_counts['version_count'],
@@ -969,10 +984,10 @@ def fetch_url_data(user=None,start_date=None, end_date=None):
         "internal_total_outgoing_duration": internal_total_outgoing_duration,
         "total_days": total_days,
         "total_unique_doc": total_unique_doc[0]['activity_count'] if total_unique_doc else 0,
-        "total_time_on_calls": fincall_data[0]['total_duration'] if fincall_data else 0,
-        "total_meeting_duration_internal": meetings_internal_employee[0].total_meeting_duration if meetings_internal_employee else 0,
+        "total_time_on_calls": breakdown.get("call", 0),
+        "total_meeting_duration_internal": breakdown.get("meeting_internal", 0),
         "total_meeting_count_internal": meetings_internal_employee[0].meeting_count if meetings_internal_employee else 0,
-        "total_meeting_duration_external": meetings_external_employee[0].total_meeting_duration if meetings_external_employee else 0,
+        "total_meeting_duration_external": breakdown.get("meeting_external", 0),
         "total_meeting_count_external": meetings_external_employee[0].meeting_count if meetings_external_employee else 0,
         "url_full_data": result_list[:10],
         "score": score

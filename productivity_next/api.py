@@ -1201,71 +1201,54 @@ def get_home_dashboard_data_for_mobile_app(employee, start_date, end_date):
     data["total_idle_time"] = total_idle_time
 
         
-    total_call_data = frappe.db.sql(f"""
-        SELECT 
-            SUM(duration) AS total_duration, calltype, count(calltype) as total_calls
-        FROM `tabEmployee Fincall`
-        WHERE date >= '2023-09-09' AND date <= '2024-09-09' and employee = 'HR-EMP-00022' and (calltype != 'Missed' and calltype != 'Rejected')
+    # Durations count every second once (activity_time: a call wins over a meeting, a meeting
+    # over the desktop timer), so calls + meetings + web + app add up to total_time; counts stay raw.
+    # (Until Nov 2026 the call figures read a fixed employee and 2023-24 dates, and the meeting
+    # query had a stray backtick.)
+    from productivity_next.activity_time import activity_breakdown
+
+    breakdown = activity_breakdown(employee, start_date, end_date)
+    total_time = breakdown.get("total", 0)
+    total_active_hours = total_time - total_idle_time
+    data["toal_active_hours"] = total_active_hours
+    data["total_time"] = total_time
+    values = {"employee": employee, "start_date": start_date, "end_date": end_date}
+
+    call_counts = dict(frappe.db.sql("""
+        SELECT calltype, COUNT(*) FROM `tabEmployee Fincall`
+        WHERE employee = %(employee)s AND date BETWEEN %(start_date)s AND %(end_date)s
+            AND calltype IN ('Incoming', 'Outgoing')
         GROUP BY calltype
-    """, as_dict=True)
-    total_call_duration = 0
-    for call in total_call_data:
-        if call["calltype"] == "Incoming":
-            data["total_incoming_calls"] = call["total_calls"]
-            data["total_incoming_duration"] = call["total_duration"]
-            total_call_duration += call["total_duration"]
-        elif call["calltype"] == "Outgoing":
-            data["total_outgoing_calls"] = call["total_calls"]
-            data["total_outgoing_duration"] = call["total_duration"]
-            total_call_duration += call["total_duration"]
-    
-    data["total_call_duration"] = total_call_duration
+    """, values))
+    data["total_incoming_calls"] = call_counts.get("Incoming", 0)
+    data["total_incoming_duration"] = breakdown.get("call_incoming", 0) + breakdown.get("call_internal_incoming", 0)
+    data["total_outgoing_calls"] = call_counts.get("Outgoing", 0)
+    data["total_outgoing_duration"] = breakdown.get("call_outgoing", 0) + breakdown.get("call_internal_outgoing", 0)
+    data["total_call_duration"] = data["total_incoming_duration"] + data["total_outgoing_duration"]
 
-    total_meeting_data = frappe.db.sql(f"""
-        SELECT 
-            SUM(TIME_TO_SEC(TIMEDIFF(meeting_to, meeting_from))) AS total_duration, internal_meeting, count(internal_meeting) as total_meetings
-        FROM `tabMeeting` as m
-        JOIN `tabMeeting Company Representative` as mcr ON m.name = mcr.parent
-        WHERE m.meeting_from >= '{start_date} 00:00:00' and m.meeting_to <= '{end_date} 23:59:59' and m.docstatus = 1 AND mcr.employee = '{employee}' 
-        GROUP BY internal_meeting
-  `  """, as_dict=True)
+    meeting_counts = dict(frappe.db.sql("""
+        SELECT m.internal_meeting, COUNT(*) FROM `tabMeeting` m
+        JOIN `tabMeeting Company Representative` mcr ON m.name = mcr.parent
+        WHERE mcr.employee = %(employee)s AND m.docstatus = 1
+            AND m.meeting_from >= %(start_date)s AND m.meeting_to < DATE_ADD(%(end_date)s, INTERVAL 1 DAY)
+        GROUP BY m.internal_meeting
+    """, values))
+    data["total_internal_meetings"] = meeting_counts.get(1, 0)
+    data["total_internal_meeting_duration"] = breakdown.get("meeting_internal", 0)
+    data["total_external_meetings"] = meeting_counts.get(0, 0)
+    data["total_external_meeting_duration"] = breakdown.get("meeting_external", 0)
+    data["total_meeting_duration"] = breakdown.get("meeting", 0)
 
-    total_meeting_duration = 0.0
-    data["total_internal_meetings"] = 0
-    data["total_internal_meeting_duration"] = 0.0
-    data["total_external_meetings"] = 0
-    data["total_external_meeting_duration"] = 0.0
-    data["total_meeting_duration"] = 0.0
-    for meeting in total_meeting_data:
-        if meeting["internal_meeting"]:
-            data["total_internal_meetings"] = meeting["total_meetings"]
-            data["total_internal_meeting_duration"] = meeting["total_duration"]
-            total_meeting_duration += meeting["total_duration"]
-        else:
-            data["total_external_meetings"] = meeting["total_meetings"]
-            data["total_external_meeting_duration"] = meeting["total_duration"]
-            total_meeting_duration += meeting["total_duration"]
-
-    data["total_meeting_duration"] = total_meeting_duration
-
-    total_web_data = frappe.db.sql(f"""
-        SELECT sum(duration) as total_web_duration, count(*) as total_web_count
-        FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and url is not null
-    """, as_dict=True)
-
-    total_app_data = frappe.db.sql(f"""
-        SELECT sum(duration) as total_app_duration, count(*) as total_app_count
-        FROM `tabApplication Usage log`
-        WHERE date >= '{start_date}' and date <= '{end_date}' and employee = '{employee}' and url is null
-    """, as_dict=True)
-
-
-    data["total_web_duration"] = total_web_data[0]["total_web_duration"] or 0.0
-    data["total_web_count"] = total_web_data[0]["total_web_count"]
-    data["total_app_duration"] = total_app_data[0]["total_app_duration"] or 0.0
-    data["total_app_count"] = total_app_data[0]["total_app_count"]
-    data["total_system_duration"] = (total_web_data[0]["total_web_duration"] or 0.0)+ (total_app_data[0]["total_app_duration"] or 0.0)
+    log_counts = dict(frappe.db.sql("""
+        SELECT IF(url IS NULL, 0, 1), COUNT(*) FROM `tabApplication Usage log`
+        WHERE employee = %(employee)s AND date BETWEEN %(start_date)s AND %(end_date)s
+        GROUP BY IF(url IS NULL, 0, 1)
+    """, values))
+    data["total_web_duration"] = breakdown.get("application_web", 0)
+    data["total_web_count"] = log_counts.get(1, 0)
+    data["total_app_duration"] = breakdown.get("application_app", 0)
+    data["total_app_count"] = log_counts.get(0, 0)
+    data["total_system_duration"] = breakdown.get("application", 0)
     data["productivity_score"] = round(((total_active_hours / 3600) / productivity_score) * 100, 2)
     return data
 

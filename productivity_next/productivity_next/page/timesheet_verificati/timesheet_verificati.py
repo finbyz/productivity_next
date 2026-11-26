@@ -78,6 +78,20 @@ def get_summary_data():
     web_dur = flt(total_web_data["total_web_duration"] or 0)
     web_count = total_web_data["total_web_count"]
     total_sys = app_dur + web_dur
+    # Durations count every second once, as in the timesheet built from them (activity_time:
+    # a call wins over a meeting, a meeting over the desktop timer); counts stay raw
+    from productivity_next.activity_time import activity_breakdown
+
+    breakdown = activity_breakdown(employee, date, date)
+    incoming_dur = breakdown.get("call_incoming", 0) + breakdown.get("call_internal_incoming", 0)
+    outgoing_dur = breakdown.get("call_outgoing", 0) + breakdown.get("call_internal_outgoing", 0)
+    total_dur = breakdown.get("call", 0)
+    internal_dur = breakdown.get("meeting_internal", 0)
+    external_dur = breakdown.get("meeting_external", 0)
+    total_meet = breakdown.get("meeting", 0)
+    app_dur = breakdown.get("application_app", 0)
+    web_dur = breakdown.get("application_web", 0)
+    total_sys = breakdown.get("application", 0)
     return {
         "calls": {
             "incoming": {"duration": secs_to_hhmm(incoming_dur), "count": len(incoming)},

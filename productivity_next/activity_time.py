@@ -87,20 +87,22 @@ def employee_activity(employee, start_at, end_at):
     }
     queries = (
         (APPLICATION, """
-            SELECT name, task, project, issue, from_time AS start_time, to_time AS end_time
+            SELECT name, task, project, issue, from_time AS start_time, to_time AS end_time,
+                IF(IFNULL(url, '') = '', 0, 1) AS is_web
             FROM `tabApplication Usage log`
             WHERE employee = %(employee)s AND `date` BETWEEN %(from_day)s AND %(to_day)s
         """),
         (CALL, """
             SELECT name, task, project, issue, call_datetime AS start_time,
-                ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time
+                ADDTIME(call_datetime, SEC_TO_TIME(duration)) AS end_time, calltype,
+                IF(link_to = 'Company', 1, 0) AS is_internal
             FROM `tabEmployee Fincall`
             WHERE employee = %(employee)s AND `date` BETWEEN %(from_day)s AND %(to_day)s
                 AND calltype NOT IN ('Missed', 'Rejected')
         """),
         (MEETING, """
             SELECT m.name, m.task, m.project, m.issue, m.meeting_from AS start_time,
-                m.meeting_to AS end_time
+                m.meeting_to AS end_time, m.internal_meeting AS is_internal
             FROM `tabMeeting` m
             JOIN `tabMeeting Company Representative` r ON r.parent = m.name
             WHERE r.employee = %(employee)s AND m.docstatus = 1
@@ -126,3 +128,31 @@ def day_bounds(from_date, to_date):
         datetime.combine(getdate(from_date), time.min),
         datetime.combine(getdate(to_date) + timedelta(days=1), time.min),
     )
+
+
+def activity_breakdown(employee, from_date, to_date):
+    """One employee's tracked time in the period (to_date included), every second counted
+    once by the rule above, split into parts that add up to "total" (seconds):
+    call_incoming / call_outgoing / call_other (calls with a customer or other party),
+    call_internal_incoming / call_internal_outgoing / call_internal_other (link_to Company),
+    meeting_internal / meeting_external, application_web (a URL) / application_app,
+    plus the sums call, meeting and application. Idle time is not subtracted here.
+    """
+    totals = defaultdict(float)
+    start_at, end_at = day_bounds(from_date, to_date)
+    for start, end, rank, item in allocate(employee_activity(employee, start_at, end_at)):
+        seconds = (end - start).total_seconds()
+        if rank == CALL:
+            kind = {"Incoming": "incoming", "Outgoing": "outgoing"}.get(item.calltype, "other")
+            part = f"call_internal_{kind}" if item.is_internal else f"call_{kind}"
+            group = "call"
+        elif rank == MEETING:
+            part = "meeting_internal" if item.is_internal else "meeting_external"
+            group = "meeting"
+        else:
+            part = "application_web" if item.is_web else "application_app"
+            group = "application"
+        totals[part] += seconds
+        totals[group] += seconds
+        totals["total"] += seconds
+    return {key: round(value) for key, value in totals.items()}

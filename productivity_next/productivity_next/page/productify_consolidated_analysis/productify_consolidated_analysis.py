@@ -6,6 +6,7 @@ from collections import defaultdict
 from frappe.utils import now_datetime
 from productivity_next.api import calculate_total_working_hours
 from productivity_next.access import check_employee_access, visible_employees
+from productivity_next.activity_time import activity_breakdown
 from productivity_next.access import validate_sql_args
 
 # Convert start date from 2024-07-17 to 2024-07-17 00:00:00 and end date from 2024-07-17 to 2024-07-17 23:59:59 code starts
@@ -676,6 +677,23 @@ def user_analysis_data(start_date=None, end_date=None):
         overdue_tasks[employee['name']] = overdue_tasks_user_id.get(employee['user_id'], 0)
         completed_tasks[employee['name']] = completed_tasks_by_user_id.get(employee['user_id'], 0)
     
+    # Every second counts once (activity_time: a call wins over a meeting, a meeting over the
+    # desktop timer): totals and call/meeting durations per employee come from one split
+    for employee_row in employees:
+        employee_name = employee_row['name']
+        breakdown = activity_breakdown(employee_name, start_date, end_date)
+        if employee_name in total_hours_per_employee or breakdown.get("total"):
+            total_hours_per_employee[employee_name] = breakdown.get("total", 0)
+        if employee_name in employee_fincall_data:
+            employee_fincall_data[employee_name]['total_incoming_duration'] = (
+                breakdown.get("call_incoming", 0) + breakdown.get("call_internal_incoming", 0)
+            )
+            employee_fincall_data[employee_name]['total_outgoing_duration'] = (
+                breakdown.get("call_outgoing", 0) + breakdown.get("call_internal_outgoing", 0)
+            )
+        if employee_name in meetings_external_employee:
+            meetings_external_employee[employee_name]["duration"] = breakdown.get("meeting", 0)
+
     return {
         "total_days": total_days,
         "total_hours_per_employee": total_hours_per_employee,
