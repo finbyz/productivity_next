@@ -1,0 +1,238 @@
+{
+ "actions": [],
+ "autoname": "MCL-.YYYY.-.#######",
+ "creation": "2026-11-25 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "provider",
+  "meeting_subject",
+  "status",
+  "is_meeting_created",
+  "cb_1",
+  "actual_start",
+  "actual_end",
+  "meeting_type",
+  "organizer_section",
+  "organizer",
+  "organizer_email",
+  "organizer_user_id",
+  "accessed_as",
+  "cb_2",
+  "participant_count",
+  "participants",
+  "ids_section",
+  "call_id",
+  "online_meeting_id",
+  "transcript_id",
+  "cb_3",
+  "join_web_url",
+  "transcript_section",
+  "raw_vtt",
+  "raw_section",
+  "raw_payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "provider",
+   "fieldtype": "Select",
+   "label": "Provider",
+   "options": "Microsoft Teams\nGoogle Meet",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "meeting_subject",
+   "fieldtype": "Data",
+   "label": "Meeting Subject",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nCall Record Received\nTranscript Fetch Failed\nComplete",
+   "default": "Pending",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_meeting_created",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Meeting Created"
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actual_start",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Actual Start",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_end",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Actual End",
+   "read_only": 1
+  },
+  {
+   "fieldname": "meeting_type",
+   "fieldtype": "Data",
+   "label": "Meeting Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "organizer_section",
+   "fieldtype": "Section Break",
+   "label": "Organizer and Participants"
+  },
+  {
+   "fieldname": "organizer",
+   "fieldtype": "Data",
+   "label": "Organizer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "organizer_email",
+   "fieldtype": "Data",
+   "label": "Organizer Email",
+   "read_only": 1
+  },
+  {
+   "fieldname": "organizer_user_id",
+   "fieldtype": "Data",
+   "label": "Organizer User ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accessed_as",
+   "fieldtype": "Data",
+   "label": "Read As (Google)",
+   "read_only": 1,
+   "options": "Email",
+   "description": "Google Meet: the internal user whose access is used to read this conference record and its transcript."
+  },
+  {
+   "fieldname": "cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "participant_count",
+   "fieldtype": "Int",
+   "label": "Participant Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "participants",
+   "fieldtype": "Long Text",
+   "label": "Participants",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ids_section",
+   "fieldtype": "Section Break",
+   "label": "Provider IDs",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "call_id",
+   "fieldtype": "Data",
+   "label": "Call ID",
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "Teams callRecord id, or Google Meet conferenceRecords/... name.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "online_meeting_id",
+   "fieldtype": "Small Text",
+   "label": "Online Meeting ID",
+   "description": "Teams onlineMeeting id, or Google Meet space name.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transcript_id",
+   "fieldtype": "Small Text",
+   "label": "Transcript ID",
+   "description": "Teams transcript id, or Google Meet transcript resource name.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "join_web_url",
+   "fieldtype": "Text",
+   "label": "Join URL",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transcript_section",
+   "fieldtype": "Section Break",
+   "label": "Transcript",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "raw_vtt",
+   "fieldtype": "Long Text",
+   "label": "Transcript (WebVTT)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "raw_section",
+   "fieldtype": "Section Break",
+   "label": "Raw Data",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "raw_payload",
+   "fieldtype": "Long Text",
+   "label": "Raw Payload (JSON)",
+   "description": "Call record (Teams) or conference record (Google Meet) as received.",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-25 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Productivity Next",
+ "name": "Meeting Call Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "meeting_subject",
+ "show_title_field_in_link": 0,
+ "track_changes": 0
+}

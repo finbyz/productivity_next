@@ -22,6 +22,7 @@ doctype_js = {
     "Auto Repeat": "public/js/doctype_js/auto_repeat.js",
     "Notification": "public/js/doctype_js/notification.js",
     "Task": "public/js/doctype_js/task.js",
+    "Meeting": "public/js/doctype_js/meeting_minutes.js",
 }
 
 doctype_list_js = {
@@ -51,6 +52,15 @@ extend_doctype_class = {
 # Hook on document methods and events
 before_migrate = ["productivity_next.schedule.create_auto_email_report","productivity_next.schedule.create_auto_email_report_weekly"]
 doc_events = {
+    "Meeting": {
+        "before_validate": "productivity_next.meeting_sync.meeting_events.before_validate",
+    },
+    "Meeting Call Log": {
+        "on_update": "productivity_next.meeting_sync.meeting_events.queue_missing_meeting",
+    },
+    "Communication": {
+        "before_insert": "productivity_next.meeting_sync.minutes_email.on_communication_before_insert",
+    },
     "Task": {
         "on_change": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
         "after_delete": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
@@ -98,12 +108,17 @@ scheduler_events = {
     "cron": {
         "*/15 * * * *": [
             "productivity_next.task_enhancement.employee_task_notifications.retry_pending_notifications",
+            "productivity_next.meeting_sync.tasks.google_every_15_minutes",
         ],
         "0 6 * * *": [
             "productivity_next.task_enhancement.employee_task_notifications.morning_warmup_and_notify",
         ],
         "*/10 * * * *": [
             "productivity_next.task_enhancement.employee_task_notifications.remind_pending_tasks",
+            "productivity_next.meeting_sync.tasks.teams_every_10_minutes",
+        ],
+        "*/30 * * * *": [
+            "productivity_next.meeting_sync.tasks.teams_every_30_minutes",
         ],
         "0 1 * * *": [
             "productivity_next.schedule.create_productify_work_summary",
@@ -131,6 +146,7 @@ scheduler_events = {
         #     "productivity_next.schedule.send_weekly_report",
         # ]
     },
+    "hourly_long": ["productivity_next.meeting_sync.tasks.google_hourly"],
     "daily": [
         "productivity_next.schedule.create_working_hours_exceptions"
     ]
@@ -158,3 +174,4 @@ fixtures = [
 
 # before_install = "productivity_next.install.before_install"
 after_install = "productivity_next.setup.install.after_install"
+after_migrate = "productivity_next.meeting_sync.install.ensure_meeting_fields"
