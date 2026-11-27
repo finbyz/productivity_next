@@ -120,7 +120,7 @@ def shift_synced_start_past_overlaps(doc):
 def prevent_synced_time_change(doc):
 	# The form makes these fields read-only; this also covers API, import and scripts.
 	# Runs in before_validate because the sync saves with flags.ignore_validate;
-	# the sync itself sets flags.from_productivity_next.meeting_sync.
+	# the sync itself sets flags.from_meeting_sync.
 	if doc.is_new() or doc.flags.from_meeting_sync or not doc.get("meeting_call_log"):
 		return
 	for fieldname in SYNCED_LOCKED_FIELDS:

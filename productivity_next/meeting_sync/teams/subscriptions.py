@@ -97,6 +97,7 @@ def is_teams_sync_enabled():
 
 @frappe.whitelist()
 def queue_ensure_subscriptions():
+    frappe.only_for("System Manager")
     frappe.enqueue(
         "productivity_next.meeting_sync.teams.subscriptions.ensure_subscriptions",
         queue="long",
