@@ -2177,7 +2177,12 @@ def get_tasks(assignee=None, start_date=None, end_date=None,filters=None):
             | (
                 (Task.status == "Completed")
                 & (Task.completed_on.between(start_date, end_date))
-                & (Task.completed_by == assignee)
+                # Completed by them, or they were assigned (completed ToDos stay in _assign)
+                & (
+                    (Task.completed_by == assignee)
+                    | (Task._assign.like(f'%"{assignee}"%'))
+                    | (Task.assignee == assignee)
+                )
             )
         )
         .orderby(Task.modified, order=Order.desc)

@@ -580,6 +580,22 @@ def clomplete_all_assignments(doctype, name, ignore_permissions=False):
 
 	return True
 
+
+def keep_assignment_on_completed_task(doc, method=None):
+	"""ToDo validate: a ToDo of a Completed Task that is set to "Closed" is stored as "Completed",
+	the status Task completion itself gives (clomplete_all_assignments). Frappe drops Closed and
+	Cancelled ToDos from the Task's Assigned To (_assign), so the people would vanish from it and
+	from their Productify task list for that day. Productify Desktop closes every ToDo as "Closed"
+	right after completing a task. Removing someone (Cancelled) and open tasks are unchanged."""
+	if doc.reference_type != "Task" or not doc.reference_name or doc.status != "Closed":
+		return
+	if frappe.db.get_value("Task", doc.reference_name, "status") != "Completed":
+		return
+	doc.status = "Completed"
+	if not doc.is_new() and doc.get_db_value("status") == "Completed":
+		# Status does not change, so no "assignment removed" comment either
+		doc._assignment = None
+
 def senior_users(user):
 	"""Users above this user's Employee record in the reports_to chain."""
 	seniors = set()

@@ -65,6 +65,9 @@ doc_events = {
         "on_change": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
         "after_delete": "productivity_next.task_enhancement.employee_task_notifications.queue_task_sync",
     },
+    "ToDo": {
+        "validate": "productivity_next.task_enhancement.overrides.doctype.task.keep_assignment_on_completed_task",
+    },
     "Employee": {
         "on_change": "productivity_next.task_enhancement.employee_task_notifications.queue_employee_refresh",
         "after_delete": "productivity_next.task_enhancement.employee_task_notifications.queue_employee_refresh",
